@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Об'єднаний Симулятор K-means (2D & 3D)</title>
+    
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+        /* --- ЗАГАЛЬНІ СТИЛІ --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Скрол буде всередині вкладок */
+        }
+
+        /* --- СТИЛІ ВАНЕЛІ ВКЛАДОК (TABS) --- */
+        .tabs-nav {
+            display: flex;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+            padding: 0 20px;
+        }
+        .tab-button {
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: #555;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-button:hover {
+            background-color: #f8f9fa;
+            color: #007bff;
+        }
+        .tab-button.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+        
+        /* Контейнер для вмісту вкладок */
+        .tab-content {
+            display: none; /* Приховано за замовчуванням */
+            flex-grow: 1;
+            overflow: auto; /* Скрол для контенту */
+            position: relative;
+            height: 100%;
+        }
+        .tab-content.active {
+            display: flex; /* 3D вимагає flex, 2D підлаштуємо */
+            flex-direction: column;
+        }
+
+        /* --- СТИЛІ ДЛЯ 2D СИМУЛЯТОРА --- */
+        #tab-2d {
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            display: none; /* Перевизначається класом .active */
+        }
+        #tab-2d.active {
+            display: flex;
+        }
+
+        .controls-2d {
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls-2d label { font-weight: bold; }
+        .controls-2d input[type="number"] { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .controls-2d select { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* Загальні кнопки */
+        button {
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-manual { background-color: #28a745; }
+        .btn-manual:hover { background-color: #218838; }
+        .btn-reset { background-color: #dc3545; }
+        .btn-reset:hover { background-color: #c82333; }
+
+        #simulation-container-2d {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        #main-canvas-2d {
+            position: relative;
+            z-index: 2;
+            background: transparent;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        #voronoi-canvas-2d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            background: #fff;
+            border-radius: 8px;
+        }
+        #tooltip-2d {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 3;
+        }
+        #theory-container-2d {
+            margin-top: 20px;
+            width: 800px;
+            max-width: 100%;
+            padding-bottom: 40px;
+        }
+
+        /* --- СТИЛІ ДЛЯ 3D СИМУЛЯТОРА --- */
+        #tab-3d {
+            padding: 10px;
+            box-sizing: border-box;
+            height: 100%;
+            overflow: hidden; /* Прибираємо скрол самого контейнера */
+        }
+        /* Wrapper для 3D (Flex layout) */
+        #app-wrapper-3d {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            gap: 10px;
+        }
+        #main-content-3d {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            flex-grow: 1;
+            min-height: 0; 
+        }
+        #simulation-container-3d {
+            flex-grow: 1;
+            position: relative;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            min-width: 0;
+        }
+        #three-canvas-3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #fff;
+            border-radius: 8px;
+        }
+        #main-controls-panel-3d {
+            width: 240px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        .control-group-3d {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .control-group-3d:last-child { border-bottom: none; }
+        .control-group-3d label { font-weight: bold; font-size: 14px; margin-bottom: -5px; }
+        .control-group-3d input[type="number"], .control-group-3d select { width: 100%; box-sizing: border-box; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .checkbox-label-3d { display: flex; align-items: center; font-weight: normal; font-size: 14px; cursor: pointer; gap: 5px; }
+        
+        /* Вертикальний слайдер */
+        .vertical-slider-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 0;
+            height: 150px;
+        }
+        #density-slider-3d {
+            writing-mode: bt-lr; /* IE/Edge */
+            appearance: slider-vertical; /* Chrome/Safari */
+            width: 8px;
+            height: 120px;
+        }
+        
+        #theory-container-3d {
+            width: 100%;
+            height: 25vh;
+            flex-shrink: 0;
+            overflow-y: auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        #tooltip-3d {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Спільні стилі для Theory Details */
+        details {
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px; 
+            /* Для 2D це було важливо, для 3D теж не завадить */
+            box-shadow: none; 
+        }
+        summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+        p, li { line-height: 1.6; }
+        pre { background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        code { font-family: "Courier New", Courier, monospace; }
+    </style>
+</head>
+<body>
+
+    <div class="tabs-nav">
+        <button class="tab-button active" onclick="openTab('2d')">2D Симулятор</button>
+        <button class="tab-button" onclick="openTab('3d')">3D Симулятор</button>
+    </div>
+
+    <div id="tab-2d" class="tab-content active">
+        <h1>K-means Clustering Simulator (2D)</h1>
+
+        <div class="controls-2d" id="controls-2d">
+            <label for="k-input-2d">K:</label>
+            <input type="number" id="k-input-2d" value="3" min="1" max="10">
+            
+            <label for="metric-select-2d">Метрика:</label>
+            <select id="metric-select-2d">
+                <option value="euclidean">Евклідова</option>
+                <option value="manhattan">Манхеттенська</option>
+            </select>
+            
+            <button id="btn-gen-points-2d">Генерувати точки (50)</button>
+            <button id="btn-random-centroids-2d">Авто-центри</button>
+            <button id="btn-manual-centroids-2d" class="btn-manual">Задати центри вручну</button>
+            
+            <button id="btn-step-2d" disabled>Крок</button>
+            <button id="btn-run-2d" disabled>Запустити/Зупинити</button>
+            <button id="btn-reset-2d" class="btn-reset">Скинути все</button>
+        </div>
+        
+        <div class="controls-2d">
+            <input type="checkbox" id="chk-lines-2d" checked>
+            <label for="chk-lines-2d">Показати лінії до центрів</label>
+            
+            <input type="checkbox" id="chk-voronoi-2d">
+            <label for="chk-voronoi-2d">Показати межі Вороного</label>
+        </div>
+
+        <div id="simulation-container-2d">
+            <canvas id="voronoi-canvas-2d" width="800" height="500"></canvas>
+            <canvas id="main-canvas-2d" width="800" height="500"></canvas>
+            <div id="tooltip-2d">Клік: додати точку | ПКМ: видалити | Drag: перемістити</div>
+        </div>
+
+        <div id="theory-container-2d">
+            <details>
+                <summary>📖 Теорія: Алгоритм K-means</summary>
+                
+                <h3>Що таке K-means?</h3>
+                <p>
+                    <b>K-means (K-середніх)</b> — це один з найпопулярніших алгоритмів **навчання без вчителя** (unsupervised learning), який використовується для **кластеризації**. Його мета — розділити набір $N$ точок даних на $K$ кластерів (груп), де кожна точка належить до кластера з найближчим "центром" або **центроїдом**.
+                </p>
+
+                <h3>Як працює алгоритм?</h3>
+                <p>Алгоритм працює ітеративно, повторюючи два основні кроки:</p>
+                <ol>
+                    <li>
+                        <b>Крок присвоєння (Assignment Step):</b>
+                        Кожна точка даних $x_i$ присвоюється до найближчого центроїда $\mu_k$. "Найближчий" означає найменшу відстань $d$ за обраною **метрикою**.
+                        $$ S_k^{(t)} = \{ x_i : d(x_i, \mu_k^{(t)}) \le d(x_i, \mu_j^{(t)}) \text{ для всіх } j=1, \dots, K \} $$
+                    </li>
+                    <li>
+                        <b>Крок оновлення (Update Step):</b>
+                        Позиція кожного центроїда $\mu_k$ перераховується як <b>середнє арифметичне</b> (центр мас) усіх точок $x_i$, які були присвоєні до його кластера $S_k^{(t)}$ на попередньому кроці.
+                        $$ \mu_k^{(t+1)} = \frac{1}{|S_k^{(t)}|} \sum_{x_i \in S_k^{(t)}} x_i $$
+                    </li>
+                </ol>
+                <p>
+                    Алгоритм повторює ці два кроки (Присвоєння $\rightarrow$ Оновлення $\rightarrow$ Присвоєння $\rightarrow$ ...) доти, доки центроїди не перестануть суттєво змінювати своє положення (алгоритм <b>зійшовся</b>).
+                </p>
+
+                <h3>Метрики відстані</h3>
+                <p>
+                    "Найближчий" — поняття відносне і залежить від того, як ми вимірюємо відстань (яку <b>метрику</b> використовуємо). K-means може працювати з різними метриками:
+                </p>
+                <ul>
+                    <li>
+                        <b>Евклідова відстань (Euclidean, $L_2$):</b>
+                        Це звичайна, "пряма" відстань між двома точками $P_1(x_1, y_1)$ та $P_2(x_2, y_2)$ у просторі. 
+                        $$ d_E = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2} $$
+                        Евклідова метрика створює кластери сферичної (круглої) форми.
+                    </li>
+                    <li>
+                        <b>Манхеттенська відстань (Manhattan, $L_1$):</b>
+                        Також відома як "відстань міських кварталів". Це сума абсолютних різниць за кожною координатою.
+                        $$ d_M = |x_2 - x_1| + |y_2 - y_1| $$
+                        Манхеттенська метрика створює кластери, що мають форму ромба (повернутого на 45° квадрата).
+                    </li>
+                </ul>
+
+                <h3>Діаграма Вороного та K-means</h3>
+                <p>
+                    <b>Діаграма Вороного</b> — це спосіб розділити площину на регіони (<b>комірки Вороного</b>) на основі набору точок (у нашому випадку — центроїдів). Кожна комірка $R_k$ містить усі точки площини, які знаходяться *ближче* до центроїда $\mu_k$, ніж до будь-якого іншого центроїда.
+                </p>
+                <ul>
+                    <li><b>Крок присвоєння</b> в K-means — це, по суті, побудова діаграми Вороного для поточних центроїдів і визначення, в яку комірку потрапляє кожна точка даних.</li>
+                    <li><b>Крок оновлення</b> — це переміщення центроїда в "центр мас" усіх точок, що опинилися в його комірці.</li>
+                </ul>
+                <p>
+                    У симуляторі <b>червоний контур</b> на точці (при увімкнених межах Вороного) означає, що ця точка належить до одного кластера (за кольором), але фізично знаходиться в комірці Вороного *іншого* центроїда. Це візуальний індикатор того, що алгоритм ще <b>не зійшовся</b>.
+                </p>
+                
+                <h3>Де використовується K-means?</h3>
+                <p>K-means широко використовується для:</p>
+                <ul>
+                    <li><b>Сегментації ринку:</b> Групування клієнтів за поведінкою або демографією.</li>
+                    <li><b>Аналізу документів:</b> Групування новин або статей за темами.</li>
+                    <li><b>Виявлення аномалій:</b> Точки, що знаходяться дуже далеко від будь-якого центроїда, можуть бути викидами.</li>
+                    <li><b>Стиснення зображень (Векторизація кольорів)</b>.</li>
+                </ul>
+
+                <hr>
+                <h4>Застосування: Векторизація кольорів (Color Quantization)</h4>
+                <p>
+                    Одне з найцікавіших застосувань K-means — це <b>стиснення зображень</b> шляхом зменшення кількості кольорів (векторизація або квантування кольорів).
+                </p>
+                <p>
+                    Уявіть, що у вас є повноколірне зображення (24-біт, True Color). Кожен піксель у ньому описується трьома значеннями: $(R, G, B)$ — Червоний, Зелений, Синій. Це понад 16 мільйонів можливих кольорів. Наша мета — скоротити цю палітру, наприклад, до $K=16$ кольорів, зберігши при цьому візуальну якість.
+                </p>
+                <p><b>Як K-means вирішує цю задачу:</b></p>
+                <ol>
+                    <li>
+                        <b>Підготовка даних:</b> Кожен піксель зображення стає точкою даних. Це <b>тривимірні</b> дані (виміри: R, G, B). Наприклад, зображення 1000x800 пікселів дає нам $N=800,000$ точок у 3D-просторі кольорів.
+                    </li>
+                    <li>
+                       <b>Кластеризація:</b> Ми запускаємо K-means з $K=16$. Алгоритм знаходить 16 "середніх" кольорів, які найкраще представляють усі кольори зображення.
+                    </li>
+                    <li>
+                        <b>Заміна кольорів:</b> Кожен піксель зображення замінюється на найближчий центроїд (один з 16 кольорів).
+                    </li>
+                </ol>
+                <p>
+                    <b>Результат:</b> Замість того, щоб зберігати 24 біти для кожного пікселя, ми тепер зберігаємо невелику палітру ($K \times 24$ біт) і для кожного пікселя зберігаємо лише його індекс у цій палітрі (наприклад, для $K=16$ потрібно всього 4 біти на піксель). Це основа таких форматів, як GIF.
+                </p>
+                <hr>
+                <h3>Переваги та недоліки</h3>
+                <h4>✅ Переваги:</h4>
+                <ul>
+                    <li><b>Простота та швидкість:</b> Легко реалізувати, обчислювально ефективний. Складність $O(N \cdot K \cdot I \cdot D)$, де $N$ - точки, $K$ - кластери, $I$ - ітерації, $D$ - розмірність (у нас $D=2$, у задачі з кольорами $D=3$).</li>
+                </ul>
+                <h4>❌ Недоліки:</h4>
+                <ul>
+                    <li><b>Необхідно знати $K$:</b> Потрібно заздалегідь вказати кількість кластерів.</li>
+                    <li><b>Чутливість до ініціалізації:</b> Різні початкові центри можуть призвести до різних результатів.</li>
+                    <li><b>Форма кластерів:</b> K-means "очікує" знайти кластери сферичної (Euclidean) або ромбовидної (Manhattan) форми.</li>
+                </ul>
+            </details>
+        </div>
+    </div>
+
+    <div id="tab-3d" class="tab-content">
+        <div id="app-wrapper-3d">
+
+            <div id="main-content-3d">
+                
+                <div id="simulation-container-3d">
+                    <canvas id="three-canvas-3d"></canvas>
+                    <div id="tooltip-3d">ЛКМ+Drag: обертати | ПКМ+Drag: панорамувати | Коліщатко: зум</div>
+                </div>
+    
+                <div id="main-controls-panel-3d">
+                    
+                    <div class="control-group-3d">
+                        <label for="k-input-3d">Кластери (K):</label>
+                        <input type="number" id="k-input-3d" value="3" min="1" max="10">
+                        
+                        <label for="metric-select-3d">Метрика:</label>
+                        <select id="metric-select-3d">
+                            <option value="euclidean">Евклідова</option>
+                            <option value="manhattan">Манхеттенська</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group-3d">
+                        <label for="density-slider-3d">Скупченість:</label>
+                        <div class="vertical-slider-container">
+                            <input type="range" id="density-slider-3d" min="0" max="0.95" step="0.05" value="0.7">
+                        </div>
+                    </div>
+    
+                    <div class="control-group-3d">
+                        <label>Дані:</label>
+                        <button id="btn-gen-points-3d">Генерувати (30)</button>
+                        <button id="btn-random-centroids-3d">Авто-центри</button>
+                        <button id="btn-manual-centroids-3d" class="btn-manual">Задати центри вручну</button>
+                    </div>
+                    
+                    <div class="control-group-3d">
+                        <label>Симуляція:</label>
+                        <button id="btn-step-3d" disabled>Крок</button>
+                        <button id="btn-run-3d" disabled>Запустити/Зупинити</button>
+                        <button id="btn-reset-3d" class="btn-reset">Скинути все</button>
+                    </div>
+    
+                    <div class="control-group-3d">
+                        <label>Візуалізація:</label>
+                        <label class="checkbox-label-3d">
+                            <input type="checkbox" id="chk-lines-3d" checked>
+                            Показати лінії
+                        </label>
+                        <label class="checkbox-label-3d">
+                            <input type="checkbox" id="chk-voronoi-3d">
+                            Межі Вороного (K=2, 3)
+                        </label>
+                    </div>
+    
+                </div>
+    
+            </div>
+    
+            <div id="theory-container-3d">
+                <details open>
+                    <summary>📖 Теорія: Алгоритм K-means (3D)</summary>
+                    
+                    <h3>Що таке K-means?</h3>
+                    <p>
+                        <b>K-means (K-середніх)</b> — це алгоритм **навчання без вчителя** для **кластеризації**. Його мета — розділити набір $N$ точок даних (у 3D-просторі це $x_i = (x, y, z)$) на $K$ кластерів, де кожна точка належить до кластера з найближчим **центроїдом**.
+                    </p>
+    
+                    <h3>Як працює алгоритм?</h3>
+                    <p>Алгоритм працює ітеративно, повторюючи два основні кроки:</p>
+                    <ol>
+                        <li>
+                            <b>Крок присвоєння (Assignment Step):</b>
+                            Кожна точка даних $x_i$ присвоюється до найближчого центроїда $\mu_k$ за обраною метрикою $d$.
+                            $$ S_k^{(t)} = \{ x_i : d(x_i, \mu_k^{(t)}) \le d(x_i, \mu_j^{(t)}) \text{ для всіх } j=1, \dots, K \} $$
+                        </li>
+                        <li>
+                            <b>Крок оновлення (Update Step):</b>
+                            Позиція кожного центроїда $\mu_k$ перераховується як <b>середнє арифметичне</b> (центр мас) усіх точок $x_i$, які були присвоєні до його кластера $S_k^{(t)}$.
+                            $$ \mu_k^{(t+1)} = \frac{1}{|S_k^{(t)}|} \sum_{x_i \in S_k^{(t)}} x_i $$
+                        </li>
+                    </ol>
+                    
+                    <h3>Метрики відстані (у 3D)</h3>
+                    <ul>
+                        <li>
+                            <b>Евклідова відстань (Euclidean, $L_2$):</b>
+                            $$ d_E = \sqrt{(x_2 - x_1)^2 + (y_2 - y1)^2 + (z_2 - z_1)^2} $$
+                        </li>
+                        <li>
+                            <b>Манхеттенська відстань (Manhattan, $L_1$):</b>
+                            $$ d_M = |x_2 - x_1| + |y_2 - y_1| + |z_2 - z_1| $$
+                        </li>
+                    </ul>
+    
+                    <h3>Діаграма Вороного (у 3D)</h3>
+                    <p>
+                        Межі Вороного показують області, де кожна точка простору ближча до одного центроїда, ніж до інших.
+                    </p>
+                    <ul>
+                        <li><b>K=2:</b> Межа — це одна площина, що тепер коректно обрізана межами симуляції.</li>
+                        <li><b>K=3:</b> Межі — це три напівплощини, що сходяться на центральному ребрі. Вони також обрізані межами симуляції.</li>
+                    </ul>
+                </details>
+            </div>
+    
+        </div>
+    </div>
+
+    <script>
+        function openTab(tabName) {
+            // Приховати всі вкладки
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+
+            // Деактивувати всі кнопки
+            const tabButtons = document.getElementsByClassName("tab-button");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+
+            // Показати обрану
+            document.getElementById("tab-" + tabName).classList.add("active");
+            
+            // Знайти кнопку, яка була натиснута (трохи спрощено)
+            // Оскільки функція викликається з кнопки, ми можемо оновити стилі кнопок
+            const buttonsArray = Array.from(tabButtons);
+            const targetBtn = buttonsArray.find(btn => btn.textContent.toLowerCase().includes(tabName));
+            if(targetBtn) targetBtn.classList.add("active");
+
+            // ВАЖЛИВО: При перемиканні на 3D, треба надіслати подію resize, 
+            // щоб Three.js перерахував розміри канви (інакше вона може бути 0x0)
+            if (tabName === '3d') {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 50);
+            }
+        }
+    </script>
+
+    <script>
+    // Ізолюємо скоуп 2D змінних
+    (function() {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Перевіримо наявність елементів (на випадок, якщо ID змінені)
+            if(!document.getElementById('main-canvas-2d')) return;
+
+            // --- Елементи DOM ---
+            const canvas = document.getElementById('main-canvas-2d');
+            const ctx = canvas.getContext('2d');
+            const voronoiCanvas = document.getElementById('voronoi-canvas-2d');
+            const vCtx = voronoiCanvas.getContext('2d');
+            
+            const kInput = document.getElementById('k-input-2d');
+            const metricSelect = document.getElementById('metric-select-2d');
+            
+            const chkLines = document.getElementById('chk-lines-2d');
+            const chkVoronoi = document.getElementById('chk-voronoi-2d');
+            const tooltip = document.getElementById('tooltip-2d');
+
+            const btnGenPoints = document.getElementById('btn-gen-points-2d');
+            const btnRandomCentroids = document.getElementById('btn-random-centroids-2d');
+            const btnManualCentroids = document.getElementById('btn-manual-centroids-2d');
+            const btnStep = document.getElementById('btn-step-2d');
+            const btnRun = document.getElementById('btn-run-2d');
+            const btnReset = document.getElementById('btn-reset-2d');
+
+            // --- Стан симуляції ---
+            let points = [];
+            let centroids = [];
+            let k = parseInt(kInput.value);
+            
+            // Палітра кольорів (до 10 кластерів)
+            const colors = [
+                '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', 
+                '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4'
+            ];
+
+            let algorithmState = 'assign'; // 'assign' or 'update'
+            let runInterval = null;
+            let settingCentroids = false; // Режим ручного встановлення центрів
+            
+            // Drag & Drop
+            let isDragging = false;
+            let draggedPointIndex = -1;
+
+            // Поточна метрика
+            let currentMetric = 'euclidean';
+
+            // --- Основні функції ---
+
+            function generatePoints(count = 50) {
+                points = [];
+                for (let i = 0; i < count; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        cluster: null
+                    });
+                }
+                draw();
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Лінії до центрів
+                if (chkLines.checked) {
+                    for (const point of points) {
+                        if (point.cluster !== null) {
+                            const centroid = centroids[point.cluster];
+                            ctx.beginPath();
+                            ctx.moveTo(point.x, point.y);
+                            
+                            if (currentMetric === 'manhattan') {
+                                // Малюємо "ламану" лінію: горизонтально, потім вертикально
+                                ctx.lineTo(centroid.x, point.y); // Горизонтальний сегмент
+                                ctx.lineTo(centroid.x, centroid.y); // Вертикальний сегмент
+                            } else {
+                                // Малюємо пряму (Евклідова)
+                                ctx.lineTo(centroid.x, centroid.y);
+                            }
+                            
+                            ctx.strokeStyle = colors[point.cluster];
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                // Точки
+                for (const point of points) {
+                    ctx.beginPath();
+                    // Якщо ввімкнено Вороного і точки присвоєні, перевіряємо "коректність"
+                    // (це більше для краси, основна логіка - колір)
+                    ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = (point.cluster !== null) ? colors[point.cluster] : '#999';
+                    ctx.fill();
+                    ctx.strokeStyle = '#000';
+                    
+                    // Якщо точка візуально в "чужій" зоні (тільки для демонстрації, тут спрощено)
+                    // У складній версії ми б перевіряли геометрично, але тут покладаємось на колір.
+                    ctx.stroke();
+                }
+
+                // Центроїди
+                for (let i = 0; i < centroids.length; i++) {
+                    const c = centroids[i];
+                    ctx.beginPath();
+                    // Малюємо X
+                    const size = 10;
+                    ctx.moveTo(c.x - size, c.y - size);
+                    ctx.lineTo(c.x + size, c.y + size);
+                    ctx.moveTo(c.x + size, c.y - size);
+                    ctx.lineTo(c.x - size, c.y + size);
+                    
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = colors[i];
+                    ctx.stroke();
+                    ctx.lineWidth = 1; // Reset
+                    
+                    // Обводка для контрасту
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.lineWidth = 1;
+                }
+            }
+
+            // Helper для конвертації hex в rgb
+            function hexToRgb(hex) {
+                var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+
+            function drawVoronoi() {
+                vCtx.clearRect(0, 0, voronoiCanvas.width, voronoiCanvas.height);
+                vCtx.fillStyle = '#ffffff';
+                vCtx.fillRect(0, 0, voronoiCanvas.width, voronoiCanvas.height);
+
+                if (!chkVoronoi.checked || centroids.length === 0) {
+                    draw(); // Перемалювати головний канвас, бо він зверху
+                    return;
+                }
+
+                const imageData = vCtx.createImageData(voronoiCanvas.width, voronoiCanvas.height);
+                const data = imageData.data;
+                const rgbColors = colors.map(hexToRgb);
+
+                // Оптимізація: Малюємо Вороного з меншою роздільною здатністю (наприклад, 4x4 пікселі)
+                const step = 4; 
+                
+                for (let y = 0; y < voronoiCanvas.height; y += step) {
+                    for (let x = 0; x < voronoiCanvas.width; x += step) {
+                        let minDist = Infinity;
+                        let closestK = -1;
+                        
+                        // Знаходимо найближчий центроїд для пікселя (x, y)
+                        for (let i = 0; i < centroids.length; i++) {
+                            const d = distance({x, y}, centroids[i]);
+                            if (d < minDist) {
+                                minDist = d;
+                                closestK = i;
+                            }
+                        }
+
+                        if (closestK !== -1) {
+                            const c = rgbColors[closestK];
+                            // Заповнюємо блок step x step
+                            for (let dy = 0; dy < step; dy++) {
+                                for (let dx = 0; dx < step; dx++) {
+                                    if (x + dx < voronoiCanvas.width && y + dy < voronoiCanvas.height) {
+                                        const index = ((y + dy) * voronoiCanvas.width + (x + dx)) * 4;
+                                        data[index] = c.r;
+                                        data[index + 1] = c.g;
+                                        data[index + 2] = c.b;
+                                        data[index + 3] = 50; // Прозорість (alpha)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                vCtx.putImageData(imageData, 0, 0);
+                draw(); // Перемалювати точки поверх
+            }
+
+            function assignPointsToClusters() {
+                if (centroids.length === 0) return false;
+                let changed = false;
+                for (const point of points) {
+                    const bestCluster = findNearestCentroid(point);
+                    if (point.cluster !== bestCluster) {
+                        point.cluster = bestCluster;
+                        changed = true;
+                    }
+                }
+                algorithmState = 'update';
+                return changed;
+            }
+
+            function updateCentroids() {
+                if (centroids.length === 0) return;
+                
+                const clusterSums = Array(k).fill(0).map(() => ({ x: 0, y: 0 }));
+                const clusterCounts = Array(k).fill(0);
+                
+                for (const point of points) {
+                    if (point.cluster !== null) {
+                        clusterSums[point.cluster].x += point.x;
+                        clusterSums[point.cluster].y += point.y;
+                        clusterCounts[point.cluster]++;
+                    }
+                }
+
+                for (let i = 0; i < k; i++) {
+                    if (clusterCounts[i] > 0) {
+                        centroids[i].x = clusterSums[i].x / clusterCounts[i];
+                        centroids[i].y = clusterSums[i].y / clusterCounts[i];
+                    } else {
+                        // Якщо кластер порожній, перемістити в випадкове місце (стратегія порятунку)
+                        centroids[i].x = Math.random() * canvas.width;
+                        centroids[i].y = Math.random() * canvas.height;
+                    }
+                }
+                algorithmState = 'assign';
+                drawVoronoi(); // Перемалювати все
+            }
+
+            // --- Функції-помічники ---
+            function distance(p1, p2) {
+                if (currentMetric === 'manhattan') {
+                    return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y);
+                }
+                // Euclidean
+                return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+            }
+
+            function findNearestCentroid(point) {
+                let minDistance = Infinity;
+                let bestCluster = -1;
+                for (let i = 0; i < centroids.length; i++) {
+                    const dist = distance(point, centroids[i]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        bestCluster = i;
+                    }
+                }
+                return bestCluster;
+            }
+
+            function getMousePos(evt) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+
+            function findNearestPoint(pos) {
+                for (let i = 0; i < points.length; i++) {
+                    const dist = Math.sqrt((points[i].x - pos.x)**2 + (points[i].y - pos.y)**2);
+                    if (dist < 10) return i;
+                }
+                return -1;
+            }
+            
+            function findNearestCentroidIndex(pos) {
+                 for (let i = 0; i < centroids.length; i++) {
+                    const dist = Math.sqrt((centroids[i].x - pos.x)**2 + (centroids[i].y - pos.y)**2);
+                    if (dist < 10) return i;
+                }
+                return -1;
+            }
+
+            function resetPointAssignments() {
+                points.forEach(p => p.cluster = null);
+            }
+
+            // --- Event Listeners ---
+
+            kInput.addEventListener('change', () => {
+                k = parseInt(kInput.value);
+                if (k > 10) kInput.value = 10;
+                if (k < 1) kInput.value = 1;
+                k = parseInt(kInput.value);
+                
+                centroids = [];
+                settingCentroids = false;
+                resetPointAssignments();
+                updateButtonStates();
+                drawVoronoi();
+            });
+
+            metricSelect.addEventListener('change', (e) => {
+                currentMetric = e.target.value;
+                drawVoronoi();
+            });
+
+            btnGenPoints.addEventListener('click', () => {
+                generatePoints();
+                resetPointAssignments();
+                if (centroids.length > 0) {
+                    assignPointsToClusters(); // Одразу присвоїти, якщо центри є
+                    algorithmState = 'update';
+                }
+                draw();
+            });
+
+            btnRandomCentroids.addEventListener('click', () => {
+                settingCentroids = false;
+                centroids = [];
+                for (let i = 0; i < k; i++) {
+                    centroids.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height
+                    });
+                }
+                resetPointAssignments();
+                algorithmState = 'assign';
+                updateButtonStates();
+                updateTooltip();
+                drawVoronoi();
+            });
+
+            btnManualCentroids.addEventListener('click', () => {
+                settingCentroids = true;
+                centroids = [];
+                resetPointAssignments();
+                updateButtonStates();
+                updateTooltip();
+                drawVoronoi();
+            });
+
+            btnStep.addEventListener('click', () => {
+                if (algorithmState === 'assign') {
+                    assignPointsToClusters();
+                    draw(); // Тут достатньо draw, межі не міняються
+                } else {
+                    updateCentroids(); // Тут drawVoronoi всередині
+                }
+            });
+
+            btnRun.addEventListener('click', () => {
+                if (runInterval) {
+                    clearInterval(runInterval);
+                    runInterval = null;
+                    btnRun.textContent = 'Запустити';
+                } else {
+                    btnRun.textContent = 'Зупинити';
+                    runInterval = setInterval(() => {
+                        if (algorithmState === 'assign') {
+                            const changed = assignPointsToClusters();
+                            draw();
+                            if (!changed) {
+                                clearInterval(runInterval);
+                                runInterval = null;
+                                btnRun.textContent = 'Запустити';
+                                alert("Алгоритм зійшовся!");
+                            }
+                        } else {
+                            updateCentroids();
+                        }
+                    }, 500);
+                }
+            });
+
+            btnReset.addEventListener('click', () => {
+                if (runInterval) clearInterval(runInterval);
+                runInterval = null;
+                points = [];
+                centroids = [];
+                settingCentroids = false;
+                algorithmState = 'assign';
+                btnRun.textContent = 'Запустити';
+                updateButtonStates();
+                updateTooltip();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                vCtx.clearRect(0, 0, voronoiCanvas.width, voronoiCanvas.height);
+            });
+
+            chkLines.addEventListener('change', draw);
+            chkVoronoi.addEventListener('change', drawVoronoi);
+
+            // Mouse interactions
+            canvas.addEventListener('mousedown', (e) => {
+                const pos = getMousePos(e);
+                
+                if (settingCentroids) {
+                    if (centroids.length < k) {
+                        centroids.push(pos);
+                        updateButtonStates();
+                        updateTooltip();
+                        drawVoronoi();
+                        if (centroids.length === k) {
+                            settingCentroids = false;
+                            updateButtonStates();
+                            updateTooltip();
+                            // Auto start assignment
+                            resetPointAssignments();
+                            algorithmState = 'assign';
+                        }
+                    }
+                    return;
+                }
+
+                // Dragging check
+                const pointIndex = findNearestPoint(pos);
+                if (pointIndex !== -1) {
+                    if (e.button === 2) { // Right click -> Delete
+                        points.splice(pointIndex, 1);
+                        draw();
+                        e.preventDefault();
+                    } else {
+                        isDragging = true;
+                        draggedPointIndex = pointIndex;
+                    }
+                    return;
+                }
+                
+                // Dragging centroid
+                 const centroidIndex = findNearestCentroidIndex(pos);
+                if (centroidIndex !== -1 && !settingCentroids) {
+                     // We could implement dragging centroids, but for standard k-means logic
+                     // user usually drags data points. Let's stick to adding points.
+                }
+
+                // Add point
+                if (!isDragging && e.button === 0) {
+                    points.push({ x: pos.x, y: pos.y, cluster: null });
+                    if (centroids.length > 0) {
+                        // Швидкий update для нової точки
+                        const best = findNearestCentroid(points[points.length-1]);
+                        points[points.length-1].cluster = best;
+                    }
+                    draw();
+                }
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const pos = getMousePos(e);
+                if (isDragging && draggedPointIndex !== -1) {
+                    points[draggedPointIndex].x = pos.x;
+                    points[draggedPointIndex].y = pos.y;
+                    // Recalculate immediate cluster for visual feedback
+                    if (centroids.length > 0) {
+                         points[draggedPointIndex].cluster = findNearestCentroid(points[draggedPointIndex]);
+                    }
+                    draw();
+                } else if (!settingCentroids) {
+                    const pointIndex = findNearestPoint(pos);
+                    canvas.style.cursor = (pointIndex !== -1) ? 'move' : 'crosshair';
+                } else {
+                     canvas.style.cursor = 'pointer';
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                draggedPointIndex = -1;
+            });
+            canvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+                draggedPointIndex = -1;
+            });
+            
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+            // --- Керування станом UI ---
+            function updateButtonStates() {
+                const hasCentroids = centroids.length > 0;
+                btnStep.disabled = !hasCentroids || settingCentroids;
+                btnRun.disabled = !hasCentroids || settingCentroids;
+                
+                if (settingCentroids) {
+                    btnManualCentroids.textContent = `Встановіть центр ${centroids.length + 1}/${k}`;
+                    btnManualCentroids.disabled = true;
+                } else {
+                    btnManualCentroids.textContent = 'Задати центри вручну';
+                    btnManualCentroids.disabled = false;
+                }
+            }
+
+            function updateTooltip() {
+                if (settingCentroids) {
+                    tooltip.textContent = `Клікніть, щоб встановити центр ${centroids.length + 1} з ${k}`;
+                } else {
+                    tooltip.textContent = 'Клік: додати точку | ПКМ: видалити | Drag: перемістити';
+                }
+            }
+
+            // --- Початковий запуск ---
+            drawVoronoi();
+        });
+    })();
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { DragControls } from 'three/addons/controls/DragControls.js';
+
+        // Константи
+        const BOX_SIZE = 100;
+        const HALF_BOX = BOX_SIZE / 2;
+
+        // Площини для обмеження (Clipping Planes)
+        const clippingPlanes = [
+            new THREE.Plane(new THREE.Vector3( 1, 0, 0), HALF_BOX),
+            new THREE.Plane(new THREE.Vector3(-1, 0, 0), HALF_BOX),
+            new THREE.Plane(new THREE.Vector3( 0, 1, 0), HALF_BOX),
+            new THREE.Plane(new THREE.Vector3( 0,-1, 0), HALF_BOX),
+            new THREE.Plane(new THREE.Vector3( 0, 0,-1), HALF_BOX),
+            new THREE.Plane(new THREE.Vector3( 0, 0, 1), HALF_BOX)
+        ];
+
+        // --- Елементи DOM (3D) ---
+        const canvas = document.getElementById('three-canvas-3d');
+        const container = document.getElementById('simulation-container-3d'); 
+        
+        const kInput = document.getElementById('k-input-3d');
+        const metricSelect = document.getElementById('metric-select-3d');
+        const densitySlider = document.getElementById('density-slider-3d');
+        
+        const chkLines = document.getElementById('chk-lines-3d');
+        const chkVoronoi = document.getElementById('chk-voronoi-3d');
+        const tooltip = document.getElementById('tooltip-3d');
+        
+        const btnGenPoints = document.getElementById('btn-gen-points-3d');
+        const btnRandomCentroids = document.getElementById('btn-random-centroids-3d');
+        const btnManualCentroids = document.getElementById('btn-manual-centroids-3d');
+        const btnStep = document.getElementById('btn-step-3d');
+        const btnRun = document.getElementById('btn-run-3d');
+        const btnReset = document.getElementById('btn-reset-3d');
+
+        // --- Стан симуляції 3D ---
+        let points = [];
+        let centroids = [];
+        let k = parseInt(kInput.value);
+        const colorsTHREE = [
+            0xE6194B, 0x3CB44B, 0xFFE119, 0x4363D8, 0xF58231, 
+            0x911EB4, 0x42D4F4, 0xF032E6, 0xBFEF45, 0xFABED4
+        ];
+        const greyColor = 0xaaaaaa;
+
+        let algorithmState = 'assign'; 
+        let runInterval = null;
+        let settingCentroids = false;
+        let currentMetric = 'euclidean';
+
+        // --- Three.js змінні ---
+        let scene, camera, renderer, orbitControls, dragControls;
+        let raycaster, mouse;
+        let pointGroup, centroidGroup, lineGroup, voronoiGroup;
+        let invisiblePlane; // Для кліків
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+
+            // Камера
+            // Спочатку aspect може бути невірним, якщо вкладка прихована, оновиться при resize
+            const aspect = container.clientWidth / container.clientHeight || 1;
+            camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 5000);
+            camera.position.set(0, 0, BOX_SIZE * 1.5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.localClippingEnabled = true;
+
+            // Світло
+            scene.add(new THREE.AmbientLight(0xaaaaaa));
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(1, 1, 1);
+            scene.add(light);
+
+            // Групи об'єктів
+            pointGroup = new THREE.Group();
+            centroidGroup = new THREE.Group();
+            lineGroup = new THREE.Group();
+            voronoiGroup = new THREE.Group();
+            scene.add(pointGroup, centroidGroup, lineGroup, voronoiGroup);
+
+            // Допоміжні елементи
+            const gridHelper = new THREE.GridHelper(BOX_SIZE, 10);
+            gridHelper.rotation.x = Math.PI / 2; // Z-up visually or just flat
+            scene.add(gridHelper);
+
+            // Box outline
+            const boxGeom = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+            const edges = new THREE.EdgesGeometry(boxGeom);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.3, transparent: true });
+            const boxHelper = new THREE.LineSegments(edges, lineMat);
+            scene.add(boxHelper);
+
+            // Невидима площина для рейкастінгу (Z=0) для розміщення точок "на підлозі" за замовчуванням, 
+            // або просто для перехоплення кліків
+            const planeGeom = new THREE.PlaneGeometry(BOX_SIZE, BOX_SIZE);
+            const planeMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+            invisiblePlane = new THREE.Mesh(planeGeom, planeMat);
+            scene.add(invisiblePlane);
+
+            // Контроли
+            orbitControls = new OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Drag controls logic handled via standard Listeners because DragControls is tricky with points
+            // Але тут ми можемо використати просту логіку кліків з Raycaster
+            
+            window.addEventListener('resize', onWindowResize);
+            canvas.addEventListener('mousedown', onMouseDown);
+        }
+
+        // --- Логіка 3D Симуляції ---
+
+        function getRandomPos() {
+            return (Math.random() - 0.5) * BOX_SIZE * 0.9;
+        }
+
+        function createPointMesh(color) {
+            const geometry = new THREE.SphereGeometry(1.5, 16, 16);
+            const material = new THREE.MeshStandardMaterial({ color: color });
+            return new THREE.Mesh(geometry, material);
+        }
+
+        function addPoint(pos) {
+            const mesh = createPointMesh(greyColor);
+            mesh.position.copy(pos);
+            pointGroup.add(mesh);
+            points.push({ pos, mesh, cluster: null });
+        }
+
+        function generateData(count) {
+            // Очистити старі
+            points = [];
+            pointGroup.clear();
+
+            const density = parseFloat(densitySlider.value);
+            // Змішана стратегія: частина випадково, частина скупченнями
+            const numClusters = Math.floor(Math.random() * 3) + 2;
+            const centers = [];
+            for(let i=0; i<numClusters; i++) {
+                centers.push(new THREE.Vector3(getRandomPos(), getRandomPos(), getRandomPos()));
+            }
+
+            for (let i = 0; i < count; i++) {
+                let pos;
+                if (Math.random() < density) {
+                    // Близько до випадкового центру
+                    const center = centers[Math.floor(Math.random() * centers.length)];
+                    const offset = 20;
+                    pos = new THREE.Vector3(
+                        center.x + (Math.random()-0.5)*offset,
+                        center.y + (Math.random()-0.5)*offset,
+                        center.z + (Math.random()-0.5)*offset
+                    );
+                    // Clamp
+                    pos.x = Math.max(-HALF_BOX, Math.min(HALF_BOX, pos.x));
+                    pos.y = Math.max(-HALF_BOX, Math.min(HALF_BOX, pos.y));
+                    pos.z = Math.max(-HALF_BOX, Math.min(HALF_BOX, pos.z));
+                } else {
+                    pos = new THREE.Vector3(getRandomPos(), getRandomPos(), getRandomPos());
+                }
+                addPoint(pos);
+            }
+        }
+
+        function resetCentroids(clear = true) {
+            centroids = [];
+            centroidGroup.clear();
+            voronoiGroup.clear();
+            if(clear) {
+                points.forEach(p => {
+                    p.cluster = null;
+                    p.mesh.material.color.setHex(greyColor);
+                });
+                lineGroup.clear();
+            }
+            algorithmState = 'assign';
+            updateButtonStates();
+        }
+
+        function addCentroid(pos, clusterIndex) {
+            const geometry = new THREE.OctahedronGeometry(3); // Інша форма
+            const material = new THREE.MeshStandardMaterial({ 
+                color: colorsTHREE[clusterIndex], 
+                wireframe: true, 
+                wireframeLinewidth: 2 
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(pos);
+            centroidGroup.add(mesh);
+            centroids.push({ pos, mesh });
+        }
+
+        function updatePointColors() {
+            for (const point of points) {
+                const color = (point.cluster !== null) ? colorsTHREE[point.cluster] : greyColor;
+                point.mesh.material.color.setHex(color);
+            }
+        }
+
+        function updateCentroidPositions() {
+            for (let i = 0; i < centroids.length; i++) {
+                centroids[i].mesh.position.copy(centroids[i].pos);
+            }
+        }
+
+        function drawLines() {
+            lineGroup.clear();
+            if (!chkLines.checked) return;
+
+            for (const point of points) {
+                if (point.cluster === null) continue;
+                const p1 = point.pos;
+                const p2 = centroids[point.cluster].pos;
+                const color = colorsTHREE[point.cluster];
+                
+                const material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.5 });
+                let pointsForLine = [];
+
+                if (currentMetric === 'manhattan') {
+                    // Манхеттен 3D: p1 -> (x2, y1, z1) -> (x2, y2, z1) -> p2
+                    pointsForLine.push(p1.clone());
+                    pointsForLine.push(new THREE.Vector3(p2.x, p1.y, p1.z));
+                    pointsForLine.push(new THREE.Vector3(p2.x, p2.y, p1.z));
+                    pointsForLine.push(p2.clone());
+                } else {
+                    pointsForLine.push(p1.clone());
+                    pointsForLine.push(p2.clone());
+                }
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(pointsForLine);
+                const line = new THREE.Line(geometry, material);
+                lineGroup.add(line);
+            }
+        }
+
+        // Функція створення візуальної площини для Вороного
+        function createVisualPlane(p1, p2, color, clipPlanes) {
+             // Нормаль до площини - вектор між центрами
+            const normal = new THREE.Vector3().subVectors(p2, p1).normalize();
+            // Середня точка
+            const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            // Константа площини
+            const constant = -normal.dot(midPoint);
+            
+            const plane = new THREE.Plane(normal, constant);
+            
+            // Візуалізація: велика площина, яку ми обрізаємо
+            // Використовуємо Stencil або просто Clipping planes
+            // Тут використовуємо clipping planes сцени + нашу площину для сусіда?
+            // Ні, для візуалізації межі між 2 точками це просто площина, перпендикулярна відрізку.
+            
+            const geom = new THREE.PlaneGeometry(BOX_SIZE*3, BOX_SIZE*3);
+            const mat = new THREE.MeshBasicMaterial({
+                color: color, 
+                side: THREE.DoubleSide, 
+                transparent: true, 
+                opacity: 0.2,
+                clippingPlanes: [...clippingPlanes] // Обрізаємо межами куба
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            
+            // Орієнтуємо
+            mesh.lookAt(normal);
+            mesh.position.copy(midPoint);
+            
+            return mesh;
+        }
+
+        function drawVoronoi() {
+            voronoiGroup.clear();
+            if (!chkVoronoi.checked || currentMetric !== 'euclidean') return;
+
+            // Спрощена реалізація для K=2 та K=3 для наочності, 
+            // повна 3D діаграма Вороного складна для рендеру mesh'ами в JS
+            if (k === 2 && centroids.length === 2) {
+                const mesh = createVisualPlane(centroids[0].pos, centroids[1].pos, 0x000000, clippingPlanes);
+                voronoiGroup.add(mesh);
+            } 
+            else if (k === 3 && centroids.length === 3) {
+                // Для 3 точок: знаходимо спільну лінію перетину площин бісектрис
+                // Це складніше, тому просто малюємо 3 бісектриси попарно, 
+                // але візуально це може виглядати як каша.
+                // Спробуємо намалювати площину між 0-1, 1-2, 2-0
+                const pairs = [[0,1], [1,2], [2,0]];
+                pairs.forEach(pair => {
+                     // Додаємо додатковий clipping plane, щоб відсікти "зайве" з боку 3-го центроїда?
+                     // Це складно реалізувати динамічно без CSG.
+                     // Тому просто малюємо площини "як є", вони будуть перетинатися.
+                     const mesh = createVisualPlane(
+                         centroids[pair[0]].pos, 
+                         centroids[pair[1]].pos, 
+                         0x000000, 
+                         clippingPlanes
+                     );
+                     voronoiGroup.add(mesh);
+                });
+            }
+        }
+
+        // Алгоритм
+        function distance(p1, p2) {
+            if (currentMetric === 'manhattan') {
+                return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y) + Math.abs(p1.z - p2.z);
+            }
+            return p1.distanceTo(p2);
+        }
+
+        function findNearestCentroid(pointPos) {
+            let minDistance = Infinity;
+            let bestCluster = -1;
+            for (let i = 0; i < centroids.length; i++) {
+                const dist = distance(pointPos, centroids[i].pos);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestCluster = i;
+                }
+            }
+            return bestCluster;
+        }
+
+        function assignPointsToClusters() {
+            if (centroids.length === 0) return false;
+            let changed = false;
+            for (const point of points) {
+                const bestCluster = findNearestCentroid(point.pos);
+                if (point.cluster !== bestCluster) {
+                    point.cluster = bestCluster;
+                    changed = true;
+                }
+            }
+            algorithmState = 'update';
+            return changed;
+        }
+
+        function updateCentroidsStep() {
+            if (centroids.length === 0) return;
+            const clusterSums = Array(k).fill(0).map(() => new THREE.Vector3(0, 0, 0));
+            const clusterCounts = Array(k).fill(0);
+            
+            for (const point of points) {
+                if (point.cluster !== null) {
+                    clusterSums[point.cluster].add(point.pos);
+                    clusterCounts[point.cluster]++;
+                }
+            }
+
+            for (let i = 0; i < k; i++) {
+                if (clusterCounts[i] > 0) {
+                    centroids[i].pos.copy(clusterSums[i].divideScalar(clusterCounts[i]));
+                } else {
+                    centroids[i].pos.set(getRandomPos(), getRandomPos(), getRandomPos());
+                }
+            }
+            algorithmState = 'assign';
+            updateCentroidPositions();
+            drawVoronoi();
+        }
+
+        // --- UI Handlers ---
+        function updateButtonStates() {
+            const hasCentroids = centroids.length > 0;
+            btnStep.disabled = !hasCentroids || settingCentroids;
+            btnRun.disabled = !hasCentroids || settingCentroids;
+            
+            if (settingCentroids) {
+                btnManualCentroids.textContent = `Встановіть центр ${centroids.length + 1}/${k}`;
+                btnManualCentroids.disabled = true;
+            } else {
+                btnManualCentroids.textContent = 'Задати центри вручну';
+                btnManualCentroids.disabled = false;
+            }
+        }
+        
+        function updateTooltipLocal() {
+            if (settingCentroids) {
+                tooltip.textContent = `Клікніть на 'підлогу' (Z=0), щоб встановити центр ${centroids.length + 1}/${k}`;
+            } else {
+                tooltip.textContent = 'ЛКМ+Drag: обертати | ПКМ: панорамувати | ЛКМ на точці: видалити?';
+            }
+        }
+
+        // Listeners
+        kInput.addEventListener('change', () => {
+            k = parseInt(kInput.value);
+            if(k > 10) k = 10;
+            resetCentroids();
+        });
+
+        metricSelect.addEventListener('change', (e) => {
+            currentMetric = e.target.value;
+            if(currentMetric !== 'euclidean') {
+                chkVoronoi.checked = false;
+                voronoiGroup.clear();
+            }
+            if (centroids.length > 0) {
+                assignPointsToClusters();
+                updatePointColors();
+                drawLines();
+            }
+        });
+
+        btnGenPoints.addEventListener('click', () => {
+            generateData(30);
+            resetCentroids();
+        });
+
+        btnRandomCentroids.addEventListener('click', () => {
+            settingCentroids = false;
+            resetCentroids();
+            for (let i = 0; i < k; i++) {
+                const pos = new THREE.Vector3(getRandomPos(), getRandomPos(), getRandomPos());
+                addCentroid(pos, i);
+            }
+            assignPointsToClusters(); // Initial assign
+            updatePointColors();
+            drawLines();
+            drawVoronoi();
+            updateButtonStates();
+        });
+
+        btnManualCentroids.addEventListener('click', () => {
+            settingCentroids = true;
+            resetCentroids();
+            updateButtonStates();
+            updateTooltipLocal();
+        });
+
+        btnStep.addEventListener('click', () => {
+            if (algorithmState === 'assign') {
+                assignPointsToClusters();
+                updatePointColors();
+                drawLines();
+            } else {
+                updateCentroidsStep();
+                drawLines();
+            }
+        });
+
+        btnRun.addEventListener('click', () => {
+             if (runInterval) {
+                clearInterval(runInterval);
+                runInterval = null;
+                btnRun.textContent = 'Запустити';
+            } else {
+                btnRun.textContent = 'Зупинити';
+                runInterval = setInterval(() => {
+                    if (algorithmState === 'assign') {
+                        const changed = assignPointsToClusters();
+                        updatePointColors();
+                        drawLines();
+                        if (!changed) {
+                            clearInterval(runInterval);
+                            runInterval = null;
+                            btnRun.textContent = 'Запустити';
+                        }
+                    } else {
+                        updateCentroidsStep();
+                        drawLines();
+                    }
+                }, 500);
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            if(runInterval) clearInterval(runInterval);
+            runInterval = null;
+            resetCentroids();
+            points = [];
+            pointGroup.clear();
+            lineGroup.clear();
+            settingCentroids = false;
+            btnRun.textContent = 'Запустити';
+            updateButtonStates();
+        });
+
+        chkLines.addEventListener('change', drawLines);
+        chkVoronoi.addEventListener('change', drawVoronoi);
+
+        // Mouse Interaction
+        function onMouseDown(event) {
+            if (event.button !== 0) return; // Only left click
+
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            if (settingCentroids) {
+                // Raycast to invisible plane
+                const intersects = raycaster.intersectObject(invisiblePlane);
+                if (intersects.length > 0) {
+                    const pos = intersects[0].point;
+                    addCentroid(pos, centroids.length);
+                    
+                    if (centroids.length === k) {
+                        settingCentroids = false;
+                        assignPointsToClusters();
+                        updatePointColors();
+                        drawVoronoi();
+                    }
+                    updateButtonStates();
+                    updateTooltipLocal();
+                }
+            }
+            // Manual delete point? (optional, not implemented in detail to avoid conflict with rotate)
+        }
+
+        function onWindowResize() {
+            // Ця функція викликається автоматично при ресайзі вікна
+            // АБО вручну при перемиканні вкладки
+            if (!container || container.clientWidth === 0) return;
+            
+            const aspect = container.clientWidth / container.clientHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            orbitControls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

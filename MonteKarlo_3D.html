@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Монте-Карло</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            color: #222;
+        }
+        #container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .ui-panel {
+            position: absolute;
+            top: 1px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        #ui {
+            left: 10px;
+            width: 300px;
+        }
+        #plot-ui {
+            right: 10px;
+            width: 350px;
+        }
+        
+        /* --- СТИЛІ МОДАЛЬНОГО ВІКНА --- */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+        }
+        .modal-content {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            z-index: 1001;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 2em;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close-btn:hover { color: #333; }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content p, .modal-content li {
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        .formula {
+            font-family: "Georgia", serif;
+            font-style: italic;
+            background: #f4f4f4;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: block;
+            margin: 10px 0;
+            text-align: center;
+        }
+        /* --- Кінець стилів модального вікна --- */
+        
+        
+        h2 { margin-top: 0; }
+        .control-group {
+            margin-bottom: 5px;
+        }
+        label {
+            display: block;
+			  margin-top: 2px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], input[type="range"], select, button {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+            background: #fff;
+            color: #111;
+        }
+        input[type="range"] {
+             padding: 0;
+        }
+        input:disabled {
+            background: #eee;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        #fullSweepButton {
+            background: #28a745;
+        }
+        #openInfoButton {
+            background: #6c757d;
+            margin-top: 5px;
+        }
+        button:hover { background: #0056b3; }
+        #fullSweepButton:hover { background: #218838; }
+        #openInfoButton:hover { background: #5a6268; }
+        button:disabled { background: #999; cursor: not-allowed; }
+        
+        #results {
+            margin-top: 5px;
+            padding-top: 5px;
+        }
+        #results p {
+            margin: 5px 0;
+            font-size: 0.6em;
+        }
+        #results p span {
+            font-weight: bold;
+            color: #008833;
+        }
+        #results p #error {
+            color: #cc0000;
+        }
+        #results p #volumeActualLabel {
+            font-weight: normal;
+            font-style: italic;
+            color: #333;
+        }
+        #plot-container {
+            width: 100%;
+            height: 300px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container"></div>
+
+    <div id="ui" class="ui-panel">
+        <h3>Симулятор Монте-Карло</h3>
+        
+        <div class="control-group">
+            <label for="shapeSelect">Фігура:</label>
+            <select id="shapeSelect">
+                  <option value="superquadric">Суперквадрика (Якорець)</option>
+				  <option value="torus">Тор (Бублик)</option>
+                <option value="spheroid">Еліпсоїд (Млинець)</option>
+             
+                <option value="knot">Вузол (Баранка)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="thicknessSlider" id="thicknessLabel">Товщина/Радіус (r): <span id="thicknessValue">0.6</span></label>
+            <input id="thicknessSlider" type="range" min="0.3" max="2.7" step="0.1" value="0.6">
+        </div>
+        
+        <div class="control-group">
+            <label for="numPoints">Кількість точок N (точки, що потрапили всередину фігури, червоні):</label>
+            <input id="numPoints" type="number" value="10000" min="100" max="500000" step="500" >
+        </div>
+        
+        <div class="control-group">
+            <input id="useGrid" type="checkbox">
+            <label for="useGrid" style="display: inline-block;">Використати рівномірну сітку</label>
+        </div>
+        
+        <button id="startButton">Старт (Засипати точки)</button>
+        
+        <button id="openInfoButton">Теоретичні відомості</button>
+        
+        
+    </div>
+    
+    <div id="plot-ui" class="ui-panel">
+	<div id="results">
+            <h2>Результати:</h2>
+            <p>Метод: <span id="method">-</span></p>
+            <p>Всього точок: <span id="pointsTotal">-</span> Точок всередині: <span id="pointsInside">-</span></p>
+            <p>Розрахований об'єм: <span id="volumeEst">-</span> <span id="volumeActualLabel" > Точний об'єм:</span> 
+                <span id="volumeActual">-</span>
+            </p>
+            <p>Похибка: <span id="error">-</span> %</p>
+        </div>
+        <p>Аналіз похибки</p>
+        <button id="sweepButton">Start Sweep (1x)</button>
+        <button id="fullSweepButton">Start Full Sweep (50x)</button>
+        <div id="plot-container">
+            <canvas id="errorPlot"></canvas>
+        </div>
+    </div>
+
+    <div id="infoModalBackdrop" class="modal-backdrop"></div>
+    <div id="infoModalContent" class="modal-content">
+        <span id="closeInfoButton" class="modal-close-btn">&times;</span>
+        <h2>Теоретичні відомості</h2>
+        <p>
+            <b>Метод Монте-Карло</b> — це широкий клас обчислювальних алгоритмів, які покладаються на повторювану випадкову вибірку для отримання числових результатів. В контексті інтегрування, він дозволяє оцінити об'єм (або площу/гіпероб'єм) складної фігури D всередині простої обмежувальної фігури B (наприклад, куба) з відомим об'ємом V. У симуляторі ми рівномірно "насипаємо" точки в куб і підраховуємо, яка частина з них потрапила усередину фігури (такі точки стають червоними).
+        </p>
+        <p class="formula">
+            V<sub>D</sub> &approx; V<sub>B</sub> &times; (Кількість точок в D / Загальна кількість точок)
+        </p>
+        
+        <h3>Переваги над рівномірною сіткою</h3>
+        <ul>
+            <li>
+                <b>"Прокляття розмірності":</b> Ефективність методів на рівномірній сітці (як метод прямокутників або сіток) катастрофічно падає зі збільшенням кількості вимірів d. Щоб отримати 100 точок на кожній осі в 10-вимірному просторі, потрібно 10<sup>20</sup> точок. Похибка методу Монте-Карло зменшується як <b>1/&radic;N</b> (де N - кількість точок) <b>незалежно від кількості вимірів</b>.
+            </li>
+            <li>
+                <b>Складні та "вузькі" об'єкти:</b> Як показує цей симулятор, якщо об'єкт дуже тонкий ("млинець", шипи зірки-суперквадрики або тонкий тор), рівномірна сітка з малою кількістю вузлів може <b>повністю "промахнутися"</b> повз об'єкт, даючи 100% похибку. Випадкові точки Монте-Карло мають набагато вищий шанс "знайти" об'єкт, даючи хоч і неточну, але значно кращу початкову оцінку.
+            </li>
+            <li>
+                <b>Неперервні інтеграли:</b> Метод легко обробляє функції з розривами або складними межами, де побудова сітки була б вкрай складною.
+            </li>
+        </ul>
+        <h3>Сучасні застосування</h3>
+        <p>
+            Метод Монте-Карло (та його варіації, як MCMC - Markov Chain Monte Carlo) є фундаментальним у багатьох галузях:
+        </p>
+        <ul>
+            <li><b>Комп'ютерна графіка:</b> Трасування шляхів (Path Tracing) для фотореалістичного рендерингу (освітлення, тіні, відбиття) — це, по суті, інтегрування Монте-Карло.</li>
+            <li><b>Фізика:</b> Моделювання складних систем, квантова хромодинаміка, симуляції нейтронного транспорту.</li>
+            <li><b>Фінанси:</b> Оцінка ризиків, ціноутворення опціонів та складних деривативів.</li>
+            <li><b>Штучний інтелект:</b> Алгоритм MCTS (Monte Carlo Tree Search) був ключовим компонентом AlphaGo, що переміг чемпіона світу з гри Го.</li>
+        </ul>
+    </div>
+
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/",
+            "three/addons/geometries/ParametricGeometry.js": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/geometries/ParametricGeometry.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
+
+        // --- Глобальні змінні ---
+        let scene, camera, renderer, controls;
+        let pointsMesh = null; // Хмара точок
+        let chartInstance = null; // Графік
+        let visibleShapeMesh = null; // 3D-модель фігури
+        
+        // --- Динамічні параметри ---
+        let currentShape = 'torus';
+        const SHAPE_R = 5.0; // Головний радіус (для Тора/Сфероїда/Суперквадрики)
+        let SHAPE_r = 0.5;   // Багатоцільовий параметр
+        
+        let actualVolume = 0;
+        let boundingBoxL = 0;
+        let boundingBoxSide = 0;
+        let boundingBoxVolume = 0;
+        let boxHelper = null;
+
+        // --- Кольори ---
+        const COLOR_INSIDE = new THREE.Color(0xff1100); // 
+        const COLOR_OUTSIDE = new THREE.Color(0x555555); // 
+        const COLOR_TORUS = new THREE.Color(0xff8800);
+        const COLOR_SPHEROID = new THREE.Color(0xffaa00); 
+        const COLOR_SUPERQUADRIC = new THREE.Color(0xffaa00);
+        const COLOR_KNOT = new THREE.Color(0xffaa00); 
+        const COLOR_BOX = new THREE.Color(0x333333); 
+        const COLOR_BACKGROUND = new THREE.Color(0x000000); 
+
+        // --- DOM Елементи ---
+        const startButton = document.getElementById('startButton');
+        const sweepButton = document.getElementById('sweepButton');
+        const fullSweepButton = document.getElementById('fullSweepButton');
+        const numPointsInput = document.getElementById('numPoints');
+        const useGridCheckbox = document.getElementById('useGrid');
+        const shapeSelect = document.getElementById('shapeSelect');
+        const thicknessSlider = document.getElementById('thicknessSlider');
+        const thicknessLabel = document.getElementById('thicknessLabel');
+        const thicknessValueEl = document.getElementById('thicknessValue');
+        
+        const resultsEl = {
+            method: document.getElementById('method'),
+            pointsTotal: document.getElementById('pointsTotal'),
+            pointsInside: document.getElementById('pointsInside'),
+            volumeEst: document.getElementById('volumeEst'),
+            volumeActual: document.getElementById('volumeActual'),
+            volumeActualLabel: document.getElementById('volumeActualLabel'),
+            error: document.getElementById('error')
+        };
+        
+        // DOM Елементи для модального вікна
+        const openInfoButton = document.getElementById('openInfoButton');
+        const closeInfoButton = document.getElementById('closeInfoButton');
+        const infoModalBackdrop = document.getElementById('infoModalBackdrop');
+        const infoModalContent = document.getElementById('infoModalContent');
+        
+        
+        // --- Логіка Суперквадрики (V16) ---
+        
+        // Коефіцієнти для апроксимації Ланцоша (g=7, n=10)
+        const p = [
+            0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+            771.32342877765313, -176.61502916214059, 12.507343278686905,
+            -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
+        ];
+        const g = 7;
+        
+        /**
+         * Гамма-функція (апроксимація Ланцоша)
+         */
+        function gamma(z) {
+            if (z < 0.5) {
+                return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+            }
+            z -= 1;
+            let x = p[0];
+            for (let i = 1; i < g + 2; i++) {
+                x += p[i] / (z + i);
+            }
+            const t = z + g + 0.5;
+            return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+        }
+
+        /**
+         * Перевіряє, чи знаходиться точка всередині суперквадрики (для розрахунків)
+         * |x|^m + |y|^m + |z|^m < R^m
+         */
+        function isInsideSuperquadric(point, R_main, m) {
+            const val = Math.pow(Math.abs(point.x), m) + 
+                        Math.pow(Math.abs(point.y), m) + 
+                        Math.pow(Math.abs(point.z), m);
+            const limit = Math.pow(R_main, m);
+            return val < limit;
+        }
+        
+        /**
+         * Розраховує аналітичний об'єм Суперквадрики
+         */
+        function getSuperquadricAnalyticalVolume(R, m) {
+            // V = R^3 * ( (2 * Gamma(1 + 1/m))^3 / Gamma(1 + 3/m) )
+            const term1 = 2 * gamma(1 + 1/m);
+            const numerator = Math.pow(term1, 3);
+            const denominator = gamma(1 + 3/m);
+            return Math.pow(R, 3) * (numerator / denominator);
+        }
+
+        
+        // --- Логіка Вузла (Knot) (V12) ---
+        const KNOT_p = 2; 
+        const KNOT_q = 3;
+        const KNOT_CENTERLINE_POINTS = 256; 
+        let knotCenterline = []; 
+        function updateKnotCenterline(R_main) {
+            knotCenterline = [];
+            const p = KNOT_p;
+            const q = KNOT_q;
+            const scale = R_main / 6.0; // Виправлений масштаб (V11)
+            for (let i = 0; i < KNOT_CENTERLINE_POINTS; i++) {
+                const t = (i / KNOT_CENTERLINE_POINTS) * Math.PI * 2;
+                const x = scale * ( 2 + Math.cos( q * t ) ) * Math.cos( p * t );
+                const y = scale * ( 2 + Math.cos( q * t ) ) * Math.sin( p * t );
+                const z = scale * Math.sin( q * t );
+                knotCenterline.push( new THREE.Vector3(x, y, z) );
+            }
+        }
+        function isInsideKnot(point, r_tube) {
+            let minDistSq = Infinity;
+            const r_tube_sq = r_tube * r_tube;
+            for (const center_point of knotCenterline) {
+                const distSq = point.distanceToSquared(center_point);
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                }
+            }
+            return minDistSq < r_tube_sq;
+        }
+        
+
+        // --- Ініціалізація ---
+        function init() {
+            const container = document.getElementById('container');
+
+            scene = new THREE.Scene();
+            scene.background = COLOR_BACKGROUND;
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 5, 5); // Відсунута камера
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const ambientLight = new THREE.AmbientLight(0x666666);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(5, 10, 7);
+            scene.add(directionalLight);
+
+            const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const boxEdges = new THREE.EdgesGeometry(boxGeometry);
+            const boxMaterial = new THREE.LineBasicMaterial({ color: COLOR_BOX });
+            boxHelper = new THREE.LineSegments(boxEdges, boxMaterial);
+            scene.add(boxHelper);
+
+            // --- Обробники подій ---
+            window.addEventListener('resize', onWindowResize);
+            startButton.addEventListener('click', startSimulation);
+            sweepButton.addEventListener('click', () => startSweep(1));
+            fullSweepButton.addEventListener('click', () => startSweep(50));
+            
+            shapeSelect.addEventListener('change', updateShape);
+            thicknessSlider.addEventListener('input', updateShape);
+            
+            const openModal = () => {
+                infoModalBackdrop.style.display = 'block';
+                infoModalContent.style.display = 'block';
+            };
+            const closeModal = () => {
+                infoModalBackdrop.style.display = 'none';
+                infoModalContent.style.display = 'none';
+            };
+
+            openInfoButton.addEventListener('click', openModal);
+            closeInfoButton.addEventListener('click', closeModal);
+            infoModalBackdrop.addEventListener('click', closeModal);
+
+            
+            updateShape();
+            animate();
+        }
+
+        // --- Оновлення фігури (сцена та розрахунки) ---
+        function updateShape() {
+            // 1. Отримати параметри з UI
+            currentShape = shapeSelect.value;
+            
+            // --- Логіка слайдера ---
+            thicknessSlider.disabled = false; // Увімкнений за замовчуванням
+            if (currentShape === 'knot') {
+                SHAPE_r = 0.2; // Фіксований радіус
+                thicknessSlider.disabled = true;
+                thicknessSlider.value = 0.2; 
+                thicknessLabel.innerHTML = `Товщина/Радіус (r): <span id="thicknessValue">${SHAPE_r.toFixed(1)}</span>`;
+            } else if (currentShape === 'superquadric') {
+                SHAPE_r = parseFloat(thicknessSlider.value);
+                thicknessLabel.innerHTML = `Показник Гостроти (m): <span id="thicknessValue">${SHAPE_r.toFixed(1)}</span>`;
+            } else {
+                // Torus, Spheroid
+                SHAPE_r = parseFloat(thicknessSlider.value);
+                thicknessLabel.innerHTML = `Товщина/Радіус (r): <span id="thicknessValue">${SHAPE_r.toFixed(1)}</span>`;
+            }
+            // --- ---------------- ---
+
+            // 2. Розрахувати Bounding Box
+            const padding = 0.5; // "повітря"
+            if (currentShape === 'torus') {
+                boundingBoxL = SHAPE_R + SHAPE_r + padding;
+            } else if (currentShape === 'spheroid') {
+                boundingBoxL = SHAPE_R + padding; 
+            } else if (currentShape === 'knot') {
+                const R_knot_path = SHAPE_R / 2.0; 
+                boundingBoxL = R_knot_path + SHAPE_r + padding; // SHAPE_r тут 0.2
+            } else if (currentShape === 'superquadric') {
+                boundingBoxL = SHAPE_R + padding; 
+            }
+            
+            // 3. Встановити глобальні змінні та оновити Box Helper
+            boundingBoxSide = boundingBoxL * 2;
+            boundingBoxVolume = Math.pow(boundingBoxSide, 3);
+            boxHelper.scale.set(boundingBoxSide, boundingBoxSide, boundingBoxSide);
+            
+            // 4. Видалити стару 3D-модель
+            if (visibleShapeMesh) {
+                scene.remove(visibleShapeMesh);
+                if (visibleShapeMesh.geometry) visibleShapeMesh.geometry.dispose();
+                if (visibleShapeMesh.material) visibleShapeMesh.material.dispose();
+                visibleShapeMesh = null;
+            }
+		// 4.5. Видалити старі точки
+            if (pointsMesh) {
+                scene.remove(pointsMesh);
+                pointsMesh.geometry.dispose();
+                pointsMesh.material.dispose();
+                pointsMesh = null;
+            }
+            // 5. Створити нову 3D-модель
+            let geometry, material;
+            resultsEl.volumeActual.textContent = "-"; // Скидаємо
+
+            if (currentShape === 'torus') {
+                resultsEl.volumeActualLabel.textContent = "Точний об'єм:";
+                geometry = new THREE.TorusGeometry(SHAPE_R, SHAPE_r, 30, 100);
+                material = new THREE.MeshStandardMaterial({
+                    color: COLOR_TORUS, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false
+                });
+                visibleShapeMesh = new THREE.Mesh(geometry, material);
+                visibleShapeMesh.rotation.x = Math.PI / 2;
+                actualVolume = 2 * Math.PI * Math.PI * SHAPE_R * SHAPE_r * SHAPE_r;
+                resultsEl.volumeActual.textContent = actualVolume.toFixed(4);
+
+            } else if (currentShape === 'spheroid') {
+                resultsEl.volumeActualLabel.textContent = "Точний об'єм:";
+                geometry = new THREE.SphereGeometry(SHAPE_R, 64, 32); 
+                material = new THREE.MeshStandardMaterial({
+                    color: COLOR_SPHEROID, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false
+                });
+                visibleShapeMesh = new THREE.Mesh(geometry, material);
+                visibleShapeMesh.scale.y = SHAPE_r / SHAPE_R; 
+                actualVolume = (4/3) * Math.PI * SHAPE_R * SHAPE_r * SHAPE_R;
+                resultsEl.volumeActual.textContent = actualVolume.toFixed(4);
+            
+            } else if (currentShape === 'knot') {
+                resultsEl.volumeActualLabel.textContent = "Еталонний об'єм (M-K):";
+                updateKnotCenterline(SHAPE_R);
+                actualVolume = 3.2428; // "Зашитий" об'єм
+                resultsEl.volumeActual.textContent = actualVolume.toFixed(4);
+                
+                geometry = new THREE.TorusKnotGeometry(SHAPE_R / 3.0, 0.2, 128, 16, KNOT_p, KNOT_q); 
+                material = new THREE.MeshStandardMaterial({
+                    color: COLOR_KNOT, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+                });
+                visibleShapeMesh = new THREE.Mesh(geometry, material);
+            
+            } else if (currentShape === 'superquadric') {
+                resultsEl.volumeActualLabel.textContent = "Точний об'єм:";
+                const m = SHAPE_r;
+                const R_main = SHAPE_R;
+                
+                // 1. Отримати аналітичний об'єм (МИТТЄВО)
+                actualVolume = getSuperquadricAnalyticalVolume(R_main, m);
+                resultsEl.volumeActual.textContent = actualVolume.toFixed(4);
+                
+                // 2. Створити візуальну модель (ParametricGeometry)
+                const sgnPow = (a, b) => Math.sign(a) * Math.pow(Math.abs(a), b);
+                function superquadricFunc(u, v, target) {
+                    const u_norm = u * 2 * Math.PI - Math.PI; 
+                    const v_norm = v * Math.PI - Math.PI / 2;
+                    const m_inv = 2 / m;
+                    const x = R_main * sgnPow(Math.cos(v_norm), m_inv) * sgnPow(Math.cos(u_norm), m_inv);
+                    const y = R_main * sgnPow(Math.cos(v_norm), m_inv) * sgnPow(Math.sin(u_norm), m_inv);
+                    const z = R_main * sgnPow(Math.sin(v_norm), m_inv);
+                    target.set(x, y, z);
+                }
+                geometry = new ParametricGeometry(superquadricFunc, 64, 64);
+                material = new THREE.MeshStandardMaterial({
+                    color: COLOR_SUPERQUADRIC, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+                });
+                visibleShapeMesh = new THREE.Mesh(geometry, material);
+            }
+
+            if (visibleShapeMesh) {
+                scene.add(visibleShapeMesh);
+            }
+            
+            // Очистити старі результати
+            resultsEl.method.textContent = "-";
+            resultsEl.pointsTotal.textContent = "-";
+            resultsEl.pointsInside.textContent = "-";
+            resultsEl.volumeEst.textContent = "-";
+            resultsEl.error.textContent = "-";
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Логіка 3D симуляції (для кнопки "Старт") ---
+        function startSimulation() {
+            if (pointsMesh) {
+                scene.remove(pointsMesh);
+                pointsMesh.geometry.dispose();
+                pointsMesh.material.dispose();
+                pointsMesh = null;
+            }
+
+            const N = parseInt(numPointsInput.value);
+            const useGrid = useGridCheckbox.checked;
+
+            const positions = []; 
+            const colors = [];    
+            let pointsInside = 0;
+            let totalPoints = 0;
+            const L = boundingBoxL; 
+
+            if (useGrid) {
+                resultsEl.method.textContent = "Рівномірна сітка";
+                const k = Math.round(Math.cbrt(N));
+                totalPoints = k * k * k;
+                const step = boundingBoxSide / k;
+                const offset = -L + step / 2;
+                const point = new THREE.Vector3();
+
+                for (let i = 0; i < k; i++) {
+                    point.x = offset + i * step;
+                    for (let j = 0; j < k; j++) {
+                        point.y = offset + j * step;
+                        for (let l = 0; l < k; l++) {
+                            point.z = offset + l * step;
+                            positions.push(point.x, point.y, point.z);
+                            if (isInside(point)) {
+                                pointsInside++;
+                                colors.push(COLOR_INSIDE.r, COLOR_INSIDE.g, COLOR_INSIDE.b);
+                            } else {
+                                colors.push(COLOR_OUTSIDE.r, COLOR_OUTSIDE.g, COLOR_OUTSIDE.b);
+                            }
+                        }
+                    }
+                }
+            } else {
+                resultsEl.method.textContent = "Монте-Карло";
+                totalPoints = N;
+                const point = new THREE.Vector3();
+                for (let i = 0; i < N; i++) {
+                    point.x = (Math.random() * 2 - 1) * L;
+                    point.y = (Math.random() * 2 - 1) * L;
+                    point.z = (Math.random() * 2 - 1) * L;
+                    positions.push(point.x, point.y, point.z);
+                    if (isInside(point)) {
+                        pointsInside++;
+                        colors.push(COLOR_INSIDE.r, COLOR_INSIDE.g, COLOR_INSIDE.b);
+                    } else {
+                        colors.push(COLOR_OUTSIDE.r, COLOR_OUTSIDE.g, COLOR_OUTSIDE.b);
+                    }
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            const material = new THREE.PointsMaterial({ size: 0.1, vertexColors: true });
+            pointsMesh = new THREE.Points(geometry, material);
+            scene.add(pointsMesh);
+
+            const { volumeEstimated, errorPercent } = calculateErrorStats(pointsInside, totalPoints);
+            resultsEl.pointsTotal.textContent = totalPoints;
+            resultsEl.pointsInside.textContent = pointsInside;
+            resultsEl.volumeEst.textContent = volumeEstimated.toFixed(4);
+            resultsEl.error.textContent = errorPercent.toFixed(4);
+        }
+
+        /**
+         * Універсальна математична перевірка
+         */
+        function isInside(point) {
+            if (currentShape === 'torus') {
+                const d_xz = Math.sqrt(point.x * point.x + point.z * point.z);
+                const term1 = Math.pow(d_xz - SHAPE_R, 2);
+                const term2 = point.y * point.y;
+                return (term1 + term2) < (SHAPE_r * SHAPE_r);
+            } 
+            else if (currentShape === 'spheroid') {
+                const term1 = (point.x * point.x) / (SHAPE_R * SHAPE_R);
+                const term2 = (point.y * point.y) / (SHAPE_r * SHAPE_r);
+                const term3 = (point.z * point.z) / (SHAPE_R * SHAPE_R);
+                return (term1 + term2 + term3) < 1;
+            }
+            else if (currentShape === 'knot') {
+                return isInsideKnot(point, SHAPE_r); // SHAPE_r тут 0.2
+            }
+            else if (currentShape === 'superquadric') {
+                return isInsideSuperquadric(point, SHAPE_R, SHAPE_r); // SHAPE_r = m
+            }
+            return false;
+        }
+
+        /**
+         * Розраховує статистику
+         */
+        function calculateErrorStats(pointsInside, totalPoints) {
+            if (totalPoints === 0) return { volumeEstimated: 0, errorPercent: 100 };
+            
+            const volumeEstimated = (pointsInside / totalPoints) * boundingBoxVolume;
+            let errorPercent = 0;
+            
+            if (actualVolume > 1e-9) { 
+                errorPercent = (Math.abs(volumeEstimated - actualVolume) / actualVolume) * 100;
+            } else if (volumeEstimated > 1e-9) {
+                errorPercent = Infinity;
+            }
+            
+            return { volumeEstimated, errorPercent };
+        }
+
+        // --- Логіка для графіка ---
+        
+        async function startSweep(runCount = 1) {
+            // Асинхронних розрахунків більше немає, alert не потрібен
+            
+            sweepButton.disabled = true;
+            fullSweepButton.disabled = true;
+            const btnText = (runCount > 1) ? fullSweepButton.textContent : sweepButton.textContent;
+            
+            if (runCount > 1) {
+                fullSweepButton.textContent = 'Виконується...';
+            } else {
+                sweepButton.textContent = 'Виконується...';
+            }
+            
+            const n_values = [1000, 3000, 10000, 30000, 100000, 300000];
+            
+            const all_mc_errors = n_values.map(() => []);
+            const grid_errors = [];
+
+            for (let r = 0; r < runCount; r++) {
+                for (let i = 0; i < n_values.length; i++) {
+                    const n = n_values[i];
+                    all_mc_errors[i].push(runHeadlessSimulation(n, false));
+                }
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+
+            for (const n of n_values) {
+                grid_errors.push(runHeadlessSimulation(n, true));
+            }
+
+            if (runCount === 1) {
+                renderPlot(n_values, grid_errors, all_mc_errors.map(arr => arr[0]));
+            } else {
+                const mc_mean = all_mc_errors.map(errors => errors.reduce((a, b) => a + b, 0) / errors.length);
+                const mc_min = all_mc_errors.map(errors => Math.min(...errors));
+                const mc_max = all_mc_errors.map(errors => Math.max(...errors));
+                renderPlot(n_values, grid_errors, mc_mean, mc_max, mc_min);
+            }
+            
+            sweepButton.disabled = false;
+            fullSweepButton.disabled = false;
+            if (runCount > 1) {
+                fullSweepButton.textContent = btnText;
+            } else {
+                sweepButton.textContent = btnText;
+            }
+        }
+
+        function runHeadlessSimulation(N, useGrid) {
+            let pointsInside = 0;
+            let totalPoints = 0;
+            const L = boundingBoxL; 
+            
+            if (useGrid) {
+                const k = Math.round(Math.cbrt(N));
+                totalPoints = k * k * k;
+                if (totalPoints === 0) return 100; 
+                
+                const step = boundingBoxSide / k;
+                const offset = -L + step / 2;
+                const point = new THREE.Vector3();
+
+                for (let i = 0; i < k; i++) {
+                    point.x = offset + i * step;
+                    for (let j = 0; j < k; j++) {
+                        point.y = offset + j * step;
+                        for (let l = 0; l < k; l++) {
+                            point.z = offset + l * step;
+                            if (isInside(point)) pointsInside++;
+                        }
+                    }
+                }
+            } else {
+                totalPoints = N;
+                const point = new THREE.Vector3();
+                for (let i = 0; i < N; i++) {
+                    point.x = (Math.random() * 2 - 1) * L;
+                    point.y = (Math.random() * 2 - 1) * L;
+                    point.z = (Math.random() * 2 - 1) * L;
+                    if (isInside(point)) pointsInside++;
+                }
+            }
+            
+            const { errorPercent } = calculateErrorStats(pointsInside, totalPoints);
+            return errorPercent > 0.0001 ? errorPercent : 0.0001; 
+        }
+
+        function renderPlot(n_values, grid_data, mc_data_or_mean, mc_max_data, mc_min_data) {
+            const ctx = document.getElementById('errorPlot').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            
+            const datasets = [];
+
+            datasets.push({
+                label: 'Похибка Рівномірної сітки',
+                data: grid_data,
+                borderColor: 'rgba(255, 82, 82, 1)',
+                backgroundColor: 'rgba(255, 82, 82, 0.2)',
+                tension: 0.1,
+                borderWidth: 2
+            });
+
+            if (mc_max_data === undefined) {
+                datasets.push({
+                    label: 'Похибка Монте-Карло (1x)',
+                    data: mc_data_or_mean,
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    tension: 0.1,
+                    borderWidth: 2
+                });
+            } else {
+                datasets.push({
+                    label: 'MC Min',
+                    data: mc_min_data,
+                    borderColor: 'transparent',
+                    backgroundColor: 'transparent',
+                    pointRadius: 0,
+                    fill: false
+                });
+                datasets.push({
+                    label: 'Розкид МК (Min-Max)',
+                    data: mc_max_data,
+                    borderColor: 'rgba(0, 123, 255, 0.2)',
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    pointRadius: 0,
+                    fill: { target: '1' },
+                });
+                datasets.push({
+                    label: 'Середня похибка МК (50x)',
+                    data: mc_data_or_mean,
+                    borderColor: 'rgba(0, 80, 200, 1)',
+                    backgroundColor: 'transparent',
+                    tension: 0.1,
+                    borderWidth: 3
+                });
+            }
+            
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: n_values,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'logarithmic',
+                            title: { display: true, text: 'Кількість точок (N)' }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: { display: true, text: 'Відносна похибка (%)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return Number(value.toPrecision(2)).toString() + '%';
+                                }
+                            }
+                        }
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                filter: (item) => !item.text.includes('MC Min')
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Запуск ---
+        init();
+    </script>
+</body>
+</html>

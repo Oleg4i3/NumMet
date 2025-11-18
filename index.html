@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чисельні Методи</title>
+    <style>
+        /* --- Загальні налаштування --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* Ховаємо скроли самої сторінки */
+        }
+
+        .wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh; /* На всю висоту екрана */
+            transition: all 0.3s ease;
+        }
+
+        /* --- БОКОВЕ МЕНЮ (SIDEBAR) --- */
+        #sidebar {
+            min-width: 280px;
+            max-width: 280px;
+            background: #2c3e50;
+            color: #fff;
+            transition: all 0.3s;
+            overflow-y: auto; /* Скрол всередині меню */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Клас для схованого меню */
+        #sidebar.active {
+            margin-left: -280px; /* Ховаємо меню за межі екрана */
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #1a252f;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        /* Категорії та кнопки */
+        .category {
+            padding: 15px 20px 5px 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn {
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            color: #bdc3c7;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: #34495e;
+            color: #fff;
+        }
+
+        .menu-btn.selected {
+            background: #34495e;
+            color: #fff;
+            border-left: 4px solid #3498db; /* Синій маркер */
+        }
+
+        /* --- ОСНОВНИЙ КОНТЕНТ --- */
+        #content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Верхня панель навігації */
+        .top-navbar {
+            background: #fff;
+            padding: 10px 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            height: 50px;
+        }
+
+        /* Кнопка Гамбургер */
+        #sidebarCollapse {
+            background: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #sidebarCollapse:hover {
+            background: #2980b9;
+        }
+
+        .current-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* IFRAME */
+        .iframe-container {
+            flex-grow: 1; /* Займає весь простір, що залишився */
+            background: #ecf0f1;
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Заглушка */
+        .placeholder {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #95a5a6;
+        }
+        .placeholder h2 { margin-bottom: 10px; color: #2c3e50; }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3>Навчальний посібник</h3>
+        </div>
+
+        <div class="category">1. Лінійна Алгебра</div>
+        <button class="menu-btn" onclick="openSim('SVD.html', 'SVD Розклад', this)">SVD Розклад</button>
+        <button class="menu-btn" onclick="openSim('MatrixNorm_SVD_Spectral_Decomposition.html', 'Норми та Спектр', this)">Норми матриць</button>
+        <button class="menu-btn" onclick="openSim('condNumber.html', 'Число обумовленості', this)">Число обумовленості</button>
+        <button class="menu-btn" onclick="openSim('LowRank_approx_3D.html', 'Low Rank Approx (3D)', this)">Низькорангова апрокс.</button>
+
+        <div class="category">2. Кластеризація</div>
+        <button class="menu-btn" onclick="openSim('k-means-2D3D.html', 'Метод k-means', this)">k-means (2D/3D)</button>
+        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Spectral Clustering</button>
+
+        <div class="category">3. Апроксимація</div>
+        <button class="menu-btn" onclick="openSim('splines.html', 'Сплайни', this)">Сплайни</button>
+        <button class="menu-btn" onclick="openSim('Pade_and_Taylor_approximation.html', 'Апроксимація Паде/Тейлора', this)">Паде і Тейлор</button>
+        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптим.</button>
+
+        <div class="category">4. Інтегрування / ODE</div>
+        <button class="menu-btn" onclick="openSim('ODE.html', 'Звичайні диф. рівняння', this)">ODE (Диф. рівн.)</button>
+        <button class="menu-btn" onclick="openSim('MonteKarlo_3D.html', 'Метод Монте-Карло', this)">Монте-Карло</button>
+
+        <div style="height: 50px;"></div> </nav>
+
+    <div id="content">
+        <div class="top-navbar">
+            <button type="button" id="sidebarCollapse">
+                <span>☰</span> </button>
+            <span class="current-title" id="pageTitle">Оберіть тему</span>
+        </div>
+
+        <div class="iframe-container">
+            <div class="placeholder" id="startMessage">
+                <h2>👋 Вітаємо!</h2>
+                <p>Натисніть кнопку ☰, щоб відкрити меню.</p>
+            </div>
+            <iframe id="simFrame" name="simFrame" src=""></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Логіка згортання меню ---
+    const sidebar = document.getElementById('sidebar');
+    const collapseBtn = document.getElementById('sidebarCollapse');
+
+    collapseBtn.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+    });
+
+    // --- Логіка завантаження симулятора ---
+    function openSim(file, title, btn) {
+        const iframe = document.getElementById('simFrame');
+        const pageTitle = document.getElementById('pageTitle');
+        const startMsg = document.getElementById('startMessage');
+        
+        // 1. Завантажити файл
+        iframe.src = file;
+        
+        // 2. Змінити заголовок зверху
+        pageTitle.innerText = title;
+        
+        // 3. Сховати вітальне повідомлення
+        if(startMsg) startMsg.style.display = 'none';
+
+        // 4. Підсвітити активну кнопку в меню
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        // 5. (Опціонально) Автоматично ховати меню на мобільних/планшетах після кліку
+        if (window.innerWidth < 900) {
+            sidebar.classList.add('active');
+        }
+    }
+</script>
+
+</body>
+</html>

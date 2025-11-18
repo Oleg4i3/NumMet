@@ -1,0 +1,3239 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>симулятор алгоритмів кластеризації графів</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background-color: #f4f7f9;
+        }
+        #main-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        #algorithm-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #algorithm-selector button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #6c757d;
+            color: white;
+            transition: background-color 0.2s;
+        }
+        #algorithm-selector button.active {
+            background-color: #007bff;
+        }
+        #algorithm-selector button:hover {
+            background-color: #0056b3;
+        }
+        .algorithm-section {
+            display: none;
+        }
+        .algorithm-section.active {
+            display: block;
+        }
+        .graph-container, .supergraph-container, .histogram-container, .dendrogram-container {
+            border: 2px solid #eee;
+            border-radius: 8px;
+            background-color: #fdfdfd;
+            position: relative;
+            touch-action: none;
+            width: 100%;
+            overflow: hidden;
+        }
+        .graph-svg, .supergraph-svg, .histogram-svg, .dendrogram-svg {
+            display: block;
+            width: 100%;
+        }
+        .graph-svg, .supergraph-svg, .dendrogram-svg { height: 450px; }
+        .histogram-svg { height: 200px; }
+        .graph-svg { cursor: default; }
+        .supergraph-svg, .dendrogram-svg { cursor: move; }
+
+        .controls, .presets {
+            padding: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        .controls button, .presets button, .restart-supergraph-btn {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s;
+        }
+        .walkerButton { background-color: #4CAF50; }
+        .walkerButton.active { background-color: #f44336; }
+        .walkerButton:hover:not(.active) { background-color: #45a049; }
+        .walkerButton:hover.active { background-color: #da190b; }
+
+        .restart-supergraph-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            background-color: #6c757d;
+            margin-left: auto;
+        }
+        .presets button { background-color: #6c757d; }
+        .controls button:hover:not(:disabled) { background-color: #0056b3; }
+        .presets button:hover, .restart-supergraph-btn:hover { background-color: #5a6268; }
+        .controls button:disabled { background-color: #9fa8da; cursor: not-allowed; }
+        .step {
+            margin-top: 20px;
+            opacity: 0.7;
+            transition: opacity 0.5s;
+            border-left: 3px solid #eee;
+            padding-left: 15px;
+        }
+        .step.active { opacity: 1; border-left: 3px solid #007bff; }
+        h2, h3, h4 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+        }
+        pre {
+            background-color: #eef2f5;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        details {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        summary {
+            font-weight: bold;
+            cursor: pointer;
+            color: #007bff;
+        }
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+        .highlighted circle {
+            stroke: #FFEB3B !important;
+            stroke-width: 5px !important;
+        }
+        .codelength-output, .modularity-output {
+            font-weight: bold;
+            color: #333;
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        #spectral-graph-container {
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: white;
+        }
+        #spectral-animation-container {
+             margin-top: 15px;
+             border-top: 2px solid #eee;
+             padding-top: 15px;
+        }
+        #spectral-graphCanvas {
+            cursor: pointer;
+            background-color: #fdfdfd;
+            border-radius: 4px;
+            position: relative;
+        }
+        .center-of-mass {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            opacity: 0.6;
+            transform: translate(-50%, -50%);
+        }
+        #spectral-controls, #spectral-presets, #spectral-settings, #spectral-animation-controls {
+            padding: 5px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        #spectral-presets button, #spectral-controls button, .kMeansControls button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s;
+        }
+        .kMeansControls button { background-color: #28a745; }
+        #spectral-presets button { background-color: #6c757d; }
+        #spectral-presets button:hover { background-color: #5a6268; }
+        #spectral-controls button:disabled, .kMeansControls button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #spectral-controls button:hover:not(:disabled) { background-color: #0056b3; }
+        .kMeansControls button:hover:not(:disabled) { background-color: #218838; }
+        #spectral-explanation-container {
+            flex-grow: 1;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+        }
+        #equalizer-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+        }
+        #spectral-force-sliders {
+            display: none;
+            grid-template-columns: auto 1fr 50px;
+            gap: 8px 15px;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #louvain-controls button {
+            background-color: #3f51b5;
+        }
+        #louvain-controls button:hover:not(:disabled) {
+            background-color: #303f9f;
+        }
+        #infomap-controls button {
+            background-color: #D65F49;
+        }
+        #infomap-controls button:hover:not(:disabled) {
+            background-color: #B54A36;
+        }
+        #edge-controls button {
+            background-color: #007bff;
+        }
+        #slider-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+            padding: 10px 0;
+        }
+        #graph-options {
+            padding: 5px 0;
+        }
+        .theory-content {
+            line-height: 1.6;
+        }
+        .theory-content ul {
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="main-container">
+    <h2>Cимулятор алгоритмів кластеризації графів</h2>
+    
+    <div id="algorithm-selector">
+        <button id="select-infomap" class="active">Infomap</button>
+        <button id="select-spectral">Спектральна</button>
+        <button id="select-edge">Кластеризація ребер</button>
+        <button id="select-louvain">Louvain</button>
+    </div>
+
+    <!-- Infomap Section -->
+    <div id="infomap-section" class="algorithm-section active">
+        <h2> Алгоритм Infomap</h2>
+
+        <div class="graph-container">
+            <svg id="infomap-graph-svg" class="graph-svg"></svg>
+        </div>
+
+        <div class="presets">
+            <span>Пресети:</span>
+            <button id="infomap-preset-complex" title="Цікавий тест: три кліки (4, 6 та 5 вершин) зі змішаними зв'язками між ними.">Три кліки з мостами</button>
+            <button id="infomap-preset-karate" title="Класичний набір даних, що відображає соціальні зв'язки в карате-клубі.">Карате-клуб</button>
+            <button id="infomap-preset-ba" title="Генерує зв'язний граф з 'хабами' за моделлю Барабаші-Альберт.">Граф з хабами (BA)</button>
+            <button id="infomap-preset-random" title="Генерує випадковий зв'язний граф.">Випадковий</button>
+        </div>
+
+        <div id="infomap-controls" class="controls">
+            <button id="infomap-startButton">Запустити/Оновити</button>
+            <button id="infomap-walkerButton" class="walkerButton">Запустити мандрівника</button>
+            <button id="infomap-resetButton">Скинути</button>
+            <div>
+                <input type="checkbox" id="infomap-directed-checkbox" />
+                <label for="infomap-directed-checkbox">Орієнтований граф</label>
+            </div>
+            <div class="slider-container">
+                <label for="infomap-teleport-slider">P(Телепортації):</label>
+                <input type="range" id="infomap-teleport-slider" min="0" max="1" step="0.01" value="0.15">
+                <span id="infomap-teleport-value">0.15</span>
+            </div>
+             <div class="slider-container">
+                <label for="infomap-speed-slider">Швидкість:</label>
+                <input type="range" id="infomap-speed-slider" min="1" max="50" step="1" value="10">
+                <span id="infomap-speed-value">10x</span>
+            </div>
+             <span id="infomap-codelength-output" class="codelength-output"></span>
+        </div>
+
+        <details>
+            <summary>Інструменти та гарячі клавіші</summary>
+            <ul>
+                <li><b>Додати вершину:</b> Двічі клікніть на вільному місці.</li>
+                <li><b>З'єднати вершини:</b> Клікніть на першу вершину, потім на другу.</li>
+                <li><b>Видалити ребро/дугу:</b> Двічі клікніть по ньому/ній.</li>
+                <li><b>Видалити вершину:</b> Виділіть її кліком і натисніть <b>Delete</b>.</li>
+                <li><b>Виділити кілька вершин:</b> Утримуйте <b>Shift</b> і клікайте на вершини.</li>
+                <li><b>Створити кліку:</b> Виділіть кілька вершин і натисніть клавішу <b>C</b>.</li>
+                <li><b>Перемістити вершину:</b> Перетягніть її мишею.</li>
+            </ul>
+        </details>
+
+        <div id="infomap-histogram-container" class="step">
+             <h4>Гістограма переходів мандрівника</h4>
+             <svg id="infomap-histogram-svg" class="histogram-svg"></svg>
+        </div>
+
+         <div id="infomap-supergraph-container" class="step">
+             <div class="section-header">
+                <h4>Карта спільнот (Супер-граф)</h4>
+                <button id="infomap-restart-supergraph-btn" class="restart-supergraph-btn">Перезапустити розкладку</button>
+             </div>
+             <svg id="infomap-supergraph-svg" class="supergraph-svg"></svg>
+        </div>
+
+        <details class="step" id="infomap-results-spoiler">
+            <summary>Результати розрахунків</summary>
+            <pre id="infomap-node-communities-output"></pre>
+        </details>
+
+        <details class="step active" id="infomap-theory-section">
+            <summary>Теоретична довідка</summary>
+            <div style="line-height: 1.8; margin-top: 15px;">
+            <p>
+                Алгоритм Infomap призначений для виявлення спільнот у складних мережах шляхом мінімізації інформаційної довжини опису випадкових блукань по графу. В основі методу лежить ідея, що оптимальним є таке розбиття на модулі (спільноти), яке дозволяє максимально стиснути опис траєкторії випадкового мандрівника.
+            </p>
+
+            <h4>Крок 1: Моделювання потоку інформації та стаціонарний розподіл</h4>
+            <p>
+                Першим кроком є моделювання динаміки потоку в мережі. Це досягається за допомогою випадкових блукань, де мандрівник переміщується від вершини до вершини через існуючі зв'язки. Для будь-якого графа (включаючи орієнтовані та незв'язні) можна розрахувати стаціонарний розподіл відвідувань вершин, відомий як PageRank. Цей розподіл, позначимо його як $\vec{\pi}$, являє собою вектор, де кожен елемент $\pi_i$ відповідає довгостроковій ймовірності знаходження мандрівника у вершині $i$.
+            </p>
+            <p>
+                Для боротьби з "тупиками" (вершинами без вихідних зв'язків) та "пастками" (ізольованими циклами) вводиться параметр демпфінгу $\alpha$ (ймовірність телепортації). З імовірністю $1-\alpha$ мандрівник слідує за зв'язком, а з імовірністю $\alpha$ — "телепортується" до випадкової вершини графа. Це гарантує ергодичність процесу та існування унікального стаціонарного розподілу.
+            </p>
+            
+            <h4>Крок 2: Картографічне рівняння (The Map Equation)</h4>
+            <p>
+                Картографічне рівняння є цільовою функцією, яку Infomap прагне мінімізувати. Воно вимірює середню довжину кодового слова, необхідного для опису одного кроку випадкового мандрівника, для заданого розбиття мережі $M$ на $m$ модулів.
+            </p>
+            $$L(M) = q_{\curvearrowright} H(\mathcal{Q}) + \sum_{i=1}^{m} p_{\circlearrowright}^{i} H(\mathcal{P}^i)$$
+            <p>де:</p>
+            <ul>
+                <li>$L(M)$ — середня довжина опису для розбиття $M$.</li>
+                <li>$q_{\curvearrowright}$ — ймовірність того, що мандрівник покине будь-яку спільноту. Це сума ймовірностей переходу між усіма парами спільнот.</li>
+                <li>$H(\mathcal{Q})$ — ентропія рухів <b>між</b> спільнотами. Вона вимірює невизначеність вибору наступної спільноти, коли мандрівник покинув поточну.</li>
+                <li>$p_{\circlearrowright}^{i}$ — ймовірність того, що мандрівник здійснить крок, який починається <b>всередині</b> спільноти $i$ (включаючи як внутрішні переходи, так і виходи з неї).</li>
+                <li>$H(\mathcal{P}^i)$ — ентропія рухів, що починаються всередині спільноти $i$.</li>
+            </ul>
+            <p>
+                Ентропія $H$ розраховується за формулою Шеннона: $H = -\sum_k p_k \log_2 p_k$. Перший доданок рівняння, $q_{\curvearrowright} H(\mathcal{Q})$, кодує переміщення на "макрорівні" (між містами на карті), а другий, $\sum p_{\circlearrowright}^{i} H(\mathcal{P}^i)$, — на "мікрорівні" (всередині міст).
+            </p>
+
+            <h4>Крок 3: Процедура оптимізації</h4>
+            <p>
+                Мінімізація $L(M)$ є NP-складною задачею, тому використовується евристичний підхід, що складається з двох фаз:
+            </p>
+            <ol>
+                <li><b>Локальне переміщення вершин</b>:
+                    <br>а. На початку кожна вершина є окремою спільнотою.
+                    <br>б. Вершини по черзі розглядаються для переміщення до спільнот їхніх сусідів.
+                    <br>в. Для кожної потенційної спільноти розраховується зміна (дельта) в значенні $L(M)$.
+                    <br>г. Вершина переміщується до тієї спільноти, яка забезпечує найбільше зменшення $L(M)$.
+                    <br>д. Цей процес повторюється для всіх вершин і триває доти, доки жодне переміщення не призводить до зменшення $L(M)$.
+                </li>
+                <li style="margin-top:10px;"><b>Агрегація мережі</b>:
+                    <br>а. Спільноти, знайдені на першому етапі, "стискаються" в нові, "супер-вершини".
+                    <br>б. Створюється новий, агрегований граф, де ваги ребер між супер-вершинами дорівнюють сумарній ймовірності переходу між відповідними спільнотами.
+                    <br>в. Процес локального переміщення (Крок 3.1) повторюється для цього нового графа.
+                </li>
+            </ol>
+            <p>
+                Ці дві фази повторюються ітеративно. Алгоритм зупиняється, коли жодні подальші зміни (ні переміщення вершин, ні агрегація) не можуть зменшити загальне значення $L(M)$.
+            </p>
+            </div>
+        </details>
+    </div>
+
+    <!-- Spectral Clustering Section -->
+    <div id="spectral-section" class="algorithm-section">
+        <h2> Спектральна Кластеризація</h2>
+
+        <div id="spectral-graph-container">
+            <div id="spectral-settings">
+                 <label for="spectral-vertexCountSelect">Кількіть вершин:</label>
+                 <select id="spectral-vertexCountSelect">
+                     <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="10">10</option><option value="20" selected>20</option>
+                 </select>
+                 <label for="spectral-clusterCountSelect">Кількість кластерів:</label>
+                 <select id="spectral-clusterCountSelect">
+                     <option value="2">2</option><option value="3" selected>3</option>
+                 </select>
+                 <input type="checkbox" id="spectral-useEdgeWeightsCheckbox" >
+                 <label for="spectral-useEdgeWeightsCheckbox">Враховувати вагу ребер</label>
+            </div>
+            <div id="spectral-presets">
+                 <span>Пресети:</span>
+                 <button id="spectral-preset-bipartite">"Карате-клуб"</button>
+                 <button id="spectral-preset-bridge">Міст</button>
+                 <button id="spectral-preset-3-clusters">3 Кластери (3-3-4)</button>
+                 <button id="spectral-preset-random">Випадковий (Барабаши)</button>
+            </div>
+            <p id="spectral-instruction">Клікніть на полотні, щоб поставити 10 вершин.</p>
+            <div style="position: relative;">
+                <canvas id="spectral-graphCanvas" width="800" height="400"></canvas>
+                <div id="spectral-centerOfMassContainer"></div>
+            </div>
+            <div id="spectral-controls">
+                <button id="spectral-startButton" disabled>Запуск кластеризації</button>
+                <button id="spectral-spreadClustersButton" disabled>Розсунути кластери</button>
+                <button id="spectral-resetButton">Скинути</button>
+            </div>
+            <div id="spectral-force-sliders">
+                <label for="spectral-attraction-slider">Жорсткість всередині кластера:</label>
+                <input type="range" id="spectral-attraction-slider" min="0" max="1000" value="500" step="50">
+                <span id="spectral-attraction-value">0.50</span>
+                <label for="spectral-repulsion-slider">Відштовхування між кластерами:</label>
+                <input type="range" id="spectral-repulsion-slider" min="0" max="100" value="50" step="1">
+                <span id="spectral-repulsion-value">5.0</span>
+                <label for="spectral-intra-cluster-repulsion-slider">Відштовхування всередині кластера:</label>
+                <input type="range" id="spectral-intra-cluster-repulsion-slider" min="0" max="10000" value="1000" step="20">
+                <span id="spectral-intra-cluster-repulsion-value">20.0</span>
+            </div>
+             <details>
+                <summary>Підказки та гарячі клавіші</summary>
+                <div>
+                     <ul>
+                        <li><b>Додати вершину:</b> Клікніть на вільному місці (в режимі розміщення).</li>
+                        <li><b>З'єднати вершини:</b> Клікніть на першу вершину (вона виділиться), потім на другу.</li>
+                        <li><b>Видалити ребро:</b> Двічі клікніть по ребру.</li>
+                        <li><b>Перемістити вершину:</b> Затисніть <b>Ctrl</b> і перетягніть вершину мишею.</li>
+                        <li><b>Створити повний підграф (кліку):</b> Затисніть <b>Shift</b>, клікніть по кількох вершинах, щоб їх обрати, а потім відпустіть <b>Shift</b>. Усі обрані вершини з'єднаються між собою.</li>
+                        <li><b>Скасувати виділення:</b> Клікніть на вільному місці.</li>
+                    </ul>
+                </div>
+            </details>
+            <div id="spectral-animation-container" style="display: none;">
+                <h4>Анімація: Модель "Ребра-пружини"</h4>
+                <div id="spectral-animation-controls">
+                    <label for="spectral-animationModeSelect">Мод коливань:</label>
+                    <select id="spectral-animationModeSelect">
+                        <option value="-1">Вимкнено</option>
+                        <option value="0">Мод 1 (λ₁ ≈ 0, рух цілого)</option>
+                        <option value="1">Мод 2 (λ₂, поділ по X)</option>
+                        <option value="2">Мод 3 (λ₃, поділ по Y)</option>
+                        <option value="3">Комбінація (λ₁ + λ₂ + λ₃)</option>
+                    </select>
+                    <button id="spectral-toggleAnimationButton" disabled>Запустити анімацію</button>
+                </div>
+                 <div id="spectral-equalizer-container" style="display: none;">
+                    <div class="slider-group">
+                        <label for="spectral-amp-slider-0">Амплітуда λ₁</label>
+                        <input type="range" min="0" max="100" value="50" id="spectral-amp-slider-0">
+                    </div>
+                    <div class="slider-group">
+                        <label for="spectral-amp-slider-1">Амплітуда λ₂</label>
+                        <input type="range" min="0" max="100" value="75" id="spectral-amp-slider-1">
+                    </div>
+                    <div class="slider-group">
+                        <label for="spectral-amp-slider-2">Амплітуда λ₃</label>
+                        <input type="range" min="0" max="100" value="75" id="spectral-amp-slider-2">
+                    </div>
+                </div>
+            </div>
+            <details>
+                <summary>Теоретичні відомості</summary>
+                <div>
+                     <h4>Що таке спектральна кластеризація?</h4>
+                    <p>Це метод, який дозволяє розділяти дані (вершини графа) на групи (кластери) на основі їх зв'язності. На відміну від k-means, який шукає компактні сферичні кластери, спектральний метод може знаходити кластери складної форми. Він використовує "спектр" (власні значення) матриці графа для перетворення вершин у простір меншої розмірності, де їх легче розділити.</p>
+                    <h4>1. Матриця Кірхгофа (Лапласіан)</h4>
+                    <p>В основі методу лежить лапласіан графа $L$, який обчислюється за формулою: $$L = D - W$$ Де: <ul><li>$W$ — <b>матриця суміжності</b>. Якщо вага ребер не враховується, $W_{ij} = 1$, якщо між вершинами $i$ та $j$ є ребро. Якщо вага враховується, $W_{ij}$ — це міра схожості (напр., обернена до відстані).</li><li>$D$ — <b>діагональна матриця степенів</b>. $D_{ii}$ дорівнює сумі ваг усіх ребер, що виходять з вершини $i$.</li></ul></p>
+                    <h4>2. Спектральний розклад</h4>
+                    <p>Наступний крок — знаходження власних значень $\lambda$ та власних векторів $v$ для матриці $L$, що задовольняють рівняння: $$Lv = \lambda v$$ Власні значення, відсортовані по зростанню ($\lambda_1 \le \lambda_2 \le ...$), та відповідні їм вектори утворюють спектр графа.</p>
+                    <h4>3. Вектор Фідлера та ембединг</h4>
+                    <p>Ключову роль відіграє другий найменший власний вектор $v_2$, відомий як <b>вектор Фідлера</b>. Компоненти цього вектора "розтягують" вершини графа вздовж осі таким чином, що тісно пов'язані вершини опиняються поруч. <ul><li><b>Для 2 кластерів:</b> кожній вершині $i$ ставиться у відповідність координата $v_2(i)$. Виходить 1D-простір.</li><li><b>Для 3 кластерів:</b> використовуються два вектори, $v_2$ та $v_3$. Вершина $i$ отримує координати $(v_2(i), v_3(i))$ на 2D-площині.</li></ul></p>
+                    <h4>4. Застосування K-Means</h4>
+                    <p>Після перетворення вершин у новий простір (1D або 2D), до цих нових координат застосовується стандартний алгоритм k-means для фінального розділення на кластери. Для підвищення надійності використовується <b>багаторазовий запуск</b>: алгоритм запускається кілька разів з різними випадковими початковими центрами, і обирається результат з найменшою сумою квадратів відстані до центрів кластерів.</p>
+                </div>
+            </details>
+        </div>
+
+        <div id="spectral-explanation-container">
+            <h2>Кроки Алгоритму</h2>
+            <div id="spectral-step1" class="step">
+                <h4>Крок 1: Побудова матриць</h4>
+                <p>На основі графа будуємо матрицю суміжності <b>W</b> (з урахуванням ваги ребер, якщо опція активна), діагональну матрицю степенів <b>D</b> та обчислюємо кінцеву матрицю.</p>
+                <b>Матриця Кірхгофа (Лапласіан Графа, L = D - W):</b><pre id="spectral-laplacianMatrix"></pre>
+            </div>
+            <div id="spectral-step2" class="step">
+                <h4>Крок 2: Спектральний розклад</h4>
+                <p>Знаходимо власні значення та вектори матриці Кірхгофа. Для кластеризації на <b>k</b> груп використовуються вектори $v_2 ... v_{k+1}$.</p>
+                <b>Власні значення (λ) та вектори (v):</b><pre id="spectral-eigenData"></pre>
+            </div>
+            <div id="spectral-step3" class="step">
+                <h4>Крок 3: Кластеризація методом K-means</h4>
+                <p id="spectral-kmeans-explanation"></p>
+                <div id="spectral-kMeansContainer" style="display: none;">
+                    <canvas id="spectral-kMeansCanvas" width="500" height="300"></canvas>
+                    <div class="kMeansControls" style="display: flex; gap: 10px; margin-top: 5px;">
+                         <button id="spectral-kMeansStepButton">Крок</button>
+                         <button id="spectral-kMeansRunOptimizedButton">Запустити Оптимізацію (x20)</button>
+                         <button id="spectral-kMeansManualCentroidsButton">Задати центроїди вручну</button>
+                    </div><p id="spectral-kMeansStatus"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edge Clustering Section -->
+    <div id="edge-section" class="algorithm-section">
+        <h2>Кластеризація ребер Louvain для спільнот, що перекриваються</h2>
+        
+        <div class="graph-container">
+            <svg id="edge-graph-svg" class="graph-svg"></svg>
+        </div>
+        
+        <div id="slider-container">
+            <label for="edge-threshold-slider">Поріг схожості:</label>
+            <input type="range" id="edge-threshold-slider" min="0" max="1" step="0.01" value="0.2">
+            <span id="edge-threshold-value">0.20</span>
+        </div>
+
+        <div id="graph-options">
+            <input type="checkbox" id="edge-show-edge-labels-checkbox">
+            <label for="edge-show-edge-labels-checkbox">Показувати номери ребер</label>
+        </div>
+        
+        <div class="presets">
+            <span>Пресети:</span>
+            <button id="edge-preset-karate" title="Класичний набір даних, що відображає соціальні зв'язки в карате-клубі. Конфлікт між адміністратором та інструктором призвів до розколу клубу на дві фракції. Алгоритм намагається передбачити цей розкол. Детальніше: https://en.wikipedia.org/wiki/Zachary%27s_karate_club">Karate Club</button>
+            <button id="edge-preset-bridge">Граф з hubs (BA)</button>
+            <button id="edge-preset-overlap">Явне перекриття</button>
+            <button id="edge-preset-random">Випадковий</button>
+        </div>
+
+        <div id="edge-controls" class="controls">
+            <button id="edge-startButton">Запустити алгоритм</button>
+            <button id="edge-resetButton">Скинути</button>
+        </div>
+        
+        <details>
+            <summary>Підказки та гарячі клавіші</summary>
+            <ul>
+                <li><b>Додати вершину:</b> Двічі клікніть на вільному місці.</li>
+                <li><b>З'єднати вершини:</b> Клікніть на першу вершину (вона виділиться), потім на другу.</li>
+                <li><b>Видалити ребро:</b> Двічі клікніть по ребру.</li>
+                <li><b>Видалити вершину:</b> Виділіть її кліком і натисніть <b>Delete</b>.</li>
+                <li><b>Створити повний підграф (кліку):</b> Затисніть <b>Shift</b> і клікайте по вершинах, або робіть <b>довгий тап</b> на сенсорному екрані. Коли виділено кілька вершин, відпустіть <b>Shift</b>.</li>
+                <li><b>Перемістити вершину:</b> Перетягніть її мишею.</li>
+            </ul>
+        </details>
+
+        <div id="edge-dendrogram-container" class="step">
+             <h4>Ієрархія спільнот (дендрограма)</h4>
+             <svg id="edge-dendrogram-svg" class="dendrogram-svg"></svg>
+        </div>
+        
+         <div id="edge-supergraph-container" class="step">
+             <div class="section-header">
+                <h4>Супер-граф спільнот</h4>
+                <button id="edge-restart-supergraph-btn" class="restart-supergraph-btn">Перезапустити розкладку</button>
+             </div>
+             <svg id="edge-supergraph-svg" class="supergraph-svg"></svg>
+        </div>
+
+        <details class="step" id="edge-results-spoiler">
+            <summary>Результати розрахунків</summary>
+            <pre id="edge-edge-communities-output"></pre>
+            <pre id="edge-node-communities-output"></pre>
+        </details>
+
+        <div class="step active" id="edge-theory-section">
+            <div class="theory-content">
+                <h3>Теоретична довідка</h3>
+                <h4>Ієрархічна кластеризація мереж на основі зв'язків</h4>
+                <p>Виявлення спільнот — одна з ключових задач аналізу мереж. Спільнота (або кластер) — це група вершин, які щільно пов'язані між собою, але мають слабкі зв'язки з рештою мережі. Класичні алгоритми часто змушують кожну вершину належати лише до однієї спільноти, що нереалістично для багатьох систем. Наприклад, людина в соціальній мережі може одночасно бути частиною родини, робочого колективу та спортивної команди.</p>
+                
+                <h4>Підхід: Ієрархічна кластеризація ребер</h4>
+                <p>Цей симулятор демонструє метод, що дозволяє знаходити <b>спільноти, які перекриваються</b>. Основна ідея полягає в тому, щоб кластеризувати не вершини, а <b>ребра</b> (зв'язки). Спільнота розглядається як набір щільно пов'язаних ребер. Такий підхід природно дозволяє вершинам, що з'єднують ці ребра, належати до кількох спільнот одночасно.</p>
+                
+                <h4>Процес кластеризації</h4>
+                <ol>
+                    <li>
+                        <b>Схожість ребер (Індекс Жаккара):</b>
+                        <p>Щоб згрупувати ребра, нам потрібна міра їхньої схожості. Для будь-якої пари ребер $(e_1, e_2)$, що мають спільну вершину, ми обчислюємо схожість їхніх "крайніх" вершин $u$ та $v$ за формулою індексу Жаккара:</p>
+                        <p>$J(e_1, e_2) = \frac{|(N(u) \cup \{u\}) \cap (N(v) \cup \{v\})|}{|(N(u) \cup \{u\}) \cup (N(v) \cup \{v\})|}$</p>
+                        <ul>
+                            <li>$u$ та $v$ — це вершини ребер $e_1$ та $e_2$, що не є спільними.</li>
+                            <li>$N(x)$ — множина всіх сусідів вершини $x$.</li>
+                            <li>Формула, по суті, відповідає на питання: "Наскільки сильно перетинаються оточення вершин $u$ та $v$?" Високе значення (близько 1) означає, що ребра $e_1$ та $e_2$ є частиною однієї щільної структури.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <b>Ієрархічна кластеризація:</b>
+                        <p>Маючи матрицю схожості всіх ребер, ми будуємо ієрархію. Процес починається з того, що кожне ребро є окремою мікро-спільнотою. Далі на кожному кроці дві найближчі (найбільш схожі) спільноти об'єднуються в одну більшу. Цей процес триває, доки всі ребра не опиняться в одній глобальній спільноті. Весь цей ієрархічний процес візуалізується за допомогою <b>дендрограми</b>.</p>
+                    </li>
+                    <li>
+                        <b>Виділення спільнот:</b>
+                        <p>Повзунок "Поріг схожості" дозволяє "зрізати" дендрограму на певному рівні. Усі гілки, що були об'єднані при схожості, вищій за цей поріг, вважаються однією спільнотою. Це дозволяє досліджувати структуру спільнот на різних рівнях деталізації.</p>
+                    </li>
+                     <li>
+                        <b>Від ребер до вершин:</b>
+                        <p>Фінальний крок — визначення приналежності вершин. Правило просте: вершина належить до всіх спільнот, до яких належать її ребра. Саме це і створює ефект перекриття.</p>
+                    </li>
+                </ol>
+                
+                <h4>Переваги та порівняння з іншими методами</h4>
+                <ul>
+                    <li><b>Класичний Louvain (для вершин):</b> Дуже швидкий та популярний метод, але він знаходить лише спільноти, що не перекриваються, оптимізуючи метрику "модулярності".</li>
+                    <li><b>Спектральна кластеризація:</b> Добре працює для графів з чітко вираженими кластерами, але також не знаходить перекриття і є обчислювально складною.</li>
+                </ul>
+                <p><b>Ключові переваги методу кластеризації ребер:</b></p>
+                <ul>
+                    <li>✅ <b>Знаходить спільноти, що перекриваються</b>, що є більш реалістичною моделлю для багатьох мереж.</li>
+                    <li>🌳 <b>Надає ієрархічну структуру</b>, дозволяючи бачити, як спільноти вкладені одна в одну.</li>
+                    <li>🔢 <b>Не вимагає знати кількість спільнот наперед</b> — вона визначається автоматично на основі даних та обраного порогу.</li>
+                </ul>
+                <p>Метод був запропонований у статті: Ahn, Y. Y., Bagrow, J. P., & Lehmann, S. (2010). <a href="https://www.nature.com/articles/nature09182" target="_blank">Link communities reveal multiscale complexity in networks</a>. <i>Nature</i>, 466(7307), 761-764.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Louvain Section -->
+    <div id="louvain-section" class="algorithm-section">
+        <h2> Алгоритм Louvain</h2>
+
+        <div class="graph-container">
+            <svg id="louvain-graph-svg" class="graph-svg"></svg>
+        </div>
+
+        <div class="presets">
+            <span>Пресети:</span>
+            <button id="louvain-preset-complex" title="Цікавий тест: три кліки (4, 6 та 5 вершин) зі змішаними зв'язками між ними.">Три кліки з мостами</button>
+            <button id="louvain-preset-karate" title="Класичний набір даних, що відображає соціальні зв'язки в карате-клубі.">Карате-клуб</button>
+            <button id="louvain-preset-ba" title="Генерує зв'язний граф з 'хабами' за моделлю Барабаші-Альберт.">Граф з хабами (BA)</button>
+            <button id="louvain-preset-random" title="Генерує випадковий зв'язний граф.">Випадковий</button>
+        </div>
+
+        <div id="louvain-controls" class="controls">
+            <button id="louvain-startButton">Почати з початку</button>
+            <button id="louvain-nextButton" disabled>Наступний прохід</button>
+            <button id="louvain-resetButton">Скинути</button>
+            <span id="louvain-modularity-output" class="modularity-output"></span>
+        </div>
+
+        <details>
+            <summary>Інструменти та гарячі клавіші</summary>
+            <ul>
+                <li><b>Додати вершину:</b> Двічі клікніть на вільному місці.</li>
+                <li><b>З'єднати вершини:</b> Клікніть на першу вершину, потім на другу.</li>
+                <li><b>Видалити ребро:</b> Двічі клікніть по ньому.</li>
+                <li><b>Видалити вершину:</b> Виділіть її кліком і натисніть <b>Delete</b>.</li>
+                <li><b>Перемістити вершину:</b> Перетягніть її мишею.</li>
+            </ul>
+        </details>
+
+         <div id="louvain-supergraph-container" class="step">
+             <div class="section-header">
+                <h4>Карта спільнот (Супер-граф)</h4>
+                <button id="louvain-restart-supergraph-btn" class="restart-supergraph-btn">Перезапустити розкладку</button>
+             </div>
+             <svg id="louvain-supergraph-svg" class="supergraph-svg"></svg>
+        </div>
+
+        <details class="step" id="louvain-results-spoiler">
+            <summary>Результати розрахунків</summary>
+            <pre id="louvain-node-communities-output"></pre>
+        </details>
+
+        <details class="step active" id="louvain-theory-section">
+            <summary>Теоретична довідка</summary>
+            <div style="line-height: 1.8; margin-top: 15px;">
+                <p>
+                    <b>Метод Louvain</b> — це ієрархічний агломеративний алгоритм для виявлення спільнот у великих мережах. Його основна ідея полягає в жадібній оптимізації метрики, що називається **модулярністю**.
+                </p>
+
+                <h4>Ключова метрика: Модулярність (Q)</h4>
+                <p>
+                    Модулярність вимірює якість розбиття графа на спільноти. Високе значення модулярності вказує на те, що всередині спільнот зв'язків значно більше, ніж можна було б очікувати випадково.
+                </p>
+                $$Q = \frac{1}{2m} \sum_{i,j} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)$$
+                <p>де $m$ — к-сть ребер, $A_{ij}$ — матриця суміжності, $k_i$ — степінь вершини $i$, $c_i$ — спільнота вершини $i$, а $\delta$ — функція-індикатор.</p>
+
+                <h4>Процедура оптимізації</h4>
+                <p>
+                    Алгоритм працює ітеративно ("проходами"), кожен з яких складається з двох фаз.
+                </p>
+                <ol>
+                    <li><b>Фаза 1: Оптимізація модулярності</b>
+                        <br>Для кожної вершини алгоритм оцінює приріст модулярності ($\Delta Q$) від її переміщення до спільноти кожного з її сусідів. Вершина переміщується туди, де приріст максимальний. Цей процес повторюється для всіх вершин доти, доки жодне переміщення не збільшує $Q$.
+                    </li>
+                    <li style="margin-top:10px;"><b>Фаза 2: Агрегація мережі</b>
+                        <br>Спільноти, знайдені на першому етапі, "стискаються" в нові, "супер-вершини". Створюється новий граф, де ці супер-вершини є вузлами.
+                    </li>
+                </ol>
+                <p>
+                    Після цього алгоритм повертається до Фази 1, але вже на новому, агрегованому графі. Кожне натискання кнопки "Наступний прохід" запускає цей двофазний цикл.
+                </p>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script>
+// ================================================
+// ALGORITHM SELECTION
+// ================================================
+
+document.getElementById('select-infomap').addEventListener('click', () => switchAlgorithm('infomap'));
+document.getElementById('select-spectral').addEventListener('click', () => switchAlgorithm('spectral'));
+document.getElementById('select-edge').addEventListener('click', () => switchAlgorithm('edge'));
+document.getElementById('select-louvain').addEventListener('click', () => switchAlgorithm('louvain'));
+
+function switchAlgorithm(algorithm) {
+    // Update active button
+    document.querySelectorAll('#algorithm-selector button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`select-${algorithm}`).classList.add('active');
+    
+    // Show active section
+    document.querySelectorAll('.algorithm-section').forEach(section => section.classList.remove('active'));
+    document.getElementById(`${algorithm}-section`).classList.add('active');
+}
+
+// ================================================
+// INFOMAP ALGORITHM IMPLEMENTATION
+// ================================================
+
+// --- CORE DATA STRUCTURES AND STATE ---
+let infomap_nodes = [], infomap_links = [];
+let infomap_selectedNodes = new Set();
+let infomap_nodeCommunities = new Map();
+let infomap_isDirected = false;
+let infomap_teleportProb = 0.15;
+let infomap_walkerSpeedMultiplier = 10;
+const infomap_customColors = ["#4E79A7","#F28E2C","#E15759","#76B7B2","#59A14F","#EDC949","#AF7AA1","#FF9DA7","#9C755F","#BAB0AB"];
+const infomap_colors = d3.scaleOrdinal(infomap_customColors);
+let infomap_simulation, infomap_svg, infomap_linkGroup, infomap_nodeGroup, infomap_walkerLayer, infomap_linkHitAreaGroup;
+let infomap_svgWidth, infomap_svgHeight;
+let infomap_superSim;
+let infomap_walkerActive = false;
+let infomap_walkerTimeout;
+let infomap_walkerElement = null;
+let infomap_walkerCurrentNodeId = null;
+let infomap_transitionCounts = {};
+
+// --- D3 SETUP AND DRAWING ---
+function infomap_setupSVG() {
+    infomap_svg = d3.select("#infomap-graph-svg");
+    const containerWidth = infomap_svg.node().getBoundingClientRect().width;
+    infomap_svgHeight = 450;
+    infomap_svgWidth = containerWidth;
+    infomap_svg.attr("viewBox", `0 0 ${infomap_svgWidth} ${infomap_svgHeight}`);
+
+    infomap_svg.append('defs').append('marker')
+        .attr('id', 'infomap-arrowhead')
+        .attr('viewBox', '-0 -4 8 8').attr('refX', 19).attr('refY', 0)
+        .attr('orient', 'auto').attr('markerWidth', 5).attr('markerHeight', 5)
+        .append('svg:path').attr('d', 'M0,-4L8,0L0,4').attr('fill', '#999');
+
+    infomap_linkGroup = infomap_svg.append("g").attr("class", "links");
+    infomap_linkHitAreaGroup = infomap_svg.append("g").attr("class", "link-hit-areas");
+    infomap_nodeGroup = infomap_svg.append("g").attr("class", "nodes");
+    infomap_walkerLayer = infomap_svg.append("g").attr("class", "walker-layer");
+
+    infomap_simulation = d3.forceSimulation(infomap_nodes)
+        .force("link", d3.forceLink(infomap_links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-100))
+        .force("center", d3.forceCenter(infomap_svgWidth / 2, infomap_svgHeight / 2).strength(0.2))
+        .force("cluster", infomap_clusterForce)
+        .on("tick", infomap_ticked);
+
+    infomap_svg.on("click", (event) => { if (event.target.tagName === 'svg') { infomap_clearSelection(); infomap_update(); } })
+       .on("dblclick", (event) => { if (event.target.tagName === 'svg') { infomap_addNode(d3.pointer(event)[0], d3.pointer(event)[1]); } });
+
+    d3.select("body").on("keydown", infomap_handleKeyDown);
+    d3.select("#infomap-directed-checkbox").on("change", function() { infomap_isDirected = this.checked; infomap_resetGraph(); });
+    d3.select("#infomap-teleport-slider").on("input", function() {
+        infomap_teleportProb = +this.value;
+        d3.select("#infomap-teleport-value").text(infomap_teleportProb.toFixed(2));
+        if (infomap_nodeCommunities.size > 0 || infomap_nodes.length > 0) infomap_runInfomap();
+    });
+    d3.select("#infomap-speed-slider").on("input", function() {
+        infomap_walkerSpeedMultiplier = +this.value;
+        d3.select("#infomap-speed-value").text(`${infomap_walkerSpeedMultiplier}x`);
+    });
+}
+
+function infomap_update() {
+    const linkData = infomap_links;
+    const linkElements = infomap_linkGroup.selectAll("path.link").data(linkData, d => `${d.source.id}-${d.target.id}`);
+    linkElements.exit().remove();
+    linkElements.enter().append("path")
+        .attr("class", "link").attr("stroke-width", 3).attr("stroke", "#999").attr("fill", "none");
+    infomap_linkGroup.selectAll("path.link").attr('marker-end', infomap_isDirected ? 'url(#infomap-arrowhead)' : null);
+    
+    const hitAreaElements = infomap_linkHitAreaGroup.selectAll("path.hit-area").data(linkData, d => `${d.source.id}-${d.target.id}`);
+    hitAreaElements.exit().remove();
+    hitAreaElements.enter().append("path")
+        .attr("class", "hit-area").attr("stroke-width", 20).attr("stroke", "transparent").attr("fill", "none")
+        .on("dblclick", (event, d) => { event.preventDefault(); event.stopPropagation(); infomap_removeLink(d); });
+
+    const nodeElements = infomap_nodeGroup.selectAll("g.node-group").data(infomap_nodes, d => d.id);
+    nodeElements.exit().remove();
+    const nodeEnter = nodeElements.enter().append("g")
+        .attr("class", "node-group")
+        .call(d3.drag().on("start", infomap_dragstarted).on("drag", infomap_dragged).on("end", infomap_dragended))
+        .on("click", infomap_nodeClicked);
+    nodeEnter.append("circle").attr("r", 15);
+    nodeEnter.append("text").attr("dy", ".35em").attr("text-anchor", "middle").style("fill", "white").style("font-size", "12px").text(d => d.id);
+    
+    const currentCommunityIds = [...new Set(infomap_nodeCommunities.values())].sort((a, b) => a - b);
+    infomap_colors.domain(currentCommunityIds);
+
+    infomap_nodeGroup.selectAll("g.node-group").select("circle")
+        .attr("stroke", d => infomap_selectedNodes.has(d.id) ? "#ff7f0e" : "#333")
+        .attr("stroke-width", d => infomap_selectedNodes.has(d.id) ? 4 : 1.5)
+        .style("fill", d => infomap_nodeCommunities.has(d.id) ? infomap_colors(infomap_nodeCommunities.get(d.id)) : "#6c757d");
+    
+    infomap_simulation.nodes(infomap_nodes);
+    infomap_simulation.force("link").links(infomap_links);
+    infomap_simulation.alpha(1).restart();
+}
+
+function infomap_ticked() {
+    const radius = 15;
+    infomap_nodes.forEach(node => {
+        node.x = Math.max(radius, Math.min(infomap_svgWidth - radius, node.x));
+        node.y = Math.max(radius, Math.min(infomap_svgHeight - radius, node.y));
+    });
+    const pathGenerator = d => {
+        const dx = d.target.x - d.source.x; const dy = d.target.y - d.source.y;
+        const dr = infomap_isDirected && infomap_links.some(l => l.source.id === d.target.id && l.target.id === d.source.id) ? Math.sqrt(dx * dx + dy * dy) : 0;
+        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+    };
+    infomap_linkGroup.selectAll("path.link").attr("d", pathGenerator);
+    infomap_linkHitAreaGroup.selectAll("path.hit-area").attr("d", pathGenerator);
+    
+    infomap_nodeGroup.selectAll("g.node-group").attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+// --- INTERACTION HANDLERS ---
+function infomap_addNode(x, y) { infomap_stopWalker(); const newNodeId = infomap_nodes.length ? Math.max(...infomap_nodes.map(n => n.id)) + 1 : 0; infomap_nodes.push({ id: newNodeId, x, y, fx: null, fy: null }); infomap_clearCommunities(); infomap_update(); }
+function infomap_removeNode(id) { infomap_stopWalker(); infomap_nodes = infomap_nodes.filter(n => n.id !== id); infomap_links = infomap_links.filter(l => l.source.id !== id && l.target.id !== id); infomap_selectedNodes.delete(id); infomap_clearCommunities(); infomap_update(); }
+function infomap_addLink(sourceId, targetId) {
+    if (sourceId === targetId) return;
+    const exists = infomap_links.some(l => l.source.id === sourceId && l.target.id === targetId);
+    if (!exists) { infomap_stopWalker(); infomap_links.push({ source: sourceId, target: targetId }); if (!infomap_isDirected) infomap_links.push({ source: targetId, target: sourceId }); infomap_clearCommunities(); infomap_update(); }
+}
+function infomap_removeLink(link) { infomap_stopWalker(); infomap_links = infomap_links.filter(l => !(l.source.id === link.source.id && l.target.id === link.target.id)); if (!infomap_isDirected) infomap_links = infomap_links.filter(l => !(l.source.id === link.target.id && l.target.id === link.source.id)); infomap_clearCommunities(); infomap_update(); }
+function infomap_nodeClicked(event, d) {
+    event.stopPropagation();
+    if (event.shiftKey) {
+        if (infomap_selectedNodes.has(d.id)) infomap_selectedNodes.delete(d.id);
+        else infomap_selectedNodes.add(d.id);
+    } else {
+        if (infomap_selectedNodes.size === 1 && infomap_selectedNodes.has(d.id)) {
+            infomap_selectedNodes.clear();
+        } else if (infomap_selectedNodes.size === 1 && !infomap_selectedNodes.has(d.id)) {
+            const sourceId = infomap_selectedNodes.values().next().value;
+            infomap_addLink(sourceId, d.id);
+            infomap_clearSelection();
+        } else {
+            infomap_selectedNodes.clear();
+            infomap_selectedNodes.add(d.id);
+        }
+    }
+    infomap_update();
+}
+function infomap_clearSelection() { infomap_selectedNodes.clear(); }
+function infomap_handleKeyDown(event) {
+    if (event.key === "Delete" || event.key === "Backspace") {
+        infomap_selectedNodes.forEach(id => infomap_removeNode(id));
+        infomap_clearSelection();
+        infomap_update();
+    }
+    if (event.key.toLowerCase() === "c" && infomap_selectedNodes.size > 1) {
+        const nodesToConnect = [...infomap_selectedNodes];
+        for (let i = 0; i < nodesToConnect.length; i++) {
+            for (let j = i + 1; j < nodesToConnect.length; j++) {
+                infomap_addLink(nodesToConnect[i], nodesToConnect[j]);
+            }
+        }
+        infomap_clearSelection();
+        infomap_update();
+    }
+}
+function infomap_dragstarted(event, d) { infomap_stopWalker(); if (!event.active) infomap_simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+function infomap_dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+function infomap_dragended(event, d) { if (!event.active) infomap_simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+// --- WALKER LOGIC & HISTOGRAM ---
+function infomap_toggleWalker() { if (infomap_walkerActive) infomap_stopWalker(); else infomap_startWalker(); }
+
+function infomap_startWalker() {
+    if (infomap_nodeCommunities.size === 0) { alert("Спочатку запустіть алгоритм, щоб визначити спільноти."); return; }
+    infomap_walkerActive = true;
+    d3.select("#infomap-walkerButton").text("Зупинити мандрівника").classed("active", true);
+    d3.select("#infomap-histogram-container").classed('active', true);
+    infomap_transitionCounts = { 'Між кластерами': 0 };
+    [...new Set(infomap_nodeCommunities.values())].forEach(id => infomap_transitionCounts[id] = 0);
+    
+    if (!infomap_walkerElement) {
+        infomap_walkerElement = infomap_walkerLayer.append("circle").attr("r", 8).attr("fill", "#FFEB3B").attr("stroke", "black").attr("stroke-width", 2);
+    }
+    if (infomap_walkerCurrentNodeId === null || !infomap_nodes.some(n => n.id === infomap_walkerCurrentNodeId)) {
+       infomap_walkerCurrentNodeId = infomap_nodes[Math.floor(Math.random() * infomap_nodes.length)].id;
+    }
+    const startNode = infomap_nodes.find(n => n.id === infomap_walkerCurrentNodeId);
+    infomap_walkerElement.attr("cx", startNode.x).attr("cy", startNode.y);
+    infomap_moveWalker();
+}
+
+function infomap_stopWalker() {
+    infomap_walkerActive = false;
+    d3.select("#infomap-walkerButton").text("Запустити мандрівника").classed("active", false);
+    clearTimeout(infomap_walkerTimeout);
+    if(infomap_walkerElement) infomap_walkerElement.remove();
+    infomap_walkerElement = null;
+    infomap_nodeGroup.selectAll("g.node-group").classed("highlighted", false);
+}
+
+function infomap_moveWalker() {
+    if (!infomap_walkerActive) return;
+    const oldCommId = infomap_nodeCommunities.get(infomap_walkerCurrentNodeId);
+    infomap_nodeGroup.selectAll("g.node-group").classed("highlighted", d => infomap_nodeCommunities.get(d.id) === oldCommId);
+    
+    let nextNodeId;
+    const neighbors = infomap_links.filter(l => l.source.id === infomap_walkerCurrentNodeId).map(l => l.target.id);
+    
+    if (Math.random() < infomap_teleportProb || neighbors.length === 0) {
+        nextNodeId = infomap_nodes[Math.floor(Math.random() * infomap_nodes.length)].id;
+    } else {
+        nextNodeId = neighbors[Math.floor(Math.random() * neighbors.length)];
+    }
+    
+    const newCommId = infomap_nodeCommunities.get(nextNodeId);
+    if (oldCommId === newCommId) infomap_transitionCounts[oldCommId]++;
+    else infomap_transitionCounts['Між кластерами']++;
+    infomap_drawHistogram();
+    
+    const nextNode = infomap_nodes.find(n => n.id === nextNodeId);
+    infomap_walkerCurrentNodeId = nextNodeId;
+    
+    const transitionDuration = 1200 / infomap_walkerSpeedMultiplier;
+    const pauseDuration = 300 / infomap_walkerSpeedMultiplier;
+
+    infomap_walkerElement.transition().duration(transitionDuration).attr("cx", nextNode.x).attr("cy", nextNode.y)
+        .on("end", () => { infomap_walkerTimeout = setTimeout(infomap_moveWalker, pauseDuration); });
+}
+
+function infomap_drawHistogram() {
+    const histSvg = d3.select("#infomap-histogram-svg");
+    histSvg.selectAll("*").remove();
+    const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+    const width = histSvg.node().getBoundingClientRect().width - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+
+    const g = histSvg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    
+    const data = Object.entries(infomap_transitionCounts)
+        .map(([key, value]) => ({ key, value }))
+        .sort((a, b) => a.key === 'Між кластерами' ? 1 : b.key === 'Між кластерами' ? -1 : Number(a.key) - Number(b.key));
+
+    const x = d3.scaleBand().range([0, width]).padding(0.1).domain(data.map(d => d.key));
+    const yMax = d3.max(data, d => d.value);
+    const y = d3.scaleLinear().range([height, 0]).domain([0, yMax > 0 ? yMax : 1]);
+
+    g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x));
+    g.append("g").call(d3.axisLeft(y).ticks(5));
+
+    g.selectAll(".bar").data(data).enter().append("rect")
+        .attr("class", "bar").attr("x", d => x(d.key)).attr("y", d => y(d.value))
+        .attr("width", x.bandwidth()).attr("height", d => height - y(d.value))
+        .attr("fill", d => d.key === 'Між кластерами' ? '#6c757d' : infomap_colors(Number(d.key)));
+}
+
+// --- INFOMAP ALGORITHM & LAYOUT FORCE ---
+function infomap_clusterForce(alpha) {
+    const centroids = new Map();
+    infomap_nodes.forEach(n => {
+        const commId = infomap_nodeCommunities.get(n.id);
+        if (commId === undefined) return;
+        if (!centroids.has(commId)) centroids.set(commId, { x: 0, y: 0, count: 0 });
+        const c = centroids.get(commId);
+        c.x += n.x; c.y += n.y; c.count++;
+    });
+    centroids.forEach(c => { c.x /= c.count; c.y /= c.count; });
+    
+    const strength = 0.1;
+    infomap_nodes.forEach(n => {
+        const commId = infomap_nodeCommunities.get(n.id);
+        if (commId === undefined) return;
+        const c = centroids.get(commId);
+        n.vx += (c.x - n.x) * strength * alpha;
+        n.vy += (c.y - n.y) * strength * alpha;
+    });
+}
+
+function infomap_runInfomap() {
+    infomap_stopWalker();
+    if (infomap_nodes.length === 0) { if (!document.querySelector(".controls button").disabled) alert("Граф порожній."); return; }
+    infomap_resetSteps();
+    const nodeIds = infomap_nodes.map(n => n.id);
+    const adj = new Map(nodeIds.map(id => [id, []]));
+    const outDegree = new Map(nodeIds.map(id => [id, 0]));
+
+    infomap_links.forEach(l => {
+        const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+        const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+        adj.get(sourceId).push(targetId);
+        outDegree.set(sourceId, (outDegree.get(sourceId) || 0) + 1);
+    });
+    
+    let p = new Map(nodeIds.map(id => [id, 1 / infomap_nodes.length]));
+    for (let i = 0; i < 100; i++) {
+        const p_new = new Map(); let total = 0;
+        for (const node_j of nodeIds) {
+            let sum = 0;
+            for (const node_i of nodeIds) {
+                const deg = outDegree.get(node_i);
+                if (deg > 0 && adj.get(node_i)?.includes(node_j)) {
+                    sum += p.get(node_i) / deg;
+                }
+            }
+            const new_p_j = (1 - infomap_teleportProb) * sum + infomap_teleportProb / infomap_nodes.length;
+            p_new.set(node_j, new_p_j); total += new_p_j;
+        }
+        for (const [nodeId, prob] of p_new.entries()) p_new.set(nodeId, prob / total);
+        p = p_new;
+    }
+    const nodeVisitFreqs = p;
+
+    let communities = new Map(nodeIds.map(id => [id, id]));
+    let moved;
+    let finalCodelength = infomap_calculateMapEquation(communities, adj, nodeVisitFreqs);
+    do {
+        moved = false;
+        const shuffledNodes = d3.shuffle(nodeIds.slice());
+        for (const nodeId of shuffledNodes) {
+            const currentComm = communities.get(nodeId); let bestComm = currentComm;
+            let minCodelength = finalCodelength;
+            const neighborComms = new Set([currentComm]);
+            adj.get(nodeId).forEach(neighborId => neighborComms.add(communities.get(neighborId)));
+            for (const targetComm of neighborComms) {
+                if (targetComm !== currentComm) {
+                    const testCommunities = new Map(communities);
+                    testCommunities.set(nodeId, targetComm);
+                    const newCodelength = infomap_calculateMapEquation(testCommunities, adj, nodeVisitFreqs);
+                    if (newCodelength < minCodelength) {
+                        minCodelength = newCodelength; bestComm = targetComm;
+                    }
+                }
+            }
+            if (bestComm !== currentComm) {
+                communities.set(nodeId, bestComm);
+                finalCodelength = minCodelength;
+                moved = true;
+            }
+        }
+    } while (moved);
+
+    const uniqueCommunities = [...new Set(communities.values())];
+    const communityMap = new Map(uniqueCommunities.map((c, i) => [c, i]));
+    infomap_nodeCommunities.clear();
+    communities.forEach((commId, nodeId) => infomap_nodeCommunities.set(nodeId, communityMap.get(commId)));
+
+    infomap_displayResults();
+    infomap_update();
+    d3.select("#infomap-codelength-output").text(`L(M) = ${finalCodelength.toFixed(4)} біт`);
+}
+
+function infomap_h(p) { return p > 0 ? -p * Math.log2(p) : 0; }
+function infomap_calculateMapEquation(communities, adj, nodeVisitFreqs) {
+    const modules = [...new Set(communities.values())];
+    const enter_prob = new Map(modules.map(m => [m, 0])); const exit_prob = new Map(modules.map(m => [m, 0])); const stay_prob = new Map(modules.map(m => [m, 0]));
+    for (const [nodeId, commId] of communities.entries()) {
+        const p_node = nodeVisitFreqs.get(nodeId); const outDegree = adj.get(nodeId)?.length || 0;
+        if(outDegree === 0) continue;
+        const prob_per_link = p_node / outDegree;
+        for (const neighborId of adj.get(nodeId)) {
+            const neighborComm = communities.get(neighborId);
+            if (commId === neighborComm) { stay_prob.set(commId, stay_prob.get(commId) + prob_per_link); } 
+            else { exit_prob.set(commId, exit_prob.get(commId) + prob_per_link); enter_prob.set(neighborComm, enter_prob.get(neighborComm) + prob_per_link); }
+        }
+    }
+    const total_exit_prob = [...exit_prob.values()].reduce((a, b) => a + b, 0);
+    if (total_exit_prob < 1e-9) return 0;
+    let H_Q = 0;
+    for (const commId of modules) H_Q += infomap_h(enter_prob.get(commId) / total_exit_prob);
+    const L_term1 = total_exit_prob * H_Q;
+    let L_term2 = 0;
+    for (const commId of modules) {
+        const p_stay = stay_prob.get(commId); const p_exit = exit_prob.get(commId);
+        const p_total_module = p_stay + p_exit;
+        if (p_total_module > 1e-9) { L_term2 += p_total_module * (infomap_h(p_exit / p_total_module) + infomap_h(p_stay / p_total_module)); }
+    }
+    return L_term1 + L_term2;
+}
+
+// --- UTILITY AND DISPLAY ---
+function infomap_displayResults() {
+    document.querySelectorAll('#infomap-section .step').forEach(el => el.classList.add('active'));
+    let nodeCommunityText = "<h4>Спільноти вершин</h4>";
+    const communityGroups = new Map();
+    infomap_nodeCommunities.forEach((commId, nodeId) => {
+        if (!communityGroups.has(commId)) communityGroups.set(commId, []);
+        communityGroups.get(commId).push(nodeId);
+    });
+    const sortedGroups = new Map([...communityGroups.entries()].sort((a, b) => a[0] - b[0]));
+    sortedGroups.forEach((nodeList, commId) => { nodeCommunityText += `<b>Спільнота ${commId}:</b> {${nodeList.sort((a,b)=>a-b).join(', ')}}\n`; });
+    document.getElementById('infomap-node-communities-output').innerHTML = nodeCommunityText;
+    infomap_drawSuperGraph();
+}
+
+function infomap_drawSuperGraph() {
+    const superSvg = d3.select("#infomap-supergraph-svg"); superSvg.html("");
+    const width = superSvg.node().getBoundingClientRect().width; const height = 450;
+    superSvg.attr("viewBox", `0 0 ${width} ${height}`);
+    const g = superSvg.append("g");
+    const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (event) => g.attr("transform", event.transform));
+    superSvg.call(zoom);
+
+    const communities = new Map();
+    infomap_nodeCommunities.forEach((commId, nodeId) => { if (!communities.has(commId)) communities.set(commId, new Set()); communities.get(commId).add(nodeId); });
+    const superNodes = Array.from(communities.keys()).map(id => ({ id, size: communities.get(id).size }));
+    const superLinks = new Map();
+    const uniqueLinks = new Set(infomap_links.map(l => `${l.source.id}-${l.target.id}`));
+
+    uniqueLinks.forEach(linkKey => {
+        const [sourceId, targetId] = linkKey.split('-').map(Number);
+        const sourceComm = infomap_nodeCommunities.get(sourceId); const targetComm = infomap_nodeCommunities.get(targetId);
+        if (sourceComm !== undefined && targetComm !== undefined && sourceComm !== targetComm) {
+            const key = [sourceComm, targetComm].sort().join('-');
+            if (!superLinks.has(key)) superLinks.set(key, { source: sourceComm, target: targetComm, weight: 0 });
+            superLinks.get(key).weight++;
+        }
+    });
+    
+    const superLinksArray = Array.from(superLinks.values());
+    if (superNodes.length === 0) return;
+
+    const sizeScale = d3.scaleSqrt().domain([1, d3.max(superNodes, d => d.size) || 1]).range([20, 60]);
+    const linkScale = d3.scaleLinear().domain([1, d3.max(superLinksArray, d => d.weight) || 1]).range([2, 15]);
+
+    infomap_superSim = d3.forceSimulation(superNodes)
+        .force("link", d3.forceLink(superLinksArray).id(d => d.id).distance(200))
+        .force("charge", d3.forceManyBody().strength(-1500))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(d => sizeScale(d.size) + 10));
+
+    const sl = g.append("g").selectAll("line").data(superLinksArray).enter().append("line").style("stroke", "#999").style("stroke-width", d => linkScale(d.weight));
+    const sn = g.append("g").selectAll("circle").data(superNodes).enter().append("circle").attr("r", d => sizeScale(d.size)).attr("fill", d => infomap_colors(d.id))
+        .call(d3.drag().on("start", (event, d) => { if (!event.active) infomap_superSim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }).on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; }).on("end", (event, d) => { if (!event.active) infomap_superSim.alphaTarget(0); d.fx = null; d.fy = null; }));
+    const st = g.append("g").selectAll("text").data(superNodes).enter().append("text").text(d => d.id).attr("text-anchor", "middle").attr("dy", ".3em").style("fill", "white").style("font-weight", "bold");
+        
+    infomap_superSim.on("tick", () => {
+        sl.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        sn.attr("cx", d => d.x).attr("cy", d => d.y);
+        st.attr("x", d => d.x).attr("y", d => d.y);
+    });
+}
+
+function infomap_clearCommunities() { infomap_nodeCommunities.clear(); infomap_resetSteps(); infomap_update(); d3.select("#infomap-supergraph-svg").html(""); }
+function infomap_resetSteps() { infomap_stopWalker(); d3.selectAll('#infomap-section .step').classed('active', false); document.getElementById('infomap-node-communities-output').innerHTML = ""; d3.select("#infomap-supergraph-svg").html(""); d3.select("#infomap-histogram-svg").html(""); d3.select("#infomap-codelength-output").text(""); }
+function infomap_resetGraph() { infomap_stopWalker(); infomap_walkerCurrentNodeId = null; infomap_nodes = []; infomap_links = []; infomap_clearCommunities(); infomap_clearSelection(); infomap_update(); }
+
+// --- PRESETS ---
+function infomap_setDirected(state) { infomap_isDirected = state; document.getElementById('infomap-directed-checkbox').checked = state; }
+
+function infomap_loadComplexPreset() {
+    infomap_setDirected(false); infomap_resetGraph();
+    for (let i = 0; i <= 15; i++) infomap_nodes.push({ id: i });
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) infomap_addLink(i, j);
+    for (let i = 4; i < 10; i++) for (let j = i + 1; j < 10; j++) infomap_addLink(i, j);
+    for (let i = 10; i < 15; i++) for (let j = i + 1; j < 15; j++) infomap_addLink(i, j);
+    infomap_addLink(3, 4); infomap_addLink(9, 10); infomap_addLink(8, 11); infomap_addLink(14, 15); infomap_addLink(15, 2);
+    infomap_update();
+}
+
+function infomap_loadKarateClub() {
+    infomap_setDirected(false); infomap_resetGraph();
+    infomap_nodes = Array.from({length: 34}, (_, i) => ({id: i}));
+    const karateLinks = [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,10],[0,11],[0,12],[0,13],[0,17],[0,19],[0,21],[1,2],[1,3],[1,7],[1,13],[1,17],[1,19],[1,21],[1,30],[2,3],[2,7],[2,8],[2,9],[2,13],[2,27],[2,28],[2,32],[3,7],[3,12],[3,13],[4,6],[4,10],[5,6],[5,10],[5,16],[6,16],[8,30],[8,32],[8,33],[9,33],[13,33],[14,32],[14,33],[15,32],[15,33],[18,32],[18,33],[19,33],[20,32],[20,33],[22,32],[22,33],[23,25],[23,27],[23,29],[23,32],[23,33],[24,25],[24,27],[24,31],[25,31],[26,29],[26,33],[27,33],[28,31],[28,33],[29,32],[29,33],[30,32],[30,33],[31,32],[31,33],[32,33]];
+    karateLinks.forEach(l => infomap_addLink(l[0], l[1]));
+    infomap_update();
+}
+
+function infomap_loadBarabasiAlbert() {
+    infomap_resetGraph();
+    const N = 35;
+    const p_pref = 0.95; 
+    
+    const m0 = 4;
+    for (let i = 0; i < m0; i++) infomap_nodes.push({ id: i });
+    for (let i = 0; i < m0; i++) for (let j = i + 1; j < m0; j++) infomap_addLink(i, j);
+    
+    for (let i = m0; i < N; i++) {
+        infomap_nodes.push({ id: i });
+        const targets = new Set();
+        
+        const m = Math.floor(Math.random() * 1) + 1;//*3
+
+        const degreeList = [];
+        infomap_links.forEach(l => {
+            if (l.source.id < i) degreeList.push(l.source.id);
+            if (l.target.id < i) degreeList.push(l.target.id);
+        });
+
+        while (targets.size < m && targets.size < i) {
+            let targetId;
+            if (degreeList.length > 0 && Math.random() < p_pref) {
+                targetId = degreeList[Math.floor(Math.random() * degreeList.length)];
+            } else {
+                targetId = Math.floor(Math.random() * i);
+            }
+            if (targetId !== i) targets.add(targetId);
+        }
+        
+        targets.forEach(targetId => infomap_addLink(i, targetId));
+    }
+    infomap_update();
+}
+
+function infomap_loadRandom() {
+    infomap_resetGraph();
+    const numNodes = 35;
+    for(let i=0; i<numNodes; i++) infomap_nodes.push({id: i});
+    const addedEdges = new Set();
+    for(let i=0; i<numNodes * 1.5; i++) {
+        const source = Math.floor(Math.random() * numNodes); const target = Math.floor(Math.random() * numNodes);
+        if (source !== target) {
+            const key = `${source}-${target}`; if (addedEdges.has(key)) continue;
+            infomap_addLink(source, target);
+            addedEdges.add(key); if(!infomap_isDirected) addedEdges.add(`${target}-${source}`);
+            if (infomap_isDirected && Math.random() < 0.2) {
+                const reverseKey = `${target}-${source}`;
+                if (!addedEdges.has(reverseKey)) { infomap_addLink(target, source); addedEdges.add(reverseKey); }
+            }
+        }
+    }
+    const components = infomap_getComponents();
+    if (components.length > 1) {
+        for(let i=0; i < components.length - 1; i++) {
+            const sourceNode = components[i][Math.floor(Math.random() * components[i].length)];
+            const targetNode = components[i+1][Math.floor(Math.random() * components[i+1].length)];
+            infomap_addLink(sourceNode, targetNode);
+        }
+    }
+    infomap_clearCommunities(); infomap_update();
+}
+
+function infomap_getComponents() {
+    if (infomap_nodes.length === 0) return [];
+    const visited = new Set(); const components = [];
+    const adj = new Map(infomap_nodes.map(n => [n.id, new Set()]));
+    infomap_links.forEach(l => {
+        const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+        const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+        adj.get(sourceId).add(targetId); adj.get(targetId).add(sourceId);
+    });
+
+    for (const node of infomap_nodes) {
+        if (!visited.has(node.id)) {
+            const component = []; const stack = [node.id];
+            visited.add(node.id);
+            while(stack.length > 0) {
+                const u = stack.pop(); component.push(u);
+                for (const v of adj.get(u)) { if (!visited.has(v)) { visited.add(v); stack.push(v); } }
+            }
+            components.push(component);
+        }
+    }
+    return components;
+}
+
+// --- INITIALIZATION ---
+document.getElementById('infomap-startButton').addEventListener('click', infomap_runInfomap);
+document.getElementById('infomap-walkerButton').addEventListener('click', infomap_toggleWalker);
+document.getElementById('infomap-resetButton').addEventListener('click', infomap_resetGraph);
+document.getElementById('infomap-preset-complex').addEventListener('click', infomap_loadComplexPreset);
+document.getElementById('infomap-preset-karate').addEventListener('click', infomap_loadKarateClub);
+document.getElementById('infomap-preset-ba').addEventListener('click', infomap_loadBarabasiAlbert);
+document.getElementById('infomap-preset-random').addEventListener('click', infomap_loadRandom);
+document.getElementById('infomap-restart-supergraph-btn').addEventListener('click', () => { if(infomap_superSim) infomap_superSim.alpha(1).restart(); });
+
+// ================================================
+// SPECTRAL CLUSTERING ALGORITHM IMPLEMENTATION
+// ================================================
+
+// --- SETUP & STATE VARIABLES ---
+const spectral_canvas = document.getElementById('spectral-graphCanvas'), spectral_ctx = spectral_canvas.getContext('2d');
+const spectral_instruction = document.getElementById('spectral-instruction'), spectral_startButton = document.getElementById('spectral-startButton'), spectral_resetButton = document.getElementById('spectral-resetButton');
+const spectral_spreadClustersButton = document.getElementById('spectral-spreadClustersButton');
+const spectral_vertexCountSelect = document.getElementById('spectral-vertexCountSelect'), spectral_clusterCountSelect = document.getElementById('spectral-clusterCountSelect');
+const spectral_useEdgeWeightsCheckbox = document.getElementById('spectral-useEdgeWeightsCheckbox');
+const spectral_clusterColors = ['rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)'];
+const spectral_clusterColorsLight = ['rgba(255, 99, 132, 0.4)', 'rgba(54, 162, 235, 0.4)', 'rgba(255, 206, 86, 0.4)'];
+const spectral_clusterColorsSolid = ['rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)'];
+let spectral_numVertices = 10, spectral_numClusters = 3, spectral_vertices = [], spectral_edges = [], spectral_selectedVertex = null, spectral_mode = 'placing', spectral_clusters = [];
+let spectral_kMeansData = [], spectral_kMeansState = {};
+let spectral_isAnimating = false, spectral_animationFrameId = null, spectral_animationStartTime = 0;
+let spectral_isLayoutRunning = false;
+let spectral_originalPositions = [], spectral_allEigenPairs = [];
+let spectral_isDragging = false, spectral_draggedVertexIndex = null;
+let spectral_shiftSelectedVertices = [];
+const spectral_animationContainer = document.getElementById('spectral-animation-container');
+const spectral_animationModeSelect = document.getElementById('spectral-animationModeSelect');
+const spectral_toggleAnimationButton = document.getElementById('spectral-toggleAnimationButton');
+const spectral_centerOfMassContainer = document.getElementById('spectral-centerOfMassContainer');
+const spectral_equalizerContainer = document.getElementById('spectral-equalizer-container');
+const spectral_forceSliders = document.getElementById('spectral-force-sliders');
+
+// --- K-MEANS Manual Selection State ---
+let spectral_isManualCentroidSelection = false;
+let spectral_manualCentroids = [];
+
+function spectral_drawGraph() { 
+    spectral_ctx.clearRect(0, 0, spectral_canvas.width, spectral_canvas.height); 
+    spectral_ctx.strokeStyle = '#aaa'; 
+    spectral_ctx.lineWidth = 2; 
+    spectral_edges.forEach(edge => { 
+        if (!spectral_vertices[edge[0]] || !spectral_vertices[edge[1]]) return; 
+        const start = spectral_vertices[edge[0]], end = spectral_vertices[edge[1]]; 
+        spectral_ctx.beginPath(); 
+        spectral_ctx.moveTo(start.x, start.y); 
+        spectral_ctx.lineTo(end.x, end.y); 
+        spectral_ctx.stroke(); 
+    }); 
+    spectral_vertices.forEach((vertex, i) => { 
+        spectral_ctx.beginPath(); 
+        spectral_ctx.arc(vertex.x, vertex.y, 15, 0, 2 * Math.PI); 
+        const isShiftSelected = spectral_shiftSelectedVertices.includes(i); 
+        spectral_ctx.fillStyle = spectral_clusters.length > 0 ? spectral_clusterColors[spectral_clusters[i]] : (spectral_selectedVertex === i || isShiftSelected ? '#ffcc00' : '#007bff'); 
+        spectral_ctx.fill(); 
+        spectral_ctx.strokeStyle = '#333'; 
+        spectral_ctx.lineWidth = 2; 
+        spectral_ctx.stroke(); 
+        spectral_ctx.fillStyle = 'white'; 
+        spectral_ctx.font = '16px Arial'; 
+        spectral_ctx.textAlign = 'center'; 
+        spectral_ctx.textBaseline = 'middle'; 
+        spectral_ctx.fillText(i + 1, vertex.x, vertex.y); 
+    }); 
+}
+
+// --- EVENT LISTENERS ---
+spectral_canvas.addEventListener('click', (e) => { 
+    if (spectral_mode === 'done' || spectral_isAnimating || spectral_isLayoutRunning) return; 
+    const rect = spectral_canvas.getBoundingClientRect(); 
+    const { x, y } = { x: e.clientX - rect.left, y: e.clientY - rect.top }; 
+    const clickedVertexIndex = spectral_vertices.findIndex(v => Math.sqrt((v.x - x)**2 + (v.y - y)**2) < 15); 
+    if (e.shiftKey) { 
+        if (clickedVertexIndex !== -1) { 
+            if (spectral_shiftSelectedVertices.includes(clickedVertexIndex)) { 
+                spectral_shiftSelectedVertices = spectral_shiftSelectedVertices.filter(v => v !== clickedVertexIndex); 
+            } else { 
+                spectral_shiftSelectedVertices.push(clickedVertexIndex); 
+            } 
+        } 
+        spectral_drawGraph(); 
+        return; 
+    } 
+    if (spectral_mode === 'placing') { 
+        if (spectral_vertices.length < spectral_numVertices) { 
+            spectral_vertices.push({ x, y }); 
+            spectral_instruction.innerText = `Поставлено ${spectral_vertices.length}/${spectral_numVertices} вершин.`; 
+            if (spectral_vertices.length === spectral_numVertices) { 
+                spectral_mode = 'drawing'; 
+                spectral_instruction.innerText = 'Тепер з\'єднуйте вершини.'; 
+                spectral_startButton.disabled = false; 
+            } 
+        } 
+    } else if (spectral_mode === 'drawing') { 
+        if (clickedVertexIndex !== -1) { 
+            if (spectral_selectedVertex === null) { 
+                spectral_selectedVertex = clickedVertexIndex; 
+            } else { 
+                if (spectral_selectedVertex !== clickedVertexIndex) { 
+                    const edge = [Math.min(spectral_selectedVertex, clickedVertexIndex), Math.max(spectral_selectedVertex, clickedVertexIndex)]; 
+                    const edgeExists = spectral_edges.some(e => e[0] === edge[0] && e[1] === edge[1]); 
+                    if (!edgeExists) { 
+                        spectral_edges.push(edge); 
+                        spectral_invalidateClustering(); 
+                    } 
+                } 
+                spectral_selectedVertex = null; 
+            } 
+        } else { 
+            spectral_selectedVertex = null; 
+        } 
+    } 
+    spectral_drawGraph(); 
+});
+
+spectral_canvas.addEventListener('dblclick', (e) => { 
+    if (spectral_mode !== 'drawing' || spectral_isAnimating || spectral_isLayoutRunning) return; 
+    const rect = spectral_canvas.getBoundingClientRect(); 
+    const { x, y } = { x: e.clientX - rect.left, y: e.clientY - rect.top }; 
+    let edgeToRemove = -1; 
+    const clickThreshold = 6; 
+    spectral_edges.forEach((edge, index) => { 
+        const p1 = spectral_vertices[edge[0]], p2 = spectral_vertices[edge[1]]; 
+        const dx = p2.x - p1.x, dy = p2.y - p1.y; 
+        const lenSq = dx * dx + dy * dy; 
+        const t = Math.max(0, Math.min(1, ((x - p1.x) * dx + (y - p1.y) * dy) / lenSq)); 
+        const closestX = p1.x + t * dx, closestY = p1.y + t * dy; 
+        const distSq = (x - closestX)**2 + (y - closestY)**2; 
+        if (distSq < clickThreshold**2) { 
+            edgeToRemove = index; 
+        } 
+    }); 
+    if (edgeToRemove !== -1) { 
+        spectral_edges.splice(edgeToRemove, 1); 
+        spectral_invalidateClustering(); 
+        spectral_drawGraph(); 
+    } 
+});
+
+spectral_canvas.addEventListener('mousedown', (e) => { 
+    if (e.ctrlKey && spectral_mode !== 'placing' && !spectral_isLayoutRunning) { 
+        const rect = spectral_canvas.getBoundingClientRect(); 
+        const { x, y } = { x: e.clientX - rect.left, y: e.clientY - rect.top }; 
+        spectral_draggedVertexIndex = spectral_vertices.findIndex(v => Math.sqrt((v.x - x)**2 + (v.y - y)**2) < 15); 
+        if (spectral_draggedVertexIndex !== -1) spectral_isDragging = true; 
+    } 
+});
+
+spectral_canvas.addEventListener('mousemove', (e) => { 
+    if (spectral_isDragging && spectral_draggedVertexIndex !== null) { 
+        const rect = spectral_canvas.getBoundingClientRect(); 
+        spectral_vertices[spectral_draggedVertexIndex].x = e.clientX - rect.left; 
+        spectral_vertices[spectral_draggedVertexIndex].y = e.clientY - rect.top; 
+        spectral_drawGraph(); 
+    } 
+});
+
+spectral_canvas.addEventListener('mouseup', () => {
+    if (spectral_isDragging) {
+        // FIX #1: Only invalidate clustering if edge weights depend on vertex positions.
+        if (spectral_useEdgeWeightsCheckbox.checked) {
+            spectral_invalidateClustering();
+        }
+    }
+    spectral_isDragging = false;
+    spectral_draggedVertexIndex = null;
+});
+
+window.addEventListener('keyup', (e) => { 
+    if (e.key === 'Shift' && spectral_shiftSelectedVertices.length > 1) { 
+        for (let i = 0; i < spectral_shiftSelectedVertices.length; i++) { 
+            for (let j = i + 1; j < spectral_shiftSelectedVertices.length; j++) { 
+                const edge = [Math.min(spectral_shiftSelectedVertices[i], spectral_shiftSelectedVertices[j]), Math.max(spectral_shiftSelectedVertices[i], spectral_shiftSelectedVertices[j])]; 
+                const edgeExists = spectral_edges.some(e => e[0] === edge[0] && e[1] === edge[1]); 
+                if (!edgeExists) spectral_edges.push(edge); 
+            } 
+        } 
+        spectral_shiftSelectedVertices = []; 
+        spectral_invalidateClustering(); 
+        spectral_drawGraph(); 
+    } 
+});
+
+// --- STATE MANAGEMENT ---
+function spectral_invalidateClustering() { 
+    if (spectral_clusters.length > 0) { 
+        spectral_resetSimulationResults(); 
+        spectral_instruction.innerText = 'Граф змінено. Запустіть кластеризацію знову.'; 
+    } 
+    if (spectral_vertices.length === spectral_numVertices) { 
+        spectral_startButton.disabled = false; 
+        spectral_mode = 'drawing'; 
+    } 
+}
+
+function spectral_resetSimulationResults() { 
+    spectral_clusters = []; 
+    spectral_mode = spectral_vertices.length === spectral_numVertices ? 'drawing' : 'placing'; 
+    document.querySelectorAll('#spectral-section .step').forEach(el => el.classList.remove('active')); 
+    document.getElementById('spectral-kMeansContainer').style.display = 'none'; 
+    ['spectral-laplacianMatrix', 'spectral-eigenData'].forEach(id => { 
+        const el = document.getElementById(id); 
+        if (el) el.innerText = ''; 
+    }); 
+    spectral_startButton.disabled = spectral_vertices.length !== spectral_numVertices; 
+    spectral_spreadClustersButton.disabled = true; 
+    spectral_animationContainer.style.display = 'none'; 
+    spectral_equalizerContainer.style.display = 'none'; 
+    spectral_animationModeSelect.value = -1; 
+    spectral_toggleAnimationButton.disabled = true; 
+    spectral_forceSliders.style.display = 'none'; 
+    spectral_stopAnimation(); 
+    spectral_resetKMeans(); 
+    spectral_drawGraph(); 
+}
+
+function spectral_reCluster() { 
+    spectral_numClusters = parseInt(spectral_clusterCountSelect.value, 10); 
+    spectral_resetSimulationResults(); 
+    spectral_instruction.innerText = 'Кількість кластерів змінено. Запустіть кластеризацію знову.'; 
+}
+
+function spectral_resetAll() { 
+    spectral_numClusters = parseInt(spectral_clusterCountSelect.value, 10); 
+    spectral_numVertices = parseInt(spectral_vertexCountSelect.value, 10); 
+    spectral_vertices = []; 
+    spectral_edges = []; 
+    spectral_selectedVertex = null; 
+    spectral_shiftSelectedVertices = []; 
+    spectral_instruction.innerText = `Клікніть на полотні, щоб поставити ${spectral_numVertices} вершин.`; 
+    spectral_resetSimulationResults(); 
+}
+
+spectral_vertexCountSelect.addEventListener('change', spectral_resetAll); 
+spectral_clusterCountSelect.addEventListener('change', spectral_reCluster); 
+spectral_resetButton.addEventListener('click', spectral_resetAll);
+spectral_useEdgeWeightsCheckbox.addEventListener('change', spectral_invalidateClustering);
+
+function spectral_loadPreset(type) { 
+    spectral_resetAll(); 
+    let presetVertices = [], presetEdges = [], presetNumVertices = spectral_numVertices, presetNumClusters = spectral_numClusters; 
+    const w = spectral_canvas.width, h = spectral_canvas.height; 
+    switch(type) { 
+        case 'bipartite': 
+          // that is case 'karate':
+
+    presetNumVertices = 34;
+    presetNumClusters = 2;
+    presetVertices = [];
+    presetEdges = [];
+
+    // позиціонування: розділимо вдвічи — 0..16 ліворуч, 17..33 праворуч
+    const leftCount = 17; // 0..16
+    const rightCount = 17; // 17..33
+    for (let i = 0; i < presetNumVertices; i++) {
+      if (i < leftCount) {
+        const idx = i;
+        const x = w * 0.22 + (Math.random() - 0.5) * 40; // трохи jitter
+        const y = h * 0.15 + (idx / (leftCount - 1)) * (h * 0.7);
+        presetVertices.push({ x, y });
+      } else {
+        const idx = i - leftCount;
+        const x = w * 0.78 + (Math.random() - 0.5) * 40;
+        const y = h * 0.15 + (idx / (rightCount - 1)) * (h * 0.7);
+        presetVertices.push({ x, y });
+      }
+    }
+
+    // Список ребер (edge_loadKarateClub, як пари [source, target])
+    const karateEdgesRaw = [
+      [1,0],[2,0],[2,1],[3,0],[3,1],[3,2],[4,0],[5,0],[6,0],[7,0],[7,1],[7,2],[7,3],
+      [8,0],[8,2],[9,2],[10,0],[11,0],[12,0],[13,0],[13,3],[14,0],[14,1],[15,0],[15,1],
+      [17,0],[18,0],[19,0],[19,1],[21,0],[21,1],[23,25],[24,25],[27,23],[27,24],[28,2],
+      [29,23],[29,26],[30,1],[30,8],[31,0],[31,24],[31,25],[31,28],[32,2],[32,8],[32,14],
+      [32,15],[32,18],[32,20],[32,22],[32,23],[32,29],[32,30],[32,31],[33,8],[33,9],[33,13],
+      [33,14],[33,15],[33,18],[33,19],[33,20],[33,22],[33,23],[33,26],[33,27],[33,28],
+      [33,29],[33,30],[33,31],[33,32]
+    ];
+
+    // Додаємо ребро [17,1] якщо його немає (щоб вершина 17 не була ізольована)
+    karateEdgesRaw.push([16,0]);
+
+    // Дедуплікація (незалежно від порядку кінців) і запис у presetEdges
+    const seen = new Set();
+    for (const e of karateEdgesRaw) {
+      const a = Number(e[0]), b = Number(e[1]);
+      if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a >= presetNumVertices || b >= presetNumVertices) continue;
+      // нормалізуємо порядок, щоб уникнути дублікатів (undirected)
+      const key = (a < b) ? `${a}-${b}` : `${b}-${a}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        presetEdges.push([a, b]);
+      }
+    }
+
+    break;
+
+
+        case 'bridge': 
+            presetNumVertices = 10; 
+            presetNumClusters = 2; 
+            presetVertices = [{x:w*0.15,y:h*0.3},{x:w*0.3,y:h*0.2},{x:w*0.3,y:h*0.4},{x:w*0.45,y:h*0.3},{x:w*0.4,y:h*0.5},{x:w*0.6,y:h*0.5},{x:w*0.55,y:h*0.7},{x:w*0.7,y:h*0.6},{x:w*0.7,y:h*0.8},{x:w*0.85,y:h*0.7}]; 
+            presetEdges = [[0,1],[0,2],[1,2],[1,3],[2,3],[3,4], [6,7],[6,8],[7,8],[7,9],[8,9],[5,6],[5,7], [4,5]]; 
+            break; 
+        case '3-clusters': 
+            presetNumVertices = 10; 
+            presetNumClusters = 3; 
+            presetVertices = [ {x: w*0.15, y: h*0.2}, {x: w*0.15, y: h*0.4}, {x: w*0.3, y: h*0.3}, {x: w*0.45, y: h*0.3}, {x: w*0.6, y: h*0.2}, {x: w*0.6, y: h*0.4}, {x: w*0.85, y: h*0.2}, {x: w*0.85, y: h*0.4}, {x: w*0.75, y: h*0.6}, {x: w*0.95, y: h*0.6} ]; 
+            presetEdges = [ [0,1],[0,2],[1,2], [3,4],[3,5],[4,5], [6,7],[6,8],[6,9],[7,8],[7,9],[8,9], [2,3], [5,8] ]; 
+            break; 
+        case 'random': 
+          /*  presetNumVertices = spectral_numVertices; 
+            presetNumClusters = spectral_numClusters; 
+            for (let i = 0; i < presetNumVertices; i++) presetVertices.push({x: 50+Math.random()*(w-100), y: 50+Math.random()*(h-100)}); 
+           for (let i = 0; i < presetNumVertices; i++) for (let j = i + 1; j < presetNumVertices; j++) if (Math.random() < 0.2) presetEdges.push([Math.floor(Math.random() * i), j]);
+            */
+			  presetNumVertices = spectral_numVertices;
+    presetNumClusters = spectral_numClusters;
+    //const w = /* ширина області */ || document.querySelector('#spectral-container').clientWidth || 800;
+    //const h = /* висота */ || document.querySelector('#spectral-container').clientHeight || 600;
+
+    // Параметри BA
+    const N = presetNumVertices;
+    const m0 = Math.max(2, Math.min(5, Math.floor(N * 0.05) || 2)); // початкові вузли (наприклад 5% від N, мін 2)
+    const m = Math.floor(Math.random()*3)+1;//Math.max(1, Math.min(m0, Math.round(N * 0.03) || 1));   // ребер на новий вузол (мін 1, макс m0)
+
+    // Очистка
+    presetVertices = [];
+    presetEdges = [];
+
+    // Створюємо позиції вузлів (можна пізніше перерахувати змінні w,h)
+    for (let i = 0; i < N; i++) {
+      presetVertices.push({ x: 50 + Math.random() * (w - 100), y: 50 + Math.random() * (h - 100) });
+    }
+
+    // Допоміжні структури
+    const degrees = new Array(N).fill(0);        // степені вузлів
+    const adjacency = Array.from({ length: N }, () => new Set()); // щоб уникнути дублікатів
+
+    // Ініціалізуємо повний граф з m0 вузлів
+    for (let i = 0; i < m0; i++) {
+      for (let j = i + 1; j < m0; j++) {
+        presetEdges.push([i, j]);
+        adjacency[i].add(j);
+        adjacency[j].add(i);
+        degrees[i]++; degrees[j]++;
+      }
+    }
+
+    // Функція вибору вершини з ймовірністю ∝ degree
+    function chooseTargetWeighted(existingCount, excludeSet) {
+      // existingCount = number of current nodes available for attachment (i)
+      const totalDegree = degrees.slice(0, existingCount).reduce((s, v) => s + v, 0);
+      if (totalDegree === 0) {
+        // якщо всі степені нулі — просто вибрати випадково
+        let t;
+        do { t = Math.floor(Math.random() * existingCount); } while (excludeSet.has(t));
+        return t;
+      }
+      let r = Math.random() * totalDegree;
+      for (let k = 0; k < existingCount; k++) {
+        r -= degrees[k];
+        if (r <= 0) {
+          if (excludeSet.has(k)) return null; // сигнал для повторного вибору
+          return k;
+        }
+      }
+      // на випадок числової похибки повертаємо останню допустиму
+      for (let k = existingCount - 1; k >= 0; k--) if (!excludeSet.has(k)) return k;
+      return null;
+    }
+
+    // Додавання нових вузлів за BA (поки i<N-1)
+    for (let i = m0; i < N; i++) {
+      const targets = new Set();
+      // намагатимемось додати m унікальних цілей (або менше, якщо i < m)
+      const mEffective = Math.min(Math.floor(Math.random()*3)+1, i); 
+      let tries = 0;
+      while (targets.size < mEffective && tries < mEffective * 10) {
+        let t = chooseTargetWeighted(i, targets);
+        if (t === null) {
+          // або вибір випав у excludeSet, або numerical fallback -> вибираємо випадково
+          let rnd;
+          do { rnd = Math.floor(Math.random() * i); } while (targets.has(rnd));
+          t = rnd;
+        }
+        if (t !== i && !targets.has(t)) targets.add(t);
+        tries++;
+      }
+
+      // якщо ненабрали — дозаповнити випадковими (щоб уникнути лишніх ітерацій)
+      while (targets.size < mEffective) {
+        let rnd;
+        do { rnd = Math.floor(Math.random() * i); } while (targets.has(rnd));
+        targets.add(rnd);
+      }
+
+      // Записати ребра та оновити degrees/adjacency
+      targets.forEach(t => {
+        if (!adjacency[i].has(t)) {
+          presetEdges.push([i, t]);
+          adjacency[i].add(t);
+          adjacency[t].add(i);
+          degrees[i]++; degrees[t]++;
+        }
+      });
+    }
+
+    // Готово: presetVertices та presetEdges заповнені
+    break;
+			break; 
+    } 
+    spectral_numVertices = presetNumVertices; 
+    spectral_numClusters = presetNumClusters; 
+    spectral_vertexCountSelect.value = spectral_numVertices; 
+    spectral_clusterCountSelect.value = spectral_numClusters; 
+    spectral_vertices = presetVertices; 
+    spectral_edges = presetEdges; 
+    spectral_mode = 'drawing'; 
+    spectral_instruction.innerText = 'Граф завантажено.'; 
+    spectral_startButton.disabled = false; 
+    spectral_drawGraph(); 
+}
+
+document.getElementById('spectral-preset-bipartite').addEventListener('click', () => spectral_loadPreset('bipartite')); 
+document.getElementById('spectral-preset-bridge').addEventListener('click', () => spectral_loadPreset('bridge')); 
+document.getElementById('spectral-preset-3-clusters').addEventListener('click', () => spectral_loadPreset('3-clusters')); 
+document.getElementById('spectral-preset-random').addEventListener('click', () => spectral_loadPreset('random')); 
+spectral_startButton.addEventListener('click', spectral_startSimulation);
+
+// --- SIMULATION & K-MEANS LOGIC ---
+function spectral_formatMatrix(matrix) { return matrix.map(row => row.map(val => val.toFixed(2).padStart(6)).join(' ')).join('\n'); }
+
+function spectral_formatEigenData(eigenPairs, numClusters) { 
+    let text = `   λ_i   |   v_2` + (numClusters >= 3 ? `    |   v_3` : ``) + `\n`; 
+    text += `---------|----------` + (numClusters >= 3 ? `---------|----------` : ``) + `\n`; 
+    const vec2 = eigenPairs[1].vec; 
+    const vec3 = numClusters >= 3 ? eigenPairs[2].vec : null; 
+    for(let i = 0; i < spectral_numVertices; i++) { 
+        const val_i = eigenPairs[i] ? eigenPairs[i].val.toFixed(4).padStart(8) : " ".repeat(8); 
+        const vec2_i = vec2[i].toFixed(4).padStart(8); 
+        const vec3_i = vec3 ? vec3[i].toFixed(4).padStart(8) : ""; 
+        text += `${val_i} | ${vec2_i}` + (vec3 ? ` | ${vec3_i}` : ``) + `\n`; 
+    } 
+    return text; 
+}
+
+function spectral_startSimulation() { 
+    if (spectral_vertices.length !== spectral_numVertices) { 
+        alert(`Будь ласка, поставте ${spectral_numVertices} вершин.`); 
+        return; 
+    } 
+    spectral_mode = 'done'; 
+    spectral_startButton.disabled = true; 
+    spectral_instruction.innerText = 'Кластеризацію запущено.'; 
+    
+    const W = math.zeros(spectral_numVertices, spectral_numVertices).toArray();
+    const useWeights = spectral_useEdgeWeightsCheckbox.checked;
+    if (useWeights && spectral_edges.length > 0) { 
+        let distances = spectral_edges.map(edge => Math.sqrt((spectral_vertices[edge[0]].x - spectral_vertices[edge[1]].x)**2 + (spectral_vertices[edge[0]].y - spectral_vertices[edge[1]].y)**2)); 
+        const avgDistance = distances.reduce((a, b) => a + b, 0) / distances.length; 
+        const sigma = avgDistance * 0.5; 
+        spectral_edges.forEach((edge, i) => { 
+            const weight = Math.exp(- (distances[i]**2) / (2 * sigma**2)); 
+            W[edge[0]][edge[1]] = weight; 
+            W[edge[1]][edge[0]] = weight; 
+        }); 
+    } else { 
+        spectral_edges.forEach(edge => { 
+            W[edge[0]][edge[1]] = 1; 
+            W[edge[1]][edge[0]] = 1; 
+        }); 
+    }
+    
+    const D = math.zeros(spectral_numVertices, spectral_numVertices).toArray(); 
+    for (let i = 0; i < spectral_numVertices; i++) { 
+        D[i][i] = W[i].reduce((a, b) => a + b, 0); 
+    } 
+    const L = math.subtract(D, W); 
+    document.getElementById('spectral-laplacianMatrix').innerText = spectral_formatMatrix(L); 
+    document.getElementById('spectral-step1').classList.add('active'); 
+    
+    setTimeout(() => { 
+        try { 
+            const { values, vectors } = math.eigs(L); 
+            spectral_allEigenPairs = values.map((val, i) => ({ val, vec: vectors.map(row => row[i]) })).sort((a, b) => a.val - b.val); 
+            const currentKMeansData = []; 
+            if (spectral_numClusters <= 2) { 
+                spectral_allEigenPairs[1].vec.forEach(v => currentKMeansData.push(v)); 
+            } else { 
+                const [vec2, vec3] = [spectral_allEigenPairs[1].vec, spectral_allEigenPairs[2].vec]; 
+                for(let i = 0; i < spectral_numVertices; i++) { 
+                    currentKMeansData.push({ x: vec2[i], y: vec3[i] }); 
+                } 
+            } 
+            spectral_kMeansData = currentKMeansData; 
+            document.getElementById('spectral-eigenData').innerText = spectral_formatEigenData(spectral_allEigenPairs, spectral_numClusters); 
+            document.getElementById('spectral-step2').classList.add('active'); 
+            
+            setTimeout(() => { 
+                document.getElementById('spectral-step3').classList.add('active'); 
+                document.getElementById('spectral-kMeansContainer').style.display = 'block'; 
+                spectral_animationContainer.style.display = 'block'; 
+                spectral_initializeKMeans(true); 
+                spectral_drawKMeans(); 
+            }, 1000); 
+        } catch (error) { 
+            alert("Не вдалося обчислити власні вектори."); 
+            spectral_resetSimulationResults(); 
+        } 
+    }, 1000); 
+}
+
+const spectral_kMeansCanvas = document.getElementById('spectral-kMeansCanvas'), spectral_kMeansCtx = spectral_kMeansCanvas.getContext('2d'); 
+const spectral_kMeansStepButton = document.getElementById('spectral-kMeansStepButton'), spectral_kMeansRunOptimizedButton = document.getElementById('spectral-kMeansRunOptimizedButton'), spectral_kMeansManualCentroidsButton = document.getElementById('spectral-kMeansManualCentroidsButton'); 
+const spectral_kMeansStatus = document.getElementById('spectral-kMeansStatus');
+
+function spectral_initializeKMeans(useRandom = true, initialCentroids = null) { 
+    let centroids = []; 
+    if (initialCentroids) { 
+        centroids = initialCentroids; 
+    } else if (useRandom) { 
+        let usedIndices = new Set(); 
+        while (centroids.length < spectral_numClusters) { 
+            let randomIndex = Math.floor(Math.random() * spectral_numVertices); 
+            if (!usedIndices.has(randomIndex)) { 
+                centroids.push(spectral_kMeansData[randomIndex]); 
+                usedIndices.add(randomIndex); 
+            } 
+        } 
+    } 
+    spectral_kMeansState = { centroids, assignments: new Array(spectral_numVertices).fill(0), iteration: 0, converged: false }; 
+    spectral_kMeansStatus.innerText = 'K-Means ініціалізовано.'; 
+    spectral_kMeansStepButton.disabled = false; 
+    spectral_kMeansRunOptimizedButton.disabled = false; 
+    spectral_kMeansManualCentroidsButton.disabled = false; 
+}
+
+function spectral_resetKMeans() { 
+    spectral_kMeansState = {}; 
+    if (spectral_kMeansCtx) spectral_kMeansCtx.clearRect(0, 0, spectral_kMeansCanvas.width, spectral_kMeansCanvas.height); 
+    spectral_kMeansStatus.innerText = ''; 
+    spectral_isManualCentroidSelection = false; 
+    spectral_manualCentroids = []; 
+    spectral_kMeansCanvas.classList.remove('manual-selection'); 
+}
+
+const spectral_distance = (p1, p2) => (typeof p1 === 'number') ? Math.abs(p1 - p2) : Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+
+function spectral_stabilizeAndApplyClusters(assignments, centroids) { 
+    const is2D = typeof spectral_kMeansData[0] === 'object'; 
+    const clusterInfo = centroids.map((centroid, i) => ({ originalIndex: i, centroidPos: centroid })); 
+    if (is2D) { 
+        clusterInfo.sort((a, b) => a.centroidPos.x - b.centroidPos.x); 
+    } else { 
+        clusterInfo.sort((a, b) => a.centroidPos - b.centroidPos); 
+    } 
+    const mapping = {}; 
+    clusterInfo.forEach((info, newIndex) => { 
+        mapping[info.originalIndex] = newIndex; 
+    }); 
+    const finalAssignments = assignments.map(oldIndex => mapping[oldIndex]); 
+    spectral_clusters = finalAssignments; 
+    spectral_kMeansState.assignments = finalAssignments; 
+    spectral_kMeansState.centroids = clusterInfo.map(info => info.centroidPos); 
+    spectral_spreadClustersButton.disabled = false; 
+    spectral_forceSliders.style.display = 'grid'; 
+}
+
+function spectral_kMeansStep() { 
+    if (spectral_kMeansState.converged) return; 
+    spectral_kMeansState.iteration++; 
+    let changed = false; 
+    spectral_kMeansData.forEach((point, i) => { 
+        let [minDist, newAssignment] = [Infinity, 0]; 
+        spectral_kMeansState.centroids.forEach((centroid, j) => { 
+            const d = spectral_distance(point, centroid); 
+            if (d < minDist) { 
+                [minDist, newAssignment] = [d, j]; 
+            } 
+        }); 
+        if (newAssignment !== spectral_kMeansState.assignments[i]) changed = true; 
+        spectral_kMeansState.assignments[i] = newAssignment; 
+    }); 
+    if (!changed) { 
+        spectral_kMeansState.converged = true; 
+        spectral_kMeansStatus.innerText = `Алгоритм зійшовся за ${spectral_kMeansState.iteration} ітерацій!`; 
+        spectral_stabilizeAndApplyClusters(spectral_kMeansState.assignments, spectral_kMeansState.centroids); 
+        spectral_drawKMeans(true); 
+        spectral_drawGraph(); 
+    } else { 
+        spectral_drawKMeans(true); 
+        setTimeout(() => { 
+            const is2D = (typeof spectral_kMeansData[0] === 'object'); 
+            let newCentroids = Array.from({ length: spectral_numClusters }, () => is2D ? { x: 0, y: 0 } : 0); 
+            const counts = new Array(spectral_numClusters).fill(0); 
+            spectral_kMeansData.forEach((point, i) => { 
+                const c = spectral_kMeansState.assignments[i]; 
+                if (is2D) { 
+                    newCentroids[c].x += point.x; 
+                    newCentroids[c].y += point.y; 
+                } else { 
+                    newCentroids[c] += point; 
+                } 
+                counts[c]++; 
+            }); 
+            newCentroids.forEach((sum, i) => { 
+                if (counts[i] > 0) { 
+                    if (is2D) newCentroids[i] = { x: sum.x / counts[i], y: sum.y / counts[i] }; 
+                    else newCentroids[i] = sum / counts[i]; 
+                } 
+            }); 
+            spectral_kMeansState.centroids = newCentroids; 
+            spectral_drawKMeans(false); 
+        }, 500); 
+    } 
+}
+
+spectral_kMeansStepButton.addEventListener('click', spectral_kMeansStep);
+
+async function spectral_runOptimizedKMeans() { 
+    spectral_kMeansStepButton.disabled=true; 
+    spectral_kMeansRunOptimizedButton.disabled=true; 
+    spectral_kMeansManualCentroidsButton.disabled=true; 
+    const NUM_RUNS = 20; 
+    let bestResult = { cost: Infinity }; 
+    for (let i = 0; i < NUM_RUNS; i++) { 
+        spectral_kMeansStatus.innerText = `Запуск ${i + 1}/${NUM_RUNS}...`; 
+        const result = await new Promise(resolve => { 
+            let centroids = [], used = new Set(); 
+            while(centroids.length<spectral_numClusters){ 
+                let idx=Math.floor(Math.random()*spectral_numVertices); 
+                if(!used.has(idx)){centroids.push(spectral_kMeansData[idx]);used.add(idx);}
+            } 
+            let assignments = new Array(spectral_numVertices).fill(0); 
+            for(let iter=0; iter<100; iter++){ 
+                let changed = false; 
+                spectral_kMeansData.forEach((p, i) => { 
+                    let minD=Infinity, newA=0; 
+                    centroids.forEach((c,j) => {let d=spectral_distance(p,c); if(d<minD){minD=d;newA=j;}}); 
+                    if(newA!==assignments[i])changed=true; 
+                    assignments[i]=newA;
+                }); 
+                if(!changed) break; 
+                const is2D=typeof spectral_kMeansData[0]==='object'; 
+                let newC=Array.from({length:spectral_numClusters},()=>is2D?{x:0,y:0}:0); 
+                const counts=new Array(spectral_numClusters).fill(0); 
+                spectral_kMeansData.forEach((p,i)=>{ 
+                    const c=assignments[i]; 
+                    if(is2D){newC[c].x+=p.x;newC[c].y+=p.y;}else{newC[c]+=p;} 
+                    counts[c]++; 
+                }); 
+                newC.forEach((s,j)=>{if(counts[j]>0){if(is2D)newC[j]={x:s.x/counts[j],y:s.y/counts[j]}; else newC[j]=s/counts[j];}}); 
+                centroids=newC;
+            } 
+            let cost=0; 
+            spectral_kMeansData.forEach((p,i)=>{cost+=spectral_distance(p,centroids[assignments[i]])**2;}); 
+            resolve({cost,assignments,centroids});
+        }); 
+        if (result.cost < bestResult.cost) bestResult = result; 
+        await new Promise(r => setTimeout(r, 5));
+    } 
+    spectral_kMeansStatus.innerText = `Оптимізацію завершено!`; 
+    spectral_kMeansState.converged = true; 
+    spectral_stabilizeAndApplyClusters(bestResult.assignments, bestResult.centroids); 
+    spectral_drawKMeans(true); 
+    spectral_drawGraph(); 
+    spectral_kMeansRunOptimizedButton.disabled=false; 
+    spectral_kMeansManualCentroidsButton.disabled=false;
+}
+
+spectral_kMeansRunOptimizedButton.addEventListener('click', spectral_runOptimizedKMeans);
+
+// --- FIX #2: Manual Centroid Selection Logic ---
+spectral_kMeansManualCentroidsButton.addEventListener('click', () => {
+    spectral_isManualCentroidSelection = true;
+    spectral_manualCentroids = [];
+    spectral_kMeansCanvas.classList.add('manual-selection');
+    spectral_kMeansStatus.innerText = `Оберіть ${spectral_numClusters} центроїди. Залишилось: ${spectral_numClusters}`;
+    spectral_kMeansStepButton.disabled = true;
+    spectral_kMeansRunOptimizedButton.disabled = true;
+    spectral_kMeansManualCentroidsButton.disabled = true;
+});
+
+spectral_kMeansCanvas.addEventListener('click', (e) => {
+    if (!spectral_isManualCentroidSelection) return;
+
+    const rect = spectral_kMeansCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // This is the reverse logic of the `toPos` function inside `spectral_drawKMeans`
+    const w = spectral_kMeansCanvas.width, h = spectral_kMeansCanvas.height, p = 40;
+    const is2D = typeof spectral_kMeansData[0] === 'object';
+    const allPoints = [...spectral_kMeansData, ...(spectral_kMeansState.centroids || [])];
+    const minX = Math.min(...allPoints.map(pt => is2D ? pt.x : pt));
+    const maxX = Math.max(...allPoints.map(pt => is2D ? pt.x : pt));
+    const minY = is2D ? Math.min(...allPoints.map(pt => pt.y)) : -1;
+    const maxY = is2D ? Math.max(...allPoints.map(pt => pt.y)) : 1;
+
+    let centroid;
+    if (is2D) {
+        const dataX = minX + (mouseX - p) * (maxX - minX || 1) / (w - 2 * p);
+        const dataY = minY + (h - mouseY - p) * (maxY - minY || 1) / (h - 2 * p);
+        centroid = { x: dataX, y: dataY };
+    } else {
+        const dataX = minX + (mouseX - p) * (maxX - minX || 1) / (w - 2 * p);
+        centroid = dataX;
+    }
+    
+    spectral_manualCentroids.push(centroid);
+    spectral_kMeansStatus.innerText = `Оберіть ${spectral_numClusters} центроїди. Залишилось: ${spectral_numClusters - spectral_manualCentroids.length}`;
+
+    if (spectral_manualCentroids.length === spectral_numClusters) {
+        spectral_isManualCentroidSelection = false;
+        spectral_kMeansCanvas.classList.remove('manual-selection');
+        spectral_kMeansStatus.innerText = 'Центроїди обрано. Запускаємо K-Means...';
+        spectral_initializeKMeans(false, spectral_manualCentroids);
+        spectral_drawKMeans();
+    }
+});
+
+// --- K-MEANS DRAWING LOGIC ---
+function spectral_drawKMeans(showLines = false) {
+    if (!spectral_kMeansData || spectral_kMeansData.length === 0 || !spectral_kMeansState.assignments) return;
+    const w = spectral_kMeansCanvas.width, h = spectral_kMeansCanvas.height, p = 40;
+    spectral_kMeansCtx.clearRect(0, 0, w, h);
+    const is2D = typeof spectral_kMeansData[0] === 'object';
+    const allPoints = [...spectral_kMeansData, ...(spectral_kMeansState.centroids || [])];
+
+    const minX = Math.min(...allPoints.map(pt => is2D ? pt.x : pt));
+    const maxX = Math.max(...allPoints.map(pt => is2D ? pt.x : pt));
+    const minY = is2D ? Math.min(...allPoints.map(pt => pt.y)) : -1;
+    const maxY = is2D ? Math.max(...allPoints.map(pt => pt.y)) : 1;
+    
+    const toPos = (pt) => ({
+        x: p + ((is2D ? pt.x : pt) - minX) * (w - 2 * p) / (maxX - minX || 1),
+        y: h - (p + ((is2D ? pt.y : 0) - minY) * (h - 2 * p) / (maxY - minY || 1))
+    });
+
+    spectral_kMeansData.forEach((pt, i) => {
+        const pos = toPos(pt);
+        spectral_kMeansCtx.beginPath();
+        spectral_kMeansCtx.arc(pos.x, pos.y, 8, 0, 2 * Math.PI);
+        spectral_kMeansCtx.fillStyle = spectral_clusterColors[spectral_kMeansState.assignments[i]];
+        spectral_kMeansCtx.fill();
+        if (showLines && spectral_kMeansState.centroids.length > 0) {
+            const cPos = toPos(spectral_kMeansState.centroids[spectral_kMeansState.assignments[i]]);
+            spectral_kMeansCtx.beginPath();
+            spectral_kMeansCtx.moveTo(pos.x, pos.y);
+            spectral_kMeansCtx.lineTo(cPos.x, cPos.y);
+            spectral_kMeansCtx.strokeStyle = spectral_clusterColorsLight[spectral_kMeansState.assignments[i]];
+            spectral_kMeansCtx.stroke();
+        }
+    });
+
+    if (spectral_kMeansState.centroids.length > 0) {
+        spectral_kMeansState.centroids.forEach((c, i) => {
+            const pos = toPos(c);
+            spectral_kMeansCtx.strokeStyle = spectral_clusterColorsSolid[i];
+            spectral_kMeansCtx.lineWidth = 3;
+            spectral_kMeansCtx.strokeRect(pos.x - 8, pos.y - 8, 16, 16);
+        });
+    }
+}
+
+// --- ANIMATION LOGIC ---
+function spectral_stopAnimation() { 
+    if (spectral_isAnimating) { 
+        spectral_isAnimating = false; 
+        cancelAnimationFrame(spectral_animationFrameId); 
+        spectral_vertices = JSON.parse(JSON.stringify(spectral_originalPositions)); 
+        spectral_toggleAnimationButton.textContent = 'Запустити анімацію'; 
+        spectral_centerOfMassContainer.innerHTML = ''; 
+    } 
+}
+
+function spectral_animateGraph(currentTime) { 
+    if(!spectral_isAnimating) return; 
+    const elapsed=currentTime-spectral_animationStartTime;
+    const modeIdx=parseInt(spectral_animationModeSelect.value,10);
+    const dx=new Array(spectral_numVertices).fill(0),dy=new Array(spectral_numVertices).fill(0);
+    const MAX_AMP=40;
+    const modesToAnim=(modeIdx===3)?[0,1,2]:[modeIdx];
+    modesToAnim.forEach(m=>{
+        if(spectral_allEigenPairs.length<=m)return;
+        const eigen=spectral_allEigenPairs[m];
+        const omega=2.5*(m+1);
+        let amp=MAX_AMP;
+        if(modeIdx===3)amp=MAX_AMP*(document.getElementById(`spectral-amp-slider-${m}`).value/100);
+        const disp=amp*Math.cos(elapsed*omega/1000);
+        for(let i=0;i<spectral_numVertices;i++){
+            const comp=eigen.vec[i];
+            if(m===0)dy[i]+=20*(document.getElementById('spectral-amp-slider-0').value/100)*Math.sin(elapsed*omega/1000);
+            else if(m===1)dx[i]+=comp*disp;
+            else if(m===2)dy[i]+=comp*disp;
+        }
+    });
+    spectral_vertices.forEach((v,i)=>{
+        v.x=spectral_originalPositions[i].x+dx[i];
+        v.y=spectral_originalPositions[i].y+dy[i];
+    });
+    spectral_drawGraph();
+    spectral_centerOfMassContainer.innerHTML = '';
+    if (spectral_clusters.length > 0) {
+        const clusterGroups = Array.from({length: spectral_numClusters}, () => []);
+        spectral_clusters.forEach((c, i) => clusterGroups[c].push(i));
+        clusterGroups.forEach((group, groupIdx) => {
+            if (group.length === 0) return;
+            let currentCenter = {x: 0, y: 0};
+            group.forEach(i => {
+                currentCenter.x += spectral_vertices[i].x;
+                currentCenter.y += spectral_vertices[i].y;
+            });
+            currentCenter.x /= group.length;
+            currentCenter.y /= group.length;
+            const comElem = document.createElement('div');
+            comElem.className = 'center-of-mass';
+            comElem.style.left = `${currentCenter.x}px`;
+            comElem.style.top = `${currentCenter.y}px`;
+            comElem.style.backgroundColor = spectral_clusterColors[groupIdx];
+            spectral_centerOfMassContainer.appendChild(comElem);
+        });
+    }
+    spectral_animationFrameId=requestAnimationFrame(spectral_animateGraph);
+}
+
+spectral_toggleAnimationButton.addEventListener('click', () => { 
+    if(spectral_isAnimating){
+        spectral_stopAnimation(); 
+        spectral_drawGraph();
+    }else{
+        spectral_isAnimating=true;
+        spectral_originalPositions=JSON.parse(JSON.stringify(spectral_vertices));
+        spectral_animationStartTime=performance.now();
+        spectral_toggleAnimationButton.textContent='Зупинити';
+        spectral_animateGraph(performance.now());
+    }
+});
+
+spectral_animationModeSelect.addEventListener('change', () => { 
+    spectral_stopAnimation(); 
+    const modeIndex = parseInt(spectral_animationModeSelect.value, 10); 
+    spectral_toggleAnimationButton.disabled = (modeIndex < 0); 
+    spectral_equalizerContainer.style.display = (modeIndex === 3) ? 'flex' : 'none'; 
+    if (spectral_kMeansState.converged) {
+        spectral_clusters = spectral_kMeansState.assignments;
+    } else {
+        spectral_clusters = [];
+    }
+    spectral_drawGraph(); 
+});
+
+// --- SLIDERS LOGIC ---
+const spectral_attractionSlider = document.getElementById('spectral-attraction-slider');
+const spectral_repulsionSlider = document.getElementById('spectral-repulsion-slider');
+const spectral_intraClusterRepulsionSlider = document.getElementById('spectral-intra-cluster-repulsion-slider');
+const spectral_attractionValue = document.getElementById('spectral-attraction-value');
+const spectral_repulsionValue = document.getElementById('spectral-repulsion-value');
+const spectral_intraClusterRepulsionValue = document.getElementById('spectral-intra-cluster-repulsion-value');
+
+function spectral_setupSliders() {
+    spectral_attractionSlider.oninput = function() { spectral_attractionValue.textContent = (this.value / 100).toFixed(2); };
+    spectral_repulsionSlider.oninput = function() { spectral_repulsionValue.textContent = (this.value / 10).toFixed(1); };
+    spectral_intraClusterRepulsionSlider.oninput = function() { spectral_intraClusterRepulsionValue.textContent = (this.value / 10).toFixed(1); };
+
+    const runOnChange = () => { if (!spectral_isLayoutRunning) spectral_runForceDirectedLayout(); };
+    spectral_attractionSlider.onchange = runOnChange;
+    spectral_repulsionSlider.onchange = runOnChange;
+    spectral_intraClusterRepulsionSlider.onchange = runOnChange;
+}
+
+// --- REVISED FORCE-DIRECTED LAYOUT ---
+function spectral_runForceDirectedLayout() {
+    if (spectral_isLayoutRunning || spectral_clusters.length === 0) return;
+    spectral_isLayoutRunning = true;
+    spectral_spreadClustersButton.disabled = true;
+    spectral_attractionSlider.disabled = true;
+    spectral_repulsionSlider.disabled = true;
+    spectral_intraClusterRepulsionSlider.disabled = true;
+    spectral_instruction.innerText = 'Розсування графа...';
+
+    const iterations = 300;
+    const width = spectral_canvas.width;
+    const height = spectral_canvas.height;
+    const center = { x: width / 2, y: height / 2 };
+    let temp = width / 15;
+    const idealEdgeLength = Math.sqrt((width * height) / spectral_numVertices);
+
+    const calculateEnergy = (v_array) => {
+        let totalEnergy = 0;
+        for (const v of v_array) {
+            const dx = v.x - center.x;
+            const dy = v.y - center.y;
+            totalEnergy += dx * dx + dy * dy;
+        }
+        return totalEnergy;
+    };
+    const initialEnergy = calculateEnergy(spectral_vertices);
+    
+    const edgeSet = new Set(spectral_edges.map(e => `${e[0]}-${e[1]}`));
+
+    function step(currentIteration) {
+        if (currentIteration >= iterations || temp < 0.1) {
+            spectral_isLayoutRunning = false;
+            spectral_instruction.innerText = 'Компонування завершено. Можна змінювати сили.';
+            spectral_spreadClustersButton.disabled = false;
+            spectral_attractionSlider.disabled = false;
+            spectral_repulsionSlider.disabled = false;
+            spectral_intraClusterRepulsionSlider.disabled = false;
+            return;
+        }
+        
+        const intraClusterStiffness = parseFloat(spectral_attractionValue.textContent);
+        const interClusterRepulsion = parseFloat(spectral_repulsionValue.textContent);
+        const intraClusterRepulsion = parseFloat(spectral_intraClusterRepulsionValue.textContent);
+        let displacements = spectral_vertices.map(() => ({ x: 0, y: 0 }));
+
+        // 1. Spring forces (edges)
+        const baseStiffness = 0.05;
+        for (const edge of spectral_edges) {
+            const [u_idx, v_idx] = edge;
+            const u = spectral_vertices[u_idx], v = spectral_vertices[v_idx];
+            const dx = v.x - u.x, dy = v.y - u.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+            const displacement = dist - idealEdgeLength;
+            const isIntraCluster = (spectral_clusters[u_idx] === spectral_clusters[v_idx]);
+            const stiffness = isIntraCluster ? baseStiffness * (1 + 4 * intraClusterStiffness) : baseStiffness;
+            const forceMagnitude = stiffness * displacement;
+            const fx = (dx / dist) * forceMagnitude, fy = (dy / dist) * forceMagnitude;
+            displacements[u_idx].x += fx; displacements[u_idx].y += fy;
+            displacements[v_idx].x -= fx; displacements[v_idx].y -= fy;
+        }
+
+        // 2. Coulomb repulsion (between different clusters)
+        const repulsionConstant = interClusterRepulsion * 5000;
+        for (let i = 0; i < spectral_numVertices; i++) {
+            for (let j = i + 1; j < spectral_numVertices; j++) {
+                if (spectral_clusters[i] !== spectral_clusters[j]) {
+                    const u = spectral_vertices[i], v = spectral_vertices[j];
+                    const dx = u.x - v.x, dy = u.y - v.y;
+                    const distSq = dx * dx + dy * dy + 1e-6;
+                    const dist = Math.sqrt(distSq);
+                    const forceMagnitude = repulsionConstant / distSq;
+                    const fx = (dx / dist) * forceMagnitude, fy = (dy / dist) * forceMagnitude;
+                    displacements[i].x += fx; displacements[i].y += fy;
+                    displacements[j].x -= fx; displacements[j].y -= fy;
+                }
+            }
+        }
+
+        // 3. Weak springs for non-adjacent intra-cluster nodes (to prevent overlap)
+        const intraClusterRepulsionStiffness = intraClusterRepulsion * 0.01;
+        const minIntraClusterDist = 40; // 2 * radius (15) + 10px buffer
+        for (let i = 0; i < spectral_numVertices; i++) {
+            for (let j = i + 1; j < spectral_numVertices; j++) {
+                if (spectral_clusters[i] === spectral_clusters[j] && !edgeSet.has(`${i}-${j}`)) {
+                    const u = spectral_vertices[i], v = spectral_vertices[j];
+                    const dx = u.x - v.x, dy = u.y - v.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+
+                    if (dist < minIntraClusterDist) {
+                        const overlap = minIntraClusterDist - dist;
+                        const forceMagnitude = intraClusterRepulsionStiffness * overlap;
+                        const fx = (dx / dist) * forceMagnitude;
+                        const fy = (dy / dist) * forceMagnitude;
+                        
+                        displacements[i].x += fx;
+                        displacements[i].y += fy;
+                        displacements[j].x -= fx;
+                        displacements[j].y -= fy;
+                    }
+                }
+            }
+        }
+
+        let newVertices = JSON.parse(JSON.stringify(spectral_vertices));
+
+        // 4. Apply forces and tremor
+        for (let i = 0; i < spectral_numVertices; i++) {
+            const disp = displacements[i];
+            disp.x += (Math.random() - 0.5) * temp;
+            disp.y += (Math.random() - 0.5) * temp;
+            const dist = Math.sqrt(disp.x * disp.x + disp.y * disp.y) + 1e-6;
+            newVertices[i].x += (disp.x / dist) * Math.min(dist, temp);
+            newVertices[i].y += (disp.y / dist) * Math.min(dist, temp);
+        }
+
+        // 5. Energy Normalization
+        const currentEnergy = calculateEnergy(newVertices);
+        if (currentEnergy > 1e-6) {
+            const scaleFactor = Math.sqrt(initialEnergy / currentEnergy);
+            for (let v of newVertices) {
+                const dx = v.x - center.x, dy = v.y - center.y;
+                v.x = center.x + dx * scaleFactor;
+                v.y = center.y + dy * scaleFactor;
+            }
+        }
+
+        // 6. Boundary checks and update final positions
+        for (let i = 0; i < spectral_numVertices; i++) {
+            spectral_vertices[i].x = Math.max(15, Math.min(width - 15, newVertices[i].x));
+            spectral_vertices[i].y = Math.max(15, Math.min(height - 15, newVertices[i].y));
+        }
+        
+        temp *= (1 - currentIteration / iterations);
+
+        spectral_drawGraph();
+        requestAnimationFrame(() => step(currentIteration + 1));
+    }
+    requestAnimationFrame(() => step(0));
+}
+
+// --- INITIALIZATION ---
+spectral_spreadClustersButton.addEventListener('click', spectral_runForceDirectedLayout);
+spectral_setupSliders();
+spectral_resetAll();
+spectral_loadPreset('3-clusters');
+
+// ================================================
+// EDGE CLUSTERING ALGORITHM IMPLEMENTATION  
+// ================================================
+
+// --- CORE DATA STRUCTURES AND STATE ---
+let edge_nodes = [], edge_links = [];
+let edge_selectedNode = null, edge_selectedLink = null, edge_shiftSelectedNodes = [];
+let edge_nodeCommunities = new Map();
+let edge_edgeCommunities = new Map();
+const edge_customColors = ["#4E79A7","#F28E2C","#E15759","#76B7B2","#59A14F","#EDC949","#AF7AA1","#FF9DA7","#9C755F","#BAB0AB", "#86BCB6", "#F4A261", "#2A9D8F", "#E9C46A", "#264653", "#A8DADC", "#457B9D", "#1D3557", "#E63946", "#F1FAEE"];
+const edge_colors = d3.scaleOrdinal(edge_customColors);
+let edge_simulation, edge_svg, edge_linkGroup, edge_nodeGroup, edge_edgeLabelGroup;
+let edge_svgWidth, edge_svgHeight;
+let edge_dendrogramRoot = null; 
+let edge_longPressTimer;
+let edge_superSim;
+
+// --- D3 SETUP AND DRAWING ---
+function edge_setupSVG() {
+    edge_svg = d3.select("#edge-graph-svg");
+    //const containerWidth = edge_svg.node().getBoundingClientRect().width;
+	const containerWidth = edge_svg.node().getBoundingClientRect().width || edge_svg.node().parentNode.getBoundingClientRect().width || 600;
+
+    edge_svgHeight = 450;
+    edge_svgWidth = containerWidth; 
+    edge_svg.attr("viewBox", `0 0 ${edge_svgWidth} ${edge_svgHeight}`);
+
+    edge_linkGroup = edge_svg.append("g").attr("class", "links");
+    edge_edgeLabelGroup = edge_svg.append("g").attr("class", "edge-labels");
+    edge_nodeGroup = edge_svg.append("g").attr("class", "nodes");
+
+    edge_simulation = d3.forceSimulation(edge_nodes)
+        .force("link", d3.forceLink(edge_links).id(d => d.id).distance(70))
+        .force("charge", d3.forceManyBody().strength(-100))
+        .force("center", d3.forceCenter(edge_svgWidth / 2, edge_svgHeight / 2))
+        .on("tick", edge_ticked);
+
+    edge_svg.on("click", (event) => { if (event.target.tagName === 'svg') { edge_clearSelection(); edge_update(); } })
+       .on("dblclick", (event) => { const [x, y] = d3.pointer(event); edge_addNode(x, y); });
+       
+    d3.select("body").on("keydown", edge_handleKeyDown).on("keyup", edge_handleKeyUp);
+}
+
+function edge_update() {
+    // NODES
+    const nodeElements = edge_nodeGroup.selectAll("g.node-group").data(edge_nodes, d => d.id);
+    nodeElements.exit().remove();
+    const nodeEnter = nodeElements.enter().append("g")
+        .attr("class", "node-group")
+        .call(d3.drag().on("start", edge_dragstarted).on("drag", edge_dragged).on("end", edge_dragended))
+        .on("click", edge_nodeClicked)
+        .on("touchstart", (event, d) => {
+            event.preventDefault();
+            edge_longPressTimer = setTimeout(() => {
+                edge_longPressTimer = null;
+                edge_handleLongPress(event, d);
+            }, 500);
+        })
+        .on("touchend", (event) => {
+            if(edge_longPressTimer) clearTimeout(edge_longPressTimer);
+        });
+        
+    nodeEnter.append("circle").attr("r", 15);
+    nodeEnter.append("text").attr("dy", ".35em").attr("text-anchor", "middle")
+        .style("fill", "white").style("font-size", "12px").text(d => d.id);
+
+    const allNodes = edge_nodeGroup.selectAll("g.node-group");
+    allNodes.select("circle")
+        .attr("stroke", d => (edge_selectedNode === d || edge_shiftSelectedNodes.includes(d)) ? "#ff7f0e" : "#333")
+        .attr("stroke-width", d => (edge_selectedNode === d || edge_shiftSelectedNodes.includes(d)) ? 3 : 1.5)
+        .style("fill", "none");
+        
+    allNodes.each(function(d) {
+        const group = d3.select(this);
+        group.selectAll("path").remove();
+        const communities = edge_nodeCommunities.get(d.id);
+        if (communities && communities.size > 0) {
+            const pie = d3.pie().sort(null).value(1);
+            const arc = d3.arc().innerRadius(0).outerRadius(15);
+            const arcs = pie(Array.from(communities));
+            group.selectAll("path").data(arcs).enter().append("path")
+                .attr("d", arc)
+                .attr("fill", (p, i) => edge_colors(Array.from(communities)[i]));
+        } else {
+             group.append("path")
+                .attr("d", d3.arc().innerRadius(0).outerRadius(15)({startAngle: 0, endAngle: 2 * Math.PI}))
+                .attr("fill", "#007bff");
+        }
+    });
+
+    // LINKS
+    const linkElements = edge_linkGroup.selectAll("line").data(edge_links, d => `${d.source.id}-${d.target.id}`);
+    linkElements.exit().remove();
+    linkElements.enter().append("line")
+        .attr("stroke-width", 3).on("click", edge_linkClicked)
+        .on("dblclick", (event, d) => { event.preventDefault(); edge_removeLink(d); });
+    edge_linkGroup.selectAll("line")
+        .attr("stroke", d => d === edge_selectedLink ? "#ff7f0e" : (edge_edgeCommunities.has(d.id) ? edge_colors(edge_edgeCommunities.get(d.id)) : "#999"))
+        .attr("stroke-opacity", 0.7);
+
+    // EDGE LABELS
+    const edgeLabelElements = edge_edgeLabelGroup.selectAll("text").data(edge_links, d => d.id);
+    edgeLabelElements.exit().remove();
+    edgeLabelElements.enter().append("text")
+        .style("font-size", "10px")
+        .attr("fill", "#333")
+        .attr("text-anchor", "middle")
+        .text(d => d.id);
+    
+    edge_simulation.nodes(edge_nodes);
+    edge_simulation.force("link").links(edge_links);
+    edge_simulation.alpha(1).restart();
+}
+
+function edge_ticked() {
+    const radius = 15;
+    edge_nodes.forEach(node => {
+        node.x = Math.max(radius, Math.min(edge_svgWidth - radius, node.x));
+        node.y = Math.max(radius, Math.min(edge_svgHeight - radius, node.y));
+    });
+    edge_linkGroup.selectAll("line")
+        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    edge_nodeGroup.selectAll("g.node-group")
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+    edge_edgeLabelGroup.selectAll("text")
+        .attr("x", d => (d.source.x + d.target.x) / 2)
+        .attr("y", d => (d.source.y + d.target.y) / 2);
+}
+
+// --- INTERACTION HANDLERS ---
+function edge_addNode(x, y) { const newNodeId = edge_nodes.length ? Math.max(...edge_nodes.map(n => n.id)) + 1 : 0; edge_nodes.push({ id: newNodeId, x, y, fx: null, fy: null }); edge_clearCommunities(); edge_update(); }
+function edge_removeNode(id) { edge_nodes = edge_nodes.filter(n => n.id !== id); edge_links = edge_links.filter(l => l.source.id !== id && l.target.id !== id); edge_clearSelection(); edge_clearCommunities(); edge_update(); }
+function edge_addLink(sourceId, targetId) { if (sourceId === targetId) return; const exists = edge_links.some(l => (l.source.id === sourceId && l.target.id === targetId) || (l.source.id === targetId && l.target.id === sourceId)); if (!exists) { edge_links.push({ source: sourceId, target: targetId, id: `e${edge_links.length}` }); edge_clearCommunities(); edge_update(); } }
+function edge_removeLink(link) { edge_links = edge_links.filter(l => l !== link); edge_clearSelection(); edge_clearCommunities(); edge_update(); }
+function edge_nodeClicked(event, d) {
+    if(edge_longPressTimer) { clearTimeout(edge_longPressTimer); edge_longPressTimer = null; }
+    event.stopPropagation();
+    if (event.shiftKey) { edge_toggleShiftSelection(d); } 
+    else if (edge_selectedNode && edge_selectedNode !== d) { edge_addLink(edge_selectedNode.id, d.id); edge_clearSelection(); } 
+    else { edge_selectedNode = d; edge_selectedLink = null; }
+    edge_update();
+}
+function edge_handleLongPress(event, d) { edge_toggleShiftSelection(d); edge_update(); }
+function edge_toggleShiftSelection(d) {
+    const index = edge_shiftSelectedNodes.indexOf(d);
+    if (index > -1) { edge_shiftSelectedNodes.splice(index, 1); } 
+    else { edge_shiftSelectedNodes.push(d); }
+    edge_selectedNode = null;
+}
+function edge_linkClicked(event, d) { event.stopPropagation(); edge_selectedLink = d; edge_selectedNode = null; edge_update(); }
+function edge_clearSelection() { edge_selectedNode = null; edge_selectedLink = null; edge_shiftSelectedNodes = []; }
+function edge_handleKeyDown(event) { if (event.key === "Delete" || event.key === "Backspace") { if (edge_selectedNode) edge_removeNode(edge_selectedNode.id); else if (edge_selectedLink) edge_removeLink(edge_selectedLink); } }
+function edge_handleKeyUp(event) {
+    if (event.key === 'Shift' && edge_shiftSelectedNodes.length > 1) {
+        for (let i = 0; i < edge_shiftSelectedNodes.length; i++) {
+            for (let j = i + 1; j < edge_shiftSelectedNodes.length; j++) {
+                edge_addLink(edge_shiftSelectedNodes[i].id, edge_shiftSelectedNodes[j].id);
+            }
+        }
+        edge_clearSelection(); edge_update();
+    }
+}
+function edge_dragstarted(event, d) { if (!event.active) edge_simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+function edge_dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+function edge_dragended(event, d) { if (!event.active) edge_simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+// --- ALGORITHM LOGIC ---
+function edge_runAlgorithm() {
+    edge_resetSteps();
+    if (edge_links.length < 1) { alert("Будь ласка, додайте ребра до графа."); return; }
+    const adj = new Map(edge_nodes.map(n => [n.id, new Set()]));
+    edge_links.forEach(l => {
+        const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+        const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+        adj.get(sourceId).add(targetId); adj.get(targetId).add(sourceId);
+    });
+    let clusters = new Map(edge_links.map(l => [l.id, { nodes: new Set([l.id]), height: 0, id: l.id }]));
+    let simMatrix = new Map();
+    const incidentLinksMap = new Map();
+    edge_nodes.forEach(n => incidentLinksMap.set(n.id, []));
+    edge_links.forEach(l => { incidentLinksMap.get(l.source.id).push(l); incidentLinksMap.get(l.target.id).push(l); });
+    edge_nodes.forEach(node => {
+        const incidentLinks = incidentLinksMap.get(node.id);
+        for (let i = 0; i < incidentLinks.length; i++) {
+            for (let j = i + 1; j < incidentLinks.length; j++) {
+                const link1 = incidentLinks[i], link2 = incidentLinks[j];
+                const neighbor1 = link1.source.id === node.id ? link1.target : link1.source;
+                const neighbor2 = link2.source.id === node.id ? link2.target : link2.source;
+                const similarity = edge_jaccardSimilarity(neighbor1, neighbor2, adj);
+                if(similarity > 0) simMatrix.set([link1.id, link2.id].sort().join('-'), similarity);
+            }
+        }
+    });
+    edge_dendrogramRoot = null;
+    let nextClusterId = clusters.size;
+    while (clusters.size > 1) {
+        let maxSim = -1, pairToMerge = null;
+        const clusterKeys = Array.from(clusters.keys());
+        for (let i = 0; i < clusterKeys.length; i++) {
+            for (let j = i + 1; j < clusterKeys.length; j++) {
+                const c1_id = clusterKeys[i], c2_id = clusterKeys[j];
+                let totalSim = 0, pairCount = 0;
+                clusters.get(c1_id).nodes.forEach(n1 => {
+                    clusters.get(c2_id).nodes.forEach(n2 => {
+                        const key = [n1, n2].sort().join('-');
+                        if(simMatrix.has(key)) { totalSim += simMatrix.get(key); pairCount++; }
+                    });
+                });
+                const currentSim = pairCount > 0 ? totalSim / pairCount : 0;
+                if (currentSim > maxSim) { maxSim = currentSim; pairToMerge = [c1_id, c2_id]; }
+            }
+        }
+        if (!pairToMerge || maxSim <= 0) break;
+        const [c1_id, c2_id] = pairToMerge;
+        const c1 = clusters.get(c1_id), c2 = clusters.get(c2_id);
+        const newCluster = { nodes: new Set([...c1.nodes, ...c2.nodes]), height: maxSim, id: `c${nextClusterId++}`, children: [c1, c2] };
+        clusters.delete(c1_id); clusters.delete(c2_id);
+        clusters.set(newCluster.id, newCluster);
+        edge_dendrogramRoot = newCluster;
+    }
+    if (edge_dendrogramRoot) edge_updateEdgeCommunities();
+    document.querySelectorAll('#edge-section .step').forEach(el => el.classList.add('active'));
+}
+
+function edge_jaccardSimilarity(node1, node2, adj) {
+    const neighbors1 = new Set(adj.get(node1.id));
+    const neighbors2 = new Set(adj.get(node2.id));
+    neighbors1.add(node1.id); neighbors2.add(node2.id);
+    const intersection = new Set([...neighbors1].filter(x => neighbors2.has(x)));
+    const union = new Set([...neighbors1, ...neighbors2]);
+    return union.size > 0 ? intersection.size / union.size : 0;
+}
+
+function edge_drawDendrogram(root, finalClusters) {
+    const clusterColorMap = new Map();
+    finalClusters.forEach((cluster, i) => { cluster.nodes.forEach(edgeId => clusterColorMap.set(edgeId, i)); });
+    const dendroSvg = d3.select("#edge-dendrogram-svg");
+    dendroSvg.html("");
+    const width = dendroSvg.node().getBoundingClientRect().width;
+    const height = +dendroSvg.style("height").replace("px", "");
+    const margin = { top: 20, right: 20, bottom: 80, left: 40 };
+    
+    const y_scale = d3.scaleLinear().domain([0, 1]).range([0, height - margin.top - margin.bottom]);
+
+    const treeLayout = d3.cluster().size([width - margin.left - margin.right, height - margin.top - margin.bottom]);
+    
+    const hierarchyRoot = d3.hierarchy(root, d => d.children);
+    hierarchyRoot.each(d => d.y = y_scale(d.data.height));
+    
+    treeLayout(hierarchyRoot);
+
+    const g = dendroSvg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const zoom = d3.zoom().scaleExtent([0.5, 5]).on("zoom", (event) => g.attr("transform", event.transform));
+    dendroSvg.call(zoom);
+    g.selectAll('.link').data(hierarchyRoot.links()).enter().append('path')
+        .attr('class', 'link').attr("fill", "none")
+        .attr("stroke", d => {
+            const leaves = d.target.leaves();
+            if (leaves.length > 0) {
+                const firstLeafId = leaves[0].data.id;
+                if (clusterColorMap.has(firstLeafId)) {
+                    const communityId = clusterColorMap.get(firstLeafId);
+                    const allSame = leaves.every(leaf => clusterColorMap.get(leaf.data.id) === communityId);
+                    if (allSame) return edge_colors(communityId);
+                }
+            }
+            return "#ccc";
+        })
+        .attr("stroke-width", 1.5)
+        .attr("d", d => `M${d.source.x},${d.source.y} C ${d.source.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${d.target.y}`);
+    
+    const node = g.selectAll('.node').data(hierarchyRoot.descendants()).enter().append('g')
+        .attr('class', 'node').attr("transform", d => `translate(${d.x},${d.y})`);
+    
+    node.append('circle').attr('r', 4.5).attr("fill", d => {
+        if (!d.children && clusterColorMap.has(d.data.id)) return edge_colors(clusterColorMap.get(d.data.id));
+        return "#999";
+    });
+    
+    node.append('text')
+        .attr("dy", "0.31em")
+        .attr("y", d => 10)
+        .attr("text-anchor","middle")
+        .attr("transform", "rotate(90)")
+        .text(d => d.children ? "" : d.data.id)
+        .clone(true).lower()
+        .attr("stroke", "white");
+}
+
+function edge_getClustersAtThreshold(node, threshold, clusterList) {
+    if (node.height < threshold && node.children) {
+        if (node.children[0]) edge_getClustersAtThreshold(node.children[0], threshold, clusterList);
+        if (node.children[1]) edge_getClustersAtThreshold(node.children[1], threshold, clusterList);
+    } else { clusterList.push(node); }
+}
+
+function edge_updateEdgeCommunities() {
+    const threshold = +document.getElementById('edge-threshold-slider').value;
+    const finalEdgeClusters = [];
+    if(edge_dendrogramRoot) edge_getClustersAtThreshold(edge_dendrogramRoot, threshold, finalEdgeClusters);
+    edge_edgeCommunities.clear();
+    let edgeCommunityText = "<h4>Спільноти ребер</h4>";
+    finalEdgeClusters.forEach((cluster, i) => {
+        const communityId = i; const edgeIds = Array.from(cluster.nodes);
+        edgeCommunityText += `<b>Спільнота ${communityId}:</b> {${edgeIds.join(', ')}}\n`;
+        edgeIds.forEach(edgeId => edge_edgeCommunities.set(edgeId, communityId));
+    });
+    document.getElementById('edge-edge-communities-output').innerHTML = edgeCommunityText;
+    if (edge_dendrogramRoot) edge_drawDendrogram(edge_dendrogramRoot, finalEdgeClusters);
+    edge_updateNodeCommunities();
+    edge_drawSuperGraph();
+    edge_update();
+}
+
+function edge_updateNodeCommunities() {
+    edge_nodeCommunities.clear();
+    edge_nodes.forEach(n => edge_nodeCommunities.set(n.id, new Set()));
+    edge_links.forEach(l => {
+        if (edge_edgeCommunities.has(l.id)) {
+            const communityId = edge_edgeCommunities.get(l.id);
+            const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+            const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+            edge_nodeCommunities.get(sourceId).add(communityId);
+            edge_nodeCommunities.get(targetId).add(communityId);
+        }
+    });
+    let nodeCommunityText = "<h4>Спільноти вершин</h4>";
+    edge_nodeCommunities.forEach((communities, nodeId) => {
+        if (communities.size > 0) nodeCommunityText += `<b>Вершина ${nodeId}:</b> {${Array.from(communities).join(', ')}}\n`;
+    });
+    document.getElementById('edge-node-communities-output').innerHTML = nodeCommunityText;
+}
+
+function edge_drawSuperGraph() {
+    const superSvg = d3.select("#edge-supergraph-svg");
+    superSvg.html("");
+    const width = superSvg.node().getBoundingClientRect().width;
+    const height = 450;
+    superSvg.attr("viewBox", `0 0 ${width} ${height}`);
+    const g = superSvg.append("g");
+    const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (event) => g.attr("transform", event.transform));
+    superSvg.call(zoom);
+
+    const communities = new Map();
+    edge_nodeCommunities.forEach((nodeComms, nodeId) => {
+        nodeComms.forEach(commId => {
+            if (!communities.has(commId)) communities.set(commId, new Set());
+            communities.get(commId).add(nodeId);
+        });
+    });
+    const superNodes = Array.from(communities.keys()).map(id => ({ id, size: communities.get(id).size }));
+    const superLinks = [];
+    const commKeys = Array.from(communities.keys());
+    for (let i = 0; i < commKeys.length; i++) {
+        for (let j = i + 1; j < commKeys.length; j++) {
+            const c1_id = commKeys[i], c2_id = commKeys[j];
+            const c1_nodes = communities.get(c1_id), c2_nodes = communities.get(c2_id);
+            const intersection = new Set([...c1_nodes].filter(x => c2_nodes.has(x)));
+            if (intersection.size > 0) superLinks.push({ source: c1_id, target: c2_id, weight: intersection.size });
+        }
+    }
+    if (superNodes.length === 0) return;
+    const sizeScale = d3.scaleSqrt().domain([1, d3.max(superNodes, d => d.size) || 1]).range([20, 60]);
+    const linkScale = d3.scaleLinear().domain([1, d3.max(superLinks, d => d.weight) || 1]).range([2, 15]);
+    
+    edge_superSim = d3.forceSimulation(superNodes)
+        .force("link", d3.forceLink(superLinks).id(d => d.id).distance(d => sizeScale(d.source.size) + sizeScale(d.target.size) + 50))
+        .force("charge", d3.forceManyBody().strength(-1500))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(d => sizeScale(d.size) + 5)); // Added collision force
+
+    const sl = g.append("g").selectAll("line").data(superLinks).enter().append("line")
+        .style("stroke", "#999").style("stroke-width", d => linkScale(d.weight));
+    const sn = g.append("g").selectAll("circle").data(superNodes).enter().append("circle")
+        .attr("r", d => sizeScale(d.size)).attr("fill", d => edge_colors(d.id))
+        .call(d3.drag()
+            .on("start", (event, d) => { if (!event.active) edge_superSim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+            .on("end", (event, d) => { if (!event.active) edge_superSim.alphaTarget(0); d.fx = null; d.fy = null; }));
+    const st = g.append("g").selectAll("text").data(superNodes).enter().append("text")
+        .text(d => d.id).attr("text-anchor", "middle").attr("dy", ".3em").style("fill", "white");
+    edge_superSim.on("tick", () => {
+        sl.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        sn.attr("cx", d => d.x).attr("cy", d => d.y);
+        st.attr("x", d => d.x).attr("y", d => d.y);
+    });
+}
+
+// --- UTILITY AND PRESETS ---
+function edge_clearCommunities() { edge_nodeCommunities.clear(); edge_edgeCommunities.clear(); edge_dendrogramRoot = null; edge_resetSteps(); edge_update(); d3.select("#edge-supergraph-svg").html(""); }
+function edge_resetSteps() {
+    d3.selectAll('#edge-section .step').classed('active', false);
+    document.getElementById('edge-edge-communities-output').innerHTML = "";
+    document.getElementById('edge-node-communities-output').innerHTML = "";
+    d3.select("#edge-dendrogram-svg").html(""); d3.select("#edge-supergraph-svg").html("");
+}
+function edge_resetGraph() { edge_nodes = []; edge_links = []; edge_clearCommunities(); edge_clearSelection(); edge_update(); }
+function edge_loadKarateClub() { 
+    edge_resetGraph(); 
+    edge_nodes = [{"id":0},{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15},{"id":16},{"id":17},{"id":18},{"id":19},{"id":20},{"id":21},{"id":22},{"id":23},{"id":24},{"id":25},{"id":26},{"id":27},{"id":28},{"id":29},{"id":30},{"id":31},{"id":32},{"id":33}]; 
+    edge_links = [{"source":1,"target":0},{"source":2,"target":0},{"source":2,"target":1},{"source":3,"target":0},{"source":3,"target":1},{"source":3,"target":2},{"source":4,"target":0},{"source":5,"target":0},{"source":6,"target":0},{"source":7,"target":0},{"source":7,"target":1},{"source":7,"target":2},{"source":7,"target":3},{"source":8,"target":0},{"source":8,"target":2},{"source":9,"target":2},{"source":10,"target":0},{"source":11,"target":0},{"source":12,"target":0},{"source":13,"target":0},{"source":13,"target":3},{"source":14,"target":0},{"source":14,"target":1},{"source":15,"target":0},{"source":15,"target":1},{"source":16,"target":0},{"source":17,"target":0},{"source":18,"target":0},{"source":19,"target":0},{"source":19,"target":1},{"source":21,"target":0},{"source":21,"target":1},{"source":23,"target":25},{"source":24,"target":25},{"source":27,"target":23},{"source":27,"target":24},{"source":28,"target":2},{"source":29,"target":23},{"source":29,"target":26},{"source":30,"target":1},{"source":30,"target":8},{"source":31,"target":0},{"source":31,"target":24},{"source":31,"target":25},{"source":31,"target":28},{"source":32,"target":2},{"source":32,"target":8},{"source":32,"target":14},{"source":32,"target":15},{"source":32,"target":18},{"source":32,"target":20},{"source":32,"target":22},{"source":32,"target":23},{"source":32,"target":29},{"source":32,"target":30},{"source":32,"target":31},{"source":33,"target":8},{"source":33,"target":9},{"source":33,"target":13},{"source":33,"target":14},{"source":33,"target":15},{"source":33,"target":18},{"source":33,"target":19},{"source":33,"target":20},{"source":33,"target":22},{"source":33,"target":23},{"source":33,"target":26},{"source":33,"target":27},{"source":33,"target":28},{"source":33,"target":29},{"source":33,"target":30},{"source":33,"target":31},{"source":33,"target":32}]; 
+    edge_links.forEach((l,i) => l.id = `e${i}`); 
+    edge_update(); 
+}
+
+function edge_loadBridge() {
+    edge_resetGraph();
+    // Модель Барабаші-Альберт (граф з хабами)
+    const numNodes = 28;
+    const p = 0.7; // Ймовірність того, що вершина матиме степінь 1 
+    const ki=3;
+    // Початковий повний граф з ki вершин
+    for (let i = 0; i < ki; i++) {
+        edge_nodes.push({ id: i });
+    }
+
+    for (let i = 0; i < ki; i++) {
+        for (let j = i + 1; j < ki; j++) {
+            edge_addLink(i, j);
+        }
+    }
+
+    // Додаємо решту вершин з preferential attachment
+    for (let i = ki; i < numNodes; i++) {
+        edge_nodes.push({ id: i });
+
+        // Вибираємо вершини для з'єднання (з перевагою вершин з вищим ступенем)
+        const degrees = edge_nodes.map(node =>
+            edge_links.filter(link =>
+                link.source.id === node.id || link.target.id === node.id
+            ).length
+        );
+
+        const totalDegree = degrees.reduce((a, b) => a + b, 0);
+
+        // Вибираємо 1 або 2 вершини залежно від ймовірності
+        const selected = [];
+        const numLinks = Math.random() < p ? 1 : 2; // З ймовірністю p додаємо 1 ребро, інакше 2
+
+        while (selected.length < numLinks && selected.length < i) {
+            let rand = Math.random() * totalDegree;
+            let sum = 0;
+            for (let j = 0; j < i; j++) {
+                sum += degrees[j];
+                if (rand <= sum && !selected.includes(j)) {
+                    selected.push(j);
+                    break;
+                }
+            }
+        }
+
+        selected.forEach(target => edge_addLink(i, target));
+    }
+}
+
+function edge_loadOverlap() { 
+    edge_resetGraph(); 
+    edge_nodes = [{"id":0},{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9}]; 
+    edge_links = [{"source":0,"target":1},{"source":0,"target":2},{"source":1,"target":2},{"source":2,"target":3},{"source":1,"target":3},{"source":3,"target":4},{"source":4,"target":5},{"source":5,"target":6},{"source":6,"target":4},{"source":5,"target":7},{"source":7,"target":8},{"source":8,"target":9},{"source":9,"target":7}]; 
+    edge_links.forEach((l,i) => l.id = `e${i}`); 
+    edge_update(); 
+}
+
+function edge_loadRandom() { 
+    edge_resetGraph(); 
+    const numNodes = 15; 
+    for(let i=0; i<numNodes; i++) edge_nodes.push({id: i}); 
+    for(let i=0; i<numNodes; i++) { 
+        for (let j=i+1; j<numNodes; j++) { 
+            if(Math.random() < 0.25) { 
+                edge_links.push({source: i, target: j}); 
+            } 
+        } 
+    } 
+    edge_links.forEach((l,i) => l.id = `e${i}`); 
+    edge_update(); 
+}
+
+// --- INITIALIZATION ---
+document.getElementById('edge-startButton').addEventListener('click', edge_runAlgorithm);
+document.getElementById('edge-resetButton').addEventListener('click', edge_resetGraph);
+document.getElementById('edge-preset-karate').addEventListener('click', edge_loadKarateClub);
+document.getElementById('edge-preset-bridge').addEventListener('click', edge_loadBridge);
+document.getElementById('edge-preset-overlap').addEventListener('click', edge_loadOverlap);
+document.getElementById('edge-preset-random').addEventListener('click', edge_loadRandom);
+document.getElementById('edge-show-edge-labels-checkbox').addEventListener('change', (event) => {
+    edge_edgeLabelGroup.style("display", event.target.checked ? "inline" : "none");
+});
+document.getElementById('edge-restart-supergraph-btn').addEventListener('click', () => {
+    if(edge_superSim) edge_superSim.alpha(1).restart();
+});
+
+const edge_slider = document.getElementById('edge-threshold-slider');
+const edge_sliderValue = document.getElementById('edge-threshold-value');
+edge_slider.addEventListener('input', () => { edge_sliderValue.textContent = (+edge_slider.value).toFixed(2); if(edge_dendrogramRoot) edge_updateEdgeCommunities(); });
+
+// ================================================
+// LOUVAIN ALGORITHM IMPLEMENTATION
+// ================================================
+
+// --- CORE DATA STRUCTURES AND STATE ---
+let louvain_nodes = [], louvain_links = [];
+let louvain_selectedNode = null, louvain_selectedLink = null;
+let louvain_nodeCommunities = new Map();
+let louvain_currentAggregatedGraph = { nodes: [], links: [] };
+let louvain_originalToCurrentMap = new Map();
+const louvain_customColors = ["#4E79A7","#F28E2C","#E15759","#76B7B2","#59A14F","#EDC949","#AF7AA1","#FF9DA7","#9C755F","#BAB0AB"];
+const louvain_colors = d3.scaleOrdinal(louvain_customColors);
+let louvain_simulation, louvain_svg, louvain_linkGroup, louvain_nodeGroup;
+let louvain_svgWidth, louvain_svgHeight;
+let louvain_superSim;
+
+// --- D3 SETUP AND DRAWING ---
+function louvain_setupSVG() {
+    louvain_svg = d3.select("#louvain-graph-svg");
+    //const containerWidth = louvain_svg.node().getBoundingClientRect().width;
+    const containerWidth = louvain_svg.node().getBoundingClientRect().width || louvain_svg.node().parentNode.getBoundingClientRect().width || 600;
+
+
+	louvain_svgHeight = 450;
+    louvain_svgWidth = containerWidth;
+    louvain_svg.attr("viewBox", `0 0 ${louvain_svgWidth} ${louvain_svgHeight}`);
+
+    louvain_linkGroup = louvain_svg.append("g").attr("class", "links");
+    louvain_nodeGroup = louvain_svg.append("g").attr("class", "nodes");
+
+    louvain_simulation = d3.forceSimulation(louvain_nodes)
+        .force("link", d3.forceLink(louvain_links).id(d => d.id).distance(80))
+        .force("charge", d3.forceManyBody().strength(-400))
+        .force("center", d3.forceCenter(louvain_svgWidth / 2, louvain_svgHeight / 2))
+        .on("tick", louvain_ticked);
+
+    louvain_svg.on("click", (event) => { if (event.target.tagName === 'svg') { louvain_clearSelection(); louvain_update(); } })
+       .on("dblclick", (event) => { const [x, y] = d3.pointer(event); louvain_addNode(x, y); });
+
+    d3.select("body").on("keydown", louvain_handleKeyDown);
+}
+
+function louvain_update() {
+    const nodeElements = louvain_nodeGroup.selectAll("g.node-group").data(louvain_nodes, d => d.id);
+    nodeElements.exit().remove();
+    const nodeEnter = nodeElements.enter().append("g")
+        .attr("class", "node-group")
+        .call(d3.drag().on("start", louvain_dragstarted).on("drag", louvain_dragged).on("end", louvain_dragended))
+        .on("click", louvain_nodeClicked);
+    nodeEnter.append("circle").attr("r", 15);
+    nodeEnter.append("text").attr("dy", ".35em").attr("text-anchor", "middle")
+        .style("fill", "white").style("font-size", "12px").text(d => d.id);
+
+    const allNodes = louvain_nodeGroup.selectAll("g.node-group");
+    allNodes.select("circle")
+        .attr("stroke", d => louvain_selectedNode === d ? "#ff7f0e" : "#333")
+        .attr("stroke-width", d => louvain_selectedNode === d ? 3 : 1.5)
+        .style("fill", d => louvain_nodeCommunities.has(d.id) ? louvain_colors(louvain_nodeCommunities.get(d.id)) : "#6c757d");
+
+    const linkElements = louvain_linkGroup.selectAll("line").data(louvain_links, d => `${d.source.id}-${d.target.id}`);
+    linkElements.exit().remove();
+    linkElements.enter().append("line")
+        .attr("stroke-width", 3).attr("stroke", "#999").attr("stroke-opacity", 0.7)
+        .on("click", louvain_linkClicked).on("dblclick", (event, d) => { event.preventDefault(); louvain_removeLink(d); });
+    louvain_linkGroup.selectAll("line").attr("stroke", d => d === louvain_selectedLink ? "#ff7f0e" : "#999");
+
+    louvain_simulation.nodes(louvain_nodes);
+    louvain_simulation.force("link").links(louvain_links);
+    louvain_simulation.alpha(1).restart();
+}
+
+function louvain_ticked() {
+    const radius = 15;
+    louvain_nodes.forEach(node => {
+        node.x = Math.max(radius, Math.min(louvain_svgWidth - radius, node.x));
+        node.y = Math.max(radius, Math.min(louvain_svgHeight - radius, node.y));
+    });
+    louvain_linkGroup.selectAll("line")
+        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    louvain_nodeGroup.selectAll("g.node-group").attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+// --- INTERACTION HANDLERS ---
+function louvain_addNode(x, y) { const newNodeId = louvain_nodes.length ? Math.max(...louvain_nodes.map(n => n.id)) + 1 : 0; louvain_nodes.push({ id: newNodeId, x, y, fx: null, fy: null }); louvain_clearCommunities(); louvain_update(); }
+function louvain_removeNode(id) { louvain_nodes = louvain_nodes.filter(n => n.id !== id); louvain_links = louvain_links.filter(l => l.source.id !== id && l.target.id !== id); louvain_clearSelection(); louvain_clearCommunities(); louvain_update(); }
+function louvain_addLink(sourceId, targetId) { if (sourceId === targetId) return; const exists = louvain_links.some(l => (l.source.id === sourceId && l.target.id === targetId) || (l.source.id === targetId && l.target.id === sourceId)); if (!exists) { louvain_links.push({ source: sourceId, target: targetId }); louvain_clearCommunities(); louvain_update(); } }
+function louvain_removeLink(link) { louvain_links = louvain_links.filter(l => l !== link); louvain_clearSelection(); louvain_clearCommunities(); louvain_update(); }
+function louvain_nodeClicked(event, d) { event.stopPropagation(); if (louvain_selectedNode && louvain_selectedNode !== d) { louvain_addLink(louvain_selectedNode.id, d.id); louvain_clearSelection(); } else { louvain_selectedNode = d; louvain_selectedLink = null; } louvain_update(); }
+function louvain_linkClicked(event, d) { event.stopPropagation(); louvain_selectedLink = d; louvain_selectedNode = null; louvain_update(); }
+function louvain_clearSelection() { louvain_selectedNode = null; louvain_selectedLink = null; }
+function louvain_handleKeyDown(event) { if (event.key === "Delete" || event.key === "Backspace") { if (louvain_selectedNode) louvain_removeNode(louvain_selectedNode.id); else if (louvain_selectedLink) louvain_removeLink(louvain_selectedLink); } }
+function louvain_dragstarted(event, d) { if (!event.active) louvain_simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+function louvain_dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+function louvain_dragended(event, d) { if (!event.active) louvain_simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+// --- LOUVAIN ALGORITHM LOGIC ---
+function louvain_startLouvain() {
+    if (louvain_nodes.length === 0) { alert("Будь ласка, додайте вершини та ребра до графа."); return; }
+    louvain_resetSteps();
+
+    louvain_currentAggregatedGraph = { 
+        nodes: louvain_nodes.map(n => ({...n, size: 1})), 
+        links: louvain_links.map(l => ({source: l.source.id, target: l.target.id, weight: 1}))
+    };
+    louvain_originalToCurrentMap = new Map(louvain_nodes.map(n => [n.id, n.id]));
+    
+    louvain_runNextPass();
+}
+
+function louvain_runNextPass() {
+    const { communities, modularity, modularityGain } = louvain_louvainPass(louvain_currentAggregatedGraph.nodes, louvain_currentAggregatedGraph.links);
+    
+    const newMap = new Map();
+    for(const [originalId, currentId] of louvain_originalToCurrentMap.entries()) {
+        const newCommId = communities.get(currentId);
+        louvain_nodeCommunities.set(originalId, newCommId);
+        newMap.set(originalId, newCommId);
+    }
+    louvain_originalToCurrentMap = newMap;
+    
+    const aggregation = louvain_aggregateGraph(communities);
+    louvain_currentAggregatedGraph = aggregation.newGraph;
+    
+    louvain_displayCurrentState(modularity);
+    
+    d3.select("#louvain-nextButton").property("disabled", modularityGain < 1e-6 || louvain_currentAggregatedGraph.nodes.length <= 1);
+}
+
+function louvain_louvainPass(passNodes, passLinks) {
+    let communities = new Map(passNodes.map(n => [n.id, n.id]));
+    const m = passLinks.reduce((acc, link) => acc + (link.weight || 1), 0);
+    if (m === 0) return {communities, modularity: 0, modularityGain: 0};
+    
+    const adj = new Map(passNodes.map(n => [n.id, new Map()]));
+    const nodeDegrees = new Map(passNodes.map(n => [n.id, 0]));
+
+    passLinks.forEach(l => {
+        const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+        const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+        const weight = l.weight || 1;
+        adj.get(sourceId).set(targetId, weight); adj.get(targetId).set(sourceId, weight);
+        nodeDegrees.set(sourceId, (nodeDegrees.get(sourceId) || 0) + weight);
+        nodeDegrees.set(targetId, (nodeDegrees.get(targetId) || 0) + weight);
+    });
+
+    let moved; let modularityGain = 0;
+    do {
+        moved = false;
+        const shuffledNodes = d3.shuffle(passNodes.slice());
+        shuffledNodes.forEach(node => {
+            const currentNodeId = node.id;
+            const currentCommunityId = communities.get(currentNodeId);
+            let bestCommunityId = currentCommunityId;
+            let maxDeltaModularity = 0;
+
+            const neighborCommunities = new Set([currentCommunityId]);
+            (adj.get(currentNodeId) || new Map()).forEach((weight, neighborId) => {
+                neighborCommunities.add(communities.get(neighborId));
+            });
+
+            for (const targetCommunityId of neighborCommunities) {
+                const delta = louvain_calculateModularityGain(currentNodeId, targetCommunityId, communities, adj, nodeDegrees, m);
+                if (delta > maxDeltaModularity) {
+                    maxDeltaModularity = delta;
+                    bestCommunityId = targetCommunityId;
+                }
+            }
+            if (bestCommunityId !== currentCommunityId) {
+                communities.set(currentNodeId, bestCommunityId);
+                modularityGain += maxDeltaModularity;
+                moved = true;
+            }
+        });
+    } while (moved);
+    
+    const { modularity, finalCommunities } = louvain_renumberAndCalculateModularity(communities, m, adj, nodeDegrees);
+    return { communities: finalCommunities, modularity, modularityGain };
+}
+
+function louvain_calculateModularityGain(nodeId, targetCommunityId, communities, adj, nodeDegrees, m) {
+    const k_i = nodeDegrees.get(nodeId) || 0;
+    let k_i_in = 0;
+    (adj.get(nodeId) || new Map()).forEach((weight, neighborId) => {
+        if (communities.get(neighborId) === targetCommunityId) k_i_in += weight;
+    });
+    
+    let sigma_tot = 0;
+    communities.forEach((commId, nId) => {
+        if (commId === targetCommunityId) sigma_tot += nodeDegrees.get(nId) || 0;
+    });
+
+    const sigma_tot_without_i = communities.get(nodeId) === targetCommunityId ? sigma_tot - k_i : sigma_tot;
+    const delta_q = (k_i_in - (sigma_tot_without_i * k_i) / (2 * m));
+    return delta_q;
+}
+
+function louvain_renumberAndCalculateModularity(communities, m, adj, nodeDegrees) {
+    let q = 0;
+    const uniqueCommunities = [...new Set(communities.values())];
+    const communityMap = new Map(uniqueCommunities.map((c, i) => [c, i]));
+    const finalCommunities = new Map();
+    communities.forEach((commId, nodeId) => finalCommunities.set(nodeId, communityMap.get(commId)));
+
+    for(const [node1Id] of communities.entries()) {
+        for(const [node2Id] of communities.entries()) {
+            if(finalCommunities.get(node1Id) === finalCommunities.get(node2Id)) {
+                const isLinked = adj.get(node1Id).get(node2Id) || 0;
+                q += isLinked - (nodeDegrees.get(node1Id) * nodeDegrees.get(node2Id)) / (2 * m);
+            }
+        }
+    }
+    return { modularity: m > 0 ? q / (2 * m) : 0, finalCommunities };
+}
+
+function louvain_aggregateGraph(communities) {
+    const communitySizes = new Map();
+    louvain_currentAggregatedGraph.nodes.forEach(node => {
+        const commId = communities.get(node.id);
+        communitySizes.set(commId, (communitySizes.get(commId) || 0) + (node.size || 1));
+    });
+
+    const newNodes = [...new Set(communities.values())].map(id => ({id, size: communitySizes.get(id)}));
+    const newLinksMap = new Map();
+
+    louvain_currentAggregatedGraph.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        const comm1 = communities.get(sourceId);
+        const comm2 = communities.get(targetId);
+        if (comm1 !== comm2) {
+            const key = [comm1, comm2].sort().join('-');
+            if (!newLinksMap.has(key)) newLinksMap.set(key, { source: comm1, target: comm2, weight: 0 });
+            newLinksMap.get(key).weight += (link.weight || 1);
+        }
+    });
+    return { newGraph: { nodes: newNodes, links: [...newLinksMap.values()] } };
+}
+
+// --- DISPLAY LOGIC ---
+function louvain_displayCurrentState(modularity) {
+    document.querySelectorAll('#louvain-section .step').forEach(el => el.classList.add('active'));
+    d3.select("#louvain-modularity-output").text(`Q = ${modularity.toFixed(4)}`);
+    
+    louvain_update();
+    louvain_drawSuperGraph(louvain_currentAggregatedGraph.nodes, louvain_currentAggregatedGraph.links);
+    
+    let nodeCommunityText = "<h4>Спільноти вершин</h4>";
+    const communityGroups = new Map();
+    louvain_nodeCommunities.forEach((commId, nodeId) => {
+        if (!communityGroups.has(commId)) communityGroups.set(commId, []);
+        communityGroups.get(commId).push(nodeId);
+    });
+    const sortedGroups = new Map([...communityGroups.entries()].sort((a, b) => a[0] - b[0]));
+    sortedGroups.forEach((nodeList, commId) => {
+        nodeCommunityText += `<b>Спільнота ${commId}:</b> {${nodeList.sort((a,b)=>a-b).join(', ')}}\n`;
+    });
+    document.getElementById('louvain-node-communities-output').innerHTML = nodeCommunityText;
+}
+
+function louvain_drawSuperGraph(superNodes, superLinks) {
+    const superSvg = d3.select("#louvain-supergraph-svg"); superSvg.html("");
+    const width = superSvg.node().getBoundingClientRect().width; const height = 450;
+    superSvg.attr("viewBox", `0 0 ${width} ${height}`);
+    const g = superSvg.append("g");
+    const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (event) => g.attr("transform", event.transform));
+    superSvg.call(zoom);
+
+    if (superNodes.length === 0) return;
+    const sizeScale = d3.scaleSqrt().domain([1, louvain_nodes.length]).range([15, 60]);
+
+    louvain_superSim = d3.forceSimulation(superNodes)
+        .force("link", d3.forceLink(superLinks).id(d => d.id).distance(200))
+        .force("charge", d3.forceManyBody().strength(-1500))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(d => sizeScale(d.size) + 5));
+
+    const sl = g.append("g").selectAll("line").data(superLinks).enter().append("line").style("stroke", "#999").style("stroke-width", d => Math.sqrt(d.weight || 1));
+    const sn = g.append("g").selectAll("circle").data(superNodes).enter().append("circle")
+        .attr("r", d => sizeScale(d.size)).attr("fill", d => louvain_colors(d.id))
+        .call(d3.drag().on("start", (event, d) => { if (!event.active) louvain_superSim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }).on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; }).on("end", (event, d) => { if (!event.active) louvain_superSim.alphaTarget(0); d.fx = null; d.fy = null; }));
+    const st = g.append("g").selectAll("text").data(superNodes).enter().append("text").text(d => d.id).attr("text-anchor", "middle").attr("dy", ".3em").style("fill", "white").style("font-weight", "bold");
+        
+    louvain_superSim.on("tick", () => {
+        sl.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        sn.attr("cx", d => d.x).attr("cy", d => d.y);
+        st.attr("x", d => d.x).attr("y", d => d.y);
+    });
+}
+
+// --- UTILITY AND PRESETS ---
+function louvain_clearCommunities() { louvain_nodeCommunities.clear(); louvain_resetSteps(); louvain_update(); }
+function louvain_resetSteps() {
+    d3.selectAll('#louvain-section .step').classed('active', false);
+    d3.select("#louvain-modularity-output").text("");
+    document.getElementById('louvain-node-communities-output').innerHTML = "";
+    d3.select("#louvain-supergraph-svg").html("");
+    d3.select("#louvain-nextButton").property("disabled", true);
+}
+function louvain_resetGraph() { louvain_nodes = []; louvain_links = []; louvain_clearCommunities(); louvain_clearSelection(); louvain_update(); }
+
+function louvain_loadComplexPreset() { 
+    louvain_resetGraph(); 
+    for (let i = 0; i <= 15; i++) louvain_nodes.push({ id: i }); 
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) louvain_addLink(i, j); 
+    for (let i = 4; i < 10; i++) for (let j = i + 1; j < 10; j++) louvain_addLink(i, j); 
+    for (let i = 10; i < 15; i++) for (let j = i + 1; j < 15; j++) louvain_addLink(i, j); 
+    louvain_addLink(3, 4); louvain_addLink(9, 10); louvain_addLink(8, 11); louvain_addLink(14, 15); louvain_addLink(15, 2); 
+    louvain_update(); 
+}
+
+function louvain_loadKarateClub() { 
+    louvain_resetGraph(); 
+    louvain_nodes = Array.from({length: 34}, (_, i) => ({id: i})); 
+    const karateLinks = [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,10],[0,11],[0,12],[0,13],[0,17],[0,19],[0,21],[1,2],[1,3],[1,7],[1,13],[1,17],[1,19],[1,21],[1,30],[2,3],[2,7],[2,8],[2,9],[2,13],[2,27],[2,28],[2,32],[3,7],[3,12],[3,13],[4,6],[4,10],[5,6],[5,10],[5,16],[6,16],[8,30],[8,32],[8,33],[9,33],[13,33],[14,32],[14,33],[15,32],[15,33],[18,32],[18,33],[19,33],[20,32],[20,33],[22,32],[22,33],[23,25],[23,27],[23,29],[23,32],[23,33],[24,25],[24,27],[24,31],[25,31],[26,29],[26,33],[27,33],[28,31],[28,33],[29,32],[29,33],[30,32],[30,33],[31,32],[31,33],[32,33]]; 
+    karateLinks.forEach(l => louvain_addLink(l[0], l[1])); 
+    louvain_update(); 
+}
+
+function louvain_loadBarabasiAlbert() {
+    louvain_resetGraph();
+    const N = 35;
+    const p_pref = 0.95; 
+    
+    const m0 = 2;
+    for (let i = 0; i < m0; i++) louvain_nodes.push({ id: i });
+    for (let i = 0; i < m0; i++) for (let j = i + 1; j < m0; j++) louvain_addLink(i, j);
+    
+    for (let i = m0; i < N; i++) {
+        louvain_nodes.push({ id: i });
+        const targets = new Set();
+        
+        const m = Math.floor(Math.random() * 2) + 1;
+
+        const degreeList = [];
+        louvain_links.forEach(l => {
+            if (l.source.id < i) degreeList.push(l.source.id);
+            if (l.target.id < i) degreeList.push(l.target.id);
+        });
+
+        while (targets.size < m && targets.size < i) {
+            let targetId;
+            if (degreeList.length > 0 && Math.random() < p_pref) {
+                targetId = degreeList[Math.floor(Math.random() * degreeList.length)];
+            } else {
+                targetId = Math.floor(Math.random() * i);
+            }
+            if (targetId !== i) targets.add(targetId);
+        }
+        
+        targets.forEach(targetId => louvain_addLink(i, targetId));
+    }
+    louvain_update();
+}
+
+function louvain_loadRandom() { 
+    louvain_resetGraph(); 
+    const numNodes = 25; 
+    for(let i=0; i<numNodes; i++) louvain_nodes.push({id: i}); 
+    const addedEdges = new Set(); 
+    for(let i=0; i<numNodes * 1.5; i++) { 
+        const source = Math.floor(Math.random() * numNodes); 
+        const target = Math.floor(Math.random() * numNodes); 
+        if (source !== target) { 
+            const key1 = `${source}-${target}`; 
+            const key2 = `${target}-${source}`; 
+            if (addedEdges.has(key1)) continue; 
+            louvain_addLink(source, target); 
+            addedEdges.add(key1); 
+            addedEdges.add(key2); 
+        } 
+    } 
+    louvain_update(); 
+}
+
+// --- INITIALIZATION ---
+document.getElementById('louvain-startButton').addEventListener('click', louvain_startLouvain);
+document.getElementById('louvain-nextButton').addEventListener('click', louvain_runNextPass);
+document.getElementById('louvain-resetButton').addEventListener('click', louvain_resetGraph);
+document.getElementById('louvain-preset-complex').addEventListener('click', louvain_loadComplexPreset);
+document.getElementById('louvain-preset-karate').addEventListener('click', louvain_loadKarateClub);
+document.getElementById('louvain-preset-ba').addEventListener('click', louvain_loadBarabasiAlbert);
+document.getElementById('louvain-preset-random').addEventListener('click', louvain_loadRandom);
+document.getElementById('louvain-restart-supergraph-btn').addEventListener('click', () => { if(louvain_superSim) louvain_superSim.alpha(1).restart(); });
+
+// ================================================
+// INITIALIZE ALL ALGORITHMS
+// ================================================
+
+// Initialize Infomap
+infomap_setupSVG();
+infomap_loadComplexPreset();
+
+// Initialize Spectral Clustering
+spectral_setupSliders();
+spectral_resetAll();
+spectral_loadPreset('3-clusters');
+
+// Initialize Edge Clustering
+edge_setupSVG();
+edge_loadOverlap();
+// Initially hide edge labels
+edge_edgeLabelGroup.style("display", "none");
+
+// Initialize Louvain
+louvain_setupSVG();
+louvain_loadComplexPreset();
+
+</script>
+
+</body>
+</html>

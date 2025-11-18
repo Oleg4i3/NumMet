@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Візуалізація матричних перетворень з Low-Rank Апроксимацією</title>
+	<script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+      };
+    </script>
+	<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            background-color: #f0f0f0; 
+            color: #333; 
+            overflow: auto;
+            min-height: 100vh;
+        }
+        #main-container { 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh;
+        }
+        #scenes-container { 
+            flex-grow: 1; 
+            display: flex; 
+            height: 65vh; /* Трохи зменшив висоту, щоб помістився спойлер */
+        }
+        .scene-wrapper { 
+            flex: 1; 
+            position: relative; 
+        }
+        .scene-wrapper canvas { 
+            display: block; 
+            width: 100% !important; 
+            height: 100% !important; 
+        }
+        .scene-label { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            color: white; 
+            background-color: rgba(0, 0, 0, 0.5); 
+            padding: 5px 10px; 
+            border-radius: 5px; 
+            font-size: 1.2em; 
+        }
+        #controls-panel { 
+            padding: 20px; 
+            background-color: #fff; 
+        }
+        h2, h3 { 
+            margin-top: 0; 
+            color: #2c3e50; 
+            border-bottom: 2px solid #3498db; 
+            padding-bottom: 10px; 
+        }
+        .matrix-controls { 
+            display: flex; 
+            gap: 30px; 
+            margin: 20px 0; 
+        }
+        .matrix-section { 
+            flex: 1; 
+        }
+        .matrix-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; 
+            margin: 10px 0; 
+        }
+        .input-group { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .input-group input { 
+            width: 50px; 
+            text-align: center; 
+            font-size: 1em; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            margin: 0 5px; 
+        }
+        .input-group button { 
+            min-width: 25px; 
+            height: 30px; 
+            font-size: 1.2em; 
+            line-height: 0; 
+            padding: 0; 
+            background-color: #ecf0f1; 
+            color: #2c3e50; 
+            border: 1px solid #bdc3c7; 
+            cursor: pointer; 
+        }
+        .options-group { 
+            margin-top: 20px; 
+        }
+        .options-group label, .options-group select { 
+            font-size: 1.1em; 
+        }
+        .options-group select { 
+            width: 100%; 
+            padding: 8px; 
+            margin-top: 5px; 
+            border-radius: 4px; 
+            border: 1px solid #ccc; 
+        }
+        #webgl-error { 
+            display: none; 
+            padding: 40px; 
+            text-align: center; 
+            color: #c0392b; 
+            background-color: #fbe9e7; 
+            border: 2px solid #c0392b; 
+            margin: 50px; 
+            border-radius: 8px; 
+        }
+        .rank-controls { 
+            display: flex; 
+            align-items: center; 
+            margin-top: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .rank-controls label { 
+            margin-right: 5px;
+        }
+        .rank-controls select { 
+            width: auto; 
+            margin-right: 10px; 
+        }
+        #eigen-message {
+            color: #c0392b;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        #determinant-display {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-left: 15px;
+            padding: 5px 8px;
+            border-radius: 4px;
+        }
+        .explanation { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background-color: #f8f9fa; 
+            border-radius: 5px; 
+            border-left: 4px solid #3498db; 
+        }
+        .explanation summary {
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .explanation summary h3 {
+             display: inline;
+             border: none;
+             padding: 0;
+        }
+        .explanation p, .explanation ul {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        .matrix-display { 
+            margin-top: 15px; 
+            padding: 10px; 
+            background-color: #f5f5f5; 
+            border-radius: 5px; 
+            font-family: monospace; 
+        }
+        .matrix-row { 
+            display: flex; 
+            justify-content: center; 
+            margin: 5px 0; 
+        }
+        .matrix-cell { 
+            width: 60px; 
+            text-align: center; 
+            padding: 5px; 
+        }
+        .matrix-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="webgl-error">
+        <h2>Помилка ініціалізації WebGL</h2>
+        <p>На жаль, ваш браузер або пристрій не зміг запустити 3D-графіку. Будь ласка, увімкніть "Апаратне прискорення" в налаштуваннях вашого браузера та перезапустіть його.</p>
+    </div>
+
+    <div id="main-container">
+        <div id="scenes-container">
+            <div class="scene-wrapper">
+                <div id="original-scene"></div>
+                <div class="scene-label">Оригінал</div>
+            </div>
+            <div class="scene-wrapper">
+                <div id="transformed-scene"></div>
+                <div class="scene-label">Трансформація</div>
+            </div>
+            <div class="scene-wrapper">
+                <div id="lowrank-scene"></div>
+                <div class="scene-label">Low-Rank Апроксимація</div>
+            </div>
+        </div>
+        
+        <div id="controls-panel">
+            <h2>Матриця перетворення 3x3</h2>
+            <p>Змінюйте значення матриці, щоб побачити, як трансформується фігура. Обертайте сцени мишею, масштабуйте коліщатком.</p>
+            
+            <div class="matrix-controls">
+                <div class="matrix-section">
+                    <div class="matrix-title">Оригінальна матриця</div>
+                    <div class="matrix-grid">
+                        <div class="input-group"><button onclick="stepValue('m00', -0.1)">-</button><input type="number" id="m00" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m00', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m01', -0.1)">-</button><input type="number" id="m01" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m01', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m02', -0.1)">-</button><input type="number" id="m02" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m02', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m10', -0.1)">-</button><input type="number" id="m10" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m10', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m11', -0.1)">-</button><input type="number" id="m11" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m11', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m12', -0.1)">-</button><input type="number" id="m12" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m12', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m20', -0.1)">-</button><input type="number" id="m20" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m20', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m21', -0.1)">-</button><input type="number" id="m21" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m21', 0.1)">+</button></div>
+                        <div class="input-group"><button onclick="stepValue('m22', -0.1)">-</button><input type="number" id="m22" step="0.1" onchange="updateTransformation()"><button onclick="stepValue('m22', 0.1)">+</button></div>
+                    </div>
+                </div>
+                
+                <div class="matrix-section">
+                    <div class="matrix-title">Апроксимована матриця</div>
+                    <div class="matrix-display">
+                        <div id="lowrank-matrix">
+                            <div class="matrix-row">
+                                <div class="matrix-cell" id="lr00">0.00</div>
+                                <div class="matrix-cell" id="lr01">0.00</div>
+                                <div class="matrix-cell" id="lr02">0.00</div>
+                            </div>
+                            <div class="matrix-row">
+                                <div class="matrix-cell" id="lr10">0.00</div>
+                                <div class="matrix-cell" id="lr11">0.00</div>
+                                <div class="matrix-cell" id="lr12">0.00</div>
+                            </div>
+                            <div class="matrix-row">
+                                <div class="matrix-cell" id="lr20">0.00</div>
+                                <div class="matrix-cell" id="lr21">0.00</div>
+                                <div class="matrix-cell" id="lr22">0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="options-group" style="display: flex; gap: 30px;">
+                <div style="flex: 1;">
+                    <label for="presets">Готові пресети:</label>
+                    <select id="presets" onchange="applyPreset()">
+                        <option value="identity">Одинична матриця (без змін)</option>
+                        <option value="scaleX">Розтягнення по X</option>
+                        <option value="scaleUniform">Рівномірне збільшення</option>
+                        <option value="rotateY">Поворот навколо Y</option>
+                        <option value="rotateZ">Поворот навколо Z</option>
+                        <option value="shear">Скошення (зсув)</option>
+                        <option value="reflection">Дзеркальне відображення</option>
+                        <option value="degenerate">Вироджена матриця</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label for="model-select">Вибір 3D моделі:</label>
+                    <select id="model-select" onchange="changeModel()">
+                        <option value="snowman">Сніговик</option>
+						<option value="hatHead">Студент</option>
+                        <option value="box">Куб</option>
+                        <option value="torus">Тор (пончик)</option>
+                        <option value="torusKnot">Вузол</option>
+						<option value="octahedron">Октаедр</option>
+                        <option value="teapot">Чайник</option>
+						
+						<option value="mouse">Миша</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="rank-controls">
+                <label for="rank-select">Ранг апроксимації:</label>
+                <select id="rank-select" onchange="updateTransformation()">
+                     <option value="2">2 (плоске зображення)</option>
+					 <option value="1">1 (лінійне зображення)</option>
+                </select>
+                <label><input type="checkbox" id="showBasis" onchange="toggleBasisVisibility()"> Базис</label>
+                <label><input type="checkbox" id="showEigen" onchange="toggleEigenVisibility()"> Власні вектори</label>
+                <label><input type="checkbox" id="showSVD" onchange="toggleSVDVisibility()"> Сингулярні вектори</label>
+                <span id="eigen-message"></span>
+                <span id="determinant-display">Det: 1.000</span>
+            </div>
+            
+          
+		  
+		  
+		  <details class="explanation">
+                <summary><h3>Теоретична довідка (натисніть, щоб розгорнути)</h3></summary>
+                
+                <p><strong>Матриця перетворення (A):</strong> Це таблиця 3x3, яка описує лінійне перетворення у 3D-просторі. Кожен <strong>стовпець</strong> матриці показує, куди перейде відповідний базисний вектор (i, j, k або X, Y, Z) після трансформації. Наприклад, перший стовпець $(m_{00}, m_{10}, m_{20})$ — це нова позиція вектора $(1, 0, 0)$.</p>
+                
+                <p><strong>Детермінант (det(A)):</strong> Це одне число, яке описує, як перетворення впливає на <strong>об'єм</strong> (площу для 2D, гіпер-об'єм для просторів вищої розмірності).</p>
+                <ul>
+                    <li>$det(A) = 1$: Об'єм не змінився (наприклад, чистий поворот).</li>
+					<li>$det(A) = 0.7$: Об'єм змінився на фактор 0.7 (зменшився на 30%).</li>
+                    <li>$det(A) = 0$: Об'єм "схлопнувся" до площини (ранг 2) або лінії (ранг 1). Матриця є <strong>виродженою</strong>.</li>
+                    <li>$det(A) < 0$ (від'ємний): Відбулося <strong>віддзеркалення</strong> (інверсія). Простір "вивернувся навиворіт".</li>
+                </ul>
+
+                <p><strong>Власні вектори (Eigenvectors)</strong> (жовті): Це особливі напрямки у просторі, які <strong>не змінюють своєї орієнтації</strong> під дією матриці. Вони лише розтягуються або стискаються на певне значення (власне число, $\lambda$), можуть розвернутися в протилежному напрямку (якщо $\lambda$ від'ємне). Вони існують не для всіх матриць (наприклад, матриця повороту може мати комплекснозначні вектори, які ми не показуємо).</p>
+
+                <p><strong>Сингулярний розклад (SVD):</strong> Це фундаментальний інструмент, який каже, що <strong>будь-яку</strong> матрицю $A$ можна розкласти на три окремі операції:
+                $$ A = U \Sigma V^T $$
+                Де:</p>
+                <ul>
+                    <li>$V^T$ — (<strong>Праві</strong> вектори, <span style="color:#00ffff;">блакитні</span>). Це матриця <strong>повороту</strong> вхідного простору.</li>
+                    <li>$\Sigma$ — (Сигма). Це <strong>діагональна</strong> матриця, яка виконує <strong>масштабування</strong> вздовж осей. Її значення $\sigma_1, \sigma_2, \sigma_3$ називаються <strong>сингулярними числами</strong>.</li>
+                    <li>$U$ — (<strong>Ліві</strong> вектори, <span style="color:#ff00ff;">пурпурові</span>). Це матриця <strong>повороту</strong> вихідного простору.</li>
+                </ul>
+                <p>SVD показує, що будь-яке, навіть найскладніше, лінійне перетворення — це просто: 1. Поворот, 2. Масштабування, 3. Інший поворот.</p>
+
+                <p><strong>Low-Rank Апроксимація (Ранг $k$):</strong> Це серце стиснення інформації. Сингулярні числа в $\Sigma$ завжди відсортовані за важливістю ($\sigma_1 \ge \sigma_2 \ge \sigma_3 \ge 0$). Найбільше число $\sigma_1$ відповідає найважливішому "напрямку" в даних.</p>
+                <p>Щоб отримати апроксимацію з рангом $k$, ми просто "обрізаємо" матриці, взявши лише $k$ найбільших сингулярних чисел та відповідні їм вектори:
+                $$ A_k = U_k \Sigma_k V_k^T $$
+                </P>
+                <ul>
+                    <li><strong>Ранг 2 ($k=2$):</strong> Ми беремо 2 найважливіші напрямки. Це дає нам <strong>найкращу можливу 2D-площину</strong>, яка представляє вихідну 3D-фігуру, зберігаючи максимум її варіативності (інформації).</li>
+                    <li><strong>Ранг 1 ($k=1$):</strong> Ми беремо лише 1, найважливіший напрямок. Це дає <strong>найкращу можливу 1D-лінію</strong>.</li>
+                </ul>
+
+                <p><strong>Виявлення "прихованих факторів":</strong> Чому SVD такий потужний? Бо він автоматично знаходить "головні компоненти" (principal components) даних. Ці компоненти (напрямки, задані векторами $V$) часто є "прихованими факторами" або "латентними ознаками", які керують даними, але не є очевидними.</p>
+                <ul>
+                    <li><strong>Рекомендаційні системи:</strong> Маємо гігантську матрицю [Користувачі] x [Фільми]. SVD може знайти приховані фактори, наприклад, "наскільки цей фільм є 'романтичною комедією'" або "наскільки цей користувач любить 'наукову фантастику'". Апроксимація $A_k$ (де $k \approx 50$) дозволяє передбачити рейтинги.</li>
+                    <li><strong>Тематизація текстів (NLP):</strong> Матриця [Слова] x [Документи]. SVD знаходить "теми" (наприклад, "політика", "спорт") як приховані фактори.</li>
+                    <li><strong>Біоінформатика:</strong> Матриця [Пацієнти] x [Гени]. SVD може виявити групи генів (головні компоненти), які найкраще пояснюють різницю між хворими та здоровими пацієнтами.</li>
+                </ul>
+            </details>
+		  
+		  
+		  
+		  
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <script type="importmap">
+        { 
+            "imports": { 
+                "three": "https://unpkg.com/three@0.164.1/build/three.module.js", 
+                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/" 
+            } 
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TeapotGeometry } from 'three/addons/geometries/TeapotGeometry.js'; // Імпорт "чайника"
+
+        let originalScene, transformedScene, lowrankScene, camera, originalRenderer, transformedRenderer, lowrankRenderer, controls1, controls2, controls3;
+        let originalModel, transformedModel, lowrankModel;
+        let originalWrapper, transformedWrapper, lowrankWrapper; // Обгортки для моделей
+        let newBasis, lowrankBasis;
+        let eigenVectors, originalEigenVectors;
+        let rightSingularVectors, leftSingularVectors, lowRankLeftSingularVectors;
+        let lastSVD = null;
+        let eigenMessageDiv;
+
+        const presets = {
+            identity:   [1,0,0, 0,1,0, 0,0,1],
+            scaleX:     [2,0,0, 0,1,0, 0,0,1],
+            scaleUniform: [1.5,0,0, 0,1.5,0, 0,0,1.5],
+            rotateY:    [Math.cos(0.5), 0, Math.sin(0.5), 0,1,0, -Math.sin(0.5), 0, Math.cos(0.5)],
+            rotateZ:    [Math.cos(0.5), -Math.sin(0.5), 0, Math.sin(0.5), Math.cos(0.5), 0, 0,0,1],
+            shear:      [1,1,0, 0,1,0, 0,0,1],
+            reflection: [-1,0,0, 0,1,0, 0,0,1],
+            degenerate: [1,0,0, 1,0,0, 0,0,1]
+        };
+        
+        function init() {
+            try {
+                eigenMessageDiv = document.getElementById('eigen-message');
+                originalScene = new THREE.Scene();
+                transformedScene = new THREE.Scene();
+                lowrankScene = new THREE.Scene();
+                originalScene.background = new THREE.Color(0x2c3e50);
+                transformedScene.background = new THREE.Color(0x2c3e50);
+                lowrankScene.background = new THREE.Color(0x2c3e50);
+
+                const aspect = window.innerWidth / 3 / (window.innerHeight * 0.65);
+                camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+                camera.position.set(2, 2.5, 4.5);
+                camera.lookAt(0, 0, 0);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
+                directionalLight.position.set(5, 7, 8);
+                originalScene.add(ambientLight.clone());
+                originalScene.add(directionalLight.clone());
+                transformedScene.add(ambientLight.clone());
+                transformedScene.add(directionalLight.clone());
+                lowrankScene.add(ambientLight.clone());
+                lowrankScene.add(directionalLight.clone());
+                
+                const originalContainer = document.getElementById('original-scene');
+                const transformedContainer = document.getElementById('transformed-scene');
+                const lowrankContainer = document.getElementById('lowrank-scene');
+                originalRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                transformedRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                lowrankRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                originalContainer.appendChild(originalRenderer.domElement);
+                transformedContainer.appendChild(transformedRenderer.domElement);
+                lowrankContainer.appendChild(lowrankRenderer.domElement);
+
+                controls1 = new OrbitControls(camera, originalRenderer.domElement);
+                controls2 = new OrbitControls(camera, transformedRenderer.domElement);
+                controls3 = new OrbitControls(camera, lowrankRenderer.domElement);
+                
+                // Створюємо обгортки (wrappers) для моделей
+                originalWrapper = new THREE.Group();
+                originalWrapper.position.y = -0.5;
+                originalScene.add(originalWrapper);
+
+                transformedWrapper = new THREE.Group();
+                transformedWrapper.position.y = -0.5;
+                transformedScene.add(transformedWrapper);
+
+                lowrankWrapper = new THREE.Group();
+                lowrankWrapper.position.y = -0.5;
+                lowrankScene.add(lowrankWrapper);
+                
+                createHelpers(); // Створюємо всі стрілки та осі
+                changeModel();   // Завантажуємо модель за замовчуванням
+                
+                applyPreset(); 
+                animate();
+                
+                window.addEventListener('resize', onWindowResize);
+                onWindowResize();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('main-container').style.display = 'none';
+                document.getElementById('webgl-error').style.display = 'block';
+            }
+        }
+
+        // Ця функція створює лише стрілки (базис, вектори)
+        function createHelpers() {
+            const axesHelper = new THREE.AxesHelper(2.5);
+            originalScene.add(axesHelper.clone());
+            
+            // --- Базис для Трансформації ---
+            newBasis = new THREE.Group();
+            newBasis.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xff0000, 0.3));
+            newBasis.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0x00ff00, 0.3));
+            newBasis.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0x0000ff, 0.3));
+            newBasis.visible = false;
+
+            // --- Власні вектори (Eigenvectors) для Трансформації ---
+            eigenVectors = new THREE.Group();
+            eigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3));
+            eigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3));
+            eigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3));
+            eigenVectors.visible = false;
+
+            // --- Сингулярні вектори (SVD Left) для Трансформації ---
+            leftSingularVectors = new THREE.Group();
+            leftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3)); // Пурпуровий
+            leftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3));
+            leftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3));
+            leftSingularVectors.visible = false;
+            
+            const transformedBasisWrapper = new THREE.Group();
+            transformedBasisWrapper.position.y = -0.5;
+            transformedBasisWrapper.add(newBasis, eigenVectors, leftSingularVectors);
+            transformedScene.add(transformedBasisWrapper);
+
+            // --- Власні вектори (Eigenvectors) для Оригіналу ---
+            originalEigenVectors = new THREE.Group();
+            originalEigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3)); // Жовтий
+            originalEigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3));
+            originalEigenVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0xffff00, 0.3));
+            originalEigenVectors.visible = false;
+
+            // --- Сингулярні вектори (SVD Right) для Оригіналу ---
+            rightSingularVectors = new THREE.Group();
+            rightSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0x00ffff, 0.3)); // Блакитний
+            rightSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0x00ffff, 0.3));
+            rightSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0x00ffff, 0.3));
+            rightSingularVectors.visible = false;
+
+            const originalBasisWrapper = new THREE.Group();
+            originalBasisWrapper.position.y = -0.5;
+            originalBasisWrapper.add(originalEigenVectors, rightSingularVectors);
+            originalScene.add(originalBasisWrapper);
+            
+            // --- Базис для Low-Rank ---
+            lowrankBasis = new THREE.Group();
+            lowrankBasis.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xff0000, 0.3));
+            lowrankBasis.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0x00ff00, 0.3));
+            lowrankBasis.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0x0000ff, 0.3));
+            lowrankBasis.visible = false;
+            
+            // --- Сингулярні вектори (SVD Left) для Low-Rank ---
+            lowRankLeftSingularVectors = new THREE.Group();
+            lowRankLeftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3)); // Пурпуровий
+            lowRankLeftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3));
+            lowRankLeftSingularVectors.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 2.5, 0xff00ff, 0.3));
+            lowRankLeftSingularVectors.visible = false;
+
+            const lowrankBasisWrapper = new THREE.Group();
+            lowrankBasisWrapper.position.y = -0.5;
+            lowrankBasisWrapper.add(lowrankBasis, lowRankLeftSingularVectors);
+            lowrankScene.add(lowrankBasisWrapper);
+        }
+
+        // Ця функція створює та повертає ОДНУ модель на основі імені
+        function createSelectedModel(modelName) {
+            const modelGroup = new THREE.Group();
+            
+            const commonProps = { 
+                side: THREE.DoubleSide, 
+                transparent: true, 
+                opacity: 0.9,
+                depthWrite: true,
+                depthTest: true
+            };
+            
+            // Універсальний матеріал для простих фігур
+            const defaultMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00, metalness: 0.2, roughness: 0.6, ...commonProps, opacity: 0.95 });
+
+            switch(modelName) {
+                case 'box':
+                    modelGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), defaultMaterial));
+                    break;
+                case 'torus':
+                    // Створимо окремий матеріал для пончика
+                    const torusMaterial = new THREE.MeshStandardMaterial({ 
+                        color: 0xff69b4, // Яскраво-рожевий колір
+                        metalness: 0.2, 
+                        roughness: 0.6, 
+                        ...commonProps, // ...commonProps успадковує прозорість та інші налаштування
+                        opacity: 0.95 
+                    });
+                    
+                    // TorusGeometry(radius, tube_radius, radialSegments, tubularSegments)
+                    modelGroup.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.4, 32, 32), torusMaterial));
+                    break;
+                case 'torusKnot':
+                    modelGroup.add(new THREE.Mesh(new THREE.TorusKnotGeometry(0.8, 0.3, 100, 16), defaultMaterial));
+                    break;
+				case 'octahedron':
+                    modelGroup.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.2), defaultMaterial));
+                    break;
+                case 'teapot':
+                    const teapotMaterial = new THREE.MeshStandardMaterial({ color: 0x00c0ff, metalness: 0.5, roughness: 0.4, ...commonProps });
+                    const teapotMesh = new THREE.Mesh(new TeapotGeometry(1, 10), teapotMaterial);
+                    teapotMesh.geometry.computeVertexNormals(); // Важливо для коректного освітлення
+                    modelGroup.add(teapotMesh);
+                    break;
+					
+			case 'snowman': {
+                // Матеріали для сніговика
+                const snowMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.8, ...commonProps });
+                const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.0, roughness: 0.5, ...commonProps, opacity: 1.0 });
+                const noseMaterial = new THREE.MeshStandardMaterial({ color: 0xff8c00, metalness: 0.2, roughness: 0.6, ...commonProps });
+                const bucketMaterial = new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.4, roughness: 0.3, ...commonProps }); // Сіре відро
+
+                // Геометрії та їх позиції
+                const body = new THREE.Mesh(new THREE.SphereGeometry(1), snowMaterial);
+                body.position.y = -0.3; // Центр тулуба трохи нижче
+
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.7), snowMaterial);
+                head.position.y = 1.1; // Голова (0.7) на тулубі (1) зі зміщенням (-0.3)
+
+                const armL = new THREE.Mesh(new THREE.SphereGeometry(0.3), snowMaterial);
+                armL.position.set(-1.1, -0.1, 0.1);
+
+                const armR = new THREE.Mesh(new THREE.SphereGeometry(0.2), snowMaterial);
+                armR.position.set(1.1, -0.1, -0.1);
+
+                const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1), eyeMaterial);
+                eyeL.position.set(-0.25, 1.3, 0.6);
+
+                const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.1), eyeMaterial);
+                eyeR.position.set(0.25, 1.3, 0.6);
+
+                const nose = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 16), noseMaterial);
+                nose.position.set(0, 1.1, 0.95); // (0.7 + 0.5/2)
+                nose.rotation.x = Math.PI / 2; // Повертаємо моркву горизонтально
+
+                // CylinderGeometry(radiusTop, radiusBottom, height)
+                const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 0.65, 32), bucketMaterial);
+                
+                // --- ВИПРАВЛЕНО ---
+                bucket.position.y = 1.9; // На голові (1.1 + 0.7) + половина висоти відра (0.35)
+
+                // Збираємо всі частини в масив, як у 'hatHead'
+                const parts = [body, head, armL, armR, eyeL, eyeR, nose, bucket];
+                
+                parts.forEach(mesh => {
+                    mesh.updateMatrix(); // Зафіксувати позицію/поворот
+                    mesh.geometry.applyMatrix4(mesh.matrix); // "Запекти" трансформацію в геометрію
+                    // Скинути позицію, щоб вона не застосовувалась двічі
+                    mesh.position.set(0,0,0);
+                    mesh.rotation.set(0,0,0);
+                    mesh.scale.set(1,1,1);
+                    
+                    modelGroup.add(mesh); // Додати до групи
+                });
+                break;
+            } 
+
+          case 'mouse': {
+                // Матеріали для миші
+                const mouseBodyMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.1, roughness: 0.8, ...commonProps }); // Майже білий
+                const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xaa3333, metalness: 0.0, roughness: 0.5, ...commonProps, opacity: 1.0 });
+                const noseMaterial = new THREE.MeshStandardMaterial({ color: 0xffb6c1, metalness: 0.2, roughness: 0.6, ...commonProps }); // Світло-рожевий
+                const whiskerMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.0, roughness: 0.5, ...commonProps, opacity: 1.0 });
+
+                const parts = [];
+                
+                // --- Тулуб: Півсфера, площиною вниз ---
+                const body = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), mouseBodyMaterial);
+                body.position.y = 0.4; // Плоске дно тулуба знаходиться на Y = 0.4
+                parts.push(body);
+
+                // --- Ноги: 4 маленькі півсфери під тулубом ---
+                // --- ВИПРАВЛЕНО: Створюємо НОВУ геометрію для КОЖНОЇ лапи ---
+                // І повернуто орієнтацію (0, Math.PI / 2) - "купол вниз", як ви і просили
+                const legFL = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mouseBodyMaterial);
+                legFL.position.set(-0.7, 0.4, 0.5); // Передня ліва (кріпиться до Y = 0.4)
+                
+                const legFR = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mouseBodyMaterial);
+                legFR.position.set(0.7, 0.4, 0.5);  // Передня права
+                
+                const legBL = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mouseBodyMaterial);
+                legBL.position.set(-0.7, 0.4, -0.5); // Задня ліва
+                
+                const legBR = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mouseBodyMaterial);
+                legBR.position.set(0.7, 0.4, -0.5); // Задня права
+                
+                parts.push(legFL, legFR, legBL, legBR);
+
+                // --- Голова: Сфера + Конус ---
+                const headSphere = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 16), mouseBodyMaterial);
+                headSphere.position.set(0, 0.7, 0.8); 
+                
+                const headCone = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.7, 32), mouseBodyMaterial);
+                headCone.position.set(0, 0.7, 1.45); 
+                headCone.rotation.x = Math.PI / 2; 
+                parts.push(headSphere, headCone);
+
+                // --- Ніс, Очі та ВУХА ---
+                const nose = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8), noseMaterial);
+                nose.position.set(0, 0.7, 1.8); 
+                
+                const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8), eyeMaterial);
+                eyeL.position.set(-0.3, 1.0, 1.1); 
+                
+                const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8), whiskerMaterial);
+                eyeR.position.set(0.3, 1.0, 1.1); 
+                
+                // --- ВИПРАВЛЕНО: НОВА геометрія для КОЖНОГО вуха ---
+                const earL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), noseMaterial); 
+                earL.position.set(-0.5, 1.2, 0.8); 
+                earL.rotation.set(Math.PI / 2.2, 0, -Math.PI / 10); 
+                
+                const earR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 20), noseMaterial);
+                earR.position.set(0.5, 1.2, 0.8);
+                earR.rotation.set(Math.PI / 2.3, 0, Math.PI / 10); 
+                
+                parts.push(nose, eyeL, eyeR, earL, earR);
+
+                // --- Вуса: 6 тонких циліндрів ---
+                // --- ВИПРАВЛЕНО: Збільшено товщину і НОВА геометрія для КОЖНОГО вуса ---
+                const whiskerPos = { x: 0, y: 0.7, z: 1.7 }; 
+                const whiskerRadius = 0.007; // Зроблено товстішими
+                const whiskerLength = 1.2;  // Зроблено довшими
+                
+                const wL1 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wL1.position.set(whiskerPos.x - 0.5, whiskerPos.y + 0.1, whiskerPos.z);
+                wL1.rotation.set(Math.PI / 20, 0.4, Math.PI / 2.3); 
+                
+                const wL2 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wL2.position.set(whiskerPos.x - 0.5, whiskerPos.y, whiskerPos.z);
+                wL2.rotation.set(0, 0.4, Math.PI / 2);
+                
+                const wL3 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wL3.position.set(whiskerPos.x - 0.5, whiskerPos.y - 0.1, whiskerPos.z);
+                wL3.rotation.set(-Math.PI / 20, 0.4, Math.PI / 1.9);
+                
+                const wR1 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wR1.position.set(whiskerPos.x + 0.5, whiskerPos.y + 0.1, whiskerPos.z);
+                wR1.rotation.set(Math.PI / 20, -0.4, -Math.PI / 2.3); 
+                
+                const wR2 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wR2.position.set(whiskerPos.x + 0.5, whiskerPos.y, whiskerPos.z);
+                wR2.rotation.set(0, -0.4, -Math.PI / 2);
+                
+                const wR3 = new THREE.Mesh(new THREE.CylinderGeometry(whiskerRadius, whiskerRadius, whiskerLength, 8), whiskerMaterial);
+                wR3.position.set(whiskerPos.x + 0.5, whiskerPos.y - 0.1, whiskerPos.z);
+                wR3.rotation.set(-Math.PI / 20, -0.4, -Math.PI / 1.9);
+                parts.push(wL1, wL2, wL3, wR1, wR2, wR3);
+
+              // --- Хвіст: Вигнута труба + Конус на кінчику ---
+
+                // 1. Створюємо 3D-шлях (криву) для хвоста
+                const tailPath = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(0, 0.6, -1.0),    // 1. Початок: кріпиться до тулуба
+                    new THREE.Vector3(0, 1.0, -2.5),    // 2. Середина: вигинається вгору і назад
+                    new THREE.Vector3(-0.9, 0.8, -3.5)  // 3. Кінець: трохи вбік
+                ]);
+
+                // 2. Створюємо геометрію труби (БЕЗ звуження)
+                const tailGeom = new THREE.TubeGeometry(
+                    tailPath,   // 3D-шлях
+                    30,         // Сегменти вздовж шляху
+                    0.05,       // Радіус труби
+                    8,          // Сегменти навколо
+                    false       // Не замкнений
+                );
+                
+                const tail = new THREE.Mesh(tailGeom, noseMaterial); // Рожевий
+                parts.push(tail); // Додаємо трубу до "запікання"
+
+                // --- 3. Додаємо конус на кінчик ---
+                
+                // Отримуємо останню точку шляху (де кінець труби)
+                const endPoint = tailPath.getPointAt(1.0);
+                // Отримуємо напрямок (тангенту) в цій точці
+                const tangent = tailPath.getTangentAt(1.0).normalize();
+
+                // Створюємо геометрію конуса (основа, висота)
+                const coneGeom = new THREE.ConeGeometry(0.05, 0.6, 8); // Основа = радіус труби
+                
+                // "Запікаємо" зсув, щоб конус обертався навколо своєї основи
+                coneGeom.translate(0, 0.3, 0); // 
+                
+                const coneTip = new THREE.Mesh(coneGeom, noseMaterial);
+                
+                // Ставимо основу конуса точно в кінець труби
+                coneTip.position.copy(endPoint);
+                
+                // Орієнтуємо конус так, щоб він "ріс" у тому ж напрямку,
+                // в якому закінчилася труба
+                coneTip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+
+                parts.push(coneTip); // Додаємо конус до "запікання"
+                // "Запікаємо" позиції та об'єднуємо
+                parts.forEach(mesh => {
+                    mesh.updateMatrix(); 
+                    mesh.geometry.applyMatrix4(mesh.matrix);
+                    mesh.position.set(0,0,0);
+                    mesh.rotation.set(0,0,0);
+                    mesh.scale.set(1,1,1);
+                    modelGroup.add(mesh);
+                });
+                break;
+            }
+                case 'hatHead':
+                default:
+                    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffddaa, metalness: 0.2, roughness: 0.6, ...commonProps });
+                    const hatMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.1, roughness: 0.4, ...commonProps });
+                    const noseMaterial = new THREE.MeshStandardMaterial({ color: 0xff8c00, metalness: 0.2, roughness: 0.6, ...commonProps });
+                    const eye1Material = new THREE.MeshStandardMaterial({ color: 0x00ff00, ...commonProps, opacity: 0.95 });
+                    const eye2Material = new THREE.MeshStandardMaterial({ color: 0x0000ff, ...commonProps, opacity: 0.95 });
+                    
+                    const head = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), headMaterial);
+                    const capBase = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.4, 32), hatMaterial);
+                    capBase.position.y = 0.8;
+                    const mortarboard = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.1, 1.4), hatMaterial);
+                    mortarboard.position.y = 1.05;
+                    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.45), noseMaterial);
+                    nose.position.z = 1.0;
+                    const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), eye1Material);
+                    eye1.position.set(-0.3, 0.3, 0.85);
+                    const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eye2Material);
+                    eye2.position.set(0.3, 0.3, 0.85);
+                    
+                    [capBase, mortarboard, nose, eye1, eye2].forEach(mesh => {
+                        mesh.updateMatrix();
+                        mesh.geometry.applyMatrix4(mesh.matrix);
+                        mesh.position.set(0,0,0);
+                        mesh.rotation.set(0,0,0);
+                        mesh.scale.set(1,1,1);
+                    });
+
+                    modelGroup.add(head, capBase, mortarboard, nose, eye1, eye2);
+                    break;
+            }
+            return modelGroup;
+        }
+        
+        // Функція для зміни моделі
+        window.changeModel = function() {
+            const modelName = document.getElementById('model-select').value;
+
+            // 1. Видаляємо старі моделі з обгорток
+            if (originalModel) originalWrapper.remove(originalModel);
+            if (transformedModel) transformedWrapper.remove(transformedModel);
+            if (lowrankModel) lowrankWrapper.remove(lowrankModel);
+
+            // 2. Створюємо нову оригінальну модель
+            originalModel = createSelectedModel(modelName);
+            originalWrapper.add(originalModel);
+
+            // 3. Клонуємо для трансформованої
+            transformedModel = originalModel.clone(true);
+            transformedWrapper.add(transformedModel);
+
+            // 4. Клонуємо та налаштовуємо для Low-Rank
+            lowrankModel = originalModel.clone(true);
+            let order = 0;
+            lowrankModel.traverse(obj => { if (obj.isMesh) obj.renderOrder = order++; });
+            lowrankModel.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = child.material.clone();
+                    child.material.transparent = true;
+                    child.material.opacity = 0.6;
+                    child.material.metalness = 0;
+                    child.material.roughness = 1;
+                    child.material.depthWrite = false;
+                    child.material.blending = THREE.NormalBlending;
+                    if (child.material.color) { // Перевірка, чи існує колір
+                        child.material.emissive = new THREE.Color(child.material.color);
+                        child.material.emissiveIntensity = 0.3;
+                    }
+                }
+            });
+            lowrankWrapper.add(lowrankModel);
+
+            // 5. Оновлюємо трансформацію для нових моделей
+            updateTransformation();
+        }
+        
+        function toNestedArray(flat) {
+            return [[flat[0], flat[1], flat[2]], [flat[3], flat[4], flat[5]], [flat[6], flat[7], flat[8]]];
+        }
+
+        function toFlatArray(nested) {
+            return [].concat.apply([], nested);
+        }
+
+        function computeLowRankApproximationSVD(matrix, rank) {
+            try {
+                const M = toNestedArray(matrix);
+                const svd = numeric.svd(M);
+                lastSVD = svd; // Зберігаємо SVD для показу векторів
+                
+                const S_prime = svd.S.map((val, i) => (i < rank) ? val : 0);
+                
+                const S_matrix = numeric.diag(S_prime);
+                const US = numeric.dot(svd.U, S_matrix);
+                const A_prime = numeric.dot(US, numeric.transpose(svd.V));
+
+                return toFlatArray(A_prime);
+            } catch (e) {
+                console.error("SVD calculation failed:", e);
+                lastSVD = null;
+                return [1,0,0, 0,1,0, 0,0,1]; // Return identity on error
+            }
+        }
+
+        function computeAndShowEigenvectors(matrix) {
+            try {
+                const M = toNestedArray(matrix);
+                const eig = numeric.eig(M);
+                
+                const isComplex = eig.lambda.y && eig.lambda.y.some(val => Math.abs(val) > 1e-9);
+
+                if (isComplex) {
+                    eigenMessageDiv.textContent = "Власні вектори є комплекснозначними";
+                    return false;
+                } else {
+                    eigenMessageDiv.textContent = "";
+                    const vectors = numeric.transpose(eig.E.x); 
+                    
+                    for (let i = 0; i < 3; i++) {
+                        const v = new THREE.Vector3(vectors[i][0], vectors[i][1], vectors[i][2]).normalize();
+                        eigenVectors.children[i].setDirection(v);
+                        originalEigenVectors.children[i].setDirection(v); 
+                    }
+                    return true;
+                }
+            } catch(e) {
+                console.error("Eigenvector calculation failed:", e);
+                eigenMessageDiv.textContent = "Помилка обчислення";
+                return false;
+            }
+        }
+
+        function updateSVDVectors() {
+            if (!lastSVD) return; 
+            
+            try {
+                const U = lastSVD.U; 
+                const V = lastSVD.V; 
+        
+                for (let i = 0; i < 3; i++) {
+                    const v = new THREE.Vector3(V[0][i], V[1][i], V[2][i]).normalize();
+                    rightSingularVectors.children[i].setDirection(v);
+                }
+        
+                for (let i = 0; i < 3; i++) {
+                    const u = new THREE.Vector3(U[0][i], U[1][i], U[2][i]).normalize();
+                    leftSingularVectors.children[i].setDirection(u);
+                    lowRankLeftSingularVectors.children[i].setDirection(u);
+                }
+            } catch (e) {
+                console.error("Failed to update SVD vectors:", e);
+            }
+        }
+
+        function updateLowRankMatrixDisplay(lowrankM) {
+            for(let i=0; i<3; i++) {
+                for(let j=0; j<3; j++) {
+                    document.getElementById(`lr${i}${j}`).textContent = lowrankM[i*3+j].toFixed(2);
+                }
+            }
+        }
+
+        window.updateTransformation = function() {
+            if (!originalModel || !transformedModel || !lowrankModel) return;
+
+            const m = [];
+            for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m.push(parseFloat(document.getElementById(`m${i}${j}`).value) || 0);
+
+            // --- ОБЧИСЛЕННЯ ТА ВІДОБРАЖЕННЯ ДЕТЕРМІНАНТА ---
+            const det = m[0] * (m[4] * m[8] - m[5] * m[7]) -
+                        m[1] * (m[3] * m[8] - m[5] * m[6]) +
+                        m[2] * (m[3] * m[7] - m[4] * m[6]);
+            
+            const detDisplay = document.getElementById('determinant-display');
+            detDisplay.textContent = `Det: ${det.toFixed(3)}`;
+            if (Math.abs(det) < 0.01) {
+                detDisplay.style.color = '#e67e22'; // Помаранчевий
+                detDisplay.style.backgroundColor = '#fdf3e7';
+            } else if (det < 0) {
+                detDisplay.style.color = '#c0392b'; // Червоний
+                detDisplay.style.backgroundColor = '#fbe9e7';
+            } else {
+                detDisplay.style.color = '#27ae60'; // Зелений
+                detDisplay.style.backgroundColor = '#eafaf1';
+            }
+            // --- КІНЕЦЬ БЛОКУ ДЕТЕРМІНАНТА ---
+
+            const rank = parseInt(document.getElementById('rank-select').value);
+            const lowrankM = computeLowRankApproximationSVD(m, rank); 
+            
+            updateLowRankMatrixDisplay(lowrankM);
+            updateSVDVectors(); 
+
+            const matrix4 = new THREE.Matrix4().set(m[0], m[1], m[2], 0, m[3], m[4], m[5], 0, m[6], m[7], m[8], 0, 0, 0, 0, 1);
+            for (let i = 0; i < transformedModel.children.length; i++) {
+                const originalChild = originalModel.children[i];
+                if (!originalChild || !originalChild.geometry) continue;
+                
+                const transformedChild = transformedModel.children[i];
+                transformedChild.geometry = originalChild.geometry.clone();
+                transformedChild.geometry.applyMatrix4(matrix4);
+                transformedChild.geometry.computeVertexNormals();
+            }
+
+            const lowrankMatrix4 = new THREE.Matrix4().set(lowrankM[0], lowrankM[1], lowrankM[2], 0, lowrankM[3], lowrankM[4], lowrankM[5], 0, lowrankM[6], lowrankM[7], lowrankM[8], 0, 0, 0, 0, 1);
+
+            if (rank === 2) {
+                for (let i = 0; i < lowrankModel.children.length; i++) {
+                    const originalChild = originalModel.children[i];
+                    if (!originalChild || !originalChild.geometry) continue;
+                    
+                    const lowrankChild = lowrankModel.children[i];
+                    lowrankChild.geometry = originalChild.geometry.clone();
+                    lowrankChild.geometry.applyMatrix4(lowrankMatrix4);
+                    lowrankChild.geometry.computeVertexNormals();
+                }
+            } else if (rank === 1) {
+                const col1 = new THREE.Vector3(lowrankM[0], lowrankM[3], lowrankM[6]);
+                const col2 = new THREE.Vector3(lowrankM[1], lowrankM[4], lowrankM[7]);
+                const col3 = new THREE.Vector3(lowrankM[2], lowrankM[5], lowrankM[8]);
+                let direction = col1;
+                if (col2.lengthSq() > direction.lengthSq()) direction = col2;
+                if (col3.lengthSq() > direction.lengthSq()) direction = col3;
+                if (direction.lengthSq() < 1e-6) direction.set(1, 0, 0);
+                direction.normalize();
+
+                const modelBBox = new THREE.Box3().setFromObject(originalModel);
+                const axisPoint = new THREE.Vector3();
+                modelBBox.getCenter(axisPoint);
+
+                const overallSize = new THREE.Vector3();
+                modelBBox.getSize(overallSize);
+                const globalRadius = Math.max(overallSize.length() * 0.02, 0.01);
+
+                lowrankModel.children.forEach((child, idx) => {
+                    if (!child.isMesh) return;
+
+                    const origChild = originalModel.children[idx];
+                    if (!origChild || !origChild.geometry) return;
+                    
+                    const childBBox = new THREE.Box3().setFromObject(origChild);
+                    const childCenter = new THREE.Vector3();
+                    childBBox.getCenter(childCenter).applyMatrix4(matrix4); 
+
+                    const v = childCenter.clone().sub(axisPoint);
+                    const t = v.dot(direction);
+                    const proj = axisPoint.clone().add(direction.clone().multiplyScalar(t));
+                    
+                    const childSize = new THREE.Vector3();
+                    childBBox.getSize(childSize);
+                    const length = Math.max(childSize.length() * 0.8, overallSize.length() * 0.06);
+
+                    const cylGeom = new THREE.CylinderGeometry(globalRadius/4, globalRadius/4, length, 24, 1, true);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const quat = new THREE.Quaternion().setFromUnitVectors(up, direction);
+                    cylGeom.applyQuaternion(quat);
+                    cylGeom.translate(proj.x, proj.y, proj.z);
+
+                    child.geometry = cylGeom;
+                    child.geometry.computeVertexNormals();
+                });
+            }
+
+            newBasis.children[0].setDirection(new THREE.Vector3(m[0], m[3], m[6]).normalize());
+            newBasis.children[1].setDirection(new THREE.Vector3(m[1], m[4], m[7]).normalize());
+            newBasis.children[2].setDirection(new THREE.Vector3(m[2], m[5], m[8]).normalize());
+            
+            lowrankBasis.children[0].setDirection(new THREE.Vector3(lowrankM[0], lowrankM[3], lowrankM[6]).normalize());
+            lowrankBasis.children[1].setDirection(new THREE.Vector3(lowrankM[1], lowrankM[4], lowrankM[7]).normalize());
+            lowrankBasis.children[2].setDirection(new THREE.Vector3(lowrankM[2], lowrankM[5], lowrankM[8]).normalize());
+            
+            toggleEigenVisibility(); 
+            toggleSVDVisibility(); 
+        };
+
+        window.stepValue = function(id, step) {
+            const input = document.getElementById(id);
+            let value = parseFloat(input.value) || 0;
+            input.value = (value + step).toFixed(1);
+            updateTransformation();
+        }
+
+        window.applyPreset = function() {
+            const presetName = document.getElementById('presets').value;
+            const m = presets[presetName];
+            for(let i=0; i<3; i++) for(let j=0; j<3; j++) document.getElementById(`m${i}${j}`).value = m[i*3+j].toFixed(2);
+            updateTransformation();
+        }
+        
+        window.toggleBasisVisibility = function() {
+            const show = document.getElementById('showBasis').checked;
+            newBasis.visible = show;
+            lowrankBasis.visible = show;
+        }
+
+        window.toggleEigenVisibility = function() {
+            const show = document.getElementById('showEigen').checked;
+            if (show) {
+                const m = [];
+                for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m.push(parseFloat(document.getElementById(`m${i}${j}`).value) || 0);
+                const success = computeAndShowEigenvectors(m);
+                eigenVectors.visible = success;
+                originalEigenVectors.visible = success; 
+            } else {
+                eigenVectors.visible = false;
+                originalEigenVectors.visible = false; 
+                eigenMessageDiv.textContent = "";
+            }
+        }
+
+        window.toggleSVDVisibility = function() {
+            const show = document.getElementById('showSVD').checked;
+            rightSingularVectors.visible = show;
+            leftSingularVectors.visible = show;
+            lowRankLeftSingularVectors.visible = show;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls1.update();
+            controls2.update();
+            controls3.update();
+            originalRenderer.render(originalScene, camera);
+            transformedRenderer.render(transformedScene, camera);
+            lowrankRenderer.render(lowrankScene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('scenes-container');
+            if(!container) return;
+            const width = container.clientWidth / 3;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            originalRenderer.setSize(width, height);
+            transformedRenderer.setSize(width, height);
+            lowrankRenderer.setSize(width, height);
+        }
+
+        init();
+    </script>
+</body>
+</html>

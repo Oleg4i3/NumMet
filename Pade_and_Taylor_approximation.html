@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Апроксимації Тейлора та Паде (Динамічний розрахунок)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px; background-color: #f4f7f6; color: #333;
+        }
+        .main-container { width: 100%; max-width: 1200px; }
+        .chart-container { 
+            width: 100%; 
+            margin-bottom: 20px;
+            height: 75vh; 
+        }
+        .controls-container {
+            display: flex; justify-content: space-between; width: 100%;
+            flex-wrap: wrap; gap: 20px; padding: 20px; background-color: #fff;
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .control-group {
+            display: flex; flex-direction: column; gap: 10px;
+            flex-grow: 1; min-width: 220px; 
+        }
+        .formula-container {
+            width: 100%; background-color: #fff; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px;
+        }
+        .formula-display { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; }
+        .formula-item { flex-basis: 45%; font-size: 1.1em; line-height: 1.8; }
+        .mjx-container { margin: 5px 0; }
+        label { font-weight: 600; }
+        input[type="range"] { width: 100%; }
+        select, input[type="number"] {
+            padding: 8px 12px; font-size: 1em; border: 1px solid #ccc; border-radius: 4px;
+        }
+        #orderValue { font-weight: 700; font-size: 1.2em; color: #007bff; }
+        
+        .accuracy-display {
+            padding: 8px 0;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        #accuracyTitle {
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        
+        details {
+            width: 100%; background-color: #fff; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 20px;
+        }
+        summary {
+            font-size: 1.3em; font-weight: 600; padding: 20px;
+            cursor: pointer; color: #0056b3;
+        }
+        .theory-content {
+            padding: 0 20px 20px 20px; line-height: 1.6;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <div class="chart-container">
+            <canvas id="mainChart"></canvas>
+        </div>
+
+        <div class="controls-container">
+            <div class="control-group">
+                <label for="functionSelect">1. Оберіть функцію:</label>
+                <select id="functionSelect">
+                    <option value="atan">atan(x)</option>
+                    <option value="sin">sin(x)</option>
+                    <option value="cos">cos(x)</option>
+                    <option value="exp"selected>exp(x)</option>
+                    <option value="ln1px">ln(1+x)</option>
+                    <option value="cbrt1px">∛(1+x)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="orderSlider">2. Оберіть порядок Паде [k, k] (k): <span id="orderValue">4</span></label>
+                <input type="range" id="orderSlider" min="1" max="5" value="4" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="precisionInput">3. Точність $\epsilon = 10^{-p}$ (введіть p):</label>
+                <input type="number" id="precisionInput" value="3" min="1" max="15">
+            </div>
+            <div class="control-group accuracy-display">
+                <div id="accuracyTitle">Інтервал точності $\epsilon = 10^{-3}$</div>
+                <div id="accuracyResult">Розрахунок...</div>
+            </div>
+        </div>
+
+        <div class="formula-container">
+            <h3>Аналітичний вигляд (Порядок k = <span id="formulaOrder">1</span>)</h3>
+            <div class="formula-display">
+                <div class="formula-item">
+                    <strong>Розклад Тейлора $T_{2k}(x)$:</strong>
+                    <div id="taylorFormula">$x$</div>
+                </div>
+                <div class="formula-item">
+                    <strong>Апроксимація Паде $P_{k,k}(x)$:</strong>
+                    <div id="padeFormula">$x$</div>
+                </div>
+            </div>
+        </div>
+        
+        <details>
+            <summary>📘 Теоретична довідка: Ряди Тейлора та Апроксимації Паде</summary>
+            <div class="theory-content">
+                <h3>Ряд Тейлора</h3>
+                <p>
+                    Ряд Тейлора — це представлення функції у вигляді нескінченної суми степенів, члени якої обчислюються зі значень похідних функції в одній точці (зазвичай, $x=0$ - це називається <strong>рядом Маклорена</strong>).
+                </p>
+                <p>
+                    Формула для ряду Маклорена:
+                    $$ f(x) = \sum_{k=0}^{\infty} \frac{f^{(k)}(0)}{k!} x^k = f(0) + f'(0)x + \frac{f''(0)}{2!}x^2 + \frac{f'''(0)}{3!}x^3 + \dots $$
+                </p>
+                <p>
+                    <strong>Поліном Тейлора $T_n(x)$</strong> — це часткова сума цього ряду (до $n$-го члена). Він є <strong>найкращою поліноміальною</strong> апроксимацією функції поблизу точки $x=0$.
+                </p>
+                <ul>
+                    <li><strong>Переваги:</strong> Легко обчислюється, якщо похідні відомі. Дуже точний біля центру розкладу ($x=0$).</li>
+                    <li><strong>Недоліки:</strong> Погано апроксимує функцію далеко від центру. Як поліном, він не може моделювати не-поліноміальну поведінку, таку як горизонтальні асимптоти (наприклад, у `atan(x)`).</li>
+                </ul>
+                <hr>
+                <h3>Апроксимація Паде</h3>
+                <p>
+                    Апроксимація Паде — це представлення функції у вигляді <strong>раціональної функції</strong> (відношення двох поліномів) $R_{L,M}(x)$:
+                    $$ R_{L,M}(x) = \frac{P_L(x)}{Q_M(x)} = \frac{a_0 + a_1 x + \dots + a_L x^L}{1 + b_1 x + \dots + b_M x^M} $$
+                    (Зазвичай $b_0$ встановлюють в 1 для унікальності).
+                </p>
+                
+                <p>
+                    <b>Як знаходять:</b>
+                    <ol>
+                        <li>ряд Тейлора $f(x) \approx c_0 + c_1 x + \dots + c_{L+M} x^{L+M}$.</li>
+                        <li>Ми шукаємо поліноми $P_L(x)$ та $Q_M(x)$ такі, що:
+                            $$ (c_0 + c_1 x + \dots) \cdot (1 + b_1 x + \dots + b_M x^M) \approx (a_0 + a_1 x + \dots + a_L x^L) $$
+                            ...причому рівність має виконуватись для всіх коефіцієнтів до степеня $x^{L+M}$.
+                        </li>
+                        <li>Це призводить до <b>системи лінійних алгебраїчних рівнянь (СЛАР)</b> для невідомих коефіцієнтів.</li>
+
+                    </ol>
+                </p>
+                <ul>
+                    <li><strong>Переваги:</strong> Часто дає кращу апроксимацію, ніж ряд Тейлора, при тій самій кількості коефіцієнтів. Може моделювати асимптоти та полюси, що робить його набагато потужнішим для апроксимації поза малим околом.</li>
+                    <li><strong>Недоліки:</strong> Обчислення коефіціієнтів складніше, ніж для Тейлора (вимагає розв'язання СЛАР).</li>
+                </ul>
+                <hr>
+                <h3> Прикладний аспект: Навіщо це потрібно?</h3>
+                <p>
+                    Центральний процесор (CPU) вміє виконувати лише базові арифметичні операції: <strong>додавання, віднімання, множення та ділення</strong>. Він не має вбудованої "магічної" інструкції для розрахунку синусів, логарифмів чи експонент.
+                </p>
+                <p>
+                    Саме тут потрібні проксимації. Коли викликають <code>Math.sin(x)</code> у JavaScript або <code>sin(x)</code> у C++ з math.h, відбувається наступне:
+                </p>
+                <ol>
+                    <li>
+                        <strong>Зведення діапазону:</strong> Вхідне значення (аргумент) <code>x</code> спочатку зводиться до малого, основного діапазону. Наприклад, для <code>sin(1000)</code>, бібліотека спочатку знайде еквівалентне значення в діапазоні $[-\pi, \pi]$.
+                    </li>
+                    <li>
+                        <strong>Апроксимація:</strong> Потім до цього зведеного аргументу застосовується <strong>раціональна апроксимація</strong> (дуже схожа на Паде, або інші варіації, як-от поліноми Чебишева), яка була розрахована заздалегідь.
+                    </li>
+                    <li>
+                        <strong>Результат:</strong> Ця апроксимація дає результат з гарантованою точністю (наприклад, до 15-го знака після коми для 64-бітних чисел) використовуючи лише операції <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>.
+                    </li>
+                </ol>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            Chart.register(ChartZoom); 
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            
+            // --- Елементи керування ---
+            const functionSelect = document.getElementById('functionSelect');
+            const slider = document.getElementById('orderSlider');
+            const orderValue = document.getElementById('orderValue');
+            const formulaOrder = document.getElementById('formulaOrder');
+            const precisionInput = document.getElementById('precisionInput');
+            const accuracyResultDiv = document.getElementById('accuracyResult');
+            const accuracyTitle = document.getElementById('accuracyTitle');
+            const taylorFormulaDiv = document.getElementById('taylorFormula');
+            const padeFormulaDiv = document.getElementById('padeFormula');
+
+            // --- Плавність графіка ---
+            const xMin = -5;
+            const xMax = 5;
+            const numPoints = 500; 
+            const xStep = (xMax - xMin) / (numPoints - 1);
+            const xValues = Array.from({length: numPoints}, (_, i) => xMin + i * xStep);
+
+            // --- ДОПОМІЖНІ ФУНКЦІЇ ---
+            function factorial(n) {
+                if (n < 0) return Infinity; if (n === 0 || n === 1) return 1;
+                let result = 1; for (let i = 2; i <= n; i++) { result *= i; }
+                return result;
+            }
+            function solveLinearSystem(A, b) {
+                const n = A.length;
+                for (let i = 0; i < n; i++) {
+                    let maxRow = i;
+                    for (let k = i + 1; k < n; k++) { if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) { maxRow = k; } }
+                    [A[i], A[maxRow]] = [A[maxRow], A[i]]; [b[i], b[maxRow]] = [b[maxRow], b[i]]; 
+                    let pivot = A[i][i]; if (Math.abs(pivot) < 1e-15) continue; 
+                    for (let j = i; j < n; j++) { A[i][j] /= pivot; }
+                    b[i] /= pivot;
+                    for (let k = 0; k < n; k++) {
+                        if (k !== i) {
+                            let factor = A[k][i];
+                            for (let j = i; j < n; j++) { A[k][j] -= factor * A[i][j]; }
+                            b[k] -= factor * b[i];
+                        }
+                    }
+                } return b;
+            }
+            function calculatePadeCoefficients(c, L, M) {
+                if (M === 0) { return { a: c.slice(0, L + 1), b: [1] }; }
+                let A = Array(M).fill(0).map(() => Array(M).fill(0)); let b_vec = Array(M).fill(0);
+                for (let i = 0; i < M; i++) {
+                    let k = L + 1 + i;
+                    for (let j = 0; j < M; j++) { let c_index = k - (j + 1); A[i][j] = (c[c_index] || 0); }
+                    b_vec[i] = -(c[k] || 0);
+                }
+                const b_coeffs = solveLinearSystem(A, b_vec); const B = [1, ...b_coeffs]; 
+                let A_coeffs = Array(L + 1).fill(0);
+                for (let k = 0; k <= L; k++) {
+                    let sum = 0;
+                    for (let j = 0; j <= k; j++) { if (j > M) continue; sum += (c[k - j] || 0) * B[j]; }
+                    A_coeffs[k] = sum;
+                } return { a: A_coeffs, b: B };
+            }
+            function createPolynomial(coeffs) {
+                return (x) => {
+                    let sum = 0;
+                    for (let i = coeffs.length - 1; i >= 0; i--) { sum = sum * x + coeffs[i]; }
+                    return sum;
+                }
+            }
+            function createPadeFunction(padeCoeffs) {
+                const P = createPolynomial(padeCoeffs.a); const Q = createPolynomial(padeCoeffs.b);
+                return (x) => P(x) / Q(x);
+            }
+            function createPolynomialString(coeffs, N_max, useDecimals = false) {
+                let terms = [];
+                for (let i = 0; i <= N_max; i++) {
+                    let c = coeffs[i] || 0; if (Math.abs(c) < 1e-10) continue; 
+                    let sign = (c > 0) ? '+' : '-'; let val = Math.abs(c); let term = '';
+                    if (i === 0) { term = (c > 0 ? '' : '-') + val.toFixed(3); } 
+                    else {
+                        let c_str = '';
+                        if (Math.abs(val - 1) > 1e-3) {
+                            c_str = useDecimals ? val.toFixed(3) : `c_{${i}}`; 
+                        }
+                        let x_str = (i === 1) ? 'x' : `x^{${i}}`;
+                        term = ` ${sign} ${c_str} ${x_str} `;
+                    }
+                    if (i > 0 || terms.length > 0) terms.push(term);
+                    else if (i===0) terms.push(term);
+                }
+                if (terms.length === 0) return '$0$';
+                let str = terms.join('').trim();
+                if (str.startsWith('+')) str = str.substring(1).trim();
+                return `$${str}$`;
+            }
+
+            // --- БАЗА ДАНИХ ФУНКЦІЙ ---
+            // Властивість yRange видалено, оскільки масштаб тепер автоматичний
+            const functionDatabase = {
+                'atan': {
+                    label: 'atan(x)', sliderMax: 6,
+                    func: (x) => Math.atan(x),
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        for (let k = 0; k <= N; k++) { if (k % 2 === 1) { c[k] = Math.pow(-1, (k - 1) / 2) / k; } } return c;
+                    }
+                },
+                'sin': {
+                    label: 'sin(x)', sliderMax: 6,
+                    func: (x) => Math.sin(x),
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        for (let k = 0; k <= N; k++) { if (k % 2 === 1) { c[k] = Math.pow(-1, (k - 1) / 2) / factorial(k); } } return c;
+                    }
+                },
+                'cos': {
+                    label: 'cos(x)', sliderMax: 6,
+                    func: (x) => Math.cos(x),
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        for (let k = 0; k <= N; k++) { if (k % 2 === 0) { c[k] = Math.pow(-1, k / 2) / factorial(k); } } return c;
+                    }
+                },
+                'exp': {
+                    label: 'exp(x)', sliderMax: 5,
+                    func: (x) => Math.exp(x),
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        for (let k = 0; k <= N; k++) { c[k] = 1 / factorial(k); } return c;
+                    }
+                },
+                'ln1px': {
+                    label: 'ln(1+x)', sliderMax: 6,
+                    func: (x) => (x > -1) ? Math.log(1 + x) : NaN,
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        for (let k = 1; k <= N; k++) { c[k] = Math.pow(-1, k - 1) / k; } return c;
+                    }
+                },
+                'cbrt1px': {
+                    label: '∛(1+x)', sliderMax: 5,
+                    func: (x) => (x > -1) ? Math.cbrt(1 + x) : NaN,
+                    getTaylorCoefficients: (N) => {
+                        let c = Array(N + 1).fill(0);
+                        const alpha = 1/3; c[0] = 1; 
+                        for (let k = 1; k <= N; k++) { c[k] = c[k - 1] * (alpha - (k - 1)) / k; } 
+                        return c;
+                    }
+                }
+            };
+            
+            // --- Ініціалізація графіка ---
+            const chartConfig = {
+                type: 'line', 
+                data: { 
+                    datasets: [
+                        { label: 'Оригінал', data: [], borderColor: 'rgba(0, 0, 255, 0.3)', borderWidth: 3, pointRadius: 0, order: 0 },
+                        { label: 'Тейлор', data: [], borderColor: 'rgba(255, 0, 0, 0.7)', borderWidth: 2, pointRadius: 0, borderDash: [5, 5], order: 1 },
+                        { label: 'Паде', data: [], borderColor: 'rgba(0, 150, 0, 0.7)', borderWidth: 2, pointRadius: 0, borderDash: [10, 5], order: 2 }
+                    ]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        x: { type: 'linear', title: { display: true, text: 'x' } }, 
+                        y: { title: { display: true, text: 'y' } } 
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false },
+                        zoom: {
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy', },
+                            pan: { enabled: true, mode: 'xy', }
+                        },
+                        annotation: {
+                            annotations: {
+                                taylorNeg: { type: 'line', scaleID: 'x', value: 0, borderColor: 'red', borderWidth: 2, borderDash: [5, 5], display: false },
+                                taylorPos: { type: 'line', scaleID: 'x', value: 0, borderColor: 'red', borderWidth: 2, borderDash: [5, 5], display: false },
+                                padeNeg:   { type: 'line', scaleID: 'x', value: 0, borderColor: 'green', borderWidth: 2, borderDash: [5, 5], display: false },
+                                padePos:   { type: 'line', scaleID: 'x', value: 0, borderColor: 'green', borderWidth: 2, borderDash: [5, 5], display: false }
+                            }
+                        }
+                    },
+                    animation: { duration: 0 }
+                }
+            };
+            const myChart = new Chart(ctx, chartConfig);
+
+            // --- Глобальні змінні для функцій ---
+            let currentTaylorFunc = (x) => x;
+            let currentPadeFunc = (x) => x;
+            let currentOriginalFunc = (x) => x;
+
+            // --- Головна функція оновлення ---
+            function updatePlotAndFormulas() {
+                let funcKey = functionSelect.value;
+                let k = parseInt(slider.value); 
+                
+                const dbEntry = functionDatabase[funcKey];
+                
+                slider.max = dbEntry.sliderMax;
+                if (k > dbEntry.sliderMax) { k = dbEntry.sliderMax; slider.value = k; }
+                const N_taylor = 2 * k; 
+                
+                orderValue.textContent = k;
+                formulaOrder.textContent = k;
+
+                const taylorCoeffs = dbEntry.getTaylorCoefficients(N_taylor + 4); 
+                const padeCoeffs = calculatePadeCoefficients(taylorCoeffs, k, k);
+
+                currentOriginalFunc = dbEntry.func;
+                currentTaylorFunc = createPolynomial(taylorCoeffs.slice(0, N_taylor + 1));
+                currentPadeFunc = createPadeFunction(padeCoeffs);
+
+                const isDomainLimited = (funcKey === 'ln1px' || funcKey === 'cbrt1px');
+                
+                const originalData = xValues.map(x => ({ x: x, y: currentOriginalFunc(x) }));
+                myChart.data.datasets[0].data = originalData;
+                
+                myChart.data.datasets[1].data = xValues.map(x => {
+                    if (isDomainLimited && x <= -1) return { x: x, y: NaN }; 
+                    return { x: x, y: currentTaylorFunc(x) };
+                });
+                myChart.data.datasets[2].data = xValues.map(x => {
+                    if (isDomainLimited && x <= -1) return { x: x, y: NaN }; 
+                    return { x: x, y: currentPadeFunc(x) };
+                });
+                
+                // === ВИЗНАЧЕННЯ МАСШТАБУ Y ЗА СИНЬОЮ ЛІНІЄЮ ===
+                const yValues = originalData.map(d => d.y).filter(y => isFinite(y) && y !== null);
+                let yMin = Math.min(...yValues);
+                let yMax = Math.max(...yValues);
+                const yPadding = (yMax - yMin) * 0.1; // 10% відступ
+
+                if (yPadding === 0) { // Випадок, якщо лінія горизонтальна
+                    yMin -= 0.5;
+                    yMax += 0.5;
+                }
+
+                myChart.options.scales.y.min = yMin - yPadding;
+                myChart.options.scales.y.max = yMax + yPadding;
+                // =============================================
+                
+                Object.values(myChart.options.plugins.annotation.annotations).forEach(ann => ann.display = false);
+
+                if (myChart.isZoomedOrPanned()) {
+                    myChart.update('none'); 
+                } else {
+                    myChart.resetZoom('none'); 
+                    myChart.update('none');
+                }
+                
+                const useDecimals = true; 
+                taylorFormulaDiv.innerHTML = createPolynomialString(taylorCoeffs, N_taylor, useDecimals);
+                padeFormulaDiv.innerHTML = `$$ \\frac{${createPolynomialString(padeCoeffs.a, k, useDecimals).slice(1,-1)}}{${createPolynomialString(padeCoeffs.b, k, useDecimals).slice(1,-1)}} $$`;
+                
+                if (window.MathJax) {
+                    MathJax.typesetPromise([taylorFormulaDiv, padeFormulaDiv]).catch(console.error);
+                }
+                
+                calculateAccuracy();
+            }
+
+            // --- Функція розрахунку точності ---
+            let accuracyTimeout; 
+            function calculateAccuracy() {
+                clearTimeout(accuracyTimeout);
+                
+                accuracyTimeout = setTimeout(() => {
+                    const p = parseInt(precisionInput.value);
+                    if (isNaN(p)) return;
+                    
+                    const epsilon = Math.pow(10, -p);
+                    const funcKey = functionSelect.value;
+                    
+                    accuracyTitle.innerHTML = `Інтервал точності $\epsilon = 10^{-${p}}$`;
+                    if (window.MathJax) { MathJax.typesetPromise([accuracyTitle]).catch(console.error); }
+                    accuracyResultDiv.innerHTML = "Розрахунок...";
+
+                    setTimeout(() => {
+                        const searchStep = 0.001;
+                        const searchLimit = xMax;
+                        
+                        let x_taylor_pos = 0;
+                        for (let x = 0; x <= searchLimit; x += searchStep) {
+                            const error = Math.abs(currentOriginalFunc(x) - currentTaylorFunc(x));
+                            if (error > epsilon || isNaN(error)) break; x_taylor_pos = x;
+                        }
+                        let x_taylor_neg = 0;
+                        for (let x = 0; x >= -searchLimit; x -= searchStep) {
+                            if ((funcKey === 'ln1px' || funcKey === 'cbrt1px') && x <= -1 + searchStep) break;
+                            const error = Math.abs(currentOriginalFunc(x) - currentTaylorFunc(x));
+                            if (error > epsilon || isNaN(error)) break; x_taylor_neg = x;
+                        }
+                        
+                        let x_pade_pos = 0;
+                        for (let x = 0; x <= searchLimit; x += searchStep) {
+                            const error = Math.abs(currentOriginalFunc(x) - currentPadeFunc(x));
+                            if (error > epsilon || isNaN(error)) break; x_pade_pos = x;
+                        }
+                        let x_pade_neg = 0;
+                        for (let x = 0; x >= -searchLimit; x -= searchStep) {
+                            if ((funcKey === 'ln1px' || funcKey === 'cbrt1px') && x <= -1 + searchStep) break;
+                            const error = Math.abs(currentOriginalFunc(x) - currentPadeFunc(x));
+                            if (error > epsilon || isNaN(error)) break; x_pade_neg = x;
+                        }
+                        
+                        accuracyResultDiv.innerHTML = `
+                            <span style="color: red;">■ Тейлор: [${x_taylor_neg.toFixed(3)}, ${x_taylor_pos.toFixed(3)}]</span><br>
+                            <span style="color: green;">■ Паде: [${x_pade_neg.toFixed(3)}, ${x_pade_pos.toFixed(3)}]</span>
+                        `;
+                        
+                        const ann = myChart.options.plugins.annotation.annotations;
+                        ann.taylorNeg.value = x_taylor_neg; ann.taylorNeg.display = true;
+                        ann.taylorPos.value = x_taylor_pos; ann.taylorPos.display = true;
+                        ann.padeNeg.value = x_pade_neg;     ann.padeNeg.display = true;
+                        ann.padePos.value = x_pade_pos;     ann.padePos.display = true;
+                        
+                        myChart.update('none'); 
+
+                    }, 0); 
+                }, 100); 
+            }
+
+            // --- Обробники подій ---
+            slider.addEventListener('input', updatePlotAndFormulas);
+            functionSelect.addEventListener('change', updatePlotAndFormulas);
+            precisionInput.addEventListener('input', calculateAccuracy);
+
+            // --- Перший запуск ---
+            updatePlotAndFormulas(); 
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Сплайнів (v5.3 - з Catmull-Rom)</title>
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .canvas-container {
+            flex: 2;
+            min-width: 400px;
+            position: relative;
+        }
+        canvas {
+            border: 1px solid #aaa;
+            background-color: #fff;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .controls select, .controls button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
+        .controls button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #c0392b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #ecf0f1;
+        }
+        td input {
+            width: 90%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px;
+            text-align: center;
+        }
+
+        #gradient-controls {
+            display: none; 
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .slider-container {
+            margin-bottom: 10px;
+        }
+        .slider-container label {
+            font-size: 0.9em;
+            font-weight: normal;
+            display: flex;
+            justify-content: space-between;
+        }
+        .slider-container input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        #view-controls {
+            margin-bottom: 10px; 
+            padding: 10px; 
+            background: #f9f9f9; 
+            border-radius: 4px; 
+            border: 1px solid #ddd; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            align-items: center; 
+            font-size: 0.9em;
+        }
+        #view-controls label {
+            display: inline-block;
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+        #view-controls input {
+            width: 60px;
+            padding: 4px;
+        }
+        #view-controls button {
+            width: auto;
+            padding: 5px 10px;
+            margin-bottom: 0;
+            font-size: 0.9em;
+        }
+        
+        .hidden-control {
+            display: none !important;
+        }
+
+        #equations-container {
+            width: 100%;
+            margin-top: 20px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #equations-container h3 {
+            margin-top: 0;
+        }
+        #equations-container div {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.95em;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            overflow-x: auto; 
+        }
+        #equations-container .mathjax-explanation {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 0.9em;
+            color: #333;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        
+        #theory {
+            width: 100%;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #theory summary {
+            padding: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            color: #2980b9;
+        }
+        #theory-content {
+            padding: 0 20px 20px 20px;
+            border-top: 1px solid #eee;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 1.1em;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📐 Симулятор Сплайнів </h1>
+
+    <div class="container">
+        <div class="controls">
+            <h2>Панель керування</h2>
+            
+            <label for="splineType">Тип сплайна:</label>
+            <select id="splineType">
+                <option value="cubic">Кубічний (Natural/Clamped)</option>
+                <option value="catmull_rom">Catmull-Rom </option>
+                <option value="quadratic">Квадратичний (Інтерполяція)</option>
+                <option value="b_spline">B-spline (Апроксимація)</option>
+            </select>
+
+            <div id="alphaControl" style="display: none;"> <label for="alphaSlider">Напруженість (Alpha): <span id="alphaValue">0.5</span></label>
+                <input type="range" id="alphaSlider" min="0" max="1" step="0.01" value="0.5" class="slider">
+                <small><i>(0.5 = Catmull-Rom, 0 = Ослаблена, 1 = Перетягнута)</i></small>
+            </div>
+			
+			
+            <div id="boundary-controls-container">
+                <label for="boundaryCond">Крайові умови:</label>
+                <select id="boundaryCond">
+                    </select>
+
+                <div id="gradient-controls">
+                    <div class="slider-container">
+                        <label for="startSlope">Початковий нахил S'(x₀): <span id="startSlopeValue">0.0</span></label>
+                        <input type="range" id="startSlope" min="-10" max="10" step="0.1" value="0">
+                    </div>
+                    <div class="slider-container">
+                        <label for="endSlope">Кінцевий нахил S'(xₙ₋₁): <span id="endSlopeValue">0.0</span></label>
+                        <input type="range" id="endSlope" min="-10" max="10" step="0.1" value="0">
+                    </div>
+                </div>
+            </div>
+            
+            <button id="clearButton">Очистити точки</button>
+
+            <h3>Точки (макс. 8)</h3>
+            <p style="font-size: 0.9em; color: #555;">Клікніть на графіку або введіть значення в таблицю.</p>
+            <table id="pointsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>X</th>
+                        <th>Y</th>
+                    </tr>
+                </thead>
+                <tbody id="pointsTableBody">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="canvas-container">
+            
+            <div id="view-controls">
+                <b>Керування видом:</b>
+                <label>X min: <input type="number" id="viewMinX" step="10"></label>
+                <label>X max: <input type="number" id="viewMaxX" step="10"></label>
+                <label>Y min: <input type="number" id="viewMinY" step="10"></label>
+                <label>Y max: <input type="number" id="viewMaxY" step="10"></label>
+                <button id="applyViewButton" style="background-color: #3498db;">Застосувати</button>
+                <button id="resetViewButton" style="background-color: #95a5a6;">Скинути</button>
+            </div>
+            
+            <canvas id="splineCanvas" width="600" height="400"></canvas>
+        </div>
+    </div>
+
+    <div id="equations-container">
+        <h3>Рівняння / Опис</h3>
+        <div id="equations-list">
+            <p>Додайте принаймні 2 точки, щоб побачити рівняння.</p>
+        </div>
+    </div>
+
+    <details id="theory" open>
+        <summary>📘 Теоретичні відомості</summary>
+        <div id="theory-content">
+           
+            <p><b>Сплайн</b> — це спеціальна функція, яка використовується в чисельних методах для інтерполяції та наближення. Вона являє собою "зшиту" з кількох поліноміальних сегментів криву. Головна перевага сплайнів — вони дозволяють отримати гладку криву, що проходить через заданий набір точок (вузлів), при цьому уникаючи "ефекту Рунге" (сильних коливань), який часто виникає при використанні одного полінома високого степеня.</p>
+            
+            <hr>
+            
+            <h2>Квадратичний сплайн (Інтерполяція)</h2>
+            <p>Для $n$ точок $(x_0, y_0), \dots, (x_{n-1}, y_{n-1})$ ми будуємо $n-1$ сегментів $S_i(x)$ на відрізку $[x_i, x_{i+1}]$:</p>
+            $$S_i(x) = a_i (x-x_i)^2 + b_i (x-x_i) + c_i$$
+            <p><b>Умови:</b> $S_i(x_i) = y_i$, $S_i(x_{i+1}) = y_{i+1}$ ($C^0$ неперервність) та $S'_{i-1}(x_i) = S'_i(x_i)$ ($C^1$ гладкість). Це залишає 1 ступінь свободи, який визначається крайовою умовою (наприклад, $S'_0(x_0) = 0$).</p>
+
+            <hr>
+
+            <h2>Кубічний сплайн (Інтерполяція, $C^2$)</h2>
+            <p>Це найпоширеніший "академічний" тип ($C^2$ гладкість). Для $n$ точок ми будуємо $n-1$ сегментів $S_i(x)$:</p>
+            $$S_i(x) = a_i (x-x_i)^3 + b_i (x-x_i)^2 + c_i (x-x_i) + d_i$$
+            <p><b>Умови:</b> $C^0$, $C^1$ та $C^2$ неперервність у вузлах. Це залишає 2 ступені свободи, які визначаються крайовими умовами (Natural, Clamped).</p>
+            <p><b>Особливість:</b> Розв'язується глобальна система рівнянь. Зміна однієї точки впливає на всю криву. Мінімізація $S''$ (у "Natural") може призвести до "зайвих" осциляцій далеко від вузлів.</p>
+
+            <hr>
+            
+            <h2>Сплайн Катмулла-Рома (Інтерполяція, $C^1$)</h2>
+            <p>Це теж кубічний сплайн, але іншого типу. Він **гарантовано проходить через всі точки** (інтерполює), але має лише $C^1$ гладкість. Це стандарт для плавної анімації та графіків, як в Excel.</p>
+            <p><b>Особливість:</b> Це параметрична крива $C(t)$. Сегмент $S_i(t)$ (від $P_i$ до $P_{i+1}$, де $t \in [0, 1]$) визначається чотирма точками: $P_{i-1}, P_i, P_{i+1}, P_{i+2}$.</p>
+            <p>Дотична (нахил) у кожній точці $P_i$ не розв'язується глобально, а обчислюється автоматично за формулою, що базується на сусідніх точках:</p>
+            $$T_i = \alpha (P_{i+1} - P_{i-1})$$
+            <p>(де $\alpha$ - "напруженість", зазвичай 0.5). Це робить його поведінку дуже "локальною" та візуально приємною, уникаючи широких осциляцій "Natural" сплайна.</p>
+            
+            <hr>
+
+            <h2>B-сплайн (Апроксимація)</h2>
+            <p>На відміну від інтерполюючих сплайнів, <b>B-сплайни</b> зазвичай не проходять через задані точки. Натомість точки виступають як <b>"контрольні точки"</b>, які "притягують" до себе криву.</p>
+            <p>Крива B-сплайна визначається як $C(t) = \sum_{i=0}^{n-1} P_i N_{i,p}(t)$.</p>
+            <p><b>Переваги:</b> Надзвичайна гладкість, ідеально для показу трендів зашумлених даних, ігнорує "викиди".</p>
+
+            <hr>
+
+            <h2>Порівняння з іншими методами</h2>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead style="background-color: #ecf0f1;">
+                    <tr>
+                        <th style="border: 1px solid #ddd; padding: 8px;">Метод</th>
+                        <th style="border: 1px solid #ddd; padding: 8px;">Інтерполює? (Проходить через точки)</th>
+                        <th style="border: 1px solid #ddd; padding: 8px;">Переваги</th>
+                        <th style="border: 1px solid #ddd; padding: 8px;">Недоліки</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Поліном Лагранжа</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Так</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- Одна глобальна функція.</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- <b>Ефект Рунге:</b> сильні коливання.</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Кубічний (Natural)</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Так</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- <b>Гладкість $C^2$</b> (неперервна кривина).<br>- Математично "ідеальний".</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- Глобальний вплив (зміна 1 точки = зміна всієї кривої).<br>- Може створювати "зайві" хвилі.</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Catmull-Rom</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Так</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- <b>Як в Excel/Spreadsheets.</b><br>- Візуально плавний.<br>- Локальний контроль (зміна 1 точки = зміна поруч).</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- Лише $C^1$ гладкість (кривина може "стрибати" у вузлах).<br>- Може створювати петлі.</td>
+                    </tr>
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>B-сплайн</b></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><b>Ні</b> (Апроксимує)</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- <b>Найвища гладкість.</b><br>- Ідеально для трендів/шуму.<br>- Локальний контроль.</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">- Не проходить через точки (це його мета).</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Отримання елементів DOM ---
+            const canvas = document.getElementById('splineCanvas');
+            const ctx = canvas.getContext('2d');
+            const splineTypeSelect = document.getElementById('splineType');
+            const boundaryCondSelect = document.getElementById('boundaryCond');
+            const pointsTableBody = document.getElementById('pointsTableBody');
+            const clearButton = document.getElementById('clearButton');
+            const equationsList = document.getElementById('equations-list');
+
+            const boundaryControlsContainer = document.getElementById('boundary-controls-container'); 
+            const gradientControls = document.getElementById('gradient-controls');
+            const startSlope = document.getElementById('startSlope');
+            const startSlopeValue = document.getElementById('startSlopeValue');
+            const endSlope = document.getElementById('endSlope');
+            const endSlopeValue = document.getElementById('endSlopeValue');
+
+            // *** НОВІ ЕЛЕМЕНТИ ДЛЯ CATMULL-ROM ***
+            const alphaControl = document.getElementById('alphaControl');
+            const alphaSlider = document.getElementById('alphaSlider');
+            const alphaValue = document.getElementById('alphaValue');
+
+            let points = [];
+            const MAX_POINTS = 8;
+            const POINT_RADIUS = 5;
+            const segmentColors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#34495e'];
+
+            const DEFAULT_VIEW = { minX: 0, maxX: 600, minY: 0, maxY: 400 };
+            let view = { ...DEFAULT_VIEW };
+
+            const viewMinXInput = document.getElementById('viewMinX');
+            const viewMaxXInput = document.getElementById('viewMaxX');
+            const viewMinYInput = document.getElementById('viewMinY');
+            const viewMaxYInput = document.getElementById('viewMaxY');
+            const applyViewButton = document.getElementById('applyViewButton');
+            const resetViewButton = document.getElementById('resetViewButton');
+            
+            // === Ініціалізація та Оновлення UI ===
+
+            function updateBoundaryOptions() {
+                const type = splineTypeSelect.value;
+                const currentBoundary = boundaryCondSelect.value;
+                boundaryCondSelect.innerHTML = ''; 
+                
+                // *** ОНОВЛЕНО: Ховаємо для B-spline ТА Catmull-Rom ***
+                if (type === 'b_spline' || type === 'catmull_rom') {
+                    boundaryControlsContainer.classList.add('hidden-control');
+                } else {
+                    boundaryControlsContainer.classList.remove('hidden-control');
+                }
+                
+                // *** ОНОВЛЕНО: Показуємо/ховаємо слайдер Alpha ***
+                if (type === 'catmull_rom') {
+                    alphaControl.style.display = 'block';
+                } else {
+                    alphaControl.style.display = 'none';
+                }
+
+                // (ця логіка залишається, але boundaryControlsContainer вже прихований, якщо треба)
+                if (type === 'cubic') {
+                    boundaryCondSelect.innerHTML = `
+                        <option value="natural">Natural (S'' = 0 на кінцях)</option>
+                        <option value="clamped">Clamped (Затиснутий)</option>
+                    `;
+                    if (currentBoundary === 'natural' || currentBoundary === 'clamped') {
+                        boundaryCondSelect.value = currentBoundary;
+                    }
+                } else if (type === 'quadratic') {
+                    boundaryCondSelect.innerHTML = `
+                        <option value="start_zero">Simple (S' = 0 на початку)</option>
+                        <option value="end_zero">Simple (S' = 0 в кінці)</option>
+                    `;
+                    if (currentBoundary === 'start_zero' || currentBoundary === 'end_zero') {
+                        boundaryCondSelect.value = currentBoundary;
+                    }
+                }
+                
+                toggleGradientControls(); 
+                mainDraw();
+            }
+            
+            function toggleGradientControls() {
+                const type = splineTypeSelect.value;
+                const boundary = boundaryCondSelect.value;
+                
+                if (type === 'cubic' && boundary === 'clamped') {
+                    gradientControls.style.display = 'block';
+                } else {
+                    gradientControls.style.display = 'none';
+                }
+            }
+            
+            // --- Функції: Система координат, Cітка, Вид ---
+            
+            function worldToPixel(worldX, worldY) {
+                const pixelX = (worldX - view.minX) / (view.maxX - view.minX) * canvas.width;
+                const pixelY = (1 - (worldY - view.minY) / (view.maxY - view.minY)) * canvas.height;
+                return { x: pixelX, y: pixelY };
+            }
+
+            function pixelToWorld(pixelX, pixelY) {
+                const worldX = (pixelX / canvas.width) * (view.maxX - view.minX) + view.minX;
+                const worldY = (1 - pixelY / canvas.height) * (view.maxY - view.minY) + view.minY;
+                return { x: worldX, y: worldY };
+            }
+
+            function updateInputsFromView() {
+                viewMinXInput.value = view.minX.toFixed(0);
+                viewMaxXInput.value = view.maxX.toFixed(0);
+                viewMinYInput.value = view.minY.toFixed(0);
+                viewMaxYInput.value = view.maxY.toFixed(0);
+            }
+
+            function updateViewFromInputs() {
+                const minX = parseFloat(viewMinXInput.value);
+                const maxX = parseFloat(viewMaxXInput.value);
+                const minY = parseFloat(viewMinYInput.value);
+                const maxY = parseFloat(viewMaxYInput.value);
+
+                if (isNaN(minX) || isNaN(maxX) || isNaN(minY) || isNaN(maxY)) {
+                    alert("Некоректні значення для виду.");
+                    return;
+                }
+                if (maxX <= minX || maxY <= minY) {
+                    alert("Max має бути більшим за Min.");
+                    return;
+                }
+                view = { minX, maxX, minY, maxY };
+                mainDraw();
+            }
+            
+            function drawGrid() {
+                ctx.save(); 
+                ctx.strokeStyle = '#eee'; 
+                ctx.lineWidth = 1;
+                ctx.font = "10px Arial";
+                ctx.fillStyle = "#aaa";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "top";
+
+                const xRange = view.maxX - view.minX;
+                const yRange = view.maxY - view.minY;
+                
+                const xPower = Math.pow(10, Math.floor(Math.log10(xRange)) - 1);
+                const xStep = (xRange / xPower > 20) ? xPower * 5 : (xRange / xPower > 10 ? xPower * 2 : xPower);
+                
+                const yPower = Math.pow(10, Math.floor(Math.log10(yRange)) - 1);
+                const yStep = (yRange / yPower > 20) ? yPower * 5 : (yRange / yPower > 10 ? yPower * 2 : yPower);
+
+                const xStart = Math.ceil(view.minX / xStep) * xStep;
+                const yStart = Math.ceil(view.minY / yStep) * yStep;
+
+                for (let x = xStart; x <= view.maxX; x += xStep) {
+                    const { x: pixelX } = worldToPixel(x, 0); 
+                    ctx.beginPath();
+                    ctx.moveTo(pixelX, 0);
+                    ctx.lineTo(pixelX, canvas.height);
+                    ctx.stroke();
+                    ctx.fillText(x.toFixed(1), pixelX + 2, 2);
+                }
+                
+                for (let y = yStart; y <= view.maxY; y += yStep) {
+                    const { y: pixelY } = worldToPixel(0, y); 
+                    ctx.beginPath();
+                    ctx.moveTo(0, pixelY);
+                    ctx.lineTo(canvas.width, pixelY);
+                    ctx.stroke();
+                    ctx.fillText(y.toFixed(1), 2, pixelY + 2);
+                }
+                ctx.restore(); 
+            }
+            
+            // === Обробники подій ===
+
+            splineTypeSelect.addEventListener('change', updateBoundaryOptions);
+            boundaryCondSelect.addEventListener('change', () => {
+                toggleGradientControls();
+                mainDraw();
+            });
+            
+            clearButton.addEventListener('click', () => {
+                points = [];
+                mainDraw();
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (points.length >= MAX_POINTS) {
+                    alert(`Досягнуто ліміту в ${MAX_POINTS} точок.`);
+                    return;
+                }
+                const rect = canvas.getBoundingClientRect();
+                const pixelX = e.clientX - rect.left;
+                const pixelY = e.clientY - rect.top;
+                
+                const { x: worldX, y: worldY } = pixelToWorld(pixelX, pixelY);
+                
+                points.push({ x: worldX, y: worldY });
+                mainDraw();
+            });
+            
+            startSlope.addEventListener('input', () => {
+                startSlopeValue.textContent = parseFloat(startSlope.value).toFixed(1);
+                mainDraw();
+            });
+            endSlope.addEventListener('input', () => {
+                endSlopeValue.textContent = parseFloat(endSlope.value).toFixed(1);
+                mainDraw();
+            });
+
+            // *** НОВИЙ ОБРОБНИК ДЛЯ СЛАЙДЕРА ALPHA ***
+            alphaSlider.addEventListener('input', () => {
+                alphaValue.textContent = parseFloat(alphaSlider.value).toFixed(2);
+                mainDraw();
+            });
+            
+            applyViewButton.addEventListener('click', updateViewFromInputs);
+            resetViewButton.addEventListener('click', () => {
+                view = { ...DEFAULT_VIEW };
+                updateInputsFromView();
+                mainDraw();
+            });
+            
+            // === Синхронізація таблиці та точок ===
+
+            function updateTableFromPoints() {
+                pointsTableBody.innerHTML = '';
+                let sortedPoints = [...points];
+                
+                // *** ОНОВЛЕНО: Сортуємо для всіх, крім B-spline (для Catmull-Rom порядок кліків теж має значення) ***
+                const type = splineTypeSelect.value;
+                if (type === 'cubic' || type === 'quadratic') {
+                    sortedPoints.sort((a, b) => a.x - b.x);
+                }
+                // Для B-spline та Catmull-Rom сортування не потрібне, порядок введення важливий
+                
+                sortedPoints.forEach((point, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td><input type="number" step="0.1" class="point-input" data-index="${index}" data-coord="x" value="${point.x.toFixed(2)}"></td>
+                        <td><input type="number" step="0.1" class="point-input" data-index="${index}" data-coord="y" value="${point.y.toFixed(2)}"></td>
+                    `;
+                    pointsTableBody.appendChild(row);
+                });
+
+                document.querySelectorAll('.point-input').forEach(input => {
+                    input.addEventListener('change', updatePointsFromTable);
+                });
+            }
+
+            function updatePointsFromTable() {
+                const newPoints = [];
+                const rows = pointsTableBody.querySelectorAll('tr');
+                rows.forEach((row, index) => {
+                    const xInput = row.querySelector('input[data-coord="x"]');
+                    const yInput = row.querySelector('input[data-coord="y"]');
+                    const x = parseFloat(xInput.value);
+                    const y = parseFloat(yInput.value);
+                    if (!isNaN(x) && !isNaN(y)) {
+                        newPoints.push({ x, y });
+                    }
+                });
+                points = newPoints;
+                
+                mainDraw();
+            }
+
+            // === Головна функція (Обчислення та Рендеринг) ===
+
+            function mainDraw() {
+                const type = splineTypeSelect.value;
+                
+                // *** ОНОВЛЕНО: Сортування ***
+                if (type === 'cubic' || type === 'quadratic') {
+                    points.sort((a, b) => a.x - b.x);
+                }
+                
+                updateTableFromPoints();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawGrid();
+                drawPoints(); 
+
+                if (points.length < 2) {
+                    equationsList.innerHTML = '<p>Потрібно щонайменше 2 точки.</p>';
+                    return;
+                }
+
+                try {
+                    if (type === 'b_spline') {
+                        const bSplineDegree = 3; 
+                        if (points.length <= bSplineDegree) { 
+                            equationsList.innerHTML = `<p>B-сплайн (кубічний) потребує щонайменше ${bSplineDegree + 1} контрольні точки.</p>`;
+                            return;
+                        }
+                        const bSplineCurvePoints = calculateBSplinePoints(points, bSplineDegree, 100);
+                        drawParametricSpline(bSplineCurvePoints, '#007bff');
+                        displayEquationsBSpline(points, bSplineDegree);
+                    
+                    } else if (type === 'catmull_rom') {
+                        // *** ОНОВЛЕНО: Блок Catmull-Rom зі зчитуванням Alpha ***
+                        if (points.length < 2) { 
+                            equationsList.innerHTML = '<p>Сплайн Катмулла-Рома потребує щонайменше 2 точки.</p>';
+                            return;
+                        }
+                        // *** ЗЧИТУЄМО ALPHA ЗІ СЛАЙДЕРА ***
+                        const alpha = parseFloat(alphaSlider.value); 
+                        
+                        // *** ПЕРЕДАЄМО ALPHA В ОБЧИСЛЕННЯ ***
+                        const crCurvePoints = calculateCatmullRomSpline(points, 20, alpha); // 20 кроків на сегмент
+                        drawParametricSpline(crCurvePoints, '#28a745'); // Малюємо зеленим
+                        
+                        // *** ПЕРЕДАЄМО ALPHA У ВІДОБРАЖЕННЯ РІВНЯНЬ ***
+                        displayEquationsCatmullRom(points, alpha);
+
+                    } else {
+                        // (Cubic та Quadratic)
+                        let segments = [];
+                        if (type === 'cubic') {
+                            segments = calculateCubicSpline(points, boundaryCondSelect.value);
+                        } else {
+                            segments = calculateQuadraticSpline(points, boundaryCondSelect.value);
+                        }
+                        
+                        if (segments.length > 0) {
+                            drawSegmentedSpline(segments); 
+                            displayEquations(segments); 
+                        }
+                    }
+
+                } catch (error) {
+                    equationsList.innerHTML = `<p style="color: red;">Помилка обчислення: ${error.message}</p>`;
+                    return;
+                }
+            }
+
+            // === Функції рендерингу ===
+
+            function drawPoints() {
+                const type = splineTypeSelect.value;
+                
+                // *** ОНОВЛЕНО: Колір точок ***
+                if (type === 'b_spline') {
+                    ctx.fillStyle = '#aaa'; // Сірі "контрольні точки"
+                    ctx.strokeStyle = '#aaa';
+                    ctx.lineWidth = 1;
+                    
+                    // Малюємо "контрольний полігон"
+                    let first = true;
+                    ctx.beginPath();
+                    for (const point of points) {
+                        const { x: pixelX, y: pixelY } = worldToPixel(point.x, point.y);
+                        if (first) {
+                            ctx.moveTo(pixelX, pixelY);
+                            first = false;
+                        } else {
+                            ctx.lineTo(pixelX, pixelY);
+                        }
+                    }
+                    ctx.stroke();
+                    
+                } else {
+                    ctx.fillStyle = '#000'; // Чорні "вузли" (для Cubic, Quadratic, Catmull-Rom)
+                }
+                
+                for (const point of points) {
+                    const { x: pixelX, y: pixelY } = worldToPixel(point.x, point.y);
+                    
+                    if (pixelX > -5 && pixelX < canvas.width + 5 && pixelY > -5 && pixelY < canvas.height + 5) {
+                        ctx.beginPath();
+                        ctx.arc(pixelX, pixelY, POINT_RADIUS, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // *** (ПЕРЕЙМЕНОВАНО) Малює y=f(x) сплайни ***
+            function drawSegmentedSpline(segments) {
+                ctx.lineWidth = 2;
+                for (let i = 0; i < segments.length; i++) {
+                    const segment = segments[i];
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+                    const color = segmentColors[i % segmentColors.length];
+                    ctx.strokeStyle = color;
+                    
+                    const { x: startPixelX, y: startPixelY } = worldToPixel(p1.x, p1.y);
+                    ctx.beginPath();
+                    ctx.moveTo(startPixelX, startPixelY);
+
+                    const step = Math.max(1e-3, (p2.x - p1.x) / 100);
+                    
+                    for (let world_x = p1.x + step; world_x < p2.x; world_x += step) {
+                        const world_y = segment.eval(world_x);
+                        const { x: pixelX, y: pixelY } = worldToPixel(world_x, world_y);
+                        ctx.lineTo(pixelX, pixelY);
+                    }
+                    
+                    const { x: endPixelX, y: endPixelY } = worldToPixel(p2.x, p2.y);
+                    ctx.lineTo(endPixelX, endPixelY);
+                    ctx.stroke();
+                }
+            }
+            
+            // *** (ПЕРЕЙМЕНОВАНО) Малює параметричні (B-spline, Catmull-Rom) ***
+            function drawParametricSpline(curvePoints, color) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = color; 
+                
+                ctx.beginPath();
+                let first = true;
+                for(const point of curvePoints) {
+                    const { x: pixelX, y: pixelY } = worldToPixel(point.x, point.y);
+                    if (first) {
+                        ctx.moveTo(pixelX, pixelY);
+                        first = false;
+                    } else {
+                        ctx.lineTo(pixelX, pixelY);
+                    }
+                }
+                ctx.stroke();
+            }
+            
+            // --- Функції відображення рівнянь ---
+            
+            function displayEquations(segments) {
+                equationsList.innerHTML = '';
+                segments.forEach((seg, i) => {
+                    const color = segmentColors[i % segmentColors.length];
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+
+                    const eqDiv = document.createElement('div');
+                    eqDiv.style.borderLeft = `4px solid ${color}`;
+                    eqDiv.style.backgroundColor = `${color}1A`;
+                    
+                    const x_i_str = p1.x.toFixed(2);
+                    let eqnStr = `<b>S<sub>${i}</sub>(x) = </b>`;
+
+                    if (seg.type === 'cubic') {
+                        const { a, b, c, d } = seg.coeffs;
+                        const f = (val) => (val >= 0 ? ' + ' : ' - ') + Math.abs(val).toFixed(4);
+                        
+                        eqnStr += `${a.toFixed(4)}(x - ${x_i_str})³`;
+                        eqnStr += `${f(b)}(x - ${x_i_str})²`;
+                        eqnStr += `${f(c)}(x - ${x_i_str})`;
+                        eqnStr += `${f(d)}`;
+                    
+                    } else if (seg.type === 'quadratic') {
+                        const { a, b, c } = seg.coeffs;
+                        const f = (val) => (val >= 0 ? ' + ' : ' - ') + Math.abs(val).toFixed(4);
+
+                        eqnStr += `${a.toFixed(4)}(x - ${x_i_str})²`;
+                        eqnStr += `${f(b)}(x - ${x_i_str})`;
+                        eqnStr += `${f(c)}`;
+                    }
+                    
+                    eqDiv.innerHTML = `${eqnStr} &nbsp;&nbsp; <i>[для x від ${x_i_str} до ${p2.x.toFixed(2)}]</i>`;
+                    equationsList.appendChild(eqDiv);
+                });
+            }
+            
+			// *** ФУНКЦІЯ: Опис для B-Spline (без змін) ***
+            function displayEquationsBSpline(points) {
+                equationsList.innerHTML = '';
+                const n = points.length;
+                
+                const eqDiv = document.createElement('div');
+                eqDiv.style.borderLeft = `4px solid #007bff`; // Синій
+                eqDiv.style.backgroundColor = `#007bff1A`;
+                eqDiv.style.fontFamily = 'Arial, sans-serif';
+
+                eqDiv.innerHTML = `<b>B-Сплайн (Апроксимація)</b>
+                   <p class="mathjax-explanation">
+                   Це <b>апроксимуюча</b> (згладжуюча) крива. Вона не проходить через контрольні точки (окрім, можливо, кінцевих), а лише "приблизно" слідує за ними, формуючи гладкий шлях.
+                   </p>
+                   <p class="mathjax-explanation">
+                   Кожен кубічний сегмент $\\mathbf{S}_i(t)$ (де параметр $t \\in [0, 1]$) обчислюється, використовуючи 4 контрольні точки: $\\mathbf{P}_{i-1}, \\mathbf{P}_i, \\mathbf{P}_{i+1}, \\mathbf{P}_{i+2}$.
+                   </p>
+                   <p class="mathjax-explanation">
+                   Тут $\\mathbf{P}_i = (x_i, y_i)$ — це ваші контрольні точки (вектори). Рівняння сегмента:
+                   </p>
+                   $$ \\mathbf{S}_i(t) = N_0(t)\\mathbf{P}_{i-1} + N_1(t)\\mathbf{P}_i + N_2(t)\\mathbf{P}_{i+1} + N_3(t)\\mathbf{P}_{i+2} $$
+                   <p class="mathjax-explanation">
+                   $N_0...N_3$ — це "базисні функції" (або "функції змішування"). Для стандартного <i>кубічного рівномірного B-сплайна</i> вони виглядають так:
+                   </p>
+                   $$ N_0(t) = \\frac{1}{6}(1-t)^3 = \\frac{1}{6}(-t^3 + 3t^2 - 3t + 1) $$
+                   $$ N_1(t) = \\frac{1}{6}(3t^3 - 6t^2 + 4) $$
+                   $$ N_2(t) = \\frac{1}{6}(-3t^3 + 3t^2 + 3t + 1) $$
+                   $$ N_3(t) = \\frac{1}{6}(t^3) $$
+                   <p class="mathjax-explanation">
+                   Якщо згрупувати за степенями $t$, ми отримаємо ту ж поліноміальну форму $\\mathbf{S}_i(t) = \\mathbf{c}_0 + \\mathbf{c}_1 t + \\mathbf{c}_2 t^2 + \\mathbf{c}_3 t^3$:
+                   </p>
+                   $$ \\mathbf{c}_0 = \\frac{1}{6} (\\mathbf{P}_{i-1} + 4\\mathbf{P}_i + \\mathbf{P}_{i+1}) $$
+                   $$ \\mathbf{c}_1 = \\frac{1}{6} (-3\\mathbf{P}_{i-1} + 3\\mathbf{P}_{i+1}) $$
+                   $$ \\mathbf{c}_2 = \\frac{1}{6} (3\\mathbf{P}_{i-1} - 6\\mathbf{P}_i + 3\\mathbf{P}_{i+1}) $$
+                   $$ \\mathbf{c}_3 = \\frac{1}{6} (-\\mathbf{P}_{i-1} + 3\\mathbf{P}_i - 3\\mathbf{P}_{i+1} + \\mathbf{P}_{i+2}) $$`;
+                   
+                equationsList.appendChild(eqDiv);
+
+                if (window.MathJax) { MathJax.typesetPromise([eqDiv]); }
+            }
+            
+       // *** ОНОВЛЕНА ФУНКЦІЯ: Опис для Catmull-Rom (з Alpha) ***
+            function displayEquationsCatmullRom(points, alpha) {
+                 equationsList.innerHTML = '';
+                 const n = points.length;
+                 const alphaStr = alpha.toFixed(2);
+                 
+                 const eqDiv = document.createElement('div');
+                 eqDiv.style.borderLeft = `4px solid #28a745`; // Зелений
+                 eqDiv.style.backgroundColor = `#28a7451A`;
+                 eqDiv.style.fontFamily = 'Arial, sans-serif';
+                 
+                 eqDiv.innerHTML = `<b>Сплайн Катмулла-Рома (Інтерполяція)</b>
+                    <p class="mathjax-explanation">
+                    Це <b>інтерполююча</b> параметрична крива. Вона складається з кубічних сегментів $S_i(t)$, що "зшиті" з $C^1$ гладкістю (нахили збігаються у вузлах).
+                    </p>
+                    <p class="mathjax-explanation">
+                    Кожен сегмент $S_i(t)$ (що йде від $\\mathbf{P}_i$ до $\\mathbf{P}_{i+1}$) обчислюється, використовуючи 4 точки: $\\mathbf{P}_{i-1}, \\mathbf{P}_i, \\mathbf{P}_{i+1}, \\mathbf{P}_{i+2}$.
+                    </p>
+                    <p class="mathjax-explanation">
+                    Тут $\\mathbf{P}_i = (x_i, y_i)$ — це ваші точки (вектори). Рівняння сегмента, де $t \\in [0, 1]$:
+                    </p>
+                    $$ \\mathbf{S}_i(t) = \\mathbf{c}_0 + \\mathbf{c}_1 t + \\mathbf{c}_2 t^2 + \\mathbf{c}_3 t^3 $$
+                    <p class="mathjax-explanation">
+                    Де $\\alpha = ${alphaStr}$ (ваша "напруженість"). Коефіцієнти (вектори $\\mathbf{c}$) залежать від 4-х точок:
+                    </p>
+                    $$ \\mathbf{c}_0 = \\mathbf{P}_i $$
+                    $$ \\mathbf{c}_1 = \\alpha (\\mathbf{P}_{i+1} - \\mathbf{P}_{i-1}) $$
+                    $$ \\mathbf{c}_2 = (2\\alpha)\\mathbf{P}_{i-1} + (-3 + \\alpha)\\mathbf{P}_i + (3 - 2\\alpha)\\mathbf{P}_{i+1} - \\alpha\\mathbf{P}_{i+2} $$
+                    $$ \\mathbf{c}_3 = (-\\alpha)\\mathbf{P}_{i-1} + (2 - \\alpha)\\mathbf{P}_i + (-2 + \\alpha)\\mathbf{P}_{i+1} + \\alpha\\mathbf{P}_{i+2} $$
+                    <p class="mathjax-explanation" style="font-size: 0.9em; color: #555;">
+                    <i>(Стандартний Catmull-Rom $\\alpha=0.5$. $\\alpha=0$ - ослаблена (Tension=0). $\\alpha=1$ - "перетягнута" (Tension=1).)</i>
+                    </p>`;
+                 equationsList.appendChild(eqDiv);
+                 
+                 if (window.MathJax) { MathJax.typesetPromise([eqDiv]); }
+            }
+
+
+            // === Математика сплайнів ===
+            
+            // (solveTridiagonal, calculateCubicSpline, calculateQuadraticSpline залишаються без змін)
+
+            function solveTridiagonal(A, B, C, D) {
+                const n = B.length;
+                const C_prime = new Array(n).fill(0);
+                const D_prime = new Array(n).fill(0);
+                const X = new Array(n).fill(0);
+
+                C_prime[0] = C[0] / B[0];
+                D_prime[0] = D[0] / B[0];
+
+                for (let i = 1; i < n; i++) {
+                    const m = B[i] - A[i] * C_prime[i - 1];
+                    C_prime[i] = C[i] / m;
+                    D_prime[i] = (D[i] - A[i] * D_prime[i - 1]) / m;
+                }
+
+                X[n - 1] = D_prime[n - 1];
+                for (let i = n - 2; i >= 0; i--) {
+                    X[i] = D_prime[i] - C_prime[i] * X[i + 1];
+                }
+                return X;
+            }
+
+            function calculateCubicSpline(pts, boundaryCond) {
+                const n = pts.length;
+                if (n < 2) return [];
+
+                const h = new Array(n - 1);
+                const delta = new Array(n - 1);
+                for (let i = 0; i < n - 1; i++) {
+                    h[i] = pts[i + 1].x - pts[i].x;
+                    if (h[i] <= 0) {
+                        throw new Error("Точки мають бути унікальними та відсортованими по X.");
+                    }
+                    delta[i] = (pts[i + 1].y - pts[i].y) / h[i];
+                }
+
+                const A = new Array(n).fill(0);
+                const B = new Array(n).fill(0);
+                const C = new Array(n).fill(0);
+                const D = new Array(n).fill(0);
+
+                for (let i = 1; i < n - 1; i++) {
+                    A[i] = h[i - 1];
+                    B[i] = 2 * (h[i - 1] + h[i]);
+                    C[i] = h[i];
+                    D[i] = 6 * (delta[i] - delta[i - 1]);
+                }
+
+                if (boundaryCond === 'natural') {
+                    B[0] = 1; C[0] = 0; D[0] = 0;
+                    A[n - 1] = 0; B[n - 1] = 1; D[n - 1] = 0;
+                
+                } else if (boundaryCond === 'clamped') {
+                    const f_prime_0 = parseFloat(startSlope.value);
+                    const f_prime_n_1 = parseFloat(endSlope.value);
+                    
+                    B[0] = 2 * h[0];
+                    C[0] = h[0];
+                    D[0] = 6 * (delta[0] - f_prime_0);
+                    
+                    A[n - 1] = h[n - 2];
+                    B[n - 1] = 2 * h[n - 2];
+                    D[n - 1] = 6 * (f_prime_n_1 - delta[n - 2]);
+                }
+
+                const M = solveTridiagonal(A, B, C, D);
+                
+                const segments = [];
+                for (let i = 0; i < n - 1; i++) {
+                    const d = pts[i].y;
+                    const c = delta[i] - h[i] * (2 * M[i] + M[i + 1]) / 6;
+                    const b = M[i] / 2;
+                    const a = (M[i + 1] - M[i]) / (6 * h[i]);
+                    
+                    segments.push({
+                        type: 'cubic',
+                        coeffs: { a, b, c, d },
+                        xi: pts[i].x,
+                        eval: function(x) {
+                            const t = x - this.xi;
+                            return this.coeffs.a * t**3 + this.coeffs.b * t**2 + this.coeffs.c * t + this.coeffs.d;
+                        }
+                    });
+                }
+                return segments;
+            }
+            
+            function calculateQuadraticSpline(pts, boundaryCond) {
+                const n = pts.length;
+                if (n < 2) return [];
+
+                const h = new Array(n - 1);
+                const delta = new Array(n - 1);
+                for (let i = 0; i < n - 1; i++) {
+                    h[i] = pts[i + 1].x - pts[i].x;
+                    if (h[i] <= 0) {
+                        throw new Error("Точки мають бути унікальними та відсортованими по X.");
+                    }
+                    delta[i] = (pts[i + 1].y - pts[i].y) / h[i];
+                }
+                
+                const z = new Array(n); // z[i] = S'(x_i)
+
+                if (boundaryCond === 'start_zero') {
+                    z[0] = 0;
+                    for (let i = 0; i < n - 1; i++) {
+                        z[i+1] = 2 * delta[i] - z[i];
+                    }
+                } else { // 'end_zero'
+                    z[n - 1] = 0;
+                    for (let i = n - 2; i >= 0; i--) {
+                        z[i] = 2 * delta[i] - z[i + 1];
+                    }
+                }
+
+                const segments = [];
+                for (let i = 0; i < n - 1; i++) {
+                    const c = pts[i].y;
+                    const b = z[i];
+                    const a = (z[i+1] - z[i]) / (2 * h[i]); 
+                    
+                    segments.push({
+                        type: 'quadratic',
+                        coeffs: { a, b, c },
+                        xi: pts[i].x,
+                        eval: function(x) {
+                            const t = x - this.xi;
+                            return this.coeffs.a * t**2 + this.coeffs.b * t + this.coeffs.c;
+                        }
+                    });
+                }
+                return segments;
+            }
+
+            // --- B-Spline Mатематика (без змін) ---
+            
+            function coxDeBoor(i, p, t, U, n, maxT) {
+                if (p === 0) {
+                    if (t === maxT && i === n - 1) {
+                        return (U[i] <= t && t <= U[i + 1]) ? 1 : 0;
+                    }
+                    return (U[i] <= t && t < U[i + 1]) ? 1 : 0;
+                }
+                
+                let term1 = 0;
+                if (U[i + p] - U[i] > 1e-9) { 
+                    term1 = ((t - U[i]) / (U[i + p] - U[i])) * coxDeBoor(i, p - 1, t, U, n, maxT);
+                }
+                
+                let term2 = 0;
+                if (U[i + p + 1] - U[i + 1] > 1e-9) { 
+                    term2 = ((U[i + p + 1] - t) / (U[i + p + 1] - U[i + 1])) * coxDeBoor(i + 1, p - 1, t, U, n, maxT);
+                }
+                
+                return term1 + term2;
+            }
+
+            function calculateBSplinePoints(P, p, numSteps) {
+                const n = P.length; 
+                if (n <= p) {
+                    throw new Error("Кількість точок має бути більшою за степінь сплайна.");
+                }
+                
+                const m = n + p + 1;
+                const U = new Array(m);
+                
+                for (let i = 0; i <= p; i++) { U[i] = 0; }
+                for (let i = 1; i < n - p; i++) { U[p + i] = i; }
+                for (let i = 0; i <= p; i++) { U[n + i] = n - p; }
+                
+                const maxT = n - p; 
+                const curvePoints = [];
+                
+                for (let step = 0; step <= numSteps; step++) {
+                    let t = (step / numSteps) * maxT;
+                    
+                    if (t > maxT) t = maxT; 
+                    if (step === numSteps) t = maxT; 
+                    
+                    let x = 0;
+                    let y = 0;
+                    
+                    for (let i = 0; i < n; i++) {
+                        const basis = coxDeBoor(i, p, t, U, n, maxT);
+                        x += P[i].x * basis;
+                        y += P[i].y * basis;
+                    }
+                    curvePoints.push({ x: x, y: y });
+                }
+                
+                return curvePoints;
+            }
+            
+            // --- *** ОНОВЛЕНА МАТЕМАТИКА: Catmull-Rom з Alpha *** ---
+            
+            // *** Функція тепер приймає 'alpha' ***
+            function calculateCatmullRomSpline(pts, stepsPerSegment, alpha) {
+                const n = pts.length;
+                if (n < 2) return [];
+
+                const curvePoints = [];
+                // Додаємо першу точку, оскільки цикл починається з t=0
+                curvePoints.push(pts[0]); 
+
+                for (let i = 0; i < n - 1; i++) {
+                    // Визначаємо 4 контрольні точки P_{i-1}, P_i, P_{i+1}, P_{i+2}
+                    // Використовуємо "phantom points" (просто дублюємо кінцеві) для країв
+                    const p0 = (i === 0) ? pts[0] : pts[i - 1];
+                    const p1 = pts[i];
+                    const p2 = pts[i + 1];
+                    const p3 = (i === n - 2) ? pts[n - 1] : pts[i + 2];
+                    
+                    // Цикл для параметра t від 0 до 1 (ми пропускаємо t=0, бо вже додали P_i)
+                    for (let j = 1; j <= stepsPerSegment; j++) {
+                        const t = j / stepsPerSegment;
+                        const t2 = t * t;
+                        const t3 = t2 * t;
+
+                        // *** Загальна формула Catmull-Rom з 'alpha' ***
+                        const c0x = p1.x;
+                        const c1x = alpha * (-p0.x + p2.x);
+                        const c2x = (2 * alpha) * p0.x + (-3 + alpha) * p1.x + (3 - 2 * alpha) * p2.x + (-alpha) * p3.x;
+                        const c3x = (-alpha) * p0.x + (2 - alpha) * p1.x + (-2 + alpha) * p2.x + (alpha) * p3.x;
+                        const x = c0x + c1x * t + c2x * t2 + c3x * t3;
+
+                        const c0y = p1.y;
+                        const c1y = alpha * (-p0.y + p2.y);
+                        const c2y = (2 * alpha) * p0.y + (-3 + alpha) * p1.y + (3 - 2 * alpha) * p2.y + (-alpha) * p3.y;
+                        const c3y = (-alpha) * p0.y + (2 - alpha) * p1.y + (-2 + alpha) * p2.y + (alpha) * p3.y;
+                        const y = c0y + c1y * t + c2y * t2 + c3y * t3;
+                        
+                        curvePoints.push({ x, y });
+                    }
+                }
+                return curvePoints;
+            }
+
+
+            // === Перший запуск ===
+            updateInputsFromView(); 
+            updateBoundaryOptions(); 
+        });
+    </script>
+
+</body>
+</html>

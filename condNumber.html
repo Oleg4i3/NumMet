@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Число обумовленості СЛАР - Демонстрація</title>
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']]
+          }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #4a5568; margin-bottom: 30px; font-size: 2.2em; }
+        .system-display { background: #f7fafc; padding: 20px; border-radius: 10px; margin: 20px 0; font-family: 'Courier New', monospace; font-size: 1.1em; border-left: 4px solid #4299e1; }
+        .matrix-input-section { background: #edf2f7; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #cbd5e0; }
+        .matrix-input-section h3 { color: #2d3748; margin-top: 0; text-align: center; }
+        .matrix-inputs { display: flex; gap: 40px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+        .matrix-section { display: flex; flex-direction: column; align-items: center; }
+        .matrix-label { font-weight: bold; color: #2d3748; margin-bottom: 10px; font-size: 1.2em; }
+        .matrix-grid { display: grid; gap: 8px; background: #f7fafc; padding: 15px; border-radius: 8px; border: 2px solid #e2e8f0; }
+        .matrix-cell input {
+            width: 80px;
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 1em;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            background: white;
+            transition: all 0.2s;
+        }
+        /* Style for perturbation inputs */
+        #matrixDeltaA_inputs .matrix-cell input,
+        #vectorDeltaB_inputs .matrix-cell input {
+            width: 95px; /* Increased width */
+            font-size: 0.9em; /* Slightly smaller font */
+        }
+        .matrix-cell input:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 1px #4299e1; }
+        button { background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 0.9em; cursor: pointer; transition: all 0.2s; margin: 5px 3px; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3); }
+        .button-group { text-align: center; margin: 20px 0; flex-wrap: wrap; display: flex; justify-content: center; }
+        .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .result-card { background: white; border: 2px solid #e2e8f0; border-radius: 10px; padding: 20px; transition: all 0.2s; }
+        .result-card:hover { border-color: #4299e1; box-shadow: 0 5px 15px rgba(66, 153, 225, 0.1); }
+        .result-card h3 { margin-top: 0; color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .highlight-error { background: #fed7d7; color: #c53030; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .highlight-solution { background: #c6f6d5; color: #22543d; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .math { font-family: 'Times New Roman', serif; font-size: 1.1em; }
+        .condition-number { background: #fef5e7; color: #744210; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ed8936; font-weight: bold; }
+        .warning { background: #fed7d7; color: #c53030; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #e53e3e; }
+        .spoiler { margin: 30px 0; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .spoiler summary { padding: 15px; font-weight: bold; cursor: pointer; color: #2d3748; font-size: 1.1em; outline: none; }
+        .spoiler .formulas { padding: 0 20px 20px 20px; border-top: 1px solid #e2e8f0; }
+        #settings-selector { background: #e2e8f0; padding: 15px 20px; border-radius: 10px; margin: 20px 0; text-align: center; }
+        #settings-selector h4 { margin-top: 0; margin-bottom: 10px; color: #2d3748; }
+        #settings-selector label { margin: 0 15px; cursor: pointer; }
+        .norm-info { font-size: 0.9em; color: #4a5568; margin-top: 5px; }
+        .debug-info { background: #e6fffa; border: 1px solid #81e6d9; border-radius: 5px; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 0.9em; word-break: break-all;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Демонстрація числа обумовленості СЛАР</h1>
+        
+        <div id="settings-selector">
+            <h4>Розмір системи:</h4>
+            <label><input type="radio" name="matrixSize" value="2" class="recalc-trigger-radio"> 2x2</label>
+            <label><input type="radio" name="matrixSize" value="3" checked class="recalc-trigger-radio"> 3x3</label>
+        </div>
+
+        <div class="matrix-input-section" id="matrixA_section">
+            <h3>Налаштування системи рівнянь Ax = b</h3>
+            <div class="matrix-inputs">
+                <div class="matrix-section">
+                    <div class="matrix-label">Матриця A</div>
+                    <div class="matrix-grid" id="matrixA_inputs"></div>
+                </div>
+                <div class="matrix-section">
+                    <div class="matrix-label">Вектор b</div>
+                    <div class="matrix-grid" id="vectorB_inputs"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-selector">
+            <h4>Тип норми для обчислення:</h4>
+            <label><input type="radio" name="normType" value="frobenius" checked class="recalc-trigger-radio"> Норма Фробеніуса</label>
+            <label><input type="radio" name="normType" value="spectral" class="recalc-trigger-radio"> Спектральна норма</label>
+            <div class="norm-info" id="normInfo"></div>
+        </div>
+        
+        <div class="system-display" id="systemDisplay"></div>
+        <div class="condition-number" id="conditionNumber"></div>
+        <div id="warningDiv" class="warning" style="display: none;"></div>
+        
+        <div class="matrix-input-section">
+            <h3>Налаштування збурень (похибок) ΔA та Δb</h3>
+             <div class="matrix-inputs">
+                <div class="matrix-section">
+                    <div class="matrix-label">Матриця ΔA</div>
+                    <div class="matrix-grid" id="matrixDeltaA_inputs"></div>
+                </div>
+                <div class="matrix-section">
+                    <div class="matrix-label">Вектор Δb</div>
+                    <div class="matrix-grid" id="vectorDeltaB_inputs"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="resetAll()">Скинути похибки</button>
+            <button onclick="demoSmallPerturbations()">Малі збурення</button>
+            <button onclick="demoLargePerturbations()">Великі збурення</button>
+            <button onclick="demoWellConditioned()">Генерувати добре обумовлену</button>
+            <button onclick="demoPoorlyConditioned()">Генерувати погано обумовлену</button>
+        </div>
+        
+        <div class="results" id="results"></div>
+        <div class="debug-info" id="debugInfo"></div>
+
+        <div class="spoiler">
+            <details>
+                <summary>Теоретичні відомості</summary>
+                <div class="formulas">
+                    <h4>Норми та число обумовленості</h4>
+                     <p><strong>Число обумовленості матриці A:</strong>$$ \text{cond}(A) = \|A\| \cdot \|A^{-1}\| $$Велике значення `cond(A)` вказує на погану обумовленість.</p>
+                    <p><strong>Теоретична оцінка відносної похибки:</strong>$$ \frac{\|\Delta x\|}{\|x\|} \le \text{cond}(A) \left( \frac{\|\Delta A\|}{\|A\|} + \frac{\|\Delta b\|}{\|b\|} \right) $$</p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE ---
+        let currentNormType = 'frobenius';
+        let currentMatrixSize = 3;
+        let currentConditionNumber = 0;
+        
+        const initialSystems = {
+            2: { A: [[3, -3], [3, 3.2]], b: [16, 5] },
+            3: { A: [[4, -2, 1], [1, 6, -3], [1, -1, 8]], b: [15, 1, 13] }
+        };
+
+        // --- UI BUILDER ---
+        function buildMatrixUI(size) {
+            currentMatrixSize = parseInt(size, 10);
+            
+            const matrixA_grid = document.getElementById('matrixA_inputs');
+            const vectorB_grid = document.getElementById('vectorB_inputs');
+            const matrixDeltaA_grid = document.getElementById('matrixDeltaA_inputs');
+            const vectorDeltaB_grid = document.getElementById('vectorDeltaB_inputs');
+            
+            [matrixA_grid, vectorB_grid, matrixDeltaA_grid, vectorDeltaB_grid].forEach(el => el.innerHTML = '');
+
+            matrixA_grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            matrixDeltaA_grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+            for (let i = 1; i <= size; i++) {
+                // Vector b and deltaB
+                vectorB_grid.innerHTML += `<div class="matrix-cell"><input type="number" id="b${i}" value="0" step="any" class="recalc-trigger"></div>`;
+                vectorDeltaB_grid.innerHTML += `<div class="matrix-cell"><input type="number" id="deltaB${i}" value="0" step="any" class="recalc-trigger"></div>`;
+                for (let j = 1; j <= size; j++) {
+                    // Matrix A and deltaA
+                    matrixA_grid.innerHTML += `<div class="matrix-cell"><input type="number" id="a${i}${j}" value="0" step="any" class="recalc-trigger"></div>`;
+                    matrixDeltaA_grid.innerHTML += `<div class="matrix-cell"><input type="number" id="deltaA${i}${j}" value="0" step="any" class="recalc-trigger"></div>`;
+                }
+            }
+            
+            // Set initial values
+            setSystemValues(initialSystems[size]);
+            
+            // Re-add event listeners to new inputs
+            document.querySelectorAll('.recalc-trigger').forEach(el => el.addEventListener('input', performCalculations));
+            
+            performCalculations();
+        }
+
+        // --- MASTER CALCULATION AND DISPLAY FUNCTION ---
+        function performCalculations() {
+            // 1. Read all inputs based on size
+            const size = currentMatrixSize;
+            const system = { A: [], b: [] };
+            const deltas = { A: [], b: [] };
+
+            for (let i = 0; i < size; i++) {
+                system.A[i] = [];
+                deltas.A[i] = [];
+                system.b.push(parseFloat(document.getElementById(`b${i+1}`).value));
+                deltas.b.push(parseFloat(document.getElementById(`deltaB${i+1}`).value));
+                for (let j = 0; j < size; j++) {
+                    system.A[i].push(parseFloat(document.getElementById(`a${i+1}${j+1}`).value));
+                    deltas.A[i].push(parseFloat(document.getElementById(`deltaA${i+1}${j+1}`).value));
+                }
+            }
+            
+            currentNormType = document.querySelector('input[name="normType"]:checked').value;
+            document.getElementById('normInfo').textContent = currentNormType === 'spectral' 
+                ? 'Спектральна норма: теоретично точніша' 
+                : 'Норма Фробеніуса: обчислювально простіша';
+
+            // 2. Perform calculations
+            const A_pert = system.A.map((row, i) => row.map((val, j) => val + deltas.A[i][j]));
+            const b_pert = system.b.map((val, i) => val + deltas.b[i]);
+            
+            const x_exact = solveSystem(system.A, system.b);
+            const x_pert = solveSystem(A_pert, b_pert);
+            
+            const A_inv = calculateInverse(system.A);
+            const frobNormA = calculateFrobeniusNorm(system.A);
+            const frobNormAInv = calculateFrobeniusNorm(A_inv);
+            const specNormA = calculateSpectralNorm(system.A);
+            const specNormAInv = calculateSpectralNorm(A_inv);
+            
+            currentConditionNumber = currentNormType === 'spectral' 
+                ? specNormA * specNormAInv 
+                : frobNormA * frobNormAInv;
+            
+            const detA = calculateDeterminant(system.A);
+
+            // 3. Update all display elements
+            let systemString = '<strong>Поточна система:</strong><br>';
+            for(let i=0; i<size; i++) {
+                for(let j=0; j<size; j++) {
+                    systemString += `${system.A[i][j]}x${j+1} ${j < size-1 ? '+ ' : ''}`;
+                }
+                systemString += `= ${system.b[i]}<br>`;
+            }
+            document.getElementById('systemDisplay').innerHTML = systemString.replace(/\+ -/g, '- ');
+            
+            document.getElementById('debugInfo').innerHTML = `
+                <strong>Детальна інформація про норми:</strong><br>
+                Норма Фробеніуса: ‖A‖ = ${frobNormA.toPrecision(5)}, ‖A⁻¹‖ = ${frobNormAInv.toPrecision(5)}, cond(A) = ${(frobNormA * frobNormAInv).toPrecision(5)}<br>
+                Спектральна норма: ‖A‖₂ = ${specNormA.toPrecision(5)}, ‖A⁻¹‖₂ = ${specNormAInv.toPrecision(5)}, cond₂(A) = ${(specNormA * specNormAInv).toPrecision(5)}<br>
+                Визначник: det(A) = ${detA.toExponential(6)}
+            `;
+            
+             const normName = currentNormType === 'spectral' ? 'за спектральною нормою' : 'за нормою Фробеніуса';
+            if (!isFinite(currentConditionNumber) || Math.abs(detA) < 1e-15) {
+                document.getElementById('conditionNumber').innerHTML = `Число обумовленості (${normName}): ∞ (вироджена система)`;
+                document.getElementById('warningDiv').style.display = 'block';
+                document.getElementById('warningDiv').textContent = 'Увага: Система є виродженою! Розв\'язок не існує або не єдиний.';
+            } else {
+                const condNumFormatted = Math.round(currentConditionNumber).toLocaleString('uk-UA');
+                document.getElementById('conditionNumber').innerHTML = `Число обумовленості (${normName}): ~${condNumFormatted}`;
+                document.getElementById('warningDiv').style.display = currentConditionNumber > 1000 ? 'block' : 'none';
+                document.getElementById('warningDiv').textContent = 'Увага: Система близька до виродженої! Результати можуть бути ненадійними.';
+            }
+            
+            if (x_exact.some(val => !isFinite(val)) || x_pert.some(val => !isFinite(val))) {
+                document.getElementById('results').innerHTML = `<div class="result-card"><h3>Помилка обчислення</h3><div class="math">Система є виродженою або близькою до виродженої.</div></div>`;
+                return;
+            }
+
+            const error_x = x_pert.map((val, i) => val - x_exact[i]);
+            const norm_x_exact = Math.sqrt(x_exact.reduce((sum, val) => sum + val**2, 0));
+            const relative_error_x = norm_x_exact > 1e-9 ? Math.sqrt(error_x.reduce((sum, val) => sum + val**2, 0)) / norm_x_exact : 0;
+            const rel_error_xi = error_x.map((err, i) => Math.abs(x_exact[i]) > 1e-9 ? Math.abs(err) / Math.abs(x_exact[i]) : 0);
+            
+            const norm_A_orig = currentNormType === 'spectral' ? specNormA : frobNormA;
+            const norm_delta_A = currentNormType === 'spectral' ? calculateSpectralNorm(deltas.A) : calculateFrobeniusNorm(deltas.A);
+            const relative_error_A = norm_A_orig > 1e-9 ? norm_delta_A / norm_A_orig : 0;
+            
+            const norm_b_orig = Math.sqrt(system.b.reduce((sum, val) => sum + val**2, 0));
+            const norm_delta_b = Math.sqrt(deltas.b.reduce((sum, val) => sum + val**2, 0));
+            const relative_error_b = norm_b_orig > 1e-9 ? norm_delta_b / norm_b_orig : 0;
+            
+            displayResults(x_exact, x_pert, error_x, relative_error_x, rel_error_xi, relative_error_A, relative_error_b);
+        }
+        
+        function displayResults(x_exact, x_pert, error_x, rel_err_x, rel_err_xi, rel_err_A, rel_err_b) {
+            const size = currentMatrixSize;
+            const normTypeName = currentNormType === 'spectral' ? 'Спектральна' : 'Фробеніуса';
+            const total_input_error = rel_err_A + rel_err_b;
+            const amplification = total_input_error > 1e-15 ? rel_err_x / total_input_error : 0;
+            const theoretical_bound = currentConditionNumber * total_input_error;
+            const condNumFormatted = isFinite(currentConditionNumber) ? Math.round(currentConditionNumber).toLocaleString('uk-UA') : '∞';
+            
+            let exact_str = '', pert_str = '', error_str = '';
+            for(let i=0; i<size; i++) {
+                exact_str += `x${i+1} = <span class="highlight-solution">${x_exact[i].toPrecision(7)}</span><br>`;
+                pert_str += `x${i+1} = <span class="highlight-solution">${x_pert[i].toPrecision(7)}</span><br>`;
+                error_str += `Δx${i+1} = <span class="highlight-error">${error_x[i].toPrecision(4)}</span> (відн: <span class="${rel_err_xi[i] > 0.1 ? 'highlight-error' : ''}">${(rel_err_xi[i]*100).toPrecision(4)}%</span>)<br>`;
+            }
+             error_str += `<hr style="margin: 10px 0;">||Δx||/||x|| = <span class="highlight-error">${(rel_err_x*100).toPrecision(4)}%</span>`;
+
+            let amplificationText;
+            if (!isFinite(amplification)) {
+                amplificationText = '∞';
+            } else if (amplification < 1) {
+                 amplificationText = 'не перевищив одиницю';
+            } else {
+                 amplificationText = `<span class="highlight-error" style="font-size: 1.5em; display: block; text-align: center; margin: 10px 0;">${Math.round(amplification).toLocaleString('uk-UA')}</span>`;
+            }
+            
+            document.getElementById('results').innerHTML = `
+                <div class="result-card"><h3>Початковий розв'язок</h3><div class="math">${exact_str}</div></div>
+                <div class="result-card"><h3>Збурений розв'язок</h3><div class="math">${pert_str}</div></div>
+                <div class="result-card"><h3>Абсолютні та відносні похибки</h3><div class="math">${error_str}</div></div>
+                <div class="result-card"><h3>Вхідні похибки (${normTypeName} норма)</h3><div class="math">||ΔA||/||A|| = <span class="highlight-error">${(rel_err_A*100).toPrecision(6)}%</span><br>||Δb||/||b|| = <span class="highlight-error">${(rel_err_b*100).toPrecision(6)}%</span><br>Сумарна = <span class="highlight-error">${(total_input_error*100).toPrecision(6)}%</span></div></div>
+                <div class="result-card"><h3 id="cond-card-title">Аналіз обумовленості</h3><div class="math">cond(A) ≈ <span class="highlight-error">${condNumFormatted}</span><br><br><strong>Теоретична межа похибки:</strong><br>||Δx||/||x|| ≤ <span class="highlight-error">${isFinite(theoretical_bound) ? (theoretical_bound*100).toFixed(2) : '∞'}%</span></div></div>
+                <div class="result-card"><h3>Підсилення похибки</h3><div class="math">Коефіцієнт підсилення склав:<br>${amplificationText}Це значення не повинно перевищувати cond(A) = ${condNumFormatted}.</div></div>
+            `;
+        }
+
+        // --- MATH HELPERS ---
+        // These functions now need to handle variable sizes, but for 2x2 and 3x3 we can use simple logic.
+        
+        function solveSystem(A, b) {
+            const det = calculateDeterminant(A);
+            if (Math.abs(det) < 1e-15) return Array(currentMatrixSize).fill(Infinity);
+            if (currentMatrixSize === 2) {
+                return [ (b[0] * A[1][1] - b[1] * A[0][1]) / det, (A[0][0] * b[1] - A[1][0] * b[0]) / det ];
+            }
+            if (currentMatrixSize === 3) {
+                const A1 = [ [b[0], A[0][1], A[0][2]], [b[1], A[1][1], A[1][2]], [b[2], A[2][1], A[2][2]] ];
+                const A2 = [ [A[0][0], b[0], A[0][2]], [A[1][0], b[1], A[1][2]], [A[2][0], b[2], A[2][2]] ];
+                const A3 = [ [A[0][0], A[0][1], b[0]], [A[1][0], A[1][1], b[1]], [A[2][0], A[2][1], b[2]] ];
+                return [ calculateDeterminant(A1) / det, calculateDeterminant(A2) / det, calculateDeterminant(A3) / det ];
+            }
+        }
+
+        function calculateDeterminant(A) {
+            if (currentMatrixSize === 2) {
+                return A[0][0] * A[1][1] - A[0][1] * A[1][0];
+            }
+            if (currentMatrixSize === 3) {
+                 return A[0][0]*(A[1][1]*A[2][2] - A[2][1]*A[1][2]) - A[0][1]*(A[1][0]*A[2][2] - A[1][2]*A[2][0]) + A[0][2]*(A[1][0]*A[2][1] - A[1][1]*A[2][0]);
+            }
+        }
+        
+        function calculateInverse(A) {
+            const det = calculateDeterminant(A);
+            if (Math.abs(det) < 1e-15) return Array(currentMatrixSize).fill(Array(currentMatrixSize).fill(Infinity));
+             if (currentMatrixSize === 2) {
+                return [ [A[1][1]/det, -A[0][1]/det], [-A[1][0]/det, A[0][0]/det] ];
+             }
+             if (currentMatrixSize === 3) {
+                 const A_inv = [[0,0,0],[0,0,0],[0,0,0]];
+                 A_inv[0][0] = (A[1][1] * A[2][2] - A[1][2] * A[2][1]) / det;
+                 A_inv[0][1] = (A[0][2] * A[2][1] - A[0][1] * A[2][2]) / det;
+                 A_inv[0][2] = (A[0][1] * A[1][2] - A[0][2] * A[1][1]) / det;
+                 A_inv[1][0] = (A[1][2] * A[2][0] - A[1][0] * A[2][2]) / det;
+                 A_inv[1][1] = (A[0][0] * A[2][2] - A[0][2] * A[2][0]) / det;
+                 A_inv[1][2] = (A[1][0] * A[0][2] - A[0][0] * A[1][2]) / det;
+                 A_inv[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1]) / det;
+                 A_inv[2][1] = (A[2][0] * A[0][1] - A[0][0] * A[2][1]) / det;
+                 A_inv[2][2] = (A[0][0] * A[1][1] - A[1][0] * A[0][1]) / det;
+                 return A_inv;
+             }
+        }
+
+        function calculateFrobeniusNorm(A) {
+            let sum_sq = 0;
+            for(let i=0; i<currentMatrixSize; i++) {
+                for(let j=0; j<currentMatrixSize; j++) {
+                     sum_sq += A[i][j]**2;
+                }
+            }
+            return Math.sqrt(sum_sq);
+        }
+
+        function calculateSpectralNorm(A) { // Power iteration method
+            const size = currentMatrixSize;
+            const At = Array(size).fill(0).map(() => Array(size).fill(0));
+            for(let i=0; i<size; i++) for(let j=0; j<size; j++) At[j][i] = A[i][j];
+            
+            const AtA = Array(size).fill(0).map(() => Array(size).fill(0));
+            for(let i=0; i<size; i++) for(let j=0; j<size; j++) for(let k=0; k<size; k++) AtA[i][j] += At[i][k] * A[k][j];
+            
+            let b_k = Array(size).fill(0).map(() => Math.random());
+            let b_k_norm = Math.sqrt(b_k.reduce((sum, val) => sum + val**2, 0));
+            b_k = b_k.map(val => val / b_k_norm);
+            
+            let lambda_new = 0, lambda_old = -1;
+            for(let iter=0; iter<30; iter++) {
+                 const Ab_k = Array(size).fill(0);
+                 for(let i=0; i<size; i++) for(let j=0; j<size; j++) Ab_k[i] += AtA[i][j] * b_k[j];
+                 
+                 b_k_norm = Math.sqrt(Ab_k.reduce((sum, val) => sum + val**2, 0));
+                 b_k = Ab_k.map(val => val / b_k_norm);
+                 
+                 lambda_new = b_k_norm;
+                 if (Math.abs(lambda_new - lambda_old) / lambda_new < 1e-9) break;
+                 lambda_old = lambda_new;
+            }
+            return Math.sqrt(Math.max(0, lambda_new));
+        }
+        
+        // --- UI CONTROLS ---
+        function setSystemValues(sys) {
+            for (let i = 0; i < currentMatrixSize; i++) {
+                document.getElementById(`b${i+1}`).value = sys.b[i];
+                for (let j = 0; j < currentMatrixSize; j++) {
+                    document.getElementById(`a${i+1}${j+1}`).value = sys.A[i][j];
+                }
+            }
+        }
+
+        function applyRandomPerturbations(mag, precision = 8) {
+            for (let i = 1; i <= currentMatrixSize; i++) {
+                document.getElementById(`deltaB${i}`).value = ((Math.random()-0.5)*2*mag).toFixed(precision);
+                for (let j = 1; j <= currentMatrixSize; j++) {
+                    document.getElementById(`deltaA${i}${j}`).value = ((Math.random()-0.5)*2*mag).toFixed(precision);
+                }
+            }
+        }
+        
+        function resetAll() {
+            applyRandomPerturbations(0, 1);
+            performCalculations();
+        }
+
+        function generateWellConditionedSystem() {
+            const size = currentMatrixSize;
+            let A, condNum, det;
+            do {
+                A = Array(size).fill(0).map(() => Array(size).fill(0));
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) A[i][j] = Math.floor(Math.random()*11) - 5;
+                    A[i][i] += 15 * (Math.random() > 0.5 ? 1 : -1);
+                }
+                det = calculateDeterminant(A);
+                if (Math.abs(det) < 1) continue;
+                const A_inv = calculateInverse(A);
+                condNum = calculateFrobeniusNorm(A) * calculateFrobeniusNorm(A_inv);
+            } while (!isFinite(condNum) || condNum > 100);
+            
+            const b = Array(size).fill(0).map(() => Math.floor(Math.random()*21)-10);
+            return { A, b };
+        }
+
+        function generateIllConditionedSystem() {
+            const size = currentMatrixSize;
+            let A, b, condNum;
+
+            if (size === 2) {
+                do {
+                    const row1 = [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20];
+                    const k = 1 + (Math.random() - 0.5) * 0.001;
+                    const error1 = (Math.random() - 0.5) * 0.001;
+                    const error2 = (Math.random() - 0.5) * 0.001;
+                    A = [ row1, [row1[0] * k + error1, row1[1] * k + error2] ];
+                    
+                    const A_inv = calculateInverse(A);
+                    if (A_inv.some(row => row.some(val => !isFinite(val)))) continue;
+                    condNum = calculateFrobeniusNorm(A) * calculateFrobeniusNorm(A_inv);
+                } while (!isFinite(condNum) || condNum < 5000);
+                
+                A = A.map(row => row.map(val => parseFloat(val.toFixed(2))));
+                b = Array(size).fill(0).map(() => parseFloat((Math.random() * 10).toFixed(2)));
+                return { A, b };
+            }
+            
+            // Logic for 3x3 and larger
+            do {
+                 A = Array(size).fill(0).map(() => Array(size).fill(0).map(() => parseFloat(((Math.random()-0.5)*20).toFixed(2))));
+                 const error = () => (Math.random()-0.5)*0.001;
+                 
+                 for(let j=0; j<size; j++) {
+                     let sum = 0;
+                     for(let i=0; i<size-1; i++) sum += A[i][j];
+                     A[size-1][j] = parseFloat((sum/(size-1) + error()).toFixed(2));
+                 }
+
+                const A_inv = calculateInverse(A);
+                if (A_inv.some(row => row.some(val => !isFinite(val)))) continue;
+                condNum = calculateFrobeniusNorm(A) * calculateFrobeniusNorm(A_inv);
+            } while (!isFinite(condNum) || condNum < 5000);
+            
+            b = Array(size).fill(0).map(() => parseFloat((Math.random()*10).toFixed(2)));
+            return { A, b };
+        }
+
+        function demoSmallPerturbations() { applyRandomPerturbations(0.00001, 8); performCalculations(); }
+        function demoLargePerturbations() { applyRandomPerturbations(0.01, 6); performCalculations(); }
+        function demoWellConditioned() { setSystemValues(generateWellConditionedSystem()); resetAll(); }
+        function demoPoorlyConditioned() { setSystemValues(generateIllConditionedSystem()); resetAll(); }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('input[name="matrixSize"]').forEach(el => el.addEventListener('change', (e) => buildMatrixUI(e.target.value)));
+            document.querySelectorAll('input[name="normType"]').forEach(el => el.addEventListener('change', performCalculations));
+            
+            // Initial UI build
+            const initialSize = document.querySelector('input[name="matrixSize"]:checked').value;
+            buildMatrixUI(initialSize);
+        });
+    </script>
+</body>
+</html>

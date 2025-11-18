@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Детальний аналіз матриці 2x2 та 3x3</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h4 {
+            border-bottom: 1px solid #aed6f1;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .matrix-input-container {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .matrix-input-container.size-2 { grid-template-columns: repeat(2, 60px); }
+        .matrix-input-container.size-3 { grid-template-columns: repeat(3, 60px); }
+
+        .matrix-input-container input {
+            width: 100%;
+            height: 40px;
+            text-align: center;
+            font-size: 1.1em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button, select {
+            padding: 10px 15px;
+            font-size: 1em;
+            color: #fff;
+            background-color: #3498db;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        button:hover, select:hover {
+            background-color: #2980b9;
+        }
+        .results-section {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+        mjx-container {
+            margin: 0 2px;
+            display: inline-block;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        details {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        summary {
+            font-weight: bold;
+            cursor: pointer;
+            color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Інтерактивний аналіз матриці</h1>
+    <p>Введіть елементи матриці \(A\), оберіть її розмір та натисніть "Обчислити", щоб побачити повний аналіз.</p>
+
+    <div class="controls">
+        <div>
+            <label for="matrixSize">Розмір матриці: </label>
+            <select id="matrixSize">
+                <option value="3">3x3</option>
+                <option value="2">2x2</option>
+            </select>
+        </div>
+        <button onclick="generateRandomMatrix(true)">Генерувати випадкову симетричну</button>
+        <button onclick="generateRandomMatrix(false)">Генерувати випадкову несиметричну</button>
+    </div>
+
+    <h3>Введіть матрицю A:</h3>
+    <div id="matrix-input-container" class="matrix-input-container">
+        </div>
+    <button onclick="calculateAll()">Обчислити</button>
+
+    <div id="results">
+        </div>
+</div>
+
+<script>
+    // --- ГЛОБАЛЬНІ НАЛАШТУВАННЯ ТА ІНІЦІАЛІЗАЦІЯ ---
+
+    const matrixSizeSelector = document.getElementById('matrixSize');
+    const matrixInputContainer = document.getElementById('matrix-input-container');
+
+    matrixSizeSelector.addEventListener('change', (e) => {
+        createMatrixInputs(parseInt(e.target.value));
+    });
+    
+    // --- ФУНКЦІЇ ДЛЯ УПРАВЛІННЯ ІНТЕРФЕЙСОМ ---
+
+    function createMatrixInputs(size) {
+        matrixInputContainer.innerHTML = '';
+        matrixInputContainer.className = `matrix-input-container size-${size}`;
+
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `a${i}${j}`;
+                matrixInputContainer.appendChild(input);
+            }
+        }
+    }
+
+    function populateInputs(matrix) {
+        const size = matrix.length;
+        if (parseInt(matrixSizeSelector.value) !== size) {
+            matrixSizeSelector.value = size;
+        }
+        createMatrixInputs(size);
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                document.getElementById(`a${i}${j}`).value = matrix[i][j];
+            }
+        }
+    }
+
+    function getMatrixFromInputs() {
+        const size = parseInt(matrixSizeSelector.value);
+        const matrix = [];
+        for (let i = 0; i < size; i++) {
+            const row = [];
+            for (let j = 0; j < size; j++) {
+                row.push(parseFloat(document.getElementById(`a${i}${j}`).value));
+            }
+            matrix.push(row);
+        }
+        return matrix;
+    }
+
+    function generateRandomMatrix(isSymmetric) {
+        const size = parseInt(matrixSizeSelector.value);
+        const matrix = Array(size).fill(0).map(() => Array(size).fill(0));
+        const min = -9, max = 9;
+
+        for (let i = 0; i < size; i++) {
+            for (let j = i; j < size; j++) {
+                let randomVal;
+                do {
+                    randomVal = Math.floor(Math.random() * (max - min + 1)) + min;
+                } while (randomVal === 0 || randomVal === 1); // Уникаємо тривіальних значень
+                
+                matrix[i][j] = randomVal;
+                if (isSymmetric) {
+                    matrix[j][i] = randomVal;
+                } else if (i !== j) {
+                    do {
+                         matrix[j][i] = Math.floor(Math.random() * (max - min + 1)) + min;
+                    } while (matrix[j][i] === randomVal); // Гарантуємо несиметричність
+                }
+            }
+        }
+        populateInputs(matrix);
+        calculateAll();
+    }
+
+    // --- ДОПОМІЖНІ МАТЕМАТИЧНІ ФУНКЦІЇ ---
+
+    function formatMatrix(matrix, name, precision = 4) {
+        let latex = `\\(${name} = \\begin{pmatrix}\n`;
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[0].length; j++) {
+                latex += Number(matrix[i][j]).toFixed(precision);
+                if (j < matrix[0].length - 1) latex += ' & ';
+            }
+            if (i < matrix.length - 1) latex += ' \\\\\n';
+        }
+        latex += '\\end{pmatrix}\\)';
+        return latex;
+    }
+
+    function getCol(matrix, colIndex) {
+        const col = [];
+        for (let i = 0; i < matrix.length; i++) {
+            col.push(matrix[i][colIndex]);
+        }
+        return col;
+    }
+    
+    function outerProduct(u, v) {
+        const result = [];
+        for (let i = 0; i < u.length; i++) {
+            const row = [];
+            for (let j = 0; j < v.length; j++) {
+                row.push(u[i] * v[j]);
+            }
+            result.push(row);
+        }
+        return result;
+    }
+    
+    function checkSymmetry(matrix) {
+        const size = matrix.length;
+        for (let i = 0; i < size; i++) {
+            for (let j = i + 1; j < size; j++) {
+                if (Math.abs(matrix[i][j] - matrix[j][i]) > 1e-9) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // Функції для обчислення норм матриці
+    function calculateMatrixNorm1(matrix) {
+        let norm = 0;
+        const size = matrix.length;
+        for (let j = 0; j < size; j++) {
+            let colSum = 0;
+            for (let i = 0; i < size; i++) {
+                colSum += Math.abs(matrix[i][j]);
+            }
+            norm = Math.max(norm, colSum);
+        }
+        return norm;
+    }
+
+    function calculateMatrixNormInf(matrix) {
+        let norm = 0;
+        const size = matrix.length;
+        for (let i = 0; i < size; i++) {
+            let rowSum = 0;
+            for (let j = 0; j < size; j++) {
+                rowSum += Math.abs(matrix[i][j]);
+            }
+            norm = Math.max(norm, rowSum);
+        }
+        return norm;
+    }
+
+    function calculateMatrixNormFrobenius(matrix) {
+        let sum = 0;
+        const size = matrix.length;
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                sum += matrix[i][j] * matrix[i][j];
+            }
+        }
+        return Math.sqrt(sum);
+    }
+
+    // --- ГОЛОВНА ОБЧИСЛЮВАЛЬНА ФУНКЦІЯ ---
+    function calculateAll() {
+        const A = getMatrixFromInputs();
+        const size = A.length;
+
+        let html = `<h2>Результати аналізу для матриці A</h2>`;
+        html += formatMatrix(A, 'A');
+        
+        // Власні числа та вектори
+        let eig;
+        try {
+            eig = numeric.eig(A);
+            html += `<div class="results-section"><h3>1. Власні числа та власні вектори</h3>`;
+            html += `<p>Власні числа (\\(\\lambda\\)) та власні вектори (\\(v\\)) матриці \\(A\\) задовольняють рівняння \\(Av = \\lambda v\\). Власні вектори — це "особливі" напрямки, які під дією матриці не змінюються, а лише розтягуються або стискаються в \\(\\lambda\\) разів.</p>`;
+            html += `<p><b>Кроки знаходження:</b></p><ol>`;
+            html += `<li><b>Власні числа:</b> Ми знаходимо їх, розв'язуючи характеристичне рівняння \\(\\det(A - \\lambda I) = 0\\).</li>`;
+            html += `<li><b>Власні вектори:</b> Для кожного знайденого власного числа \\(\\lambda_i\\) ми розв'язуємо систему лінійних однорідних рівнянь \\((A - \\lambda_i I)v_i = 0\\). Ненульовий розв'язок \\(v_i\\) і є власним вектором.</li>`;
+            html += `<li><b>Нормування:</b> Оскільки довжина власного вектора не є унікальною (будь-який вектор \\(k \\cdot v_i\\) теж буде розв'язком), його зазвичай нормують, тобто ділять на його довжину \\(\\|v_i\\|\\), щоб отримати одиничний вектор.</li></ol>`;
+            
+            const eigenvectorMatrix = eig.E.x ? eig.E.x : eig.E;
+
+            for (let i = 0; i < eig.lambda.x.length; i++) {
+                const lambda_real = Number(eig.lambda.x[i]).toFixed(4);
+                const lambda_imag = eig.lambda.y ? Number(eig.lambda.y[i]).toFixed(4) : 0;
+                const lambda_val = lambda_real + (Math.abs(lambda_imag) > 1e-9 ? ` + ${lambda_imag}i` : '');
+                html += `<p>\\(\\lambda_{${i+1}} = ${lambda_val}\\)</p>`;
+                
+                if (Math.abs(lambda_imag) < 1e-9 && eigenvectorMatrix) {
+                    const eigenvectorCol = getCol(eigenvectorMatrix, i);
+                    const eigenvector = eigenvectorCol.map(val => [val]);
+                    html += formatMatrix(eigenvector, `v_{${i+1}}`);
+                }
+            }
+            html += `</div>`;
+        } catch (e) {
+            html += `<div class="results-section error"><h3>1. Власні числа та власні вектори</h3><p>Не вдалося обчислити власні значення. Помилка: ${e.message}</p></div>`;
+        }
+        
+        // Обернена матриця та детермінант
+        const detA = numeric.det(A);
+        html += `<div class="results-section"><h3>2. Обернена матриця та детермінант</h3>`;
+        html += `<p>Детермінант матриці: \\(\\det(A) = ${detA.toFixed(4)}\\).</p>`;
+        if (Math.abs(detA) < 1e-9) {
+            html += `<p class="error">Матриця є сингулярною (виродженою), тому оберненої матриці не існує.</p>`;
+        } else {
+            const A_inv = numeric.inv(A);
+            html += `<p>Оскільки детермінант не дорівнює нулю, існує обернена матриця \\(A^{-1}\\), така що \\(A A^{-1} = I\\).</p>`;
+            html += formatMatrix(A_inv, 'A^{-1}');
+        }
+        html += `</div>`;
+        
+        // Спектральний розклад
+        html += `<div class="results-section"><h3>3. Спектральний розклад</h3>`;
+        const isSymmetric = checkSymmetry(A);
+
+        if (isSymmetric && eig) {
+            html += `<p>Оскільки матриця \\(A\\) є <b>симетричною</b>, для неї гарантовано існує спектральний розклад у вигляді \\(A = Q \\Lambda Q^T\\), де \\(Q\\) — ортогональна матриця, а \\(\\Lambda\\) — діагональна.</p>`;
+
+            html += `<h4>Фундаментальні властивості та їх зв'язок</h4>`;
+            html += `<ol><li><b>Рівняння власних значень: \\(Av = \\lambda v\\)</b><br>Це основа всього. Воно говорить, що для матриці \\(A\\) існують спеціальні вектори \\(v\\), які під дією \\(A\\) не змінюють свій напрямок, а лише масштабуються на коефіцієнт \\(\\lambda\\).</li>`;
+            html += `<li><b>Матричне рівняння: \\(AQ = Q\\Lambda\\)</b><br>Це просто компактний запис першого рівняння для всіх власних векторів одночасно. Якщо зібрати власні вектори \\(v_i\\) у стовпці матриці \\(Q\\), а власні числа \\(\\lambda_i\\) — на діагональ матриці \\(\\Lambda\\), то множення \\(AQ\\) еквівалентне множенню кожного стовпця \\(Q\\) на \\(A\\). Результатом буде матриця, де стовпці — це \\(\\lambda_i v_i\\), що точно дорівнює \\(Q\\Lambda\\).</li>`;
+            html += `<li><b>Формула розкладу: \\(A = Q\\Lambda Q^{-1}\\)</b><br>Ця формула отримується з попередньої домноженням справа на \\(Q^{-1}\\). Для симетричних матриць, як у нашому випадку, власні вектори утворюють <b>ортонормований базис</b>. Це означає, що матриця \\(Q\\) є <b>ортогональною</b>, і для неї виконується чудова властивість: \\(Q^{-1} = Q^T\\). Тому формула спрощується до \\(A = Q\\Lambda Q^T\\).</li></ol>`;
+
+            html += `<h4>Кроки обчислення та перевірка</h4>`;
+            const Q = eig.E.x;
+            const Lambda = numeric.diag(eig.lambda.x);
+            html += `<p><b>Крок 1: Отримання компонентів розкладу</b></p><p>Матриця \\(Q\\) складається з нормованих власних векторів (обчислених у розділі 1), а на діагоналі матриці \\(\\Lambda\\) стоять відповідні їм власні числа.</p>`;
+            html += formatMatrix(Q, 'Q');
+            html += formatMatrix(Lambda, '\\Lambda');
+
+            html += `<p><b>Крок 2: Перевірка ортогональності матриці Q</b></p><p>За визначенням, матриця \\(Q\\) ортогональна, якщо \\(Q Q^T = I\\), де \\(I\\) — одинична матриця. Перевіримо це:</p>`;
+            const QT = numeric.transpose(Q);
+            const QQT = numeric.dot(Q, QT);
+            const I = numeric.identity(size);
+            html += formatMatrix(QQT, "Q Q^T");
+            html += formatMatrix(I, "I");
+            html += `<p>Як бачимо, результат (з урахуванням похибок обчислень) збігається з одиничною матрицею, отже, \\(Q\\) дійсно ортогональна.</p>`;
+
+            html += `<p><b>Крок 3: Перевірка коректності розкладу</b></p><p>Тепер перевіримо головну рівність: \\(A = Q \\Lambda Q^T\\). Обчислимо праву частину:</p>`;
+            const Reconstructed_A = numeric.dot(numeric.dot(Q, Lambda), QT);
+            html += formatMatrix(Reconstructed_A, "Q \\Lambda Q^T");
+            html += `<p>Результат повністю збігається з вихідною матрицею \\(A\\). Розклад знайдено правильно.</p>`;
+
+        } else {
+            html += `<p>Спектральний розклад у його класичній формі \\(A = Q\\Lambda Q^T\\) з <b>ортогональною</b> матрицею \\(Q\\) гарантовано існує лише для <b>симетричних матриць</b>.</p>`;
+            html += `<p>Ваша матриця \\(A\\) <b>не є симетричною</b>. Це означає, що її власні вектори, якщо вони існують і утворюють базис, не обов'язково будуть ортогональними. Тому розклад з ортогональною матрицею \\(Q\\) неможливий.</p>`;
+            html += `<p>Однак, якщо матриця є діагоналізовною, її можна представити у вигляді \\(A = Q\\Lambda Q^{-1}\\), де \\(Q^{-1}\\) в загальному випадку <b>не дорівнює</b> \\(Q^T\\).</p>`;
+        }
+        html += `</div>`;
+
+        // Норми та число обумовленості
+        html += `<div class="results-section"><h3>4. Норми та число обумовленості</h3>`;
+        
+        // Обчислення норм для матриці A
+        const norm1_A = calculateMatrixNorm1(A);
+        const normInf_A = calculateMatrixNormInf(A);
+        const normF_A = calculateMatrixNormFrobenius(A);
+        const svd = numeric.svd(A);
+        const norm2_A = svd.S[0];
+        
+        html += `<h4>Норми матриці A:</h4>`;
+        html += `<p>Норми вимірюють "розмір" або "масштаб" матриці.</p><ul>`;
+        html += `<li><b>Норма 1 (стовпцева):</b> \\(\\|A\\|_1 = \\max_j \\sum_i |a_{ij}| = ${norm1_A.toFixed(4)}\\)</li>`;
+        html += `<li><b>Норма нескінченності (рядкова):</b> \\(\\|A\\|_\\infty = \\max_i \\sum_j |a_{ij}| = ${normInf_A.toFixed(4)}\\)</li>`;
+        html += `<li><b>Норма Фробеніуса:</b> \\(\\|A\\|_F = \\sqrt{\\sum_{i,j} |a_{ij}|^2} = ${normF_A.toFixed(4)}\\)</li>`;
+        html += `<li><b>Спектральна норма (2-норма):</b> \\(\\|A\\|_2 = \\sigma_{\\max} = ${norm2_A.toFixed(4)}\\)</li>`;
+        html += `</ul>`;
+        
+        if (Math.abs(detA) > 1e-9) {
+            const A_inv = numeric.inv(A);
+            
+            // Обчислення норм для оберненої матриці A⁻¹
+            const norm1_A_inv = calculateMatrixNorm1(A_inv);
+            const normInf_A_inv = calculateMatrixNormInf(A_inv);
+            const normF_A_inv = calculateMatrixNormFrobenius(A_inv);
+            const svd_inv = numeric.svd(A_inv);
+            const norm2_A_inv = svd_inv.S[0];
+            
+            html += `<h4>Норми оберненої матриці A⁻¹:</h4><ul>`;
+            html += `<li><b>Норма 1:</b> \\(\\|A^{-1}\\|_1 = ${norm1_A_inv.toFixed(4)}\\)</li>`;
+            html += `<li><b>Норма нескінченності:</b> \\(\\|A^{-1}\\|_\\infty = ${normInf_A_inv.toFixed(4)}\\)</li>`;
+            html += `<li><b>Норма Фробеніуса:</b> \\(\\|A^{-1}\\|_F = ${normF_A_inv.toFixed(4)}\\)</li>`;
+            html += `<li><b>Спектральна норма:</b> \\(\\|A^{-1}\\|_2 = ${norm2_A_inv.toFixed(4)}\\)</li>`;
+            html += `</ul>`;
+            
+            // Обчислення чисел обумовленості
+            const cond1 = norm1_A * norm1_A_inv;
+            const condInf = normInf_A * normInf_A_inv;
+            const cond2 = norm2_A * norm2_A_inv;
+            const condF = normF_A * normF_A_inv;
+            
+            html += `<h4>Числа обумовленості:</h4>`;
+            html += `<p>Число обумовленості \\(\\text{cond}(A) = \\|A\\| \\cdot \\|A^{-1}\\|\\) показує, наскільки чутливий розв'язок системи \\(Ax=b\\) до змін у вхідних даних. Великі значення вказують на погану обумовленість.</p><ul>`;
+            html += `<li>\\(\\text{cond}_1(A) = \\|A\\|_1 \\cdot \\|A^{-1}\\|_1 = ${cond1.toFixed(4)}\\)</li>`;
+            html += `<li>\\(\\text{cond}_\\infty(A) = \\|A\\|_\\infty \\cdot \\|A^{-1}\\|_\\infty = ${condInf.toFixed(4)}\\)</li>`;
+            html += `<li>\\(\\text{cond}_2(A) = \\|A\\|_2 \\cdot \\|A^{-1}\\|_2 = ${cond2.toFixed(4)}\\)</li>`;
+            html += `<li>\\(\\text{cond}_F(A) = \\|A\\|_F \\cdot \\|A^{-1}\\|_F = ${condF.toFixed(4)}\\)</li>`;
+            html += `</ul>`;
+        } else {
+            html += `<p class="error">Матриця сингулярна, тому оберненої матриці не існує і числа обумовленості не визначені.</p>`;
+        }
+        html += `</div>`;
+
+        // Сингулярний розклад (SVD)
+        html += `<div class="results-section"><h3>5. Сингулярний розклад (SVD)</h3>`;
+        html += `<p>Будь-яку матрицю можна розкласти у вигляд \\(A = U \\Sigma V^T\\), де \\(U\\) та \\(V\\) - <b>ортогональні матриці</b>, а \\(\\Sigma\\) - діагональна матриця з невід'ємними <b>сингулярними числами</b> \\(\\sigma_i\\) на діагоналі.</p>`;
+        html += `<p><b>Ортогональна матриця</b> — це матриця, стовпці (і рядки) якої є взаємно перпендикулярними одиничними векторами. Геометрично множення на таку матрицю відповідає повороту або дзеркальному відображенню простору, без зміни довжин та кутів. Важливою властивістю є те, що її обернена матриця дорівнює транспонованій: \\(U^{-1} = U^T\\).</p>`;
+        
+        html += `<h4>Кроки обчислення:</h4>`;
+        html += `<ol>`;
+        html += `<li><b>Знаходження \\(V\\) та \\(\\Sigma\\):</b> Обчислюємо симетричну матрицю \\(A^T A\\). Стовпці матриці \\(V\\) (праві сингулярні вектори \\(v_i\\)) є власними векторами цієї матриці. Сингулярні числа \\(\\sigma_i\\) на діагоналі \\(\\Sigma\\) є квадратними коренями з відповідних власних значень \\(\\lambda_i\\) матриці \\(A^T A\\):</li>`;
+        html += `<p style="text-align:center;">\\((A^T A)v_i = \\lambda_i v_i \\quad \\implies \\quad \\sigma_i = \\sqrt{\\lambda_i}\\)</p>`;
+        html += `<li><b>Знаходження \\(U\\):</b> Стовпці матриці \\(U\\) (ліві сингулярні вектори \\(u_i\\)) можна знайти, використовуючи вже відомі \\(A, V, \\Sigma\\). Цей метод гарантує узгодженість знаків між \\(U\\) та \\(V\\):</li>`;
+        html += `<p style="text-align:center;">\\(u_i = \\frac{1}{\\sigma_i} A v_i\\)</p>`;
+        html += `</ol>`;
+        html += `<h4>Компоненти розкладу:</h4>`;
+
+        const U = svd.U;
+        const Sigma = numeric.diag(svd.S);
+        const V = svd.V;
+        html += formatMatrix(U, 'U');
+        html += formatMatrix(Sigma, '\\Sigma');
+        html += formatMatrix(V, 'V');
+        html += `</div>`;
+
+        // Наближення матриці
+        html += `<div class="results-section"><h3>6. Наближення матриці низьким рангом</h3>`;
+        html += `<p>SVD дозволяє отримати найкраще наближення матриці \\(A\\) матрицею меншого рангу. Ідея полягає в тому, що <b>малі сингулярні числа відповідають найменш значущим компонентам</b> перетворення. Відкидаючи їх (тобто занулюючи), ми спрощуємо матрицю, зберігаючи при цьому її найважливіші властивості.</p>`;
+        html += `<p>Формулу розкладу \\(A = \\sum_{i=1}^{r} \\sigma_i u_i v_i^T\\) можна обрізати, залишивши лише \\(k\\) перших, найбільших доданків, щоб отримати наближення рангу \\(k\\).</p>`;
+
+        let Ak = numeric.rep([size, size], 0); // Start with a zero matrix
+        for (let k = 0; k < size - 1; k++) {
+            const uk = getCol(U, k);
+            const vk = getCol(V, k);
+            const sigma_k = svd.S[k];
+            const term = numeric.mul(sigma_k, outerProduct(uk, vk));
+            Ak = numeric.add(Ak, term);
+
+            html += `<p><b>Найкраще наближення рангу ${k+1}:</b> \\(A_{${k+1}} = A_{${k}} + \\sigma_{${k+1}} u_{${k+1}} v_{${k+1}}^T\\)</p>`;
+            html += formatMatrix(Ak, `A_{${k+1}}`);
+        }
+        html += `</div>`;
+
+        // Похибки наближення
+        html += `<div class="results-section"><h3>7. Похибки наближення</h3>`;
+        for (let k = 1; k < size; k++) {
+            const remaining_sigmas = svd.S.slice(k);
+            const error_F = numeric.norm2(remaining_sigmas);
+            const rel_error = normF_A > 1e-9 ? error_F / normF_A : 0;
+            
+            let error_formula = remaining_sigmas.map((s, i) => `\\sigma_{${k+i+1}}^2`).join(' + ');
+            
+            html += `<p><b>Для наближення рангу ${k}:</b></p><ul>`;
+            html += `<li>Абсолютна похибка (за нормою Фробеніуса): \\(\\|A - A_${k}\\|_F = \\sqrt{${error_formula}} = ${error_F.toFixed(4)}\\)</li>`;
+            html += `<li>Відносна похибка: \\(\\frac{\\|A - A_${k}\\|_F}{\\|A\\|_F} = ${(rel_error * 100).toFixed(2)}\\%\\)</li>`;
+            html += `</ul>`;
+        }
+        html += `</div>`;
+        
+        // Спойлер з прикладами
+        html += `<details><summary>Практичні застосування в ІТ та науці (натисніть, щоб розгорнути)</summary><div>`;
+        html += `<h4>Векторна графіка та GameDev</h4><p>Матриці використовуються для опису перетворень об'єктів: поворотів, масштабування, зсувів. Наприклад, щоб повернути 2D-вектор \\((x, y)\\) на кут \\(\\theta\\), його множать на матрицю повороту: \\(\\begin{pmatrix} \\cos\\theta & -\\sin\\theta \\\\ \\sin\\theta & \\cos\\theta \\end{pmatrix}\\). Це основа 2D/3D графіки.</p>`;
+        html += `<h4>Спектральний розклад та "зручний базис"</h4><p>Для симетричних матриць спектральний розклад \\(A = Q\\Lambda Q^{T}\\), де \\(Q\\) складається з власних векторів, а \\(\\Lambda\\) - діагональна з власними числами, дозволяє знайти "природні осі" даних. Це є основою <b>методу головних компонент (PCA)</b>, що використовується в машинному навчанні для зменшення розмірності даних. Власні вектори вказують на напрямки найбільшої варіативності даних.</p>`;
+        html += `<h4>Детермінант: невиродженість та гіпероб'єм</h4><p>Детермінант \\(\\det(A) \\neq 0\\) є швидким тестом на те, чи є матриця невиродженою (тобто, чи має вона обернену, а система \\(Ax=b\\) - унікальний розв'язок). Геометрично, абсолютне значення детермінанта дорівнює об'єму паралелепіпеда (або площі паралелограма в 2D), утвореного стовпцями матриці. Це показує, як перетворення \\(A\\) змінює об'єм простору.</p>`;
+        html += `<h4>Число обумовленості в чисельних методах</h4><p>У реальних обчисленнях завжди є похибки округлення. Число обумовленості показує, наскільки сильно ці малі похибки у вхідних даних можуть зрости у кінцевому результаті. Якщо число велике, система є <b>погано обумовленою</b>, і стандартні алгоритми можуть давати дуже неточний результат. Це критично важливо для інженерних розрахунків та наукового моделювання.</p>`;
+        html += `<h4>SVD для рекомендаційних систем та стиснення даних</h4><p>Уявіть матрицю, де рядки — це користувачі, стовпці — фільми, а елементи — оцінки. Ця матриця величезна і розріджена. Її наближення низьким рангом за допомогою SVD дозволяє виділити "приховані фактори" (наприклад, жанри) і на їх основі передбачити оцінки, яких бракує, — так працюють рекомендаційні системи (напр., Netflix Prize). Також SVD використовується для <b>стиснення зображень</b>: зображення представляється як матриця, і зберігаються лише найважливіші сингулярні компоненти, що значно зменшує обсяг даних з мінімальною втратою якості.</p>`;
+        html += `</div></details>`;
+
+        document.getElementById('results').innerHTML = html;
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+    }
+    
+    window.onload = () => {
+        const initialSymmetricMatrix = [
+            [6, 2, -2],
+            [2, 5, 0],
+            [-2, 0, 7]
+        ];
+        populateInputs(initialSymmetricMatrix);
+        calculateAll();
+    };
+</script>
+
+</body>
+</html>

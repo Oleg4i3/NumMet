@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODE Simulator</title>
+    
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        },
+        options: { ignoreHtmlClass: 'tex2jax_ignore', processHtmlClass: 'tex2jax_process' },
+        chtml: { scale: 1.0 }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #2980b9;
+            --bg-light: #f4f7f9;
+            --text-color: #333;
+            --border-color: #dce4ec;
+        }
+
+        body {
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            color: var(--text-color);
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h2 { margin: 0; font-size: 1.3rem; font-weight: 600; }
+        .badge { background: #e74c3c; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 380px;
+            background: #fff;
+            border-right: 1px solid var(--border-color);
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.03);
+            flex-shrink: 0;
+            z-index: 2;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-weight: 700; font-size: 0.85rem; color: #555; text-transform: uppercase; }
+        
+        select {
+            padding: 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: white;
+        }
+
+        .slider-container { display: flex; flex-direction: column; gap: 8px; }
+        .slider-header { display: flex; justify-content: space-between; align-items: baseline; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent-color); }
+        
+        .val-display {
+            font-family: "Consolas", monospace;
+            font-weight: bold;
+            color: var(--accent-color);
+            font-size: 1rem;
+        }
+
+        .math-display {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            border-left: 5px solid var(--accent-color);
+            font-size: 1rem;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #hintBox {
+            font-size: 0.9rem; 
+            color: #7f6000; 
+            background: #fff8db; 
+            padding: 15px; 
+            border-radius: 6px; 
+            border-left: 4px solid #f1c40f;
+            display: none;
+            line-height: 1.5;
+        }
+
+        .content-wrapper { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: #fff; }
+
+        .plot-area {
+            height: 55vh; 
+            min-height: 400px;
+            width: 100%;
+            background: white;
+            position: relative;
+        }
+
+        .theory-section { padding: 30px 50px; background-color: #fdfdfd; border-top: 1px solid var(--border-color); }
+
+        details {
+            background: #fff;
+            border-radius: 8px;
+            padding: 0;
+            border: 1px solid #e1e8ed;
+            overflow: hidden;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--primary-color);
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .theory-content { padding: 25px 30px; line-height: 1.7; color: #2c3e50; font-size: 0.95rem; }
+        .theory-content h3 { color: var(--accent-color); margin-top: 1.5em; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+        .theory-content h4 { color: #2c3e50; margin-top: 1.5em; font-weight: 700; }
+
+        .formula-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            margin: 15px 0;
+            text-align: center;
+            font-family: "Times New Roman", serif;
+            font-size: 1.1rem;
+        }
+
+        .formula-expl {
+            font-size: 0.9rem;
+            color: #555;
+            background: #eef2f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .stats-panel {
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: #f1f3f5;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>Чисельні методи розв'язування звичайних диференціальних рівнянь <span class="badge"></span></h2>
+</header>
+
+<div class="main-container">
+    <aside class="sidebar">
+        <div class="control-group">
+            <label for="presetSelect">1. Математична модель</label>
+            <select id="presetSelect">
+                <option value="decay">Спадна експонента</option>
+                <option value="growth">Зростаюча експонента</option>
+                <option value="damped_osc">Загасаючий осцилятор</option>
+				<option value="logistic">Логістичне зростання</option>
+                <option value="vanderpol">Осцилятор Ван дер Поля (Жорсткий!)</option>
+                <option value="stiff_decay">Швидка релаксація (Жорсткий!)</option>
+                               <option value="hyperbola">Гіпербола (Сингулярність)</option>
+            </select>
+        </div>
+
+        <div id="formulaDisplay" class="math-display"></div>
+
+        <div class="control-group">
+            <label for="methodSelect">2. Чисельний метод</label>
+            <select id="methodSelect">
+                <option value="euler_explicit">Явний метод Ейлера (Euler Explicit)</option>
+                <option value="euler_implicit">Неявний метод Ейлера (Euler Implicit)</option>
+                <option value="rk4">Рунге-Кутта 4 (RK4)</option>
+                <option value="rk_adaptive">RK Адаптивний (RK45 / Embedded)</option>
+            </select>
+        </div>
+
+        <div class="control-group slider-container">
+            <div class="slider-header">
+                <label id="stepLabel" for="stepSlider">Крок ($h$)</label>
+                <span id="stepValDisplay" class="val-display">0.1000</span>
+            </div>
+            <input type="range" id="stepSlider" min="0" max="100" value="50">
+        </div>
+
+        <div class="control-group slider-container">
+            <div class="slider-header">
+                <label for="durationSlider">Інтервал ($T_{max}$)</label>
+                <span id="durationDisplay" class="val-display">10.0</span>
+            </div>
+            <input type="range" id="durationSlider" min="1" max="50" step="0.5" value="10">
+        </div>
+
+        <div class="stats-panel">
+            <span>Кроки: <b id="stepCount">0</b></span>
+            <span>Max Err: <b id="maxError">-</b></span>
+        </div>
+        
+        <div id="hintBox"></div>
+    </aside>
+
+    <div class="content-wrapper">
+        <div id="plotDiv" class="plot-area"></div>
+
+        <section class="theory-section">
+			  <details>
+                <summary>Вступ до чисельних методів розв'язання ЗДР</summary>
+                <div class="theory-content">
+                    <h3>1. Чому ми розв'язуємо рівняння чисельно?</h3>
+                    <p>
+                        У курсі математичного аналізу ви вивчали методи знаходження первісних. Проте, ви вже знаєте, що існують "інтеграли, що не беруться" в елементарних функціях, наприклад $\int e^{-x^2} dx$ (інтеграл Пуассона).
+                    </p>
+                    <p>
+                        У диференціальних рівняннях ситуація аналогічна, але масштабніша. Більшість реальних моделей (рух небесних тіл, турбулентність рідини, динаміка популяцій, нейромережі) описуються нелінійними системами, для яких <b>аналітичної формули розв'язку не існує в принципі</b>. Єдиний спосіб дізнатися поведінку системи — "промоделювати" її крок за кроком. Це і роблять алгоритми, які ви бачите в цьому симуляторі.
+                    </p>
+
+                    <h3>2. Аналогії з визначеним інтегралом</h3>
+                    <p>
+                        Розв'язання диф. рівняння $y' = f(t,y)$ дуже схоже на обчислення визначеного інтегралу $\int_a^b f(t) dt$. Різниця лише в тому, що в диф. рівнянні значення функції $f$ залежить від самого $y$, який ми ще не знайшли.
+                    </p>
+
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Чисельне інтегрування </th>
+                            <th>Розв'язання ODE (Чисельні методи)</th>
+                            <th>Геометричний зміст</th>
+                        </tr>
+                        <tr>
+                            <td><b>Метод лівих прямокутників</b><br> $S \approx \sum f(x_i) \Delta x$</td>
+                            <td><b>Явний метод Ейлера</b><br> $y_{n+1} = y_n + h \cdot f(t_n, y_n)$</td>
+                            <td>Апроксимація кривої дотичною. Припускаємо, що швидкість не змінюється на всьому інтервалі кроку. Точність $O(h)$.</td>
+                        </tr>
+                        <tr>
+                            <td><b>Метод трапецій</b><br> $S \approx \sum \frac{f(x_i)+f(x_{i+1})}{2} \Delta x$</td>
+                            <td><b>Неявний метод Ейлера / Гюна</b><br> Враховує нахил на початку і в кінці кроку.</td>
+                            <td>Апроксимація хордою. Більш стійка до коливань.</td>
+                        </tr>
+                        <tr>
+                            <td><b>Метод Сімпсона</b><br> Апроксимація параболою</td>
+                            <td><b>Метод Рунге-Кутта 4 (RK4)</b></td>
+                            <td>Ми беремо 4 "проби" нахилу всередині кроку, щоб ідеально врахувати кривизну функції. Точність $O(h^4)$.</td>
+                        </tr>
+                    </table>
+
+                    <h3>3. Жорсткість (Stiffness) та Стійкість</h3>
+                    <p>
+                        Це критично важливе поняття для CS. Існують системи, де процеси відбуваються з різною швидкістю (наприклад, швидка розрядка конденсатора за мікросекунди і повільний розряд батареї за години).
+                    </p>
+                    <ul>
+                        <li><b>Явні методи (Ейлер, RK4):</b> Мають обмежену <i>область стійкості</i>. Якщо крок $h$ завеликий для "швидкого" процесу, чисельна помилка резонує і накопичується — розв'язок "вибухає" (йде в нескінченність).</li>
+                        <li><b>Неявні методи (Implicit Euler):</b> Є <i>абсолютно стійкими</i>. Вони вимагають розв'язання складного рівняння на кожному кроці (зазвичай методом Ньютона), але дозволяють робити гігантські кроки без втрати стабільності.</li>
+                    </ul>
+                    <p>
+                        <i>Експеримент:</i> Виберіть пресет <b>"Жорстка система"</b>. Встановіть крок $h \approx 0.05$. Метод Ейлера покаже хаос ("пилку"), а неявний метод дасть плавну лінію.
+                    </p>
+                </div>
+            </details>
+			
+			<details open>
+                <summary> Теоретична довідка</summary>
+                <div class="theory-content">
+                    <p>Ми розв'язуємо задачу Коші для диференціального рівняння (або системи):
+                    $$y' = f(t, y), \quad y(t_0) = y_0$$</p>
+
+                    <h3>1. Явний метод Ейлера (Explicit Euler)</h3>
+                    <div class="method-card explicit">
+                        <p>Найпростіший метод 1-го порядку точності. Ми прогнозуємо значення за дотичною.</p>
+                        <div class="formula-box">$$y_{n+1} = y_n + h \cdot f(t_n, y_n)$$</div>
+                        <p><b>Проблема:</b> Умовна стійкість. Якщо крок $h$ завеликий для "швидких" процесів (жорсткі задачі), похибка зростає лавиноподібно ("вибух").</p>
+                    </div>
+
+                    <h3>2. Неявний метод Ейлера (Implicit Euler)</h3>
+                    <div class="method-card implicit">
+                        <p>Також 1-й порядок, але абсолютно стійкий. Використовує нахил у <i>майбутній</i> точці.</p>
+                        <div class="formula-box">$$y_{n+1} = y_n + h \cdot f(t_{n+1}, y_{n+1})$$</div>
+                        
+                        <h4>Чому це складно? (Non-linear Solver)</h4>
+                        <p>Подивіться на формулу вище. Невідома величина $y_{n+1}$ знаходиться і зліва, і справа (всередині функції $f$).</p>
+                        <ul>
+                            <li>Якщо $f$ лінійна ($f = Ay$), ми можемо виразити $y_{n+1}$ алгебраїчно: $y_{n+1} = (I - hA)^{-1}y_n$.</li>
+                            <li>Якщо $f$ <b>нелінійна</b> (наприклад, $y^2$, $\sin(y)$, як у Ван дер Поля), алгебраїчно знайти $y_{n+1}$ неможливо.</li>
+                        </ul>
+                        <p>Тому на <b>кожному кроці</b> комп'ютер розв'язує рівняння $G(z) = 0$ чисельно (зазвичай методом Ньютона):
+                        $$z - y_n - h \cdot f(t_{n+1}, z) = 0$$
+                        Це вимагає більше часу на крок, але дозволяє робити крок $h$ дуже великим без втрати стійкості.</p>
+                    </div>
+
+                    <h3>3. Метод Рунге-Кутта 4 (RK4)</h3>
+                    <div class="method-card">
+                        <p>Золотий стандарт (4-й порядок). Робить 4 пробні кроки:</p>
+                        <div class="formula-box">
+                            $k_1 = f(t_n, y_n)$<br>
+                            $k_2 = f(t_n + \frac{h}{2}, y_n + \frac{h}{2}k_1)$<br>
+                            $k_3 = f(t_n + \frac{h}{2}, y_n + \frac{h}{2}k_2)$<br>
+                            $k_4 = f(t_n + h, y_n + h k_3)$<br>
+                            $y_{n+1} = y_n + \frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)$
+                        </div>
+                    </div>
+
+                    <h3>4. Адаптивний крок (Adaptive Step)</h3>
+                    <p>Замість фіксованого $h$, алгоритм обчислює похибку на кожному кроці (порівнюючи рішення RK4 і RK5, або подвоєний крок). 
+                    $$h_{new} = h_{old} \cdot 0.9 \cdot \left( \frac{\text{Tolerance}}{\text{Error}} \right)^{1/5}$$
+                    Для жорстких задач (Ван дер Поль) адаптивний метод буде автоматично зменшувати крок до мікроскопічних значень ($10^{-5}$) на крутих ділянках.</p>
+                </div>
+            </details>
+			
+            <details open>
+                <summary>Додаткова теоретична довідка: Адаптивний крок та Жорсткість</summary>
+                <div class="theory-content">
+                    <h3>1. Як працює адаптивний крок?</h3>
+                    <p>Ідея: на кожній ітерації ми робимо один великий крок $h$ і два маленьких кроки $h/2$. Різниця між отриманими результатами — це наша оцінка локальної помилки ($E$).</p>
+                    
+                    <div class="formula-box">
+                        $$h_{new} = h_{old} \cdot S \cdot \left( \frac{Tol}{E} \right)^{\frac{1}{p+1}}$$
+                    </div>
+                    
+                    <div class="formula-expl">
+                        <ul>
+                            <li><b>$h_{old}$</b> — поточний крок.</li>
+                            <li><b>$S = 0.9$</b> — "фактор страху" (safety factor). Ми ніколи не беремо теоретичний максимум, залишаємо 10% запасу.</li>
+                            <li><b>$Tol$</b> — допустима точність (Tolerance, наприклад $10^{-4}$).</li>
+                            <li><b>$E$</b> — реальна обчислена похибка на поточному кроці.</li>
+                            <li><b>$p=4$</b> — порядок методу (для RK4). Степінь $1/5$ означає: якщо помилка зменшилась у $10^5$ разів, крок можна збільшити лише у 10 разів.</li>
+                        </ul>
+                    </div>
+
+                    <h3>2. Чому крок не зростає на прямих (Жорсткі задачі)?</h3>
+                    <p>Ви могли помітити: у задачі <b>Ван дер Поля</b> або <b>Швидкої релаксації</b> графік стає майже рівним, але адаптивний метод (Explicit RK) не збільшує крок. Це не помилка, це фізика!</p>
+                    <p><b>Причина: Стійкість (Stability).</b></p>
+                    <p>Навіть якщо функція виглядає як пряма лінія, жорстка система має дуже велику "пружину" всередині (велике власне число $\lambda$). Для явних методів існує жорсткий ліміт:
+                    $$h < \frac{C}{|\lambda|}$$
+                    Якщо спробувати збільшити крок вище цього ліміту (бо графік рівний), чисельний розв'язок миттєво вибухне. Тому адаптивний алгоритм "відчуває" цей вибух при спробі збільшення і змушений тримати крок мікроскопічним.</p>
+                </div>
+            </details>
+        </section>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. МОДЕЛІ ТА ЕТАЛОНИ
+    // ==========================================
+    
+    function generateGroundTruth(f, y0, T, dt=0.002) {
+        const tArr = [0];
+        const yArr = [y0[0]];
+        let t = 0;
+        let y = [...y0];
+        while(t < T) {
+            const k1 = f(t, y);
+            const k2 = f(t + dt/2, y.map((v,i)=>v + k1[i]*dt/2));
+            const k3 = f(t + dt/2, y.map((v,i)=>v + k2[i]*dt/2));
+            const k4 = f(t + dt, y.map((v,i)=>v + k3[i]*dt));
+            y = y.map((v,i) => v + (dt/6)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+            t += dt;
+            tArr.push(t);
+            yArr.push(y[0]);
+        }
+        return { t: tArr, y: yArr };
+    }
+
+    const presets = {
+        decay: {
+            label: "Спадна експонента",
+            tex: "$y' = -y$",
+            f: (t, y) => [-y[0]],
+            getExact: (T) => {
+                const t=[], y=[]; 
+                for(let i=0; i<=T; i+=T/200) { t.push(i); y.push(Math.exp(-i)); }
+                return {t, y};
+            },
+            y0: [1], defaultT: 10,
+            hint: "Проста задача. Адаптивний крок тут буде швидко зростати, бо крива стає пологою, і немає проблем зі стійкістю."
+        },
+        growth: {
+            label: "Зростаюча експонента",
+            tex: "$y' = y$",
+            f: (t, y) => [y[0]],
+            getExact: (T) => {
+                const t=[], y=[];
+                for(let i=0; i<=T; i+=T/200) { t.push(i); y.push(0.1*Math.exp(i)); }
+                return {t, y};
+            },
+            y0: [0.1], defaultT: 5,
+            hint: "Адаптивний крок буде зменшуватись з часом, щоб компенсувати стрімке зростання функції."
+        },
+        damped_osc: {
+            label: "Загасаючий осцилятор",
+            tex: "$y'' + 0.5y' + 5y = 0$",
+            f: (t, y) => [y[1], -5*y[0] - 0.5*y[1]], 
+            getExact: (T) => {
+                const t=[], y=[];
+                const a=0.25, b=Math.sqrt(4.9375);
+                for(let i=0; i<=T; i+=T/500) { t.push(i); y.push(Math.exp(-a*i)*(Math.cos(b*i)+(a/b)*Math.sin(b*i))); }
+                return {t, y};
+            },
+            y0: [1, 0], defaultT: 15,
+            hint: "Ідеальний приклад для адаптивного кроку! Зверніть увагу: на піках точки густі (крок малий), а між ними — рідкі (крок великий)."
+        },
+        vanderpol: {
+            label: "Осцилятор Ван дер Поля",
+            tex: "$y'' - 4(1-y^2)y' + y = 0$",
+            f: (t, y) => [y[1], 4 * (1 - y[0]*y[0]) * y[1] - y[0]],
+            getExact: (T) => generateGroundTruth((t, y) => [y[1], 4*(1-y[0]*y[0])*y[1]-y[0]], [2, 0], T),
+            y0: [2, 0], defaultT: 20,
+            hint: "<b>Жорстка задача!</b> На пологих ділянках крок НЕ росте. Це тому, що явний метод обмежений <i>стійкістю</i>, а не точністю. Якби він виріс, рішення б вибухнуло."
+        },
+        stiff_decay: {
+            label: "Швидка релаксація",
+            tex: "$y' = -50(y - \\sin t) + \\cos t$",
+            f: (t, y) => [-50 * (y[0] - Math.sin(t)) + Math.cos(t)],
+            getExact: (T) => {
+                const t=[], y=[];
+                for(let i=0; i<=T; i+=T/500) { t.push(i); y.push(Math.sin(i) + Math.exp(-50*i)); }
+                return {t, y};
+            },
+            y0: [1], defaultT: 5,
+            hint: "Тут адаптивний крок буде дуже малим навіть коли лінія стане синусоїдою. Причина та сама — обмеження стійкості."
+        },
+        logistic: {
+            label: "Логістичне зростання",
+            tex: "$y' = y(1 - y/10)$",
+            f: (t, y) => [y[0] * (1 - y[0] / 10)],
+            getExact: (T) => {
+                const t=[], y=[];
+                for(let i=0; i<=T; i+=T/200) { t.push(i); y.push(10/(1+99*Math.exp(-i))); }
+                return {t, y};
+            },
+            y0: [0.1], defaultT: 12,
+            hint: "Тут адаптивний крок працює класично: малий на підйомі, великий на плато (насиченні)."
+        },
+        hyperbola: {
+            label: "Сингулярність",
+            tex: "$y' = y^2$",
+            f: (t, y) => [y[0]*y[0]],
+            getExact: (T) => {
+                const t=[], y=[];
+                for(let i=0; i<=T; i+=0.002) { if(i>=0.99) break; t.push(i); y.push(1/(1-i)); }
+                return {t, y};
+            },
+            y0: [1], defaultT: 0.95,
+            hint: "Адаптивний метод буде зменшувати крок до нуля, намагаючись намалювати вертикальну асимптоту. <b>Коли крок стає меншим за 1e-7, симуляція зупиняється.</b>"
+        }
+    };
+
+    // ==========================================
+    // 2. ЯДРО SOLVER
+    // ==========================================
+    function add(v1, v2) { return v1.map((x, i) => x + v2[i]); }
+    function scale(v, s) { return v.map(x => x * s); }
+
+    const Solvers = {
+        euler_explicit: (f, t0, y0, h, duration) => {
+            let t=t0, y=[...y0];
+            const res={t:[t], y:[y]};
+            while(t<duration) {
+                y = add(y, scale(f(t, y), h));
+                t+=h;
+                res.t.push(t); res.y.push(y);
+                if(Math.abs(y[0])>1e6 || !isFinite(y[0])) break;
+            }
+            return res;
+        },
+        euler_implicit: (f, t0, y0, h, duration) => {
+            let t=t0, y=[...y0];
+            const res={t:[t], y:[y]};
+            while(t<duration) {
+                let t_next = t+h;
+                let y_next = [...y];
+                for(let iter=0; iter<10; iter++) {
+                    const f_val = f(t_next, y_next);
+                    const F = y_next.map((v, i) => v - y[i] - h * f_val[i]);
+                    const delta = 1e-5;
+                    const y_pert = [...y_next];
+                    for(let k=0; k<y.length; k++) {
+                        y_pert[k]+=delta;
+                        const dfdy = (f(t_next, y_pert)[k] - f_val[k])/delta;
+                        y_pert[k]-=delta;
+                        y_next[k] -= F[k] / ((1 - h*dfdy) || 1e-9);
+                    }
+                    if(Math.abs(F[0]) < 1e-6) break;
+                }
+                y=y_next; t=t_next;
+                res.t.push(t); res.y.push(y);
+                if(Math.abs(y[0])>1e6 || !isFinite(y[0])) break;
+            }
+            return res;
+        },
+        rk4: (f, t0, y0, h, duration) => {
+            let t=t0, y=[...y0];
+            const res={t:[t], y:[y]};
+            while(t<duration) {
+                const k1=f(t, y);
+                const k2=f(t+h/2, add(y, scale(k1, h/2)));
+                const k3=f(t+h/2, add(y, scale(k2, h/2)));
+                const k4=f(t+h, add(y, scale(k3, h)));
+                y = add(y, scale(add(add(k1, scale(k2, 2)), add(scale(k3, 2), k4)), h/6));
+                t+=h;
+                res.t.push(t); res.y.push(y);
+                if(Math.abs(y[0])>1e6 || !isFinite(y[0])) break;
+            }
+            return res;
+        },
+        rk_adaptive: (f, t0, y0, h_init, duration) => {
+            let t=t0, y=[...y0], h=h_init;
+            const res={t:[t], y:[y]};
+            const tol=1e-4; 
+            
+            while(t < duration) {
+                if(t+h > duration) h = duration-t;
+                
+                // Step Doubling
+                const rk = (tc, yc, hc) => {
+                    const k1=f(tc, yc);
+                    const k2=f(tc+hc/2, add(yc, scale(k1, hc/2)));
+                    const k3=f(tc+hc/2, add(yc, scale(k2, hc/2)));
+                    const k4=f(tc+hc, add(yc, scale(k3, hc)));
+                    return add(yc, scale(add(add(k1, scale(k2, 2)), add(scale(k3, 2), k4)), hc/6));
+                };
+                
+                const y1 = rk(t, y, h);       // One big step
+                const y2 = rk(t+h/2, rk(t, y, h/2), h/2); // Two small steps
+                
+                let err = 0;
+                for(let k=0; k<y.length; k++) err = Math.max(err, Math.abs(y1[k]-y2[k]));
+                if(err === 0) err = 1e-20; 
+                
+                // Formula: h_new = h * S * (Tol/Err)^(1/5)
+                let scaleFactor = 0.9 * Math.pow(tol/err, 0.2);
+                scaleFactor = Math.min(Math.max(scaleFactor, 0.1), 10.0);
+                
+                const h_new = h * scaleFactor;
+                
+                if(err < tol) {
+                    // Accept step
+                    t += h;
+                    y = y2; 
+                    res.t.push(t); res.y.push(y);
+                }
+                
+                // Update h for next attempt
+                h = h_new;
+                
+                // --- BUG FIX FOR FREEZING ---
+                // If step becomes extremely small (singularity hit), ABORT.
+                // Do not clamp min to 1e-5, allow it to go low, but stop if too low.
+                if (h < 1e-7) {
+                    break; // Stop simulation, we hit a wall
+                }
+                
+                // Clamp max step only
+                if(h > 2.0) h = 2.0;
+                
+                if(res.t.length > 5000) break; 
+                if(Math.abs(y[0]) > 1e12) break;
+            }
+            return res;
+        }
+    };
+
+    // ==========================================
+    // 3. UI & PLOTTING
+    // ==========================================
+    const stepSlider = document.getElementById('stepSlider');
+    const durationSlider = document.getElementById('durationSlider');
+    const presetSelect = document.getElementById('presetSelect');
+    const methodSelect = document.getElementById('methodSelect');
+    const hintBox = document.getElementById('hintBox');
+
+    function getStepFromSlider(val) {
+        const minv = Math.log(0.001), maxv = Math.log(1.5);
+        const s = (maxv - minv) / 100;
+        return Math.exp(minv + s * val);
+    }
+    function setSliderFromStep(step) {
+         const minv = Math.log(0.001), maxv = Math.log(1.5);
+         const s = (maxv - minv) / 100;
+         return (Math.log(step) - minv) / s;
+    }
+
+    function updateSimulation() {
+        const pKey = presetSelect.value;
+        const mKey = methodSelect.value;
+        const h = getStepFromSlider(stepSlider.value);
+        const T = parseFloat(durationSlider.value);
+        
+        document.getElementById('stepValDisplay').innerText = h.toFixed(4);
+        document.getElementById('durationDisplay').innerText = T.toFixed(1);
+        
+        const stepLabel = document.getElementById('stepLabel');
+        stepLabel.innerHTML = mKey === 'rk_adaptive' ? "Початковий крок ($h_0$)" : "Крок інтегрування ($h$)";
+        if(window.MathJax) MathJax.typesetPromise([stepLabel]);
+
+        const sys = presets[pKey];
+        const res = Solvers[mKey](sys.f, 0, sys.y0, h, T);
+        const truth = sys.getExact(T);
+        
+        // Viewport clamping to Truth
+        let minY = Infinity, maxY = -Infinity;
+        for(let v of truth.y) { if(v<minY) minY=v; if(v>maxY) maxY=v; }
+        if(!isFinite(minY)) minY = -10; if(!isFinite(maxY)) maxY = 10;
+        if(minY===maxY) { minY-=1; maxY+=1; }
+        const pad = (maxY-minY)*0.2;
+        const range = [Math.max(minY-pad, -1000), Math.min(maxY+pad, 1000)];
+
+        const traceExact = {
+            x: truth.t, y: truth.y, mode: 'lines', name: 'Еталон',
+            line: { color: '#2c3e50', width: 3 }
+        };
+        const traceNum = {
+            x: res.t, y: res.y.map(v=>v[0]), mode: 'markers+lines', name: 'Чисельний',
+            marker: { size: 4, color: '#e74c3c', opacity: 0.8 },
+            line: { color: 'rgba(231, 76, 60, 0.4)', width: 1 }
+        };
+
+        const layout = {
+            margin: { t: 20, r: 20, b: 40, l: 60 },
+            showlegend: false,
+            xaxis: { title: '$t$' },
+            yaxis: { title: '$y(t)$', range: range },
+            hovermode: 'closest', template: 'plotly_white'
+        };
+
+        Plotly.react('plotDiv', [traceExact, traceNum], layout, {responsive: true});
+        document.getElementById('stepCount').innerText = res.t.length;
+        
+        let errTxt = "calc...";
+        if(res.y.length < 5000 && Math.abs(res.y[res.y.length-1][0]) < 1e5) {
+             errTxt = "OK";
+             if(Math.abs(res.y[res.y.length-1][0]) > 1e4) errTxt = "High";
+        } else { errTxt = "Overflow"; }
+        document.getElementById('maxError').innerText = errTxt;
+
+        if(sys.hint) {
+            hintBox.style.display = 'block';
+            hintBox.innerHTML = "💡 " + sys.hint;
+        } else hintBox.style.display = 'none';
+    }
+
+    stepSlider.addEventListener('input', updateSimulation);
+    durationSlider.addEventListener('input', updateSimulation);
+    methodSelect.addEventListener('change', updateSimulation);
+    presetSelect.addEventListener('change', () => {
+        const p = presets[presetSelect.value];
+        const fd = document.getElementById('formulaDisplay');
+        fd.innerHTML = p.tex;
+        if(window.MathJax) MathJax.typesetPromise([fd]);
+        durationSlider.value = p.defaultT;
+        updateSimulation();
+    });
+
+    setSliderFromStep(0.1);
+    presetSelect.dispatchEvent(new Event('change'));
+</script>
+</body>
+</html>
