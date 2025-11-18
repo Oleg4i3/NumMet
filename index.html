@@ -11,13 +11,13 @@
             padding: 0;
             height: 100%;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden; /* Ховаємо скроли самої сторінки */
+            overflow: hidden;
         }
 
         .wrapper {
             display: flex;
             width: 100%;
-            height: 100vh; /* На всю висоту екрана */
+            height: 100vh;
             transition: all 0.3s ease;
         }
 
@@ -28,14 +28,13 @@
             background: #2c3e50;
             color: #fff;
             transition: all 0.3s;
-            overflow-y: auto; /* Скрол всередині меню */
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
         }
 
-        /* Клас для схованого меню */
         #sidebar.active {
-            margin-left: -280px; /* Ховаємо меню за межі екрана */
+            margin-left: -280px;
         }
 
         .sidebar-header {
@@ -50,7 +49,6 @@
             font-size: 1.1rem;
         }
 
-        /* Категорії та кнопки */
         .category {
             padding: 15px 20px 5px 20px;
             font-size: 0.75rem;
@@ -82,7 +80,7 @@
         .menu-btn.selected {
             background: #34495e;
             color: #fff;
-            border-left: 4px solid #3498db; /* Синій маркер */
+            border-left: 4px solid #3498db;
         }
 
         /* --- ОСНОВНИЙ КОНТЕНТ --- */
@@ -94,7 +92,6 @@
             position: relative;
         }
 
-        /* Верхня панель навігації */
         .top-navbar {
             background: #fff;
             padding: 10px 15px;
@@ -105,7 +102,6 @@
             height: 50px;
         }
 
-        /* Кнопка Гамбургер */
         #sidebarCollapse {
             background: #3498db;
             border: none;
@@ -130,9 +126,8 @@
             color: #2c3e50;
         }
 
-        /* IFRAME */
         .iframe-container {
-            flex-grow: 1; /* Займає весь простір, що залишився */
+            flex-grow: 1;
             background: #ecf0f1;
             position: relative;
         }
@@ -143,7 +138,6 @@
             border: none;
         }
 
-        /* Заглушка */
         .placeholder {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -162,34 +156,45 @@
 <div class="wrapper">
     <nav id="sidebar">
         <div class="sidebar-header">
-            <h3>Навчальний посібник</h3>
+            <h3>ЧИСЕЛЬНІ МЕТОДИ. Інтерактивний навчальний посібник</h3>
         </div>
 
-        <div class="category">1. Лінійна Алгебра</div>
-        <button class="menu-btn" onclick="openSim('SVD.html', 'SVD Розклад', this)">SVD Розклад</button>
-        <button class="menu-btn" onclick="openSim('MatrixNorm_SVD_Spectral_Decomposition.html', 'Норми та Спектр', this)">Норми матриць</button>
-        <button class="menu-btn" onclick="openSim('condNumber.html', 'Число обумовленості', this)">Число обумовленості</button>
-        <button class="menu-btn" onclick="openSim('LowRank_approx_3D.html', 'Low Rank Approx (3D)', this)">Низькорангова апрокс.</button>
+        <div class="category">1. Чисельні методи лінійної алгебри</div>
+         <button class="menu-btn" onclick="openSim('MatrixNorm_SVD_Spectral_Decomposition.html', 'Норми та Спектр', this)">Норми та спектри матриць. SVD</button>
+		 
+         <button class="menu-btn" onclick="openSim('LowRank_approx_3D.html', 'Low Rank Approx (3D)', this)">Низькорангова апроксимація (LowRank 3D→2D→1D)</button>
 
+		<button class="menu-btn" onclick="openSim('SVD.html', 'SVD Розклад', this)">Реомендаційна система на основі SVD розкладу</button>
+        
+     
+        <button class="menu-btn" onclick="openSim('condNumber.html', 'Число обумовленості', this)">Число обумовленості</button>
+        
+      
         <div class="category">2. Кластеризація</div>
         <button class="menu-btn" onclick="openSim('k-means-2D3D.html', 'Метод k-means', this)">k-means (2D/3D)</button>
-        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Spectral Clustering</button>
+        
+        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Спектральні та інші методи кластеризації</button>
 
-        <div class="category">3. Апроксимація</div>
+        <div class="category">3. Апроксимація і інтерполяція. Оптимізація</div>
         <button class="menu-btn" onclick="openSim('splines.html', 'Сплайни', this)">Сплайни</button>
+        
         <button class="menu-btn" onclick="openSim('Pade_and_Taylor_approximation.html', 'Апроксимація Паде/Тейлора', this)">Паде і Тейлор</button>
-        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптим.</button>
+        
+        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптимізація</button>
 
         <div class="category">4. Інтегрування / ODE</div>
-        <button class="menu-btn" onclick="openSim('ODE.html', 'Звичайні диф. рівняння', this)">ODE (Диф. рівн.)</button>
-        <button class="menu-btn" onclick="openSim('MonteKarlo_3D.html', 'Метод Монте-Карло', this)">Монте-Карло</button>
+        <button class="menu-btn" onclick="openSim('ODE.html', 'Звичайні диф. рівняння', this)">Чисельні розв'язки звичайних диф. рівнянь (ODE)</button>
+        
+        <button class="menu-btn" onclick="openSim('MonteKarlo_3D.html', 'Метод Монте-Карло', this)">Інтегрування методом Монте-Карло</button>
 
-        <div style="height: 50px;"></div> </nav>
+        <div style="height: 50px;"></div>
+    </nav>
 
     <div id="content">
         <div class="top-navbar">
             <button type="button" id="sidebarCollapse">
-                <span>☰</span> </button>
+                <span>☰</span>
+            </button>
             <span class="current-title" id="pageTitle">Оберіть тему</span>
         </div>
 
@@ -204,7 +209,6 @@
 </div>
 
 <script>
-    // --- Логіка згортання меню ---
     const sidebar = document.getElementById('sidebar');
     const collapseBtn = document.getElementById('sidebarCollapse');
 
@@ -212,26 +216,21 @@
         sidebar.classList.toggle('active');
     });
 
-    // --- Логіка завантаження симулятора ---
     function openSim(file, title, btn) {
         const iframe = document.getElementById('simFrame');
         const pageTitle = document.getElementById('pageTitle');
         const startMsg = document.getElementById('startMessage');
         
-        // 1. Завантажити файл
+        // Встановлюємо адресу посилання
         iframe.src = file;
-        
-        // 2. Змінити заголовок зверху
         pageTitle.innerText = title;
         
-        // 3. Сховати вітальне повідомлення
         if(startMsg) startMsg.style.display = 'none';
 
-        // 4. Підсвітити активну кнопку в меню
         document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
 
-        // 5. (Опціонально) Автоматично ховати меню на мобільних/планшетах після кліку
+        // Автоматичне згортання меню на мобільних пристроях
         if (window.innerWidth < 900) {
             sidebar.classList.add('active');
         }
