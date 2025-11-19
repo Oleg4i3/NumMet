@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Методи Якобі та Зейделя</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #475569;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        /* Inputs */
+        .matrix-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        input[type="number"] {
+            width: 60px; padding: 8px;
+            border: 1px solid #cbd5e1; border-radius: 4px;
+            text-align: center; font-size: 14px;
+        }
+        .vector-b { border-left: 2px solid #cbd5e1; padding-left: 10px; margin-left: 10px; }
+
+        /* Controls */
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center; }
+        
+        button {
+            background-color: var(--primary); color: white; border: none;
+            padding: 10px 16px; border-radius: 6px; cursor: pointer;
+            font-weight: 600; transition: background 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+        button.reset { background-color: var(--secondary); }
+        
+        .checkbox-wrapper {
+            display: flex; align-items: center; gap: 8px;
+            background: #eff6ff; padding: 8px 12px;
+            border-radius: 6px; border: 1px solid #bfdbfe;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        select { padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
+
+        /* Logs */
+        #logArea {
+            height: 250px; overflow-y: auto; background: #1e293b; color: #f1f5f9;
+            padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px;
+        }
+        .log-entry { margin-bottom: 6px; border-bottom: 1px solid #334155; padding-bottom: 4px; }
+        .log-success { color: #4ade80; }
+        .log-warn { color: #facc15; }
+        .log-error { color: #f87171; font-weight: bold; }
+        .log-rec { 
+            background: #3f2c2c; border-left: 4px solid #f87171; 
+            padding: 8px; margin: 5px 0; color: #fca5a5;
+        }
+
+        /* Theory */
+        details { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin-top: 20px; }
+        summary { padding: 15px; font-weight: bold; cursor: pointer; background-color: #e0f2fe; border-radius: 8px; }
+        .theory-content { padding: 20px; }
+        .formula-box { background: #f8fafc; border-left: 4px solid var(--primary); padding: 10px; margin: 10px 0; }
+        
+        /* Result Box */
+        #finalResult {
+            margin-top:15px; padding:10px; background:#f0fdf4; 
+            border:1px solid #86efac; display:none; border-radius:6px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3>Методи Якобі та Зейделя розв'язання СЛАР</h3>
+    
+    <div class="card">
+        <div class="controls">
+            <label><strong>1. Виберіть пресет:</strong></label>
+            <select id="presetSelect" onchange="loadPreset()">
+                <option value="good">✅ Добре обумовлена (Збіжна)</option>
+                <option value="needsSwap">⚠️ Потребує перестановки (Прихована діагональ)</option>
+                <option value="bad">❌ Погано обумовлена (Розбіжна)</option>
+            </select>
+            
+            <label class="checkbox-wrapper">
+                <input type="checkbox" id="autoSwap" checked>
+                <span>Автоматична діагоналізація (Перестановка рядків)</span>
+            </label>
+        </div>
+
+        <div id="matrixInput"></div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h3>2. Запуск</h3>
+            <div class="controls">
+                <button onclick="solve('jacobi')">Метод Якобі</button>
+                <button onclick="solve('seidel')">Метод Зейделя</button>
+                <button class="reset" onclick="resetSim()">Очистити</button>
+            </div>
+            <div style="display:flex; gap:15px; margin-bottom:15px; font-size:0.9em;">
+                <div>
+                    <label>Точність $\epsilon$:</label>
+                    <input type="number" id="epsilon" value="0.001" step="0.0001" style="width: 70px;">
+                </div>
+                <div>
+                    <label>Ліміт ітерацій:</label>
+                    <input type="number" id="maxIter" value="50" style="width: 60px;">
+                </div>
+            </div>
+            
+            <h3>Журнал обчислень</h3>
+            <div id="logArea"></div>
+        </div>
+
+        <div class="card">
+            <h3>Графік похибки $||x^{(k)} - x^{(k-1)}||$</h3>
+            <canvas id="convergenceChart"></canvas>
+            <div id="finalResult">
+                <strong>Результат:</strong> <span id="resultVector" style="font-family:monospace;"></span>
+            </div>
+        </div>
+    </div>
+
+    <details>
+        <summary>📚 Теоретичні відомості (Натисніть, щоб розгорнути)</summary>
+        <div class="theory-content">
+            <h3>1. Постановка задачі</h3>
+            <p>Розглядається система лінійних алгебраїчних рівнянь вигляду $Ax=b$, де $A$ — квадратна матриця $n \times n$, $b$ — вектор вільних членів. Мета — знайти вектор $x$.</p>
+
+            <h3>2. Умова збіжності</h3>
+            <p>Достатньою умовою збіжності для методів Якобі та Зейделя є <strong>діагональне домінування</strong> матриці $A$. Тобто модуль діагонального елемента має бути більшим за суму модулів всіх інших елементів у рядку:</p>
+            <div class="formula-box">
+                $$ |a_{ii}| > \sum_{j \neq i} |a_{ij}| \quad \text{для всіх } i = 1, \dots, n $$
+            </div>
+            <p>Якщо ця умова не виконується, іноді достатньо переставити рядки матриці місцями (що робить функція "Автоматична діагоналізація").</p>
+
+            <h3>3. Метод Якобі</h3>
+            <p>В методі Якобі значення на $(k+1)$-й ітерації обчислюються використовуючи лише значення з попередньої $k$-ї ітерації. Це дозволяє проводити обчислення паралельно.</p>
+            <div class="formula-box">
+                $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right) $$
+            </div>
+
+            <h3>4. Метод Гауса-Зейделя</h3>
+            <p>Це модифікація методу Якобі, де для обчислення $x_i^{(k+1)}$ використовуються вже знайдені на **поточній** ітерації нові значення $x_1^{(k+1)}, \dots, x_{i-1}^{(k+1)}$. Це часто пришвидшує збіжність.</p>
+            <div class="formula-box">
+                $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j=1}^{i-1} a_{ij} x_j^{(k+1)} - \sum_{j=i+1}^{n} a_{ij} x_j^{(k)} \right) $$
+            </div>
+
+            <h3>5. Що робити при розбіжності?</h3>
+            <p>Якщо матриця не задовольняє умовам збіжності (спектральний радіус $\rho(B) \ge 1$), ітерації будуть давати нескінченно великі значення. У такому разі слід використовувати:</p>
+            <ul>
+                <li>Прямі методи (Гауса, LU-розклад).</li>
+                <li>Метод верхньої релаксації (SOR) з підбором параметру $\omega$.</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+<script>
+    // --- Config ---
+    const size = 3;
+    let chartInstance = null;
+
+    window.onload = function() {
+        createInputs();
+        loadPreset();
+        initChart();
+    };
+
+    function createInputs() {
+        const container = document.getElementById('matrixInput');
+        container.innerHTML = '';
+        for (let i = 0; i < size; i++) {
+            let row = document.createElement('div');
+            row.className = 'matrix-row';
+            row.innerHTML = `<span style="width:20px; color:#64748b; font-size:12px">${i+1}:</span>`;
+            for (let j = 0; j < size; j++) {
+                row.innerHTML += `<input type="number" id="a_${i}_${j}" placeholder="a${i+1}${j+1}">`;
+            }
+            row.innerHTML += `<div class="vector-b"><input type="number" id="b_${i}" placeholder="b${i+1}"></div>`;
+            container.appendChild(row);
+        }
+    }
+
+    function loadPreset() {
+        const type = document.getElementById('presetSelect').value;
+        let A, b;
+        
+        if (type === 'good') {
+            A = [[10, 2, 1], [1, 10, 2], [1, 1, 10]];
+            b = [7, 13, 12]; // Sol: ~[0.4, 1.16, 1.04]
+        } else if (type === 'needsSwap') {
+            // Row 1 <-> Row 2 swapped compared to diagonal dominance
+            A = [[1, 10, 2], [10, 2, 1], [1, 1, 10]]; 
+            b = [13, 7, 12];
+        } else {
+            // Bad: Spectral radius > 1
+            A = [[1, 5, 1], [5, 1, 5], [1, 5, 1]];
+            b = [9, 11, 7];
+        }
+
+        fillMatrix(A, b);
+        resetSim();
+        log(`Завантажено пресет: ${type}`, 'info');
+
+        if(type === 'needsSwap') {
+            log("💡 Підказка: Спробуйте вимкнути 'Автоматичну діагоналізацію', щоб побачити розбіжність!", 'warn');
+        }
+    }
+
+    function fillMatrix(A, b) {
+        for(let i=0; i<size; i++){
+            for(let j=0; j<size; j++) document.getElementById(`a_${i}_${j}`).value = A[i][j];
+            document.getElementById(`b_${i}`).value = b[i];
+        }
+    }
+
+    function getMatrix() {
+        let A = [], b = [];
+        for(let i=0; i<size; i++){
+            let row = [];
+            for(let j=0; j<size; j++) row.push(parseFloat(document.getElementById(`a_${i}_${j}`).value) || 0);
+            A.push(row);
+            b.push(parseFloat(document.getElementById(`b_${i}`).value) || 0);
+        }
+        return {A, b};
+    }
+
+    // --- Core Logic with MathJax Logs ---
+
+    function log(msg, type='normal') {
+        const area = document.getElementById('logArea');
+        const div = document.createElement('div');
+        
+        // Set content
+        div.innerHTML = type === 'rec' ? `⚠️ ${msg}` : `> ${msg}`;
+        
+        // Styling
+        if (type === 'rec') div.className = 'log-rec';
+        else div.className = `log-entry log-${type}`;
+        
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+
+        // IMPORTANT: Trigger MathJax to render formulas in this new element
+        if (window.MathJax) {
+            MathJax.typesetPromise([div]).catch((err) => console.log('MathJax error:', err));
+        }
+    }
+
+    function resetSim() {
+        document.getElementById('logArea').innerHTML = '';
+        document.getElementById('finalResult').style.display = 'none';
+        if(chartInstance) {
+            chartInstance.data.labels = [];
+            chartInstance.data.datasets[0].data = [];
+            chartInstance.update();
+        }
+    }
+
+    function processMatrix(A, b, autoSwap) {
+        let n = A.length;
+        let swapped = false;
+        let warning = false;
+
+        // 1. Check Conditions
+        for(let i=0; i<n; i++) {
+            let diag = Math.abs(A[i][i]);
+            let sum = A[i].reduce((acc, val, idx) => idx !== i ? acc + Math.abs(val) : acc, 0);
+            if (diag <= sum) warning = true;
+        }
+
+        if (warning && !autoSwap) {
+            log("УВАГА: Умова $|a_{ii}| > \\sum |a_{ij}|$ порушена, авто-перестановка вимкнена. Ризик розбіжності!", 'error');
+        }
+
+        // 2. Swap if enabled
+        if (autoSwap) {
+            for (let i = 0; i < n; i++) {
+                let maxVal = Math.abs(A[i][i]);
+                let maxIdx = i;
+                
+                for (let k = i + 1; k < n; k++) {
+                    if (Math.abs(A[k][i]) > Math.abs(A[maxIdx][i])) {
+                        maxIdx = k;
+                    }
+                }
+
+                if (maxIdx !== i) {
+                    [A[i], A[maxIdx]] = [A[maxIdx], A[i]];
+                    [b[i], b[maxIdx]] = [b[maxIdx], b[i]];
+                    log(`🔄 Перестановка: $R_{${i+1}} \\leftrightarrow R_{${maxIdx+1}}$`, 'warn');
+                    swapped = true;
+                }
+            }
+            if (swapped) {
+                fillMatrix(A, b);
+                log("Матрицю оптимізовано для діагонального домінування.", 'success');
+            } else if (warning) {
+                log("Автоматична перестановка не змогла забезпечити строгу діагональність.", 'warn');
+            }
+        }
+
+        return {A, b};
+    }
+
+    function solve(method) {
+        resetSim();
+        let {A, b} = getMatrix();
+        const autoSwap = document.getElementById('autoSwap').checked;
+        
+        const processed = processMatrix(A, b, autoSwap);
+        A = processed.A;
+        b = processed.b;
+
+        const eps = parseFloat(document.getElementById('epsilon').value);
+        const maxIter = parseInt(document.getElementById('maxIter').value);
+        let n = A.length;
+        let x = new Array(n).fill(0);
+        let iterations = 0;
+        let diverged = false;
+
+        log(`🚀 Старт: Метод ${method === 'jacobi' ? 'Якобі' : 'Зейделя'} ($x^{(0)} = 0$)`, 'info');
+
+        while (iterations < maxIter) {
+            let x_new = [...x];
+            
+            for (let i = 0; i < n; i++) {
+                let sigma = 0;
+                for (let j = 0; j < n; j++) {
+                    if (j !== i) {
+                        const val = (method === 'seidel') ? x_new[j] : x[j];
+                        sigma += A[i][j] * val;
+                    }
+                }
+                
+                if (Math.abs(A[i][i]) < 1e-10) {
+                    log(`Критична помилка: $a_{${i+1}${i+1}} \\approx 0$`, 'error');
+                    recommendAlternatives("zero_diag");
+                    return;
+                }
+                
+                x_new[i] = (b[i] - sigma) / A[i][i];
+            }
+
+            let error = 0;
+            for(let i=0; i<n; i++) error += (x_new[i] - x[i])**2;
+            error = Math.sqrt(error);
+
+            // Safety Break
+            if (error > 1000000 || isNaN(error)) {
+                updateChart(iterations+1, 1000000);
+                log(`💥 РОЗБІЖНІСТЬ! $||x^{(k)} - x^{(k-1)}|| > 10^6$`, 'error');
+                diverged = true;
+                break;
+            }
+
+            updateChart(iterations+1, error);
+            x = x_new;
+            iterations++;
+
+            if (error < eps) {
+                log(`🏁 Збіжність: $k=${iterations}, \\epsilon=${error.toExponential(2)}$`, 'success');
+                showResult(x);
+                return;
+            }
+        }
+
+        if (diverged || iterations >= maxIter) {
+            if (!diverged) log(`⏳ Ліміт ітерацій. Фінальна похибка: $${chartInstance.data.datasets[0].data.slice(-1)[0].toExponential(2)}$`, 'warn');
+            recommendAlternatives("diverged");
+        }
+    }
+
+    function recommendAlternatives(reason) {
+        log("РЕКОМЕНДАЦІЯ:", 'rec');
+        log("1. Прямі методи: $Ax=b$ через Гауса або LU.", 'rec');
+        log("2. Метод SOR (Successive Over-Relaxation).", 'rec');
+    }
+
+    function showResult(x) {
+        const div = document.getElementById('finalResult');
+        div.style.display = 'block';
+        document.getElementById('resultVector').innerText = `[ ${x.map(v => v.toFixed(5)).join(', ')} ]`;
+    }
+
+    // --- Charts ---
+    function initChart() {
+        const ctx = document.getElementById('convergenceChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Похибка (Error)',
+                    data: [],
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        title: { display: true, text: 'Log(Error)' }
+                    },
+                    x: { title: { display: true, text: 'Ітерація (k)' } }
+                }
+            }
+        });
+    }
+
+    function updateChart(iter, val) {
+        chartInstance.data.labels.push(iter);
+        chartInstance.data.datasets[0].data.push(val);
+        chartInstance.update();
+    }
+</script>
+
+</body>
+</html>

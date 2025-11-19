@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рівняня</title>
+    
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --success: #22c55e;
+            --danger: #dc2626;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1280px;
+        }
+
+        @media (max-width: 1000px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        h1 { color: var(--primary); margin: 0 0 5px 0; }
+        .subtitle { margin: 0 0 20px 0; color: #64748b; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+        }
+
+        .chart-container { height: 600px; position: relative; }
+
+        .controls { display: flex; flex-direction: column; gap: 15px; }
+
+        label { font-weight: 600; font-size: 0.9rem; color: #475569; margin-bottom: 4px; display: block; }
+        
+        select, input[type="range"] {
+            width: 100%; padding: 8px; border: 1px solid #cbd5e1;
+            border-radius: 6px; box-sizing: border-box;
+        }
+
+        .btn-row { display: flex; gap: 10px; }
+        button {
+            flex: 1; padding: 10px; border: none; border-radius: 6px;
+            cursor: pointer; font-weight: 600; transition: 0.2s;
+        }
+        button.primary { background-color: var(--primary); color: white; }
+        button.primary:hover { background-color: #1d4ed8; }
+        button.reset { background-color: #e2e8f0; color: var(--text); }
+        button.reset:hover { background-color: #cbd5e1; }
+
+        .status-box {
+            padding: 12px; border-radius: 6px;
+            background: #f1f5f9; border-left: 4px solid #94a3b8;
+            font-size: 0.9rem; transition: all 0.3s ease;
+        }
+        .status-box.success { background: #f0fdf4; border-left-color: var(--success); color: #15803d; }
+        .status-box.danger { background: #fef2f2; border-left-color: var(--danger); color: #991b1b; }
+
+        .data-row {
+            display: flex; justify-content: space-between;
+            font-family: monospace; font-size: 0.95rem;
+            border-bottom: 1px solid #f1f5f9; padding: 4px 0;
+        }
+
+        details {
+            grid-column: 1 / -1; background: white; border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px; overflow: hidden;
+        }
+        summary {
+            padding: 15px; background: #f8fafc; cursor: pointer; font-weight: 700;
+            color: var(--primary); list-style: none; display: flex; justify-content: space-between;
+        }
+        .theory-content { padding: 25px; line-height: 1.7; border-top: 1px solid #e2e8f0; }
+        .math-block {
+            background: #f8fafc; padding: 15px; border-radius: 8px;
+            border-left: 3px solid var(--primary); margin: 15px 0; overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+   
+    <p class="subtitle">Наближений розв'язок нелінійних рівнянь</p>
+
+    <div class="container">
+        
+        <div class="card chart-container">
+            <div id="plotDiv" style="width:100%; height:100%;"></div>
+        </div>
+
+        <div class="card controls">
+            <div>
+                <label>Метод:</label>
+                <select id="methodSelect">
+                    <option value="fixedPoint">Метод простої ітерації (Павутина)</option>
+                    <option value="newton">Метод Ньютона (Дотичні)</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Функція / Сценарій:</label>
+                <select id="presetSelect"></select>
+            </div>
+
+            <div>
+                <label>
+                    Початкова точка $x_0$: <span id="x0Val" style="float:right; color:var(--primary)">0.5</span>
+                </label>
+                <input type="range" id="x0Slider" step="0.01">
+            </div>
+
+            <div id="statusBox" class="status-box">
+                Готово до запуску.
+            </div>
+
+            <div class="btn-row">
+                <button class="primary" id="stepBtn">Крок вперед (+1)</button>
+                <button class="reset" id="resetBtn">Скинути</button>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <div class="data-row"><span>Ітерація ($n$):</span> <b id="iterCount">0</b></div>
+                <div class="data-row"><span>$x_n$:</span> <b id="currX">-</b></div>
+                <div class="data-row"><span>Похибка:</span> <b id="errorVal">-</b></div>
+            </div>
+        </div>
+
+        <details open>
+            <summary>Теоретична довідка (Розгорнути/Згорнути)</summary>
+            <div class="theory-content">
+                <h3>1. Метод простої ітерації (Fixed Point Iteration)</h3>
+                <p>
+                    Метод перетворює рівняння $f(x) = 0$ у вигляд $x = g(x)$. Ми шукаємо "нерухому точку", де графік функції перетинає пряму $y=x$.
+                    Алгоритм будує послідовність: $x_{n+1} = g(x_n)$.
+                </p>
+                
+                <div class="math-block">
+                    <strong>Теорема про стискаюче відображення:</strong><br>
+                    Ітераційний процес збігається до кореня $x^*$, якщо в деякому околі кореня виконується умова Ліпшица з константою $q < 1$:
+                    $$ |g'(x)| \le q < 1 $$
+                </div>
+                <p>
+                    <strong>Геометричний зміст:</strong>
+                    <ul>
+                        <li>Якщо $0 < g'(x) < 1$: "Сходи" (монотонна збіжність).</li>
+                        <li>Якщо $-1 < g'(x) < 0$: "Павутина" (спіральна збіжність).</li>
+                        <li>Якщо $|g'(x)| > 1$: Точки віддаляються від кореня (Розбіжність).</li>
+                    </ul>
+                </p>
+
+                <h3>2. Метод Ньютона (Newton-Raphson)</h3>
+                <p>
+                    Метод лінеаризації функції. На кожному кроці ми замінюємо криву її дотичною.
+                </p>
+                <div class="math-block">
+                    <strong>Ітераційна формула:</strong>
+                    $$ x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)} $$
+                </div>
+                <p>
+                    Метод має <strong>квадратичну швидкість збіжності</strong>, але він <strong>лише локально збіжний</strong>.
+                </p>
+                <p style="color:var(--danger)">
+                    <strong>Умови розбіжності (Хаос Ньютона):</strong>
+                    <ul>
+                        <li>Якщо $f'(x_n) \approx 0$: Дотична паралельна осі $X$, викид у нескінченність.</li>
+                        <li>Цикли: Можна потрапити у цикл $x_1 \to x_2 \to x_1$, якщо функція має специфічну симетрію (наприклад, $f(x) = \arctan(x)$ при $|x_0| > 1.39$).</li>
+                    </ul>
+                </p>
+            </div>
+        </details>
+    </div>
+
+<script>
+    const presets = [
+        {
+            name: "Стандарт: cos(x) - x = 0",
+            g: x => Math.cos(x),
+            f: x => Math.cos(x) - x,
+            df: x => -Math.sin(x) - 1,
+            root: 0.739085,
+            range: [-1, 2.5],
+            desc: "Класичний приклад. Збігається стабільно."
+        },
+        {
+            name: "Трансцендентне: 2sin(x) - x - 0.5 = 0",
+            g: x => 2 * Math.sin(x) - 0.5, 
+            f: x => 2 * Math.sin(x) - x - 0.5,
+            df: x => 2 * Math.cos(x) - 1,
+            root: 1.495,
+            range: [-4, 4],
+            desc: "Спробуйте x₀=0 (збіжність) та x₀=3 (хаос/стрибки)."
+        },
+        {
+            name: "Ньютон: Пастка Арктангенса (f = arctan x)",
+            g: x => Math.atan(x),
+            f: x => Math.atan(x),
+            df: x => 1 / (1 + x*x),
+            root: 0,
+            range: [-3, 3],
+            desc: "Ньютон розбігається при |x₀| > 1.39. Спробуйте 1.3 та 1.5.",
+            forceMethod: 'newton'
+        },
+        {
+            name: "МПІ Розбіжність: x = e^x - 2",
+            g: x => Math.exp(x) - 2,
+            f: x => Math.exp(x) - x - 2,
+            df: x => Math.exp(x) - 1,
+            root: -1.841, 
+            range: [-3, 2],
+            desc: "Спробуйте x₀ = -1 (збіжність) та x₀ = 0.5 (розбіжність).",
+            forceMethod: 'fixedPoint'
+        }
+    ];
+
+    let state = {
+        method: 'fixedPoint',
+        presetIdx: 0,
+        x0: 0.5,
+        history: [],
+        status: 'idle'
+    };
+
+    function init() {
+        const pSel = document.getElementById('presetSelect');
+        presets.forEach((p, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.innerText = p.name;
+            pSel.appendChild(opt);
+        });
+
+        document.getElementById('methodSelect').addEventListener('change', (e) => {
+            state.method = e.target.value;
+            resetSim();
+        });
+        
+        pSel.addEventListener('change', (e) => {
+            state.presetIdx = parseInt(e.target.value);
+            applyPresetSettings();
+            // resetSim викликається в applyPresetSettings неявно через зміну слайдера або явно тут
+            resetSim();
+        });
+
+        document.getElementById('x0Slider').addEventListener('input', (e) => {
+            state.x0 = parseFloat(e.target.value);
+            document.getElementById('x0Val').innerText = state.x0;
+            resetSim();
+        });
+
+        document.getElementById('stepBtn').addEventListener('click', nextStep);
+        document.getElementById('resetBtn').addEventListener('click', resetSim);
+
+        applyPresetSettings();
+        resetSim();
+    }
+
+    function applyPresetSettings() {
+        const p = presets[state.presetIdx];
+        const slider = document.getElementById('x0Slider');
+        
+        slider.min = p.range[0];
+        slider.max = p.range[1];
+        
+        if(p.forceMethod) {
+            state.method = p.forceMethod;
+            document.getElementById('methodSelect').value = p.forceMethod;
+        }
+
+        if (Math.abs(state.x0) > 5) state.x0 = (p.range[0] + p.range[1]) / 2;
+        
+        if (p.name.includes("Арктангенс")) {
+            state.x0 = 1.45; 
+        } else {
+            state.x0 = (p.range[0] + p.range[1]) / 2;
+        }
+        
+        slider.value = state.x0;
+        document.getElementById('x0Val').innerText = state.x0;
+    }
+
+    function resetSim() {
+        state.history = [state.x0];
+        state.status = 'idle';
+        updateStats();
+        draw();
+    }
+
+    function nextStep() {
+        if (state.status === 'diverged') return;
+        
+        const p = presets[state.presetIdx];
+        const currX = state.history[state.history.length - 1];
+        let nextX;
+
+        try {
+            if (state.method === 'fixedPoint') {
+                nextX = p.g(currX);
+            } else {
+                const fv = p.f(currX);
+                const dfv = p.df(currX);
+                if (Math.abs(dfv) < 1e-12) throw new Error("Zero derivative");
+                nextX = currX - fv / dfv;
+            }
+
+            if (!isFinite(nextX) || Math.abs(nextX) > 10000) {
+                state.status = 'diverged';
+                state.history.push(nextX > 0 ? 10000 : -10000); 
+            } else {
+                state.history.push(nextX);
+                const fValCheck = Math.abs(p.f(nextX));
+                if (fValCheck < 1e-6) state.status = 'converged';
+                if (state.history.length > 50 && state.status !== 'converged') state.status = 'diverged';
+            }
+        } catch (e) {
+            state.status = 'diverged';
+        }
+
+        updateStats();
+        draw();
+    }
+
+    function updateStats() {
+        const n = state.history.length - 1;
+        const currX = state.history[n];
+        const p = presets[state.presetIdx];
+        
+        document.getElementById('iterCount').innerText = n;
+        document.getElementById('currX').innerText = Math.abs(currX) > 9000 ? "∞" : currX.toFixed(5);
+        const err = Math.abs(currX - p.root);
+        document.getElementById('errorVal').innerText = Math.abs(currX) > 9000 ? "-" : err.toExponential(2);
+
+        const sBox = document.getElementById('statusBox');
+        
+        // 1. Спочатку скидаємо класи статусу
+        sBox.className = 'status-box';
+
+        // 2. Встановлюємо контент залежно від статусу
+        if (state.status === 'converged') {
+            sBox.classList.add('success');
+            sBox.innerHTML = "<b>Збіжність!</b> Корінь знайдено.";
+        } else if (state.status === 'diverged') {
+            sBox.classList.add('danger');
+            sBox.innerHTML = "<b>Розбіжність!</b> Метод не сходиться або вийшов за межі.";
+        } else if (state.status === 'idle') {
+            // ТУТ БУВ БАГ: Тепер ми явно відновлюємо текст
+            sBox.innerHTML = `<b>${p.desc}</b><br>Натисніть "Крок вперед".`;
+        } else {
+            sBox.innerText = "Процес йде...";
+        }
+    }
+
+    function draw() {
+        const p = presets[state.presetIdx];
+        const hist = state.history;
+        
+        let allX = [...p.range, ...hist.filter(v => Math.abs(v) < 50)]; 
+        let minX = Math.min(...allX);
+        let maxX = Math.max(...allX);
+        const pad = (maxX - minX) * 0.1;
+        minX -= pad; maxX += pad;
+
+        const xVals = [];
+        const yValsFunc = [];
+        const yValsLine = []; 
+        const nPoints = 300;
+        
+        for (let i = 0; i <= nPoints; i++) {
+            let x = minX + (i * (maxX - minX)) / nPoints;
+            xVals.push(x);
+            if (state.method === 'fixedPoint') {
+                yValsFunc.push(p.g(x));
+                yValsLine.push(x);
+            } else {
+                yValsFunc.push(p.f(x));
+                yValsLine.push(0);
+            }
+        }
+
+        const pathX = [];
+        const pathY = [];
+        
+        if (state.method === 'fixedPoint') {
+            if (hist.length > 0) {
+                pathX.push(hist[0]); pathY.push(0); 
+                for (let i = 0; i < hist.length - 1; i++) {
+                    let curr = hist[i];
+                    let next = hist[i+1];
+                    pathX.push(curr); pathY.push(next);
+                    pathX.push(next); pathY.push(next);
+                }
+            }
+        } else {
+            if (hist.length > 0) {
+                for (let i = 0; i < hist.length; i++) {
+                    let val = hist[i];
+                    if (Math.abs(val) > 100) break; 
+                    pathX.push(val); pathY.push(0);
+                    pathX.push(val); pathY.push(p.f(val));
+                    if (i < hist.length - 1) {
+                        let next = hist[i+1];
+                        pathX.push(next); pathY.push(0);
+                    }
+                }
+            }
+        }
+
+        const traceFunc = {
+            x: xVals, y: yValsFunc,
+            mode: 'lines', name: state.method === 'fixedPoint' ? 'g(x)' : 'f(x)',
+            line: { color: '#2563eb', width: 3 }
+        };
+        
+        const traceAxis = {
+            x: xVals, y: yValsLine,
+            mode: 'lines', name: state.method === 'fixedPoint' ? 'y=x' : 'Вісь X',
+            line: { color: '#94a3b8', dash: 'dash' }
+        };
+
+        const tracePath = {
+            x: pathX, y: pathY,
+            mode: 'lines+markers', name: 'Ітерації',
+            line: { color: '#ef4444', width: 2 },
+            marker: { size: 6, color: '#ef4444' }
+        };
+
+        const layout = {
+            margin: { t: 30, r: 20, b: 40, l: 40 },
+            showlegend: true,
+            legend: { x: 0, y: 1.1, orientation: 'h' },
+            xaxis: { range: [minX, maxX], zeroline: true },
+            yaxis: { scaleanchor: 'x', scaleratio: 1 },
+            hovermode: 'closest'
+        };
+
+        Plotly.react('plotDiv', [traceFunc, traceAxis, tracePath], layout, {responsive: true, displayModeBar: false});
+    }
+
+    init();
+
+</script>
+</body>
+</html>
