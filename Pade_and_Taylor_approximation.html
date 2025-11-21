@@ -391,12 +391,13 @@
             let currentOriginalFunc = (x) => x;
 
             // --- Головна функція оновлення ---
-            function updatePlotAndFormulas() {
+           function updatePlotAndFormulas() {
                 let funcKey = functionSelect.value;
                 let k = parseInt(slider.value); 
                 
                 const dbEntry = functionDatabase[funcKey];
                 
+                // Оновлення слайдера та значень
                 slider.max = dbEntry.sliderMax;
                 if (k > dbEntry.sliderMax) { k = dbEntry.sliderMax; slider.value = k; }
                 const N_taylor = 2 * k; 
@@ -404,16 +405,20 @@
                 orderValue.textContent = k;
                 formulaOrder.textContent = k;
 
+                // Розрахунок коефіцієнтів
                 const taylorCoeffs = dbEntry.getTaylorCoefficients(N_taylor + 4); 
                 const padeCoeffs = calculatePadeCoefficients(taylorCoeffs, k, k);
 
+                // Створення функцій
                 currentOriginalFunc = dbEntry.func;
                 currentTaylorFunc = createPolynomial(taylorCoeffs.slice(0, N_taylor + 1));
                 currentPadeFunc = createPadeFunction(padeCoeffs);
 
                 const isDomainLimited = (funcKey === 'ln1px' || funcKey === 'cbrt1px');
                 
+                // --- Генерація даних для графіків ---
                 const originalData = xValues.map(x => ({ x: x, y: currentOriginalFunc(x) }));
+                
                 myChart.data.datasets[0].data = originalData;
                 
                 myChart.data.datasets[1].data = xValues.map(x => {
@@ -425,30 +430,45 @@
                     return { x: x, y: currentPadeFunc(x) };
                 });
                 
-                // === ВИЗНАЧЕННЯ МАСШТАБУ Y ЗА СИНЬОЮ ЛІНІЄЮ ===
+                // === ВИПРАВЛЕНА ЛОГІКА МАСШТАБУВАННЯ ===
+                // 1. Спочатку скидаємо стан зуму, щоб графік повернувся у вихідне положення.
+                //    Це важливо зробити ДО встановлення min/max.
+                if (!myChart.isZoomedOrPanned()) {
+                    myChart.resetZoom('none');
+                }
+
+                // 2. Знаходимо min/max ТІЛЬКИ для оригінальної функції (синя лінія).
+                //    Ми ігноруємо "вибухові" значення Тейлора і Паде.
                 const yValues = originalData.map(d => d.y).filter(y => isFinite(y) && y !== null);
                 let yMin = Math.min(...yValues);
                 let yMax = Math.max(...yValues);
-                const yPadding = (yMax - yMin) * 0.1; // 10% відступ
 
-                if (yPadding === 0) { // Випадок, якщо лінія горизонтальна
-                    yMin -= 0.5;
-                    yMax += 0.5;
+                // 3. Розраховуємо відступ (Padding).
+                //    Беремо 20% від загального розмаху функції. Це гарантує, що масштаб
+                //    не перевищить ~140-150% від діапазону даних, і графік не "сплющиться".
+                let range = yMax - yMin;
+                
+                // Обробка випадку, якщо функція - горизонтальна лінія (range = 0)
+                if (range < 1e-10) { 
+                    range = 1; 
+                    yMin -= 0.5; 
+                    yMax += 0.5; 
                 }
+                
+                const yPadding = range * 0.2; // 20% відступу зверху і знизу
 
+                // 4. Жорстко застосовуємо межі до осі Y
                 myChart.options.scales.y.min = yMin - yPadding;
                 myChart.options.scales.y.max = yMax + yPadding;
-                // =============================================
                 
+                // 5. Приховуємо старі анотації (лінії точності) при зміні параметрів
                 Object.values(myChart.options.plugins.annotation.annotations).forEach(ann => ann.display = false);
 
-                if (myChart.isZoomedOrPanned()) {
-                    myChart.update('none'); 
-                } else {
-                    myChart.resetZoom('none'); 
-                    myChart.update('none');
-                }
+                // 6. Оновлюємо графік із новими налаштуваннями
+                myChart.update('none');
+                // =============================================
                 
+                // Оновлення формул (MathJax)
                 const useDecimals = true; 
                 taylorFormulaDiv.innerHTML = createPolynomialString(taylorCoeffs, N_taylor, useDecimals);
                 padeFormulaDiv.innerHTML = `$$ \\frac{${createPolynomialString(padeCoeffs.a, k, useDecimals).slice(1,-1)}}{${createPolynomialString(padeCoeffs.b, k, useDecimals).slice(1,-1)}} $$`;
@@ -457,9 +477,9 @@
                     MathJax.typesetPromise([taylorFormulaDiv, padeFormulaDiv]).catch(console.error);
                 }
                 
+                // Запуск розрахунку точності
                 calculateAccuracy();
             }
-
             // --- Функція розрахунку точності ---
             let accuracyTimeout; 
             function calculateAccuracy() {
