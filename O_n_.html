@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>обчислювальна складність</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --secondary: #6b8cbc;
+            --accent: #ff7e5f;
+            --light: #f5f7fa;
+            --dark: #2c3e50;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary);
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            background-color: var(--light);
+            border: none;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .tab:hover:not(.active) {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: white;
+            border-radius: 0 8px 8px 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .graph-container {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            height: 500px; /* Фіксована висота графіка */
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%; /* Заповнює весь контейнер */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+            align-items: center;
+        }
+        
+        .slider-container {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        .n-value {
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+        
+        .time-calculations {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .time-card {
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        
+        .time-card h3 {
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .time-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--dark);
+        }
+        
+        .examples {
+            margin: 30px 0;
+        }
+        
+        .complexity-group {
+            margin-bottom: 25px;
+        }
+        
+        .complexity-group h3 {
+            padding: 10px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .example-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: var(--light);
+            border-left: 4px solid var(--secondary);
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .explanation {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        .spoiler {
+            margin: 20px 0;
+        }
+        
+        .spoiler-header {
+            padding: 12px;
+            background-color: var(--secondary);
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .spoiler-content {
+            padding: 15px;
+            background-color: white;
+            border-radius: 0 0 5px 5px;
+            display: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .spoiler.active .spoiler-content {
+            display: block;
+        }
+        
+        .test-container {
+            margin: 20px 0;
+        }
+        
+        .question {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .question-text {
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .option {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .option:hover {
+            background-color: #f0f5ff;
+        }
+        
+        .option.selected {
+            background-color: #e1ecf4;
+            border-color: var(--primary);
+        }
+        
+        .option.correct {
+            background-color: #d4edda;
+            border-color: var(--success);
+        }
+        
+        .option.incorrect {
+            background-color: #f8d7da;
+            border-color: var(--danger);
+        }
+
+        /* Стиль для пояснення помилки */
+        .answer-explanation {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff3f3;
+            border-left: 4px solid var(--danger);
+            color: #c0392b;
+            font-size: 0.95rem;
+            display: none; /* Приховано за замовчуванням */
+        }
+        
+        .test-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: var(--secondary);
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            text-align: center;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: none;
+        }
+        
+        .result h2 {
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        
+        .score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        .test-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            flex-grow: 1;
+            height: 10px;
+            background-color: #eee;
+            border-radius: 5px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .question-counter {
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .single-question {
+            display: none;
+        }
+        
+        .single-question.active {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                border-radius: 0;
+                margin-right: 0;
+                margin-bottom: 2px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .slider-container {
+                min-width: 100%;
+            }
+            
+            .graph-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Симулятор обчислювальної складності</h1>
+            <p>Обчислювальна складність</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="simulator">Симулятор</button>
+            <button class="tab" data-tab="theory">Теорія</button>
+            <button class="tab" data-tab="test">Тест</button>
+        </div>
+        
+        <div id="simulator" class="tab-content active">
+            <div class="graph-container">
+                <h2>Графік функцій складності (логарифмічний масштаб)</h2>
+                <canvas id="complexityChart"></canvas>
+                <div class="legend" id="chartLegend"></div>
+            </div>
+            
+            <div class="controls">
+                <div class="slider-container">
+                    <label for="nValue">Розмір вхідних даних (n): <span class="n-value" id="currentN">10</span></label>
+                    <input type="range" id="nValue" min="1" max="100" value="10" step="1">
+                </div>
+            </div>
+            
+            <div class="time-calculations">
+                </div>
+            
+            <div class="examples">
+                <h2>Приклади алгоритмів за складністю</h2>
+                
+                <div class="complexity-group">
+                    <h3>O(1) - Константна складність</h3>
+                    <div class="example-item">
+                        Доступ до елемента масиву за індексом
+                        <div class="explanation">Час доступу не залежить від розміру масиву, оскільки використовується адресна арифметика.</div>
+                    </div>
+                    <div class="example-item">
+                        Вставка/видалення з початку зв'язного списку
+                        <div class="explanation">Операція виконується за фіксований час, незалежно від розміру списку.</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(log n) - Логарифмічна складність</h3>
+                    <div class="example-item">
+                        Бінарний пошук у відсортованому масиві
+                        <div class="explanation">На кожному кроці пошуковий простір зменшується вдвічі.</div>
+                    </div>
+                    <div class="example-item">
+                        Пошук у збалансованому бінарному дереві пошуку
+                        <div class="explanation">Висота дерева зростає логарифмічно від кількості елементів.</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(n) - Лінійна складність</h3>
+                    <div class="example-item">
+                        Лінійний пошук у невпорядкованому масиві
+                        <div class="explanation">В найгіршому випадку потрібно перевірити кожен елемент.</div>
+                    </div>
+                    <div class="example-item">
+                        Обхід зв'язного списку
+                        <div class="explanation">Потрібно відвідати кожен вузол списку один раз.</div>
+                    </div>
+                    <div class="example-item">
+                        Знаходження максимуму/мінімуму в масиві
+                        <div class="explanation">Потрібно перевірити кожен елемент для визначення найбільшого/найменшого.</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(n log n) - Лінійно-логарифмічна складність</h3>
+                    <div class="example-item">
+                        Швидке сортування (в середньому випадку)
+                        <div class="explanation">Рекурсивно ділить масив на частини і сортує їх окремо.</div>
+                    </div>
+                    <div class="example-item">
+                        Сортування злиттям
+                        <div class="explanation">Рекурсивно ділить масив навпіл, потім зливає відсортовані частини.</div>
+                    </div>
+                    <div class="example-item">
+                        Пірамідальне сортування
+                        <div class="explanation">Побудова піраміди за O(n) і n разів вилучення кореня за O(log n).</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(n²) - Квадратична складність</h3>
+                    <div class="example-item">
+                        Сортування бульбашкою
+                        <div class="explanation">Для кожного елемента порівнюємо з усіма іншими елементами.</div>
+                    </div>
+                    <div class="example-item">
+                        Сортування вибором
+                        <div class="explanation">Для кожної позиції шукаємо мінімальний елемент серед решти.</div>
+                    </div>
+                    <div class="example-item">
+                        Наївне множення матриць
+                        <div class="explanation">Для кожного елемента результату обчислюємо суму добутків.</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(n³) - Кубічна складність</h3>
+                    <div class="example-item">
+                        Множення трьох матриць
+                        <div class="explanation">Потрібно три вкладені цикли для обчислення кожного елемента.</div>
+                    </div>
+                    <div class="example-item">
+                        Алгоритм Флойда-Уоршелла для пошуку найкоротших шляхів
+                        <div class="explanation">Три вкладені цикли для перебору всіх пар вершин через проміжні вершини.</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(2ⁿ) - Експоненційна складність</h3>
+                    <div class="example-item">
+                        Задача комівояжера (метод повного перебору)
+                        <div class="explanation">Перебір всіх можливих перестановок міст (n! варіантів).</div>
+                    </div>
+                    <div class="example-item">
+                        Розв'язання задачі про рюкзак (метод повного перебору)
+                        <div class="explanation">Перебір всіх підмножин предметів (2ⁿ варіантів).</div>
+                    </div>
+                </div>
+                
+                <div class="complexity-group">
+                    <h3>O(n!) - Факторіальна складність</h3>
+                    <div class="example-item">
+                        Задача комівояжера (деякі алгоритми)
+                        <div class="explanation">Повний перебір усіх можливих маршрутів між n містами.</div>
+                    </div>
+                    <div class="example-item">
+                        Генерація всіх перестановок множини
+                        <div class="explanation">Кількість перестановок n-елементної множини дорівнює n!.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="theory" class="tab-content">
+            <h2>Теорія обчислювальної складності</h2>
+            
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Що таке обчислювальна складність?</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <p>Обчислювальна складність — це галузь теорії обчислень, що вивчає кількість ресурсів (часу, пам'яті), необхідних для виконання алгоритмів. Вона дозволяє оцінити ефективність алгоритмів та передбачити їхню поведінку при зростанні обсягу вхідних даних.</p>
+                    <p>Основним інструментом аналізу складності є асимптотичні позначення, серед яких найважливішим є "О-велике" (Big O notation).</p>
+                </div>
+            </div>
+            
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Поняття "О-велике" (Big O Notation)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <p>О-велике — це математичне позначення, що описує асимптотичну поведінку функції. В інформатиці воно використовується для класифікації алгоритмів за часом їх виконання або обсягом пам'яті, що вони використовують, у залежності від розміру вхідних даних.</p>
+                    <p>Формально, кажуть, що функція f(n) є O(g(n)), якщо існують такі додатні константи c та n₀, що для всіх n ≥ n₀ виконується нерівність f(n) ≤ c·g(n).</p>
+                    <p>Це означає, що f(n) зростає не швидше, ніж g(n), з точністю до постійного множника.</p>
+                </div>
+            </div>
+            
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Основні класи складності</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <ul>
+                        <li><strong>O(1) - Константна складність:</strong> Час виконання не залежить від розміру вхідних даних.</li>
+                        <li><strong>O(log n) - Логарифмічна складність:</strong> Час виконання зростає логарифмічно від розміру вхідних даних.</li>
+                        <li><strong>O(n) - Лінійна складність:</strong> Час виконання прямо пропорційний розміру вхідних даних.</li>
+                        <li><strong>O(n log n) - Лінійно-логарифмічна складність:</strong> Поширена для ефективних алгоритмів сортування.</li>
+                        <li><strong>O(n²) - Квадратична складність:</strong> Час виконання пропорційний квадрату розміру вхідних даних.</li>
+                        <li><strong>O(2ⁿ) - Експоненційна складність:</strong> Час виконання подвоюється з кожним додатковим елементом вхідних даних.</li>
+                        <li><strong>O(n!) - Факторіальна складність:</strong> Час виконання зростає факторіально від розміру входних даних.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Практичне значення аналізу складності</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <p>Аналіз складності дозволяє:</p>
+                    <ul>
+                        <li>Порівнювати ефективність різних алгоритмів для розв'язання однієї задачі</li>
+                        <li>Визначати межі застосовності алгоритмів для великих обсягів даних</li>
+                        <li>Оцінювати необхідні ресурси для виконання алгоритму</li>
+                        <li>Визначати, чи є задача розв'язною на практиці при заданих обмеженнях</li>
+                    </ul>
+                    <p>Наприклад, алгоритм зі складністю O(n³) може бути прийнятним для n=100, але стає непрактичним для n=1000, оскільки час виконання зросте в 1000 разів.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="test" class="tab-content">
+            <h2>Тест з обчислювальної складності</h2>
+            <p>Виберіть правильну відповідь для кожного питання. Після завершення натисніть "Перевірити відповіді".</p>
+            
+            <div class="test-progress">
+                <button id="prevQuestion" disabled>← Попереднє</button>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span class="question-counter" id="questionCounter">1/10</span>
+                <button id="nextQuestion">Наступне →</button>
+            </div>
+            
+            <div class="test-container" id="testQuestions">
+                </div>
+            
+            <div class="test-controls">
+                <button id="checkAnswers">Перевірити відповіді</button>
+                <button id="resetTest">Почати спочатку</button>
+            </div>
+            
+            <div class="result" id="testResult">
+                <h2>Результат тесту</h2>
+                <p class="score">Ваш результат: <span id="scoreValue">0</span> з <span id="totalQuestions">0</span></p>
+                <p id="resultMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Дані для графіка
+        const complexityFunctions = [
+            { name: 'log(n)', func: n => Math.log(n), color: '#3498db' },
+            { name: 'n', func: n => n, color: '#2ecc71' },
+            { name: 'n²', func: n => n * n, color: '#f1c40f' },
+            { name: 'n³', func: n => n * n * n, color: '#e67e22' },
+            { name: '2ⁿ', func: n => Math.pow(2, n), color: '#e74c3c' },
+            { name: 'n!', func: n => {
+                if (n > 20) return Number.POSITIVE_INFINITY;
+                let result = 1;
+                for (let i = 2; i <= n; i++) result *= i;
+                return result;
+            }, color: '#9b59b6' }
+        ];
+
+        // Дані для тесту
+        // ЗМІНЕНО: Прибрано питання про графи, додано пояснення та загальні питання
+       // Дані для тесту
+        const testQuestions = [
+            {
+                question: "Яка складність пошуку елемента у відсортованому масиві за допомогою бінарного пошуку?",
+                options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
+                correct: 1,
+                explanation: "Бінарний пошук ділить діапазон пошуку навпіл на кожному кроці, що дає логарифмічну складність O(log n)."
+            },
+            {
+                question: "Яка складність алгоритму сортування бульбашкою в найгіршому випадку?",
+                options: ["O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"],
+                correct: 2,
+                explanation: "Сортування бульбашкою використовує два вкладених цикли для перебору елементів, що призводить до квадратичної складності O(n²)."
+            },
+            {
+                question: "Яка складність множення двох матриць розміром n×n наївним методом?",
+                options: ["O(n)", "O(n²)", "O(n³)", "O(2ⁿ)"],
+                correct: 2,
+                explanation: "Наївний метод множення матриць потребує трьох вкладених циклів (по рядках, по стовпцях і для скалярного добутку), тому складність O(n³)."
+            },
+            {
+                question: "Яка складність алгоритму швидкого сортування в середньому випадку?",
+                options: ["O(n)", "O(n log n)", "O(n²)", "O(n³)"],
+                correct: 1,
+                explanation: "В середньому випадку швидке сортування розділяє масив на частини та рекурсивно сортує їх, що дає O(n log n). В найгіршому — O(n²)."
+            },
+            {
+                question: "Яка складність пошуку елемента у невпорядкованому масиві в найгіршому випадку?",
+                options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
+                correct: 2,
+                explanation: "У невпорядкованому масиві ми змушені перевірити кожен елемент по черзі, тому складність лінійна O(n)."
+            },
+            {
+                question: "Скільки варіантів паролів треба перебрати, якщо пароль має довжину n, і кожен символ обирається з n можливих літер?",
+                options: ["O(n!)", "O(2ⁿ)", "O(n^n)", "O(n³)"],
+                correct: 2,
+                explanation: "На кожну з n позицій можна поставити одну з n літер. Це n × n × ... × n (n разів) = n^n варіантів."
+            },
+            {
+                question: "Яка складність доступу до елемента масиву за індексом?",
+                options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
+                correct: 0,
+                explanation: "Доступ за індексом — це пряме звернення до пам'яті за допомогою адресної арифметики, що виконується миттєво: O(1)."
+            },
+            {
+                question: "Скільки операцій потрібно, щоб згенерувати всі можливі підмножини множини з n елементів?",
+                options: ["O(n)", "O(n²)", "O(2ⁿ)", "O(n!)"],
+                correct: 2,
+                explanation: "Кожен елемент може бути або включений у підмножину, або ні (2 варіанти). Для n елементів це дає 2^n комбінацій."
+            },
+            {
+                question: "Якщо алгоритм має три вкладені цикли, кожен з яких виконується n разів, яка його складність?",
+                options: ["O(n)", "O(3n)", "O(n³)", "O(log n)"],
+                correct: 2,
+                explanation: "Вкладеність циклів призводить до множення їх складностей. n * n * n = n³."
+            },
+            {
+                question: "Яка складність алгоритму обчислення суми всіх елементів масиву розміром n?",
+                options: ["O(1)", "O(n)", "O(2ⁿ)", "O(n!)"],
+                correct: 1,
+                explanation: "Щоб знайти суму, потрібно відвідати кожен елемент масиву рівно один раз і додати його до загальної суми: O(n)."
+            }
+        ];
+
+        // Глобальні змінні
+        let currentN = 10;
+        let chart = null;
+        let selectedOptions = {};
+        let testCompleted = false;
+        let currentQuestionIndex = 0;
+
+        // Ініціалізація при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            initializeSlider();
+            initializeChart();
+            initializeSpoilers();
+            initializeTest();
+            updateTimeCalculations();
+        });
+
+        // Ініціалізація вкладок
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // Видаляємо активний клас з усіх вкладок та контенту
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Додаємо активний клас до поточної вкладки та контенту
+                    this.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    // Оновлюємо графік при переключенні на вкладку симулятора
+                    if (tabId === 'simulator' && chart) {
+                        setTimeout(() => {
+                            chart.resize();
+                        }, 100);
+                    }
+                });
+            });
+        }
+
+        // Ініціалізація слайдера
+        function initializeSlider() {
+            const slider = document.getElementById('nValue');
+            const nValueDisplay = document.getElementById('currentN');
+            
+            slider.addEventListener('input', function() {
+                currentN = parseInt(this.value);
+                nValueDisplay.textContent = currentN;
+                updateChart();
+                updateTimeCalculations();
+            });
+        }
+
+        // Ініціалізація графіка
+        function initializeChart() {
+            const ctx = document.getElementById('complexityChart').getContext('2d');
+            
+            // Підготовка даних для графіка
+            const nValues = Array.from({length: 100}, (_, i) => i + 1);
+            const datasets = complexityFunctions.map(func => {
+                const data = nValues.map(n => {
+                    let value = func.func(n);
+                    // Обмежуємо значення для відображення на графіку
+                    return value > 1e10 ? 1e10 : value;
+                });
+                
+                return {
+                    label: func.name,
+                    data: data,
+                    borderColor: func.color,
+                    backgroundColor: func.color + '20',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0
+                };
+            });
+            
+            // Створення графіка
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: nValues,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Розмір вхідних даних (n)'
+                            }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'Час/Пам\'ять (логарифмічна шкала)'
+                            },
+                            min: 0.1
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    const value = context.parsed.y;
+                                    if (value >= 1e10) {
+                                        label += '∞';
+                                    } else if (value >= 1e6) {
+                                        label += (value / 1e6).toFixed(1) + 'M';
+                                    } else if (value >= 1e3) {
+                                        label += (value / 1e3).toFixed(1) + 'K';
+                                    } else {
+                                        label += value.toFixed(2);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Додаємо легенду
+            const legendContainer = document.getElementById('chartLegend');
+            complexityFunctions.forEach(func => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <div class="legend-color" style="background-color: ${func.color}"></div>
+                    <span>${func.name}</span>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+
+        // Оновлення графіка при зміні n
+        function updateChart() {
+            if (chart) {
+                // Підсвічуємо поточне значення n на графіку
+                chart.data.datasets.forEach(dataset => {
+                    dataset.pointRadius = chart.data.labels.map((label, index) => {
+                        return label === currentN ? 5 : 0;
+                    });
+                });
+                chart.update();
+            }
+        }
+
+        // Ініціалізація спойлерів
+        function initializeSpoilers() {
+            const spoilers = document.querySelectorAll('.spoiler-header');
+            spoilers.forEach(spoiler => {
+                spoiler.addEventListener('click', function() {
+                    const spoilerContent = this.parentElement;
+                    spoilerContent.classList.toggle('active');
+                    this.querySelector('span:last-child').textContent = 
+                        spoilerContent.classList.contains('active') ? '−' : '+';
+                });
+            });
+        }
+
+        // Ініціалізація тесту
+        function initializeTest() {
+            const testContainer = document.getElementById('testQuestions');
+            testContainer.innerHTML = ''; // Очищення контейнера перед ініціалізацією
+            
+            testQuestions.forEach((question, index) => {
+                const questionElement = document.createElement('div');
+                questionElement.className = `single-question ${index === 0 ? 'active' : ''}`;
+                // ЗМІНЕНО: Додано div class="answer-explanation"
+                questionElement.innerHTML = `
+                    <div class="question-text">${index + 1}. ${question.question}</div>
+                    <div class="options">
+                        ${question.options.map((option, optIndex) => `
+                            <div class="option" data-question="${index}" data-option="${optIndex}">
+                                ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="answer-explanation" id="explanation-${index}">
+                        <strong>Помилка!</strong> ${question.explanation}
+                    </div>
+                `;
+                testContainer.appendChild(questionElement);
+                
+                // Додаємо обробники подій для варіантів відповідей
+                questionElement.querySelectorAll('.option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        if (testCompleted) return;
+                        
+                        const questionIndex = parseInt(this.getAttribute('data-question'));
+                        const optionIndex = parseInt(this.getAttribute('data-option'));
+                        
+                        // Знімаємо виділення з інших варіантів цього питання
+                        this.parentElement.querySelectorAll('.option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        
+                        // Виділяємо обраний варіант
+                        this.classList.add('selected');
+                        
+                        // Зберігаємо вибір
+                        selectedOptions[questionIndex] = optionIndex;
+                    });
+                });
+            });
+            
+            // Додаємо обробники для кнопок навігації по питаннях
+            document.getElementById('prevQuestion').addEventListener('click', prevQuestion);
+            document.getElementById('nextQuestion').addEventListener('click', nextQuestion);
+            
+            // Додаємо обробники для кнопок тесту
+            document.getElementById('checkAnswers').addEventListener('click', checkTestAnswers);
+            document.getElementById('resetTest').addEventListener('click', resetTest);
+            
+            updateTestProgress();
+        }
+
+        // Перехід до наступного питання
+        function nextQuestion() {
+            if (currentQuestionIndex < testQuestions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
+                updateTestProgress();
+            }
+        }
+
+        // Перехід до попереднього питання
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion(currentQuestionIndex);
+                updateTestProgress();
+            }
+        }
+
+        // Показати конкретне питання
+        function showQuestion(index) {
+            document.querySelectorAll('.single-question').forEach((question, i) => {
+                question.classList.toggle('active', i === index);
+            });
+            
+            // Оновлюємо стан кнопок навігації
+            document.getElementById('prevQuestion').disabled = index === 0;
+            document.getElementById('nextQuestion').disabled = index === testQuestions.length - 1;
+        }
+
+        // Оновлення прогрес-бара тесту
+        function updateTestProgress() {
+            const progressFill = document.getElementById('progressFill');
+            const questionCounter = document.getElementById('questionCounter');
+            
+            const progress = ((currentQuestionIndex + 1) / testQuestions.length) * 100;
+            progressFill.style.width = `${progress}%`;
+            questionCounter.textContent = `${currentQuestionIndex + 1}/${testQuestions.length}`;
+        }
+
+        // Перевірка відповідей тесту
+        function checkTestAnswers() {
+            testCompleted = true;
+            let correctCount = 0;
+            
+            // Перевіряємо кожне питання
+            testQuestions.forEach((question, index) => {
+                const selectedOption = selectedOptions[index];
+                const options = document.querySelectorAll(`.option[data-question="${index}"]`);
+                const explanationDiv = document.getElementById(`explanation-${index}`);
+                
+                if (selectedOption !== undefined) {
+                    options.forEach((option, optIndex) => {
+                        if (optIndex === question.correct) {
+                            option.classList.add('correct');
+                        } else if (optIndex === selectedOption) {
+                            option.classList.add('incorrect');
+                        }
+                    });
+                    
+                    if (selectedOption === question.correct) {
+                        correctCount++;
+                    } else {
+                        // ЗМІНЕНО: Якщо відповідь неправильна, показуємо пояснення
+                        if (explanationDiv) {
+                            explanationDiv.style.display = 'block';
+                        }
+                    }
+                } else {
+                    // Якщо відповідь не вибрана, показуємо правильну і пояснення
+                    options.forEach((option, optIndex) => {
+                        if (optIndex === question.correct) {
+                            option.classList.add('correct');
+                        }
+                    });
+                     if (explanationDiv) {
+                        explanationDiv.style.display = 'block';
+                    }
+                }
+            });
+            
+            // Показуємо результат
+            const resultElement = document.getElementById('testResult');
+            const scoreValue = document.getElementById('scoreValue');
+            const totalQuestions = document.getElementById('totalQuestions');
+            const resultMessage = document.getElementById('resultMessage');
+            
+            scoreValue.textContent = correctCount;
+            totalQuestions.textContent = testQuestions.length;
+            
+            let message = '';
+            if (correctCount === testQuestions.length) {
+                message = 'Відмінно! Ви чудово розумієте обчислювальну складність!';
+            } else if (correctCount >= testQuestions.length * 0.7) {
+                message = 'Добре! Ви добре розумієте основи обчислювальної складності.';
+            } else if (correctCount >= testQuestions.length * 0.5) {
+                message = 'Задовільно. Рекомендуємо повторити матеріал та переглянути пояснення до помилок.';
+            } else {
+                message = 'Потрібно більше практики. Будь ласка, ознайомтеся з поясненнями до помилок.';
+            }
+            
+            resultMessage.textContent = message;
+            resultElement.style.display = 'block';
+            
+            // Блокуємо кнопку перевірки
+            document.getElementById('checkAnswers').disabled = true;
+        }
+
+        // Скидання тесту
+        function resetTest() {
+            testCompleted = false;
+            selectedOptions = {};
+            currentQuestionIndex = 0;
+            
+            // Скидаємо виділення варіантів
+            document.querySelectorAll('.option').forEach(option => {
+                option.classList.remove('selected', 'correct', 'incorrect');
+            });
+
+            // ЗМІНЕНО: Ховаємо пояснення
+            document.querySelectorAll('.answer-explanation').forEach(div => {
+                div.style.display = 'none';
+            });
+            
+            // Показуємо перше питання
+            showQuestion(0);
+            updateTestProgress();
+            
+            // Ховаємо результат
+            document.getElementById('testResult').style.display = 'none';
+            
+            // Розблоковуємо кнопку перевірки
+            document.getElementById('checkAnswers').disabled = false;
+        }
+
+        // Оновлення розрахунків часу
+        function updateTimeCalculations() {
+            const timeContainer = document.querySelector('.time-calculations');
+            timeContainer.innerHTML = '';
+            
+            // Припускаємо, що одна операція займає 1 наносекунду
+            const operationsPerSecond = 1e9;
+            
+            complexityFunctions.forEach(func => {
+                const operations = func.func(currentN);
+                
+                // Якщо значення занадто велике, показуємо "∞"
+                if (operations > 1e100) {
+                    addTimeCard(func.name, '∞', '∞');
+                    return;
+                }
+                
+                const timeInSeconds = operations / operationsPerSecond;
+                
+                let displayTime, displayUnit;
+                
+                if (timeInSeconds < 1e-6) {
+                    displayTime = (timeInSeconds * 1e9).toFixed(2);
+                    displayUnit = 'наносекунд';
+                } else if (timeInSeconds < 1e-3) {
+                    displayTime = (timeInSeconds * 1e6).toFixed(2);
+                    displayUnit = 'мікросекунд';
+                } else if (timeInSeconds < 1) {
+                    displayTime = (timeInSeconds * 1e3).toFixed(2);
+                    displayUnit = 'мілісекунд';
+                } else if (timeInSeconds < 60) {
+                    displayTime = timeInSeconds.toFixed(2);
+                    displayUnit = 'секунд';
+                } else if (timeInSeconds < 3600) {
+                    displayTime = (timeInSeconds / 60).toFixed(2);
+                    displayUnit = 'хвилин';
+                } else if (timeInSeconds < 86400) {
+                    displayTime = (timeInSeconds / 3600).toFixed(2);
+                    displayUnit = 'годин';
+                } else if (timeInSeconds < 31536000) {
+                    displayTime = (timeInSeconds / 86400).toFixed(2);
+                    displayUnit = 'днів';
+                } else if (timeInSeconds < 3153600000) {
+                    displayTime = (timeInSeconds / 31536000).toFixed(2);
+                    displayUnit = 'років';
+                } else {
+                    displayTime = (timeInSeconds / 3153600000).toFixed(2);
+                    displayUnit = 'століть';
+                }
+                
+                addTimeCard(func.name, displayTime, displayUnit);
+            });
+            
+            function addTimeCard(name, value, unit) {
+                const card = document.createElement('div');
+                card.className = 'time-card';
+                card.innerHTML = `
+                    <h3>${name}</h3>
+                    <div class="time-value">${value}</div>
+                    <div>${unit}</div>
+                `;
+                timeContainer.appendChild(card);
+            }
+        }
+    </script>
+</body>
+</html>
