@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power Iteration with Deflation </title>
+    
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Theory Spoiler */
+        details {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        summary {
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--primary);
+        }
+        
+        .important-note {
+            background-color: #fff1f2;
+            border-left: 4px solid #be123c;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+
+        /* Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+        /* Panels */
+        .panel {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; }
+        
+        input[type="number"] {
+            width: 70px;
+            padding: 5px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .matrix-input { display: grid; gap: 5px; margin-top: 10px; }
+
+        /* Buttons */
+        button {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: #475569; color: white; }
+        .btn-accent { background-color: #10b981; color: white; }
+        .btn-outline { border: 1px solid var(--border); background: transparent; }
+
+        /* Alerts */
+        .alert-box {
+            display: none;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+        /* Viz Area */
+        .math-display {
+            font-family: 'Courier New', monospace;
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        .step-info {
+            background: #ecfccb;
+            border-left: 4px solid #84cc16;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #plot-container {
+            width: 100%;
+            height: 450px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Метод степеневих ітерацій з дефляцією</h1>
+
+
+	<details>
+        <summary>Теоретична довідка (Power Iteration method + Deflation)</summary>
+        <div style="padding-top: 10px;">
+            <p><b>1. Степеневий метод знаходження найдільшого власного значення і відповідного власного вектора (Power Iteration):</b></p>
+            <p>Це ітераційний алгоритм для знаходження <em>домінантного</em> власного числа $\lambda_1$ (найбільшого за модулем) та відповідного власного вектора $v_1$.</p>
+            <p>Ідея полягає у тому факті, що довільний вектор, багато разів помножений на мтрицю, поступово витягується вздовж напрямку головного власного вектора матриці. Для  того, щоб вектор не збільшувався при цьому необмежено, після кожного множення він нормується</p>
+			<p>Нехай $A$ — матриця $n \times n$. Алгоритм:</p>
+            <ol>
+                <li>Обираємо початковий вектор $b_0$ (випадковий).</li>
+                <li>На кожному кроці $k$: обчислюємо $b_{k+1} = A b_k$.</li>
+                <li>Нормуємо вектор: $b_{k+1} = \frac{b_{k+1}}{\|b_{k+1}\|}$.</li>
+                <li>Оцінка власного числа (Rayleigh quotient): $\lambda^{(k)} = \frac{b_k^T A b_k}{b_k^T b_k}$.</li>
+            </ol>
+            
+            <p><b>2. Метод дефляції  або вичерпування (Deflation):</b></p>
+            <p>Після того, як ми знайшли $(\lambda_1, v_1)$, нам потрібно знайти наступне власне число $\lambda_2$. Для цього ми "видаляємо" вплив $\lambda_1$ з матриці $A$.</p>
+            <p>Для симетричних матриць (які часто використовуються в SVD/PCA) використовується формула:</p>
+            $$A_{new} = A - \lambda_1 v_1 v_1^T$$
+            <p>Тепер домінантним власним числом матриці $A_{new}$ стає $\lambda_2$ (яке було другим у $A$). Застосувавши Power Iteration до $A_{new}$, ми знайдемо $(\lambda_2, v_2)$.</p>
+            
+            <p><b>Чому це важливо для Low-Rank Approximation?</b></p>
+            <p>Ми можемо апроксимувати (наблизити) початкову матрицю сумою матриць рангу 1:
+            $$A \approx \sum_{i=1}^{k} \lambda_i v_i v_i^T$$
+            Це основа стиснення зображень та зменшення розмірності даних.</p>
+			
+			  <div class="important-note">
+                <b>Важливо про несиметричні матриці:</b><br>
+                Проста формула дефляції $A - \lambda v v^T$ гарантовано працює лише для <b>симетричних</b> матриць, оскільки їхні власні вектори ортогональні. <br>
+                Для несиметричних матриць вектори не обов'язково ортогональні. Щоб коректно виконати дефляцію в загальному випадку, потрібно знати також <i>ліві</i> власні вектори або використовувати розклад Шура (Schur decomposition). У цьому симуляторі використовується спрощена модель ("Hotelling deflation"), яка може давати похибку для несиметричних матриць.
+            </div>
+        </div>
+    </details>
+
+  
+
+    <div class="main-grid">
+        <div class="left-col">
+            <div class="panel">
+                <h3>1. Налаштування</h3>
+                
+                <div class="control-group">
+                    <label>Розмір (N):</label>
+                    <select id="matrix-size" onchange="updateMatrixInputs()">
+                        <option value="2">2x2 (Візуал векторів)</option>
+                        <option value="3">3x3</option>
+                        <option value="4">4x4</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Цільова тчність ($\epsilon$):</label>
+                    <input type="number" id="tolerance" value="0.005" step="0.0001" min="0.00001">
+                </div>
+
+                <div class="control-group">
+                    <label>Пресети:</label>
+                    <button class="btn-outline" onclick="loadPreset('fast')">Швидка</button>
+                    <button class="btn-outline" onclick="loadPreset('slow')">Повільна</button>
+                    <button class="btn-outline" onclick="loadPreset('complex')">Комплексна (обертання)</button>
+                    <button class="btn-outline" onclick="loadPreset('symmetric')">Симетрична</button>
+                </div>
+
+                <label>Матриця $A$:</label>
+                <div id="matrix-container" class="matrix-input"></div>
+                <br>
+                <button class="btn-primary" style="width: 100%" onclick="initSimulation()">🔄 Старт / Рестарт</button>
+            </div>
+
+            <div class="panel" id="sim-controls" style="opacity: 0.5; pointer-events: none;">
+                <h3>2. Керування</h3>
+                
+                <div class="step-info">
+                    <span id="iter-display">k=0</span>
+                    <span id="lambda-target-badge">Пошук $\lambda_1$</span>
+                </div>
+
+                <div id="alert-degenerate" class="alert-box alert-danger">⚠️ Вектор вироджений (Norm ≈ 0)</div>
+                <div id="alert-complex" class="alert-box alert-warning">⚠️ Підозра на комплексні числа або дуже повільну збіжність</div>
+
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button class="btn-secondary" style="flex:1" onclick="stepPrev()">⬅️ Назад</button>
+                    <button class="btn-primary" style="flex:1" onclick="stepNext()">Вперед ➡️</button>
+                </div>
+                <button class="btn-secondary" style="width: 100%" onclick="runAuto()">⏯️ Авто-крок</button>
+
+                <div id="deflation-section" style="display:none; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top:10px;">
+                    <p style="font-size: 0.9em; color: green; font-weight:bold;">✅ Збіжність досягнута!</p>
+                    <button class="btn-accent" style="width: 100%" onclick="performDeflation()">✂️ Deflate & Find Next</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="viz-area">
+            <div class="panel">
+                <h3>Статус обчислень</h3>
+                <div id="math-status" class="math-display">Натисніть Старт...</div>
+            </div>
+
+            <div id="plot-container"></div>
+
+            <div class="panel">
+                <h3>Low-Rank Апроксимація ($\sum \lambda_i v_i v_i^T$)</h3>
+                <div id="approx-matrix" class="math-display" style="color: #475569;">...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- State ---
+    let N = 2;
+    let A_current = []; 
+    let A_original = [];
+    
+    // Структура історії: Array of Arrays. 
+    // globalHistory[0] - історія для 1-го власного числа
+    // globalHistory[1] - історія для 2-го (після дефляції)
+    let globalHistory = []; 
+    let currentPhase = 0; // Індекс поточного власного числа (0, 1, 2...)
+    
+    // Поточний стан (останній крок)
+    let currentVec = [];
+    let currentLambda = 0;
+    let iteration = 0;
+    
+    let foundEigenPairs = []; // {val, vec}
+    let autoTimer = null;
+
+    // --- Init & Inputs ---
+
+    function updateMatrixInputs() {
+        N = parseInt(document.getElementById('matrix-size').value);
+        const container = document.getElementById('matrix-container');
+        container.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+        container.innerHTML = '';
+        for (let i = 0; i < N; i++) {
+            for (let j = 0; j < N; j++) {
+                const inp = document.createElement('input');
+                inp.type = 'number';
+                inp.id = `m-${i}-${j}`;
+                inp.value = (i === j) ? 1 : 0;
+                container.appendChild(inp);
+            }
+        }
+    }
+
+    function getMatrix() {
+        let mat = [];
+        for (let i = 0; i < N; i++) {
+            let row = [];
+            for (let j = 0; j < N; j++) {
+                row.push(parseFloat(document.getElementById(`m-${i}-${j}`).value) || 0);
+            }
+            mat.push(row);
+        }
+        return mat;
+    }
+
+    function setMatrix(mat) {
+        document.getElementById('matrix-size').value = mat.length;
+        updateMatrixInputs();
+        for (let i = 0; i < mat.length; i++) {
+            for (let j = 0; j < mat.length; j++) {
+                document.getElementById(`m-${i}-${j}`).value = mat[i][j];
+            }
+        }
+    }
+
+  // --- Helper: Generate Dense Matrix with specific eigenvalues ---
+// --- Helper: Generate Dense Matrix with specific eigenvalues ---
+function createDenseMatrixFromEigenvalues(lambdas) {
+    const n = lambdas.length;
+    
+    // 1. Створюємо діагональну матрицю D
+    const D = math.diag(lambdas);
+    
+    // 2. Генеруємо випадкову ортогональну матрицю Q
+    const R = math.random([n, n], -1, 1);
+    const qr = math.qr(R);
+    const Q = qr.Q;
+    const QT = math.transpose(Q);
+    
+    // 3. Обчислюємо A = Q * D * Q^T
+    let A = math.multiply(math.multiply(Q, D), QT);
+    
+    // ВИПРАВЛЕННЯ ТУТ:
+    // Використовуємо math.map для безпечної ітерації по елементах матриці.
+    // Перевіряємо, чи є value об'єктом (Complex), чи числом.
+    A = math.map(A, function(value) {
+        // Якщо Math.js повернув Complex object {re:..., im:...}, беремо тільки дійсну частину (.re)
+        let val = (typeof value === 'object' && value.re !== undefined) ? value.re : value;
+        
+        // Округляємо
+        return Math.abs(val) < 1e-10 ? 0 : parseFloat(val.toFixed(4));
+    });
+    
+    // Повертаємо чистий JS масив масивів для input полів
+    return A.toArray ? A.toArray() : A;
+}
+
+// --- Main Preset Function ---
+function loadPreset(type) {
+    const s = parseInt(document.getElementById('matrix-size').value);
+    let lambdas = [];
+
+    // Базовий список для заповнення (якщо N > 2, додаємо "шум" з менших чисел)
+    // Функція для генерації хвоста спектру (менших власних чисел)
+    const fillTail = (startVal, count) => {
+        let tail = [];
+        for(let i=0; i<count; i++) tail.push(startVal - (i+1)*0.5); 
+        return tail;
+    };
+
+    if (type === 'fast') {
+        // Швидка збіжність: Великий розрив між lambda_1 і lambda_2
+        // Наприклад: 10, 2, 1... (Співвідношення 2/10 = 0.2 -> швидко)
+        lambdas = [10, 2];
+        if (s > 2) lambdas = lambdas.concat(fillTail(1.5, s-2));
+        
+    } else if (type === 'slow') {
+        // Повільна збіжність: lambda_1 і lambda_2 майже рівні
+        // Наприклад: 10, 9.5, 5... (Співвідношення 9.5/10 = 0.95 -> повільно)
+        lambdas = [5, 4.4];
+        if (s > 2) lambdas = lambdas.concat(fillTail(5, s-2));
+
+    } else if (type === 'symmetric') {
+        // Випадкова симетрична з довільним спектром
+        // Генеруємо випадкові лямбди
+        for(let i=0; i<s; i++) lambdas.push(Math.floor(Math.random() * 10) + 1);
+        // Сортуємо, щоб було цікавіше (але метод знайде найбільше по модулю)
+        lambdas.sort((a,b) => b-a);
+    } 
+    else if (type === 'complex') {
+        // Тут ми не можемо використати метод Q*D*Q^T напряму для дійсних чисел,
+        // тому просто генеруємо блок обертання і додаємо шум.
+        let mat = math.identity(s).toArray();
+        // Блок обертання [cos -sin; sin cos] * scale
+        mat[0][0] = 2; mat[0][1] = -3;
+        mat[1][0] = 3; mat[1][1] = 2;
+        
+        // Заповнюємо решту випадковими малими числами, щоб прибрати нулі
+        for(let i=0; i<s; i++) {
+            for(let j=0; j<s; j++) {
+                if(mat[i][j] === 0) mat[i][j] = parseFloat((Math.random() * 0.5).toFixed(2));
+            }
+        }
+        setMatrix(mat);
+        return; // Вихід для complex, бо він особливий
+    }
+
+    // Генеруємо щільну матрицю з цих лямбд
+    const denseMatrix = createDenseMatrixFromEigenvalues(lambdas);
+    setMatrix(denseMatrix);
+}
+    // --- Core Logic ---
+
+    function initSimulation() {
+        clearInterval(autoTimer);
+        
+        A_original = getMatrix();
+        A_current = JSON.parse(JSON.stringify(A_original));
+        
+        foundEigenPairs = [];
+        globalHistory = [];
+        currentPhase = 0;
+        
+        // Start Phase 0
+        startNewPhase();
+        
+        // UI Reset
+        document.getElementById('sim-controls').style.opacity = 1;
+        document.getElementById('sim-controls').style.pointerEvents = 'all';
+        document.getElementById('deflation-section').style.display = 'none';
+        hideAlerts();
+        
+        updateViz();
+    }
+
+    function startNewPhase() {
+        // Init random vector
+        let v = math.random([N], -1, 1);
+        const norm = math.norm(v);
+        currentVec = math.divide(v, norm);
+        currentLambda = 0;
+        iteration = 0;
+        
+        // Create new history track
+        globalHistory[currentPhase] = [];
+        
+        // Save step 0
+        saveStep();
+        updateLabel();
+    }
+
+    function saveStep() {
+        globalHistory[currentPhase].push({
+            iter: iteration,
+            lambda: currentLambda,
+            vec: [...currentVec],
+            mat: JSON.parse(JSON.stringify(A_current))
+        });
+    }
+
+   function stepNext() {
+        const lastLambda = currentLambda;
+        
+        // 1. Multiply
+        let nextVec = math.multiply(A_current, currentVec);
+        
+        // 2. Check Degenerate
+        const norm = math.norm(nextVec);
+        if (norm < 1e-12) {
+            document.getElementById('alert-degenerate').style.display = 'block';
+            clearInterval(autoTimer);
+            return;
+        }
+
+        // 3. Normalize
+        nextVec = math.divide(nextVec, norm);
+
+        // Visual Trick: Force positive direction for stability
+        let firstNonZero = nextVec.find(x => Math.abs(x) > 1e-5);
+        if (firstNonZero && firstNonZero < 0) {
+            nextVec = math.multiply(nextVec, -1);
+        }
+
+        // 4. Rayleigh Quotient
+        // Re-calculate Ax for the NEW vector to get accurate Lambda
+        const Ax = math.multiply(A_current, nextVec); 
+        const rayleigh = math.dot(nextVec, Ax);
+
+        currentVec = nextVec;
+        currentLambda = rayleigh;
+        iteration++;
+        
+        saveStep();
+        
+        // --- ВИПРАВЛЕННЯ ТУТ ---
+        
+        // КРОК 1: Спочатку визначаємо 'tol' (Це має бути першим!)
+        const tol = parseFloat(document.getElementById('tolerance').value);
+        
+        // КРОК 2: Рахуємо різницю лямбд (лише для інформації)
+        const diff = Math.abs(currentLambda - lastLambda);
+
+        // КРОК 3: Рахуємо Residual (наскільки вектор "справжній")
+        // Formula: || A*v - lambda*v ||
+        const lambdaV = math.multiply(currentVec, currentLambda);
+        const rVec = math.subtract(Ax, lambdaV); // Ax ми порахували вище
+        const residual = math.norm(rVec);
+
+        // Complex / Slow check logic
+        if (iteration > 20 && residual > tol) {
+             // Heuristic check
+             if (globalHistory[currentPhase].length > 2) {
+                 const prevRes = math.norm(math.subtract(
+                     math.multiply(A_current, globalHistory[currentPhase][iteration-1].vec), 
+                     math.multiply(globalHistory[currentPhase][iteration-1].vec, globalHistory[currentPhase][iteration-1].lambda)
+                 ));
+                 if (residual >= prevRes * 0.999) { // Not improving much
+                     document.getElementById('alert-complex').style.display = 'block';
+                 }
+             }
+        }
+
+        updateViz();
+
+        // КРОК 4: Умова зупинки тепер використовує residual і tol, які вже існують
+        if (iteration > 2 && residual < tol) {
+            document.getElementById('deflation-section').style.display = 'block';
+            clearInterval(autoTimer);
+        }
+    }
+
+    function stepPrev() {
+        if (globalHistory[currentPhase].length > 1) {
+            globalHistory[currentPhase].pop();
+            const state = globalHistory[currentPhase][globalHistory[currentPhase].length - 1];
+            
+            iteration = state.iter;
+            currentLambda = state.lambda;
+            currentVec = state.vec;
+            
+            hideAlerts();
+            document.getElementById('deflation-section').style.display = 'none';
+            updateViz();
+        }
+    }
+
+    function performDeflation() {
+        // Save found pair
+        foundEigenPairs.push({ val: currentLambda, vec: currentVec });
+        
+        // Compute new Matrix: A_new = A - lambda * v * v^T
+        const vCol = math.reshape(currentVec, [N, 1]);
+        const vRow = math.reshape(currentVec, [1, N]);
+        const term = math.multiply(math.multiply(vCol, vRow), currentLambda);
+        A_current = math.subtract(A_current, term);
+        
+        // Setup next phase
+        currentPhase++;
+        document.getElementById('deflation-section').style.display = 'none';
+        
+        startNewPhase();
+        updateViz();
+    }
+
+    function runAuto() {
+        if (autoTimer) {
+            clearInterval(autoTimer);
+            autoTimer = null;
+        } else {
+            autoTimer = setInterval(stepNext, 300);
+        }
+    }
+
+    function hideAlerts() {
+        document.getElementById('alert-degenerate').style.display = 'none';
+        document.getElementById('alert-complex').style.display = 'none';
+    }
+
+    function updateLabel() {
+        const badge = document.getElementById('lambda-target-badge');
+        badge.innerHTML = `Пошук $\\lambda_{${currentPhase + 1}}$`;
+        MathJax.typesetPromise([badge]);
+    }
+
+    // --- Visualization ---
+
+    function updateViz() {
+        document.getElementById('iter-display').innerText = `k=${iteration}`;
+        
+        // 1. Math Status
+        const vStr = currentVec.map(x => x.toFixed(3)).join(', ');
+        let html = `$$ \\lambda^{(k)} \\approx ${currentLambda.toFixed(5)} $$`;
+        html += `$$ v^{(k)} = [${vStr}]^T $$`;
+        
+        if (foundEigenPairs.length > 0) {
+            html += `<hr style="margin:5px 0; border:0; border-top:1px dashed #ccc">Found:<br>`;
+            foundEigenPairs.forEach((p, i) => {
+                html += `$\\lambda_${i+1} = ${p.val.toFixed(4)}$; `;
+            });
+        }
+        
+        const statusDiv = document.getElementById('math-status');
+        statusDiv.innerHTML = html;
+        MathJax.typesetPromise([statusDiv]);
+
+        // 2. Approx Matrix
+        let approx = math.zeros([N, N]);
+        foundEigenPairs.forEach(p => {
+            const vC = math.reshape(p.vec, [N, 1]);
+            const vR = math.reshape(p.vec, [1, N]);
+            const t = math.multiply(math.multiply(vC, vR), p.val);
+            approx = math.add(approx, t);
+        });
+        
+        // Add current partial contribution just for visual hint? No, stick to confirmed.
+        
+        let matHtml = "$$ A_{LR} = \\begin{pmatrix} ";
+        const approxArr = approx.toArray ? approx.toArray() : approx;
+        for(let i=0; i<N; i++) {
+            matHtml += approxArr[i].map(x => x.toFixed(2)).join(" & ");
+            if(i < N-1) matHtml += " \\\\ ";
+        }
+        matHtml += " \\end{pmatrix} $$";
+        
+        const approxDiv = document.getElementById('approx-matrix');
+        approxDiv.innerHTML = matHtml;
+        MathJax.typesetPromise([approxDiv]);
+
+        // 3. Plots
+        plotGraphs();
+    }
+
+    function plotGraphs() {
+        const traces = [];
+        const colors = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c'];
+
+        // --- Convergence Plot (Multi-track) ---
+        globalHistory.forEach((phaseHist, idx) => {
+            if (phaseHist.length === 0) return;
+            
+            traces.push({
+                x: phaseHist.map(h => h.iter),
+                y: phaseHist.map(h => h.lambda),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: `Lambda ${idx+1}`,
+                line: { color: colors[idx % colors.length] }
+            });
+        });
+
+      const layout = {
+            title: 'Збіжність власних чисел',
+            xaxis: {title: 'Ітерації (k)'},
+            yaxis: {title: 'Value'},
+            // Зменшуємо відступи, щоб графік був ширшим
+            margin: {t: 40, b: 40, l: 40, r: 10}, 
+            showlegend: true,
+            legend: {x: 0.5, y: -0.2, orientation: "h"} // Легенду вниз, щоб не з'їдала місце збоку
+        };
+
+        // --- 2D Vector Plot (Overlay) ---
+        // If N=2, we draw the vectors on a subplot or overlay
+        // Plotly doesn't handle mixed subplots easily in JS without complex config.
+        // We will just replace the plot if N=2 for better UX, or create a 2-pane view?
+        // Let's stick to simple: If N=2, show Vectors. Else show Convergence.
+        // Actually, user wants "Graphs" (plural). Let's use Plotly Subplots logic manually via HTML grid if needed, 
+        // but for now, let's keep the convergence plot as main, and if N=2, add vector arrows to it? No, units differ.
+        
+        // Let's force two separate plots in the same container using 'grid' layout in Plotly?
+        // Easier: Just 2 separate divs inside the container?
+        // Or: Toggle view. Let's do Toggle automatically based on N, but prefer Convergence.
+        
+        // Better: 2D visualization is critical for N=2.
+      if (N === 2) {
+             const vecLayout = {
+                title: '2D Векторна еволюція',
+                xaxis: {
+                    range: [-1.2, 1.2], 
+                    constrain: 'domain' // Забороняє виходити за межі
+                },
+                yaxis: {
+                    range: [-1.2, 1.2],
+                    scaleanchor: 'x',   // <--- МАГІЯ ТУТ: фіксує пропорції 1:1
+                    scaleratio: 1
+                },
+                showlegend: false,
+                margin: {t: 40, b: 30, l: 30, r: 30},
+                // Зробимо фон трохи чистішим
+                plot_bgcolor: "rgba(0,0,0,0)",
+                paper_bgcolor: "rgba(0,0,0,0)"
+            };
+            
+            // Unit circle
+            let theta = math.range(0, 6.4, 0.1).toArray();
+            const circleTrace = {
+                x: theta.map(t => Math.cos(t)), y: theta.map(t => Math.sin(t)),
+                type: 'scatter', mode: 'lines', line: {color: '#ddd', dash:'dash'}
+            };
+
+            const vecTraces = [circleTrace];
+            
+            // Add CURRENT vector arrow
+            vecLayout.annotations = [{
+                x: currentVec[0], y: currentVec[1], ax: 0, ay: 0,
+                xref: 'x', yref: 'y', axref: 'x', ayref: 'y',
+                showarrow: true, arrowhead: 3, arrowsize: 2, arrowwidth: 2, arrowcolor: colors[currentPhase % colors.length]
+            }];
+
+            // Add Found vectors (static)
+            foundEigenPairs.forEach((p, i) => {
+                vecLayout.annotations.push({
+                    x: p.vec[0], y: p.vec[1], ax: 0, ay: 0,
+                    xref: 'x', yref: 'y', axref: 'x', ayref: 'y',
+                    showarrow: true, arrowhead: 2, arrowwidth: 1, arrowcolor: '#94a3b8', opacity: 0.5
+                });
+            });
+
+            // We need 2 containers. Create them if not exist
+            let c1 = document.getElementById('plot-c1');
+            let c2 = document.getElementById('plot-c2');
+            
+            if (!c1) {
+                document.getElementById('plot-container').innerHTML = `
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; height:100%">
+                        <div id="plot-c1"></div>
+                        <div id="plot-c2"></div>
+                    </div>`;
+            }
+            
+            Plotly.react('plot-c1', traces, layout);
+            Plotly.react('plot-c2', vecTraces, vecLayout);
+            
+        } else {
+            // Restore single plot
+            document.getElementById('plot-container').innerHTML = ''; 
+            Plotly.newPlot('plot-container', traces, layout);
+        }
+    }
+
+    // Initial load
+    updateMatrixInputs();
+</script>
+
+</body>
+</html>
