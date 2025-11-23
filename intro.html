@@ -137,7 +137,7 @@
     <button class="nav-btn active" onclick="showTab('errors')">1. Теорія похибок</button>
     <button class="nav-btn" onclick="showTab('epsilon')">2. Машинний нуль</button>
     <button class="nav-btn" onclick="showTab('convergence')">3. Збіжність</button>
-    <button class="nav-btn" onclick="showTab('stability')">4. Стійкість (Класика)</button>
+    <button class="nav-btn" onclick="showTab('stability')">4. Стійкість</button>
     <button class="nav-btn" onclick="showTab('conditioning')">5. Обумовленість</button>
 </div>
 
@@ -150,6 +150,18 @@
             <p>Якщо $y = f(x)$, а $x$ відоме з похибкою $\Delta x$, то абсолютна похибка функції:</p>
             $$ \Delta y \approx |f'(x)| \cdot \Delta x $$
             <p>Для нашого прикладу $S = \pi R^2$, похідна $S' = 2\pi R$. Отже, $\Delta S \approx 2\pi R \cdot \Delta R$.</p>
+			
+			<h3>Похибка функції від похибок декількох аргументів</h3>
+                <p>Якщо $y = f(x_1, x_2, \ldots, x_n)$, то похибка функції залежить від похибок її аргументів:</p>
+                <div class="formula">
+                    $$  \Delta y \approx \left| \frac{\partial f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial f}{\partial x_n} \right| \Delta x_n  $$
+                </div>
+                <p>Для відносної похибки:</p>
+                <div class="formula">
+                   $$ \delta y \approx \left| \frac{\partial \ln f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial \ln f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial \ln f}{\partial x_n} \right| \Delta x_n $$
+                </div>
+				
+				
         </div>
 
         <div class="demo-block">
@@ -177,11 +189,29 @@
             <p>Комп'ютери мають обмежену точність (IEEE 754 Double Precision). Це призводить до ситуацій, коли математично правильні вирази дають нуль.</p>
         </div>
 
-        <div class="demo-block">
-            <h3>Парадокс зникнення: $1 + 10^{-20} - 1$</h3>
-            <p>В математиці результат $10^{-20}$. Але комп'ютер має лише ~16 значущих цифр.</p>
+     <div class="demo-block">
+            <h3>Парадокс зникнення: $1 + 10^{-20}$</h3>
+            
+            <p><strong>Частина 1. Просте додавання:</strong> $(1 + 10^{-20}) - 1$.<br>
+            В математиці результат $10^{-20}$. Але комп'ютер має лише ~16 значущих цифр.</p>
             <button class="action-btn" onclick="runEpsCalc()">Обчислити: (1 + 1e-20) - 1</button>
-            <div id="eps-calc-res" class="result-box" style="display:none"></div>
+            <div id="eps-calc-res" class="result-box" style="display:none; margin-bottom: 20px;"></div>
+
+            <hr style="border: 0; border-top: 1px dashed #ccc; margin: 20px 0;">
+
+            <p><strong>Частина 2. Піднесення до степеня:</strong> $(1 + 10^{-20})^k$.<br>
+            Якщо ми хочемо обчислити складний відсоток або зростання за $k$ кроків, прямий метод дасть помилку. <br>
+            <em>Рішення:</em> Використати формулу $(1+x)^k \approx 1 + kx$ (Це називається розкладання в степеневий ряд, у даному випадку достатньо лінійного наближення до степеня 1 - апроксимація лінійною функцією).</p>
+
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 2;">
+                    <label>Кількість кроків $k$ (Степінь): <span id="val-pow-k" class="val-display">10^15</span></label>
+                    <input type="range" id="rng-pow-k" min="10" max="18" step="0.1" value="15">
+                </div>
+                <button class="action-btn" onclick="runPowerParadox()">Порівняти методи</button>
+            </div>
+
+            <div class="result-box" id="pow-calc-res" style="display:none"></div>
         </div>
 
         <div class="demo-block">
@@ -251,7 +281,7 @@
 
         <div class="theory-block">
             <p><strong>Число обумовленості ($\kappa$)</strong> показує чутливість задачі до збурень. $\kappa \approx \frac{\delta_{out}}{\delta_{in}}$.</p>
-            <p>Графічно: перетин двох прямих. Якщо прямі майже паралельні, найменший зсув однієї прямої призводить до гігантського зсуву точки перетину.</p>
+            <p>Графічно: перетин двох прямих (ааналітично - розв'язок лінійної системи рівнянь). Якщо прямі майже паралельні (кажуть "задача погано обумовлена"), найменший зсув однієї прямої призводить до гігантського зсуву точки перетину.</p>
         </div>
 
         <div class="demo-block">
@@ -301,8 +331,8 @@
         if(id === 'conditioning') updateConditioning();
     }
 
-    // ==========================================
-    // 1. ERRORS LOGIC
+   // ==========================================
+    // 1. ERRORS LOGIC (ВИПРАВЛЕНО)
     // ==========================================
     const rngR = document.getElementById('rng-r');
     const rngdR = document.getElementById('rng-dr');
@@ -311,34 +341,75 @@
         const R = parseFloat(rngR.value);
         const dR = parseFloat(rngdR.value);
         
+        // Оновлення текстових значень
         document.getElementById('val-r').innerText = R.toFixed(1);
         document.getElementById('val-dr').innerText = dR.toFixed(2);
 
         const S = Math.PI * R * R;
-        // Formula: dS = |f'(R)| * dR = 2 * pi * R * dR
+        // Лінійна оцінка похибки: dS = |f'(R)| * dR = 2 * pi * R * dR
         const dS = 2 * Math.PI * R * dR;
         
         const rel_R = (dR / R) * 100;
         const rel_S = (dS / S) * 100;
 
+        // Виведення тексту
         document.getElementById('err-output').innerHTML = `
             <div class="metric-row"><strong>Аргумент (Радіус):</strong> $R = ${R} \\pm ${dR}$ <span style="color:blue">($\\delta \\approx ${rel_R.toFixed(2)}\\%$)</span></div>
             <div class="metric-row"><strong>Функція (Площа):</strong> $S \\approx ${S.toFixed(1)} \\pm ${dS.toFixed(1)}$ <span style="color:red">($\\delta \\approx ${rel_S.toFixed(2)}\\%$)</span></div>
         `;
         if(window.MathJax) MathJax.typesetPromise();
 
-        // Plot
-        const trace1 = { x: [S-dS, S+dS], y: [0,0], mode: 'lines', line: {color:'red', width:6, opacity: 0.5}, name: 'Інтервал похибки' };
-        const trace2 = { x: [S], y: [0], mode: 'markers', marker: {size:15, color:'var(--primary)'}, name: 'Точка S' };
-        Plotly.react('error-plot', [trace1, trace2], {
-            title: 'Невизначеність результату',
-            xaxis: { title: 'Площа' },
-            yaxis: { showticklabels:false, range:[-0.5,0.5] },
+        // --- ГРАФІК ---
+        
+        // Розрахуємо межі для осі X, щоб графік не стрибав, 
+        // але при цьому вміщував максимальну можливу похибку для поточного R.
+        // Максимальна похибка на слайдері - 2.0. Тому dS_max ~ 2 * pi * R * 2.0
+        const max_possible_dS = 2 * Math.PI * R * 2.0;
+        const xRange = [S - max_possible_dS * 1.1, S + max_possible_dS * 1.1];
+
+        const traceLine = { 
+            x: [S-dS, S+dS], 
+            y: [0,0], 
+            mode: 'lines+markers', 
+            line: {color:'#e74c3c', width:8},
+            marker: {size: 10, symbol: 'line-ns-open', color: '#e74c3c'},
+            name: 'Інтервал похибки',
+            hoverinfo: 'x'
+        };
+
+        const traceCenter = { 
+            x: [S], 
+            y: [0], 
+            mode: 'markers', 
+            marker: {size:16, color:'#2c3e50'}, 
+            name: 'Точне S',
+            hoverinfo: 'x'
+        };
+
+        const layout = {
+            title: 'Візуалізація інтервалу невизначеності',
+            xaxis: { 
+                title: 'Площа', 
+                range: xRange, // Фіксуємо діапазон відносно макс. можливої похибки
+                zeroline: false
+            },
+            yaxis: { 
+                showticklabels:false, 
+                range:[-0.5, 0.5],
+                fixedrange: true 
+            },
             height: 250,
-            margin: {t:30, b:30, l:30, r:30}
-        });
+            margin: {t:40, b:40, l:40, r:40},
+            showlegend: false,
+            annotations: [
+                {x: S, y: 0.15, text: "S", showarrow: false, font: {size: 14, color: '#2c3e50'}},
+                {x: S-dS, y: -0.15, text: (S-dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}},
+                {x: S+dS, y: -0.15, text: (S+dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}}
+            ]
+        };
+
+        Plotly.react('error-plot', [traceLine, traceCenter], layout, {displayModeBar: false});
     }
-    
     rngR.addEventListener('input', updateErrors);
     rngdR.addEventListener('input', updateErrors);
 
@@ -355,6 +426,60 @@
             <span style="color:red; font-size:0.9em">Причина: 1e-20 менше ніж машинний епсилон відносно одиниці.</span>
         `;
     }
+
+// --- Додати це в блоці JS (Секція 2. EPSILON) ---
+
+    const rngPowK = document.getElementById('rng-pow-k');
+    
+    // Слухач для оновлення відображення числа над слайдером
+    rngPowK.addEventListener('input', function() {
+        const k_exp = parseFloat(rngPowK.value);
+        document.getElementById('val-pow-k').innerHTML = `10^{${k_exp.toFixed(1)}}`;
+        if(window.MathJax) MathJax.typesetPromise();
+        runPowerParadox(); // Автоматичний перерахунок при русі
+    });
+
+    function runPowerParadox() {
+        const k_exp = parseFloat(rngPowK.value);
+        const k = Math.pow(10, k_exp); // Наприклад, 10^15
+        const eps = 1e-20;
+
+        // 1. Наївний метод JS
+        // Спочатку виконується (1 + eps), що стає рівним 1.0 через втрату точності
+        // Потім 1.0 підноситься до степеня k, що дорівнює 1.0
+        const naive = Math.pow(1 + eps, k);
+
+        // 2. Математично коректний підхід для малих чисел
+        // Використовуємо біноміальне наближення: (1+x)^k ≈ 1 + kx
+        // Це працює, бо k*eps значно більше за машинний епсилон, хоча саме eps - ні.
+        const smart_increment = k * eps; 
+        const smart = 1 + smart_increment;
+
+        const div = document.getElementById('pow-calc-res');
+        div.style.display = 'block';
+        
+        div.innerHTML = `
+            <div class="metric-row">
+                <span>Степінь $k$:</span>
+                <span>$10^{${k_exp.toFixed(1)}}$</span>
+            </div>
+            <div class="metric-row" style="color: var(--danger);">
+                <span>Наївний JS (Math.pow):</span>
+                <span>${naive.toFixed(1)}</span>
+            </div>
+            <div class="metric-row" style="color: var(--success); font-weight:bold;">
+                <span>Формула ($1+kx$):</span>
+                <span>${smart.toFixed(10)}...</span>
+            </div>
+            <p style="font-size:0.9em; margin-top:10px; color:#555;">
+                <strong>Пояснення:</strong> У наївному методі комп'ютер губить $10^{-20}$ ще до піднесення у степінь. Тому відповідь завжди не правильна - одиниця.
+                У формулі ми спочатку множимо $k \\cdot 10^{-20} = 10^{${(k_exp-20).toFixed(1)}}$, що є "помітним" числом для комп'ютера, і лише потім додаємо до 1.
+            </p>
+        `;
+        if(window.MathJax) MathJax.typesetPromise();
+    }
+
+
 
     function findEpsilon() {
         let eps = 1.0;
@@ -450,7 +575,7 @@
                 <span>${x.toExponential(2)}</span>
             </div>
             <div class="metric-row" style="${colorStyle}">
-                <span>Наївний ($\sqrt{x+1} - \sqrt{x}$):</span>
+                <span>Наївний:</span>
                 <span>${naiveStr}</span>
             </div>
             <div class="metric-row" style="color:var(--success); font-weight:bold;">
