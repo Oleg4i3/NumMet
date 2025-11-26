@@ -378,7 +378,10 @@
             <span>Клікніть на графік, щоб додати точки:</span>
             <button class="btn-action" onclick="study.clear()">Стерти</button>
         </div>
-        
+        <div id="studyInfo" class="info-box" style="margin-bottom: 10px; min-height: 60px; font-family: 'Courier New', monospace;">
+            <em>Додайте точки на графік, щоб побачити координати та рівняння...</em>
+        </div>
+		
         <div class="graph-wrapper">
             <canvas id="chartStudy"></canvas>
         </div>
@@ -493,9 +496,9 @@
     const audioCoffee = new Audio('coffee.mp3'); // або шлях до вашого файлу
     
     audioMI.loop = true;
-    audioMI.volume = 0.5;
+    audioMI.volume = 0.25;
     audioCoffee.loop = true;
-    audioCoffee.volume = 0.4;
+    audioCoffee.volume = 0.2;
 
     // Глобальний стан звуку (за замовчуванням увімкнено)
     let isMuted = false;
@@ -583,7 +586,8 @@
             study.points.sort((a,b) => a.x - b.x);
             study.update();
         },
-        update: () => {
+      update: () => {
+            // 1. Оновлення графіка (старий код)
             study.chart.data.datasets[0].data = study.points;
             if(study.points.length > 1) {
                 const curve = [];
@@ -596,6 +600,55 @@
                 study.chart.data.datasets[1].data = [];
             }
             study.chart.update();
+
+            // 2. НОВЕ: Формування тексту рівняння та координат
+            const infoBox = document.getElementById('studyInfo');
+            
+            if (study.points.length === 0) {
+                infoBox.innerHTML = "<em>Додайте точки на графік...</em>";
+                return;
+            }
+
+            // А) Виведення координат
+            let coordsText = "<strong>Точки:</strong> " + study.points.map(p => `(${p.x}; ${p.y})`).join(", ");
+
+            // Б) Формування рівняння (LaTeX)
+            // Ми будуємо рядок вигляду: y_0 * (x-x1)/(x0-x1) + ...
+            let latex = "";
+            if (study.points.length > 0) {
+                let terms = [];
+                study.points.forEach((pi, i) => {
+                    let num = []; // Чисельник
+                    let den = []; // Знаменник (зразу обчислимо числа)
+                    
+                    study.points.forEach((pj, j) => {
+                        if (i !== j) {
+                            num.push(`(x - ${pj.x})`);
+                            
+                            let denVal = (pi.x - pj.x).toFixed(1);
+                            // Якщо число від'ємне, беремо в дужки для краси
+                            den.push(denVal < 0 ? `(${denVal})` : denVal);
+                        }
+                    });
+
+                    if (num.length === 0) {
+                        // Якщо точка одна
+                        terms.push(`${pi.y}`);
+                    } else {
+                        // Формуємо дріб
+                        terms.push(`${pi.y} \\cdot \\frac{${num.join('')}}{${den.join('\\cdot')}}`);
+                    }
+                });
+                latex = `\\[ L(x) = ${terms.join(' + ')} \\]`;
+            }
+
+            // Вставляємо HTML і просимо MathJax перемалювати формули
+            infoBox.innerHTML = `<div>${coordsText}</div><div style="overflow-x: auto; padding-top: 5px;">${latex}</div>`;
+            
+            // Якщо MathJax завантажений - оновлюємо вигляд формул
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([infoBox]).catch((err) => console.log(err));
+            }
         },
         clear: () => { study.points = []; study.update(); }
     };
