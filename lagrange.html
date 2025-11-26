@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лагранж</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
+    <style>
+        /* --- GLOBAL & TRANSITIONS --- */
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            transition: background 0.5s ease, color 0.5s ease;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        /* --- THEME 1: ACADEMIC (Notebook) --- */
+        body.theme-study {
+            background-color: #f0f2f5;
+            color: #2c3e50;
+            font-family: 'Georgia', serif;
+        }
+        .theme-study .container {
+            background: #ffffff;
+            background-image: linear-gradient(#e1e1e1 1px, transparent 1px), linear-gradient(90deg, #e1e1e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #d1d1d1;
+        }
+        .theme-study h2 { border-left: 5px solid #34495e; color: #2c3e50; }
+        .theme-study .btn-action { background: #34495e; color: white; border-radius: 2px; }
+        .theme-study .info-box { background: #f9f9f9; color: #333; }
+        
+    /* --- THEME 2: SECRET (Mission Impossible / Nuclear Football) --- */
+        body.theme-secret {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
+            background-image: radial-gradient(circle at center, #1c1c1c 0%, #000000 100%);
+        }
+        .theme-secret .container {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            border-top: 4px solid #d32f2f; /* Red alert line */
+        }
+        
+        /* Typography & Headers */
+       .theme-secret h2 {
+            text-transform: uppercase;
+            font-weight: 900;
+            font-style: italic; /* <--- ДОДАНО КУРСИВ */
+            letter-spacing: 2px;
+            color: #d32f2f; /* Danger Red */
+            border-bottom: 2px solid #d32f2f;
+            text-shadow: 0 0 10px rgba(211, 47, 47, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .theme-secret h2::after {
+            content: "⚠ TOP SECRET // EYES ONLY";
+            font-size: 0.6rem;
+            background: #d32f2f;
+            color: black;
+            padding: 2px 6px;
+            border-radius: 2px;
+            vertical-align: middle;
+        }
+
+        /* Buttons & Inputs */
+        .theme-secret .btn-action {
+            background: linear-gradient(180deg, #d32f2f 0%, #b71c1c 100%);
+            color: white;
+            border: 1px solid #ff5252;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .theme-secret .btn-action:hover {
+            background: #f44336;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.6);
+        }
+        .theme-secret input {
+            background: #000;
+            color: #d32f2f;
+            border: 1px solid #555;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        /* Info Boxes */
+        .theme-secret .info-box {
+            background: rgba(40, 40, 40, 0.9);
+            /*border-left: 4px solid #ffeb3b; //Warning Yellow */
+            color: #ccc;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Tab Navigation */
+        .theme-secret .tab { background: #2c2c2c; color: #888; border-bottom: 1px solid #444; }
+        .theme-secret .tab.active { 
+            background: #1e1e1e; 
+            color: #d32f2f; 
+            border-top: 3px solid #d32f2f;
+            border-bottom: none;
+        }
+
+        /* Graph Area */
+        .theme-secret .graph-wrapper {
+            background: #111;
+            border: 1px solid #444;
+            /* Grid overlay effect */
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .theme-secret .controls {
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        /* Keys (Chips) */
+        .theme-secret .key-card {
+            background: #000;
+            border: 1px solid #555;
+            color: #03a9f4; /* Cyan for tech data */
+            font-family: 'Orbitron', 'Courier New', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-secret .key-card:hover { border-color: #03a9f4; box-shadow: 0 0 10px rgba(3, 169, 244, 0.3); }
+        .theme-secret .key-card.selected {
+            background: rgba(3, 169, 244, 0.2);
+            border: 1px solid #03a9f4;
+            color: #fff;
+        }
+        /* Corner marker for keys */
+        .theme-secret .key-card::before {
+            content: ''; position: absolute; top: 0; right: 0;
+            width: 0; height: 0; 
+            border-style: solid; border-width: 0 10px 10px 0; 
+            border-color: transparent #555 transparent transparent;
+        }
+
+        /* Red Button Area */
+        .theme-secret .red-button-ui {
+            background: radial-gradient(circle at 30% 30%, #ff1744, #b71c1c);
+            border: 3px solid #5d4037; /* Dark bezel */
+            box-shadow: 
+                0 0 0 4px #222, /* Inner gap */
+                0 0 0 6px #d32f2f, /* Danger ring */
+                0 0 20px rgba(255, 0, 0, 0.6); /* Glow */
+            color: white;
+            font-size: 2.5rem;
+        }
+        /* Hazard Strip Effect for Spoiler Summary */
+        .theme-secret summary {
+            background: repeating-linear-gradient(
+                45deg,
+                #222,
+                #222 10px,
+                #333 10px,
+                #333 20px
+            );
+            color: #fff;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border: 1px solid #444;
+        }
+		
+        /* --- THEME 3: QR (Coffee Shop) --- */
+        body.theme-qr {
+            background-color: #f3e5ab; /* Parchment */
+            color: #5d4037;
+            font-family: 'Verdana', sans-serif;
+        }
+        .theme-qr .container {
+            background: #fff8e1;
+            box-shadow: 0 10px 30px rgba(93, 64, 55, 0.2);
+            border: none;
+            /* Coffee Stain Effect */
+            background-image: radial-gradient(circle at 80% 20%, rgba(121, 85, 72, 0.1) 0%, rgba(121, 85, 72, 0.05) 40%, transparent 70%);
+        }
+        .theme-qr h2 { color: #795548; font-weight: normal; border-left: none; text-decoration: underline wavy #ffab91; }
+        .theme-qr .btn-action { background: #ffab91; color: #3e2723; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .theme-qr .btn-action:hover { background: #ffccbc; transform: translateY(-2px); }
+        .theme-qr .info-box { background: #efebe9; border-radius: 12px; border: 1px solid #d7ccc8; color: #4e342e; }
+        .theme-qr .packet { border-radius: 50%; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+
+        /* --- COMMON UI --- */
+        .tabs { display: flex; overflow: hidden; }
+        .tab {
+            flex: 1; padding: 20px; border: none; cursor: pointer; font-size: 1rem; font-weight: bold;
+            transition: 0.3s; opacity: 0.7;
+        }
+        .tab:hover { opacity: 1; }
+        .tab.active { opacity: 1; text-decoration: underline; }
+        
+        /* Tab Colors based on Theme Logic (JS sets inline, but here are defaults) */
+        .theme-study .tab { background: #e0e0e0; color: #333; }
+        .theme-study .tab.active { background: #fff; border-top: 3px solid #34495e; }
+        
+        .theme-secret .tab { background: #111; color: #005500; border-bottom: 1px solid #00ff00; }
+        .theme-secret .tab.active { background: #001100; color: #00ff00; border: 1px solid #00ff00; border-bottom: none; }
+        
+        .theme-qr .tab { background: #d7ccc8; color: #5d4037; }
+        .theme-qr .tab.active { background: #fff8e1; color: #3e2723; }
+
+        .content { display: none; padding: 30px; animation: fadeIn 0.5s; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+
+        .controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; padding: 15px; border-radius: 8px; }
+        .theme-study .controls { background: #fff; border: 1px solid #ccc; }
+        .theme-secret .controls { background: rgba(0, 50, 0, 0.3); border: 1px solid #004400; }
+        .theme-qr .controls { background: rgba(255, 255, 255, 0.6); border-radius: 20px; }
+
+        .graph-wrapper { position: relative; height: 400px; width: 100%; border-radius: 8px; overflow: hidden; background: white; }
+        .theme-secret .graph-wrapper { background: #000; border: 1px solid #004400; }
+        .theme-qr .graph-wrapper { background: #fff; border: 4px solid #fff; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); }
+
+        button { padding: 10px 20px; border: none; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        input { padding: 8px; border-radius: 4px; width: 80px; text-align: center; }
+
+        /* Specific UI Elements */
+        .spoiler { margin-top: 20px; border-radius: 4px; overflow: hidden; }
+        .spoiler summary { padding: 10px; cursor: pointer; font-weight: bold; list-style: none; }
+        .spoiler-body { padding: 15px; border-top: 1px solid rgba(0,0,0,0.1); }
+        
+        .theme-study .spoiler { border: 1px solid #ccc; }
+        .theme-study summary { background: #e9e9e9; }
+        
+        .theme-secret .spoiler { border: 1px solid #00ff00; }
+        .theme-secret summary { background: #002200; color: #00ff00; }
+        .theme-secret summary::marker { color: #00ff00; }
+        
+        .theme-qr .spoiler { background: #fff3e0; border-left: 4px solid #ffab91; }
+        .theme-qr summary { color: #d84315; }
+
+        /* Secret Keys */
+        .key-card { padding: 10px; margin: 5px; cursor: pointer; border: 1px solid transparent; min-width: 60px; text-align: center; }
+        .theme-secret .key-card { border: 1px solid #005500; color: #008800; }
+        .theme-secret .key-card:hover { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .theme-secret .key-card.selected { background: #00ff00; color: black; font-weight: bold; box-shadow: 0 0 15px #00ff00; }
+
+        /* Red Button */
+        .red-button-ui {
+            width: 80px; height: 80px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; cursor: pointer; transition: 0.2s; margin: 0 auto;
+            border: 4px solid #333;
+        }
+        .theme-secret .red-button-ui {
+            background: radial-gradient(circle at 30% 30%, #ff0000, #550000);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            border-color: #220000;
+            color: white;
+        }
+        .theme-secret .red-button-ui:active { transform: scale(0.95); }
+
+        /* QR Packets */
+        .packet {
+            width: 60px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; cursor: pointer; transition: 0.3s; margin: 5px;
+        }
+        .theme-qr .packet { background: #fff; border: 2px solid #8d6e63; color: #5d4037; }
+        .theme-qr .packet.parity { background: #fff9c4; border-color: #fbc02d; }
+        .theme-qr .packet.damaged { background: #3e2723; color: #ffab91; transform: rotate(10deg); text-decoration: line-through; border-color: #3e2723; }
+        .theme-qr .packet.recovered { background: #c8e6c9; border-color: #2e7d32; animation: pop 0.5s; }
+        @keyframes pop { 50% { transform: scale(1.2); } }
+
+    </style>
+</head>
+<body class="theme-study">
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab active" onclick="setTab('study')">1. Теорія</button>
+        <button class="tab" onclick="setTab('secret')">2. Спільний секрет</button>
+        <button class="tab" onclick="setTab('qr')">3. Коди Ріда-Соломона</button>
+    </div>
+
+    <!-- TAB 1: ACADEMIC -->
+    <div id="study" class="content active">
+        <h3>Інтерполяційний поліном Лагранжа</h3>
+        
+                
+        <div class="info-box">
+            <strong>Суть методу:</strong> Через будь-які \( n \) точок можна провести <em>єдиний</em> унікальний поліном степеня \( n-1 \).
+            <br>Лагранж придумав спосіб записати формулу цього полінома без розв'язання складних рівнянь.
+        </div>
+
+        <details class="spoiler">
+            <summary>Формула</summary>
+			
+			<div class="math-block">
+                <p>Основна ідея: через будь-які \( n \) точок можна провести унікальний поліном степеня \( n-1 \).</p>
+                <p>Формула полінома \( L(x) \):</p>
+                \[ L(x) = \sum_{j=0}^{k} y_j \ell_j(x) \]
+                <p>Де базисні поліноми \( \ell_j(x) \) визначаються як:</p>
+                \[ \ell_j(x) = \prod_{i=0, i \neq j}^{k} \frac{x - x_i}{x_j - x_i} \]
+                <p>Ця властивість дозволяє "вгадувати" значення функції між точками (інтерполяція) або відновлювати функцію, якщо частина точок втрачена.</p>
+            </div>
+			
+            <div class="spoiler-body">
+                <p>Формула Лагранжа будується з "цеглинок" — базисних поліномів \( \ell_j(x) \).
+                              Це хитрий математичний перемикач:</p>
+                <ul>
+                    <li>Якщо \( x = x_j \) (наша точка), дріб стає \( 1 \).</li>
+                    <li>Якщо \( x = x_i \) (чужа точка), чисельник стає \( 0 \), і весь вираз зануляється.</li>
+                </ul>
+                <p>Таким чином, ми просто додаємо висоту \( y_j \), помножену на цей перемикач, і графік автоматично проходить через усі точки.</p>
+            </div>
+        </details>
+
+        <details class="spoiler">
+            <summary>Обчислювальна складність</summary>
+            <div class="spoiler-body">
+                <p>Чому б не записати систему рівнянь, підставляючі відомі точки у поліном, наприклад \( y = ax^2 + bx + c \) і не знайти \( a, b, c \)?</p>
+                <ul>
+                    <li><strong>Складність:</strong> Розв'язання системи (метод Гауса) вимагає \( O(n^3) \) операцій. Лагранж дає результат за \( O(n^2) \).</li>
+                    <li><strong>Стабільність:</strong> Матриці Вандермонда (які виникають при СЛАР) дуже "примхливі" до точності чисел. Комп'ютер швидко помилиться. Формула Лагранжа набагато стабільніша.</li>
+                </ul>
+            </div>
+        </details>
+
+        <div class="controls">
+            <span>Клікніть на графік, щоб додати точки:</span>
+            <button class="btn-action" onclick="study.clear()">Стерти</button>
+        </div>
+        
+        <div class="graph-wrapper">
+            <canvas id="chartStudy"></canvas>
+        </div>
+
+       
+    </div>
+
+    <!-- TAB 2: SECRET -->
+    <div id="secret" class="content">
+        <h2>СХЕМА РОЗПОДІЛУ СЕКРЕТУ ШАМІРА</h2>
+		   <p>
+			Уявіть, що для того, щоб натиснути на "червону кнопку", потрібне рішення і присутність не менше трьох генералів.</p>
+         <p>  Метод розподілу секртету дозволяє розділити секрет (ключ, пароль, код доступу) \( S \) на \( n \) частин так, що для відновлення достатньо будь-яких \( k \) частин.
+            Частини секрета - точки полінома Лагранжа. Секрет — це точка перетину графіка з віссю Y (\( x=0 \)).
+        </p>
+        
+		 <div class="info-box" style="border-color: var(--accent-red); background: rgba(255, 107, 107, 0.1);">
+            <strong>Мета:</strong> Розділити "код доступу" між людьми так, щоб окремо ніхто нічого не знав, але група могла відновити код.
+            <br><strong>Спосіб:</strong> Секрет — це точка на графіку, де \( x=0 \). Ми будуємо поліном Лагранжа, що проходить через секрет, і роздаємо людям координати точок \( (1, y_1), (2, y_2)... \). Якщо це лінійна функція (пряма), достатньо будь-яких двах точок, якщо квадратична (парабола) - будь-яких трьох точок і т.д.
+        </div>
+		
+     
+
+
+		<details class="spoiler">
+            <summary>🔐 Секретні деталі</summary>
+            <div class="spoiler-body">
+                <p>Якщо ви використовуєте звичайний поліном Лагранжа, зловмисник з n-1 ключами з n може приблизно вгадати секрет (наприклад, аппроксимацією за МНК поліномом меншого степеня). Також числа можуть ставати достатньо великими, що не тільки ускладнює обчислення, але і дає вразливіть через side-channel атаки (наприклад, через аналіз часу обчислень).</p>
+                <p>Тому в блокчейні використовують <strong>Поля Галуа (Finite Fields)</strong>. Це світ, де немає дробів, а графік виглядає як хмара випадкових точок (білий шум). Там неможливо "наблизитися" до секрету — ти або знаєш його точно, або не знаєш зовсім.</p>
+            </div>
+        </details>
+		
+		
+        <div class="controls" style="justify-content: center;">
+            <div>
+                <label>*SECRET CODE:</label>
+                <input type="number" id="secretVal" value="42" min="0" max="999">
+            </div>
+            <div>
+                <label>THRESHOLD (мін.кільк.ключів):</label>
+                <input type="number" id="threshold" value="3" min="2" max="5">
+            </div>
+            <button class="btn-action" onclick="secret.generate()">GENERATE KEYS</button>
+        </div>
+
+        <div id="keysArea" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; min-height: 50px;">
+            <span style="color: #005500; font-family: monospace;">Awaiting generation...</span>
+        </div>
+
+        <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+            <div class="graph-wrapper" style="flex-grow: 1; min-width: 300px;">
+                <canvas id="chartSecret"></canvas>
+            </div>
+            <div style="width: 150px; text-align: center; background: #050505; padding: 20px; border: 1px solid #004400;">
+                <div style="color: #00ff00; margin-bottom: 10px;">ACCESS CONTROL</div>
+                <div id="redBtn" class="red-button-ui" onclick="secret.restore()">🔒</div>
+                <div id="secretResult" style="margin-top: 15px; font-weight: bold; font-size: 1.5rem; color: #004400; font-family: monospace;">---</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: QR -->
+    <div id="qr" class="content">
+        <h2>Відновлення даних (Reed-Solomon)</h2>
+        
+		
+		 <div class="info-box" style="border-color: var(--accent-yellow); background: rgba(254, 202, 87, 0.1);">
+            <strong>Мета:</strong> Передати дані так, щоб навіть при пошкодженні носія (фызичні пошкодження диску, бруд на QR, завади в каналі зв'язку) інформація не зникла.
+            <br><strong>Спосіб:</strong> Дані інтерпретуються як точки. Ми додаємо "зайві" точки. Якщо частина точок зникає, ми будуємо поліном через ті, що лишилися, і обчислюємо втрачені. 
+			У прикладі нижче ми можемо відтворити параболу за будь-якими трьома точками з п'яти.
+			</div>
+		
+        <div class="info-box" style="background: rgba(255,255,255,0.7);">
+            <p>Уявіть, що ви пролили каву на QR-код. Чому він все ще працює?
+            <br>Бо QR-код містить "зайві" точки, які лежать на тій самій математичній кривій, що й дані.</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn-action" style="background: #a1887f; color: white;" onclick="qr.init()">Нові дані</button>
+            <div style="flex-grow: 1; text-align: center; font-style: italic; color: #795548;">
+                Клікніть на блоки, щоб "заплямувати" їх:
+            </div>
+            <button class="btn-action" onclick="qr.repair()">🛠️ Виправити</button>
+        </div>
+
+        <div id="packetsContainer" style="display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap;"></div>
+        
+        <!-- NEW GRAPH FOR QR -->
+        <div class="graph-wrapper" style="height: 450px; margin-bottom: 20px;">
+            <canvas id="chartQR"></canvas>
+        </div>
+
+        <details class="spoiler">
+            <summary>☕ Як це працює в реальних кодах корекції помилок</summary>
+            <div class="spoiler-body">
+                <p>У цьому симуляторі ми використовуємо звичайні числа та параболи. Це наочно, але має проблему: числа можуть стати дуже великими або дробовими.</p>
+                <p><strong>У реальному житті (Коди Ріда-Соломона)</strong> використовують <em>Поля Галуа (Galois Fields)</em>. Це "кільцева" математика (як годинник, де після 12 йде 1). </p>
+                <ul>
+                    <li>У Полях Галуа немає дробів (точність ідеальна).</li>
+                    <li>Графік у полі Галуа виглядає не як плавна лінія, а як хмара випадкових точок ("білий шум").</li>
+                    <li>Але математично через них все одно проходить "поліном", який дозволяє відновити втрачені байти.</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+
+</div>
+
+<script>
+    // --- MATH UTILS ---
+    const MathCore = {
+        interpolate: (points, xTarget) => {
+            let result = 0;
+            const n = points.length;
+            for (let i = 0; i < n; i++) {
+                let term = points[i].y;
+                for (let j = 0; j < n; j++) {
+                    if (i !== j) {
+                        term *= (xTarget - points[j].x) / (points[i].x - points[j].x);
+                    }
+                }
+                result += term;
+            }
+            return result;
+        },
+        // Helper to mimic rounding needed for stable integer simulation
+        round: (num) => Math.round(num * 1000) / 1000
+    };
+
+    // --- TAB 1: STUDY (Notebook) ---
+    const study = {
+        points: [],
+        chart: null,
+        init: () => {
+            const ctx = document.getElementById('chartStudy').getContext('2d');
+            study.chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'Точки', data: [], backgroundColor: '#2c3e50', pointRadius: 7 },
+                        { label: 'Поліном', data: [], type: 'line', borderColor: '#2980b9', borderWidth: 2, pointRadius: 0, tension: 0.4, borderDash: [5, 5] }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { min: 0, max: 10, grid: {color: '#ccc'} },
+                        y: { min: 0, max: 10, grid: {color: '#ccc'} }
+                    },
+                    plugins: { legend: { labels: { font: { family: 'Georgia' } } } },
+                    onClick: (e) => study.addPoint(e)
+                }
+            });
+        },
+        addPoint: (e) => {
+            const chart = study.chart;
+            const canvasPos = Chart.helpers.getRelativePosition(e, chart);
+            const x = parseFloat(chart.scales.x.getValueForPixel(canvasPos.x).toFixed(1));
+            const y = parseFloat(chart.scales.y.getValueForPixel(canvasPos.y).toFixed(1));
+            if(study.points.some(p => Math.abs(p.x - x) < 0.2)) return; 
+            study.points.push({x, y});
+            study.points.sort((a,b) => a.x - b.x);
+            study.update();
+        },
+        update: () => {
+            study.chart.data.datasets[0].data = study.points;
+            if(study.points.length > 1) {
+                const curve = [];
+                for(let x=0; x<=10; x+=0.1) {
+                    curve.push({x, y: MathCore.interpolate(study.points, x)});
+                }
+                study.chart.data.datasets[1].data = curve;
+                study.chart.data.datasets[1].borderDash = [];
+            } else {
+                study.chart.data.datasets[1].data = [];
+            }
+            study.chart.update();
+        },
+        clear: () => { study.points = []; study.update(); }
+    };
+
+    // --- TAB 2: SECRET (X-Files) ---
+// --- TAB 2: SECRET (X-Files) ---
+    const secret = {
+        anchors: [],
+        keys: [],
+        selected: [],
+        chart: null,
+        
+     init: () => {
+            const ctx = document.getElementById('chartSecret').getContext('2d');
+            secret.chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { 
+                            label: 'TARGET (Secret)', 
+                            data: [], 
+                            backgroundColor: 'rgba(255, 23, 68, 1)', 
+                            borderColor: '#ff1744',
+                            borderWidth: 3,
+                            pointStyle: 'crossRot', // Хрестик
+                            pointRadius: 12,
+                            pointHoverRadius: 15,
+                            order: 0 
+                        },
+                        { 
+                            label: 'Active Keys', 
+                            data: [], 
+                            backgroundColor: '#03a9f4', 
+                            pointRadius: 6,
+                            pointStyle: 'rectRounded',
+                            order: 1
+                        },
+                        { 
+                            label: 'Trajectory', 
+                            data: [], 
+                            type: 'line', 
+                            borderColor: 'rgba(3, 169, 244, 0.6)', 
+                            borderWidth: 2, 
+                            pointRadius: 0, 
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            type: 'linear', 
+                            min: -1, 
+                            max: 13, 
+                            grid: {
+                                // Малюємо червону лінію, якщо значення близьке до 0
+                                color: (ctx) => Math.abs(ctx.tick.value) < 0.001 ? 'rgba(211, 47, 47, 0.8)' : '#333',
+                                lineWidth: (ctx) => Math.abs(ctx.tick.value) < 0.001 ? 2 : 1,
+                                borderColor: '#555'
+                            },
+                            ticks: { 
+                                color: '#888',
+                                stepSize: 1 // <--- ГАРАНТУЄ, що лінія на 0 буде намальована
+                            } 
+                        },
+                        y: { 
+                            grid: {
+                                // Те саме для горизонтальної лінії (вісь X)
+                                color: (ctx) => Math.abs(ctx.tick.value) < 0.001 ? 'rgba(211, 47, 47, 0.8)' : '#333',
+                                lineWidth: (ctx) => Math.abs(ctx.tick.value) < 0.001 ? 2 : 1,
+                                borderColor: '#555'
+                            },
+                            ticks: { color: '#888' }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                },
+                // --- НОВИЙ БЛОК: Виведення числа біля хрестика ---
+                plugins: [{
+                    id: 'hudLabel',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        const meta = chart.getDatasetMeta(0); // Індекс 0 - це наш Target (Secret)
+                        
+                        // Якщо є дані (секрет згенеровано)
+                        if (meta.data.length > 0) {
+                            const point = meta.data[0];
+                            const value = chart.data.datasets[0].data[0]?.y;
+                            
+                            if (point.x != null && point.y != null && value !== undefined) {
+                                ctx.save();
+                                ctx.font = 'bold 14px "Courier New"'; // Технічний шрифт
+                                ctx.fillStyle = '#ff1744';           // Червоний колір
+                                ctx.textAlign = 'left';
+                                ctx.textBaseline = 'middle';
+                                
+                                // Малюємо текст трохи правіше (+15px) від хрестика
+                                ctx.fillText(`SEC: ${value}`, point.x + 15, point.y);
+                                ctx.restore();
+                            }
+                        }
+                    }
+                }]
+            });
+        },
+    /* old version
+		generate: () => {
+            const s = parseInt(document.getElementById('secretVal').value);
+            const k = parseInt(document.getElementById('threshold').value);
+            const n = 6; 
+
+            // Генеруємо коефіцієнти
+            let coeffs = [s];
+            for(let i=1; i<k; i++) {
+                let c = Math.floor(Math.random() * 40) - 20;
+                if (c === 0) c = 1; 
+                coeffs.push(c);
+            }
+
+            // Генеруємо ключі
+            secret.keys = [];
+            for(let x=1; x<=n; x++) {
+                let y = 0;
+                for(let i=0; i<k; i++) {
+                    y += coeffs[i] * Math.pow(x, i);
+                }
+                secret.keys.push({x: x, y: y});
+            }
+            
+            // Зберігаємо справжній секрет
+            secret.anchors = [{x: 0, y: s}];
+
+            secret.selected = [];
+            secret.renderKeys();
+            secret.updateChart(false);
+            
+            // Скидаємо інтерфейс
+            const btn = document.getElementById('redBtn');
+            btn.style.background = 'radial-gradient(circle at 30% 30%, #ff0000, #550000)';
+            btn.innerHTML = '🔒';
+            document.getElementById('secretResult').innerText = "LOCKED";
+            document.getElementById('secretResult').style.color = "#004400";
+        },*/
+		
+	generate: () => {
+            const s = parseInt(document.getElementById('secretVal').value);
+            const k = parseInt(document.getElementById('threshold').value);
+            const n = 6; 
+
+            // --- 1. ПУЛ ЧИСЕЛ [1..12] ---
+            let pool = Array.from({length: 12}, (_, i) => i + 1);
+            
+            // Перемішуємо
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
+
+            // --- 2. КОРЕНІ ---
+            let roots = [];
+            const rootsCount = Math.max(0, k - 2);
+            for(let i = 0; i < rootsCount; i++) roots.push(pool.pop());
+
+            // --- 3. КЛЮЧІ ---
+            let keyXCoords = [];
+            for(let i = 0; i < n; i++) keyXCoords.push(pool.pop());
+            keyXCoords.sort((a, b) => a - b);
+
+            const possibleMultipliers = k > 3 ? [-1, 1] : [-2, -1, 1, 2];
+            const C = possibleMultipliers[Math.floor(Math.random() * possibleMultipliers.length)];
+
+            // --- 4. ОБЧИСЛЕННЯ Y ---
+            secret.keys = [];
+            for(let x of keyXCoords) {
+                let term = x; 
+                for(let r of roots) term *= (x - r);
+                let y = (C * term) + s;
+                secret.keys.push({x: x, y: y});
+            }
+            
+            secret.anchors = [{x: 0, y: s}];
+            secret.selected = [];
+            secret.renderKeys();
+            secret.updateChart(false);
+            
+            const btn = document.getElementById('redBtn');
+            btn.innerHTML = '🔒';
+            document.getElementById('secretResult').innerText = "LOCKED";
+            document.getElementById('secretResult').style.color = "#d32f2f";
+        },
+		
+		
+		
+        renderKeys: () => {
+            const container = document.getElementById('keysArea');
+            container.innerHTML = '';
+            secret.keys.forEach((key, idx) => {
+                const el = document.createElement('div');
+                el.className = 'key-card';
+                el.innerHTML = `KEY ${key.x}<br><small>${key.y}</small>`;
+                el.onclick = () => secret.toggle(idx, el);
+                container.appendChild(el);
+            });
+        },
+
+        toggle: (idx, el) => {
+            if (secret.selected.includes(idx)) {
+                secret.selected = secret.selected.filter(i => i !== idx);
+                el.classList.remove('selected');
+            } else {
+                secret.selected.push(idx);
+                el.classList.add('selected');
+            }
+            secret.updateChart(false);
+        },
+
+        updateChart: (unlocked, secretValue) => {
+            const pointsToShow = secret.selected.map(i => secret.keys[i]);
+            secret.chart.data.datasets[1].data = pointsToShow;
+            secret.chart.options.scales.x.min = -1;
+
+            if (unlocked) {
+                // Визначаємо значення для зірки
+                const val = (secretValue !== undefined) ? secretValue : secret.anchors[0].y;
+                
+                // 1. Примусово оновлюємо масив даних для зірки
+                secret.chart.data.datasets[0].data = [{x: 0, y: val}];
+                
+                // 2. Будуємо криву
+                const k = parseInt(document.getElementById('threshold').value);
+                const source = pointsToShow.slice(0, k);
+                
+                const curve = [];
+                for(let x=-0.5; x<=13; x+=0.1) {
+                    curve.push({x: x, y: MathCore.interpolate(source, x)});
+                }
+                secret.chart.data.datasets[2].data = curve;
+            } else {
+                secret.chart.data.datasets[0].data = [];
+                secret.chart.data.datasets[2].data = [];
+            }
+            secret.chart.update();
+        },
+
+        restore: () => {
+            const k = parseInt(document.getElementById('threshold').value);
+            const btn = document.getElementById('redBtn');
+            const resText = document.getElementById('secretResult');
+
+            if (secret.selected.length < k) {
+                alert(`ACCESS DENIED. Need ${k} keys.`);
+                return;
+            }
+
+            // Інтерполяція
+            const points = secret.selected.map(i => secret.keys[i]);
+            const restoredVal = Math.round(MathCore.interpolate(points, 0));
+            const actualSecret = secret.anchors[0].y;
+
+            if (restoredVal === actualSecret) {
+                btn.style.background = 'radial-gradient(circle at 30% 30%, #00ff00, #005500)';
+                btn.innerHTML = '🔓';
+                resText.innerText = restoredVal;
+                resText.style.color = "#00ff00";
+                resText.style.textShadow = "0 0 10px #00ff00";
+                
+                // Передаємо значення явно!
+                secret.updateChart(true, restoredVal);
+            } else {
+                resText.innerText = "ERROR";
+                resText.style.color = "red";
+            }
+        }
+    };
+	
+    // --- TAB 3: QR (Coffee) ---
+    const qr = {
+        data: [],
+        damaged: [],
+        chart: null,
+      
+        init: () => {
+		// 1. Підготовка фону
+            const bgImage = new Image();
+            bgImage.src = 'coffee.png'; // Файл має бути поруч з HTML
+
+            const bgPlugin = {
+                id: 'coffee_bg',
+                beforeDraw: (chart) => {
+                    if (bgImage.complete) {
+                        const ctx = chart.ctx;
+                        const {top, left, width, height} = chart.chartArea;
+                        ctx.save();
+                        ctx.globalAlpha = 0.2; // Прозорість (0.4 = 40%)
+                        ctx.drawImage(bgImage, left, top, width, height);
+                        ctx.restore();
+                    } else {
+                        bgImage.onload = () => chart.draw();
+                    }
+                }
+            };
+            // New Chart for QR visualization
+            if (!qr.chart) {
+                const ctx = document.getElementById('chartQR').getContext('2d');
+                qr.chart = new Chart(ctx, {
+                    type: 'scatter',
+					plugins: [bgPlugin],
+                    data: {
+                        datasets: [
+                            { label: 'Дані', data: [], backgroundColor: '#5d4037', pointRadius: 6 },
+                            { label: 'Parity', data: [], backgroundColor: '#fbc02d', pointRadius: 6, pointStyle: 'triangle' },
+                            { label: 'Крива відновлення', data: [], type: 'line', borderColor: '#8d6e63', borderWidth: 2, pointRadius: 0, tension: 0.4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { x: { display: false }, y: { display: false } }, // Minimalist "coffee napkin" sketch look
+                        plugins: { legend: { display: true } }
+                    }
+                });
+            }
+
+            const vals = [10, 25, 15]; // Static-ish base values but can be random
+            const dataPoints = vals.map((v, i) => ({x: i+1, y: Math.floor(Math.random()*20)+10}));
+            
+            // Calculate Parity x=4, x=5
+            const p1 = Math.round(MathCore.interpolate(dataPoints, 4));
+            const p2 = Math.round(MathCore.interpolate(dataPoints, 5));
+
+            qr.data = [
+                {id: 1, val: dataPoints[0].y, type: 'data'},
+                {id: 2, val: dataPoints[1].y, type: 'data'},
+                {id: 3, val: dataPoints[2].y, type: 'data'},
+                {id: 4, val: p1, type: 'parity'},
+                {id: 5, val: p2, type: 'parity'}
+            ];
+            qr.damaged = [];
+            qr.render();
+            qr.updateChart();
+        },
+				
+				
+				
+        render: () => {
+            const container = document.getElementById('packetsContainer');
+            container.innerHTML = '';
+            qr.data.forEach((p, idx) => {
+                const el = document.createElement('div');
+                const isBad = qr.damaged.includes(idx);
+                el.className = `packet ${p.type} ${isBad ? 'damaged' : ''} ${p.recovered ? 'recovered' : ''}`;
+                
+                el.innerHTML = `
+                    <small style="opacity:0.6">#${p.id}</small>
+                    <span style="font-size: 1.1rem">${isBad ? '?' : p.val}</span>
+                `;
+                
+                if (!isBad && !p.recovered) {
+                    el.onclick = () => { qr.damaged.push(idx); qr.render(); qr.updateChart(); };
+                }
+                container.appendChild(el);
+            });
+        },
+
+      updateChart: () => {
+            // Filter only visible points
+            const healthyData = qr.data.slice(0,3).filter((d,i) => !qr.damaged.includes(i)).map(d => ({x: d.id, y: d.val}));
+            const healthyParity = qr.data.slice(3,5).filter((d,i) => !qr.damaged.includes(i+3)).map(d => ({x: d.id, y: d.val}));
+            
+            qr.chart.data.datasets[0].data = healthyData;
+            qr.chart.data.datasets[1].data = healthyParity;
+
+            // Draw line if we have enough points (3)
+            const allHealthy = [...healthyData, ...healthyParity];
+            if (allHealthy.length >= 3) {
+                const curve = [];
+                for(let x=1; x<=5; x+=0.1) {
+                    curve.push({x: x, y: MathCore.interpolate(allHealthy, x)});
+                }
+                qr.chart.data.datasets[2].data = curve;
+            } else {
+                qr.chart.data.datasets[2].data = [];
+            }
+            qr.chart.update();
+        },
+
+        repair: () => {
+            const healthy = qr.data.filter((d, i) => !qr.damaged.includes(i)).map(d => ({x: d.id, y: d.val}));
+
+            if (healthy.length < 3) {
+                alert("Надто багато кави! Неможливо відновити.");
+                return;
+            }
+
+            qr.damaged.forEach(idx => {
+                const targetX = qr.data[idx].id;
+                const restored = Math.round(MathCore.interpolate(healthy, targetX));
+                qr.data[idx].val = restored;
+                qr.data[idx].recovered = true;
+            });
+            qr.damaged = [];
+            qr.render();
+            qr.updateChart(); // Full curve will appear
+            
+            setTimeout(() => {
+                qr.data.forEach(d => delete d.recovered);
+                qr.render();
+            }, 2000);
+        }
+    };
+
+    // --- THEME SWITCHER ---
+    function setTab(name) {
+        // Toggle Content
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        document.getElementById(name).classList.add('active');
+        
+        // Toggle UI Classes
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        const activeIdx = ['study', 'secret', 'qr'].indexOf(name);
+        document.querySelectorAll('.tab')[activeIdx].classList.add('active');
+
+        // Switch Global Theme
+        document.body.className = `theme-${name}`;
+    }
+
+    window.onload = () => {
+        study.init();
+        secret.init();
+        qr.init();
+    };
+</script>
+
+</body>
+</html>
