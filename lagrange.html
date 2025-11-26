@@ -25,6 +25,30 @@
             font-family: 'Segoe UI', sans-serif;
         }
 
+/* --- MUSIC TOGGLE BUTTON --- */
+        #musicToggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10000; /* Поверх усього */
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        #musicToggle:hover {
+            background: rgba(211, 47, 47, 0.9); /* Червоний при наведенні */
+            transform: scale(1.1);
+        }
         .container {
             max-width: 1100px;
             margin: 0 auto;
@@ -297,6 +321,8 @@
 </head>
 <body class="theme-study">
 
+<button id="musicToggle" onclick="toggleMusic()">🔊</button>
+
 <div class="container">
     <div class="tabs">
         <button class="tab active" onclick="setTab('study')">1. Теорія</button>
@@ -464,21 +490,41 @@
 <script>
 // --- AUDIO SYSTEM ---
     const audioMI = new Audio('mi.mp3');
-    const audioCoffee = new Audio('coffee.mp3');
+    const audioCoffee = new Audio('coffee.mp3'); // або шлях до вашого файлу
     
-    // Налаштування (зациклення і гучність)
     audioMI.loop = true;
-    audioMI.volume = 0.5; // 50% гучності, щоб не глушити думки
-    
+    audioMI.volume = 0.5;
     audioCoffee.loop = true;
     audioCoffee.volume = 0.4;
 
-    // Функція для повної тиші (зупиняє все)
+    // Глобальний стан звуку (за замовчуванням увімкнено)
+    let isMuted = false;
+
     function stopAllMusic() {
         [audioMI, audioCoffee].forEach(sound => {
             sound.pause();
-            sound.currentTime = 0; // Перемотати на початок
+            sound.currentTime = 0;
         });
+    }
+
+    // НОВА ФУНКЦІЯ: Клік по кнопці динаміка
+    function toggleMusic() {
+        isMuted = !isMuted;
+        const btn = document.getElementById('musicToggle');
+        
+        if (isMuted) {
+            btn.innerHTML = '🔇'; // Іконка "вимкнено"
+            stopAllMusic(); // Тиша
+        } else {
+            btn.innerHTML = '🔊'; // Іконка "увімкнено"
+            
+            // Відновлюємо музику залежно від поточної вкладки
+            if (document.body.classList.contains('theme-secret')) {
+                audioMI.play().catch(e => console.log(e));
+            } else if (document.body.classList.contains('theme-qr')) {
+                audioCoffee.play().catch(e => console.log(e));
+            }
+        }
     }
 
     // --- MATH UTILS ---
@@ -1016,13 +1062,13 @@
         document.body.className = `theme-${name}`;
 
         // 3. Вмикаємо потрібний трек залежно від вкладки
-        if (name === 'secret') {
-            // Браузери дозволяють грати аудіо тільки після дії користувача (клік по табу - це дія, тому все ок)
-            audioMI.play().catch(e => console.log("Audio play failed:", e));
-        } else if (name === 'qr') {
-            audioCoffee.play().catch(e => console.log("Audio play failed:", e));
+       if (!isMuted) {
+            if (name === 'secret') {
+                audioMI.play().catch(e => console.log("Play error:", e));
+            } else if (name === 'qr') {
+                audioCoffee.play().catch(e => console.log("Play error:", e));
+            }
         }
-        // Для вкладки 'study' музика не вмикається (тиша)
     }
 
     window.onload = () => {
