@@ -420,7 +420,7 @@
         
 		
 		 <div class="info-box" style="border-color: var(--accent-yellow); background: rgba(254, 202, 87, 0.1);">
-            <strong>Мета:</strong> Передати дані так, щоб навіть при пошкодженні носія (фызичні пошкодження диску, бруд на QR, завади в каналі зв'язку) інформація не зникла.
+            <strong>Мета:</strong> Передати дані так, щоб навіть при пошкодженні носія (фізичні пошкодження диску, бруд на QR, завади в каналі зв'язку) інформація не зникла.
             <br><strong>Спосіб:</strong> Дані інтерпретуються як точки. Ми додаємо "зайві" точки. Якщо частина точок зникає, ми будуємо поліном через ті, що лишилися, і обчислюємо втрачені. 
 			У прикладі нижче ми можемо відтворити параболу за будь-якими трьома точками з п'яти.
 			</div>
@@ -462,6 +462,25 @@
 </div>
 
 <script>
+// --- AUDIO SYSTEM ---
+    const audioMI = new Audio('mi.mp3');
+    const audioCoffee = new Audio('coffee.mp3');
+    
+    // Налаштування (зациклення і гучність)
+    audioMI.loop = true;
+    audioMI.volume = 0.5; // 50% гучності, щоб не глушити думки
+    
+    audioCoffee.loop = true;
+    audioCoffee.volume = 0.4;
+
+    // Функція для повної тиші (зупиняє все)
+    function stopAllMusic() {
+        [audioMI, audioCoffee].forEach(sound => {
+            sound.pause();
+            sound.currentTime = 0; // Перемотати на початок
+        });
+    }
+
     // --- MATH UTILS ---
     const MathCore = {
         interpolate: (points, xTarget) => {
@@ -815,53 +834,88 @@
         data: [],
         damaged: [],
         chart: null,
-      
-        init: () => {
-		// 1. Підготовка фону
-            const bgImage = new Image();
-            bgImage.src = 'coffee.png'; // Файл має бути поруч з HTML
+      init: () => {
+            // --- 1. ПІДГОТОВКА ФОНУ (безпечна) ---
+            const bgImg = new Image();
+            bgImg.src = 'coffee.png'; // або 'napkin.jpg', перевірте назву файлу!
+            let bgLoaded = false;
 
-            const bgPlugin = {
-                id: 'coffee_bg',
-                beforeDraw: (chart) => {
-                    if (bgImage.complete) {
-                        const ctx = chart.ctx;
-                        const {top, left, width, height} = chart.chartArea;
-                        ctx.save();
-                        ctx.globalAlpha = 0.2; // Прозорість (0.4 = 40%)
-                        ctx.drawImage(bgImage, left, top, width, height);
-                        ctx.restore();
-                    } else {
-                        bgImage.onload = () => chart.draw();
-                    }
-                }
+            bgImg.onload = () => {
+                bgLoaded = true;
+                if (qr.chart) qr.chart.update();
             };
-            // New Chart for QR visualization
-            if (!qr.chart) {
-                const ctx = document.getElementById('chartQR').getContext('2d');
-                qr.chart = new Chart(ctx, {
-                    type: 'scatter',
-					plugins: [bgPlugin],
-                    data: {
-                        datasets: [
-                            { label: 'Дані', data: [], backgroundColor: '#5d4037', pointRadius: 6 },
-                            { label: 'Parity', data: [], backgroundColor: '#fbc02d', pointRadius: 6, pointStyle: 'triangle' },
-                            { label: 'Крива відновлення', data: [], type: 'line', borderColor: '#8d6e63', borderWidth: 2, pointRadius: 0, tension: 0.4 }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { x: { display: false }, y: { display: false } }, // Minimalist "coffee napkin" sketch look
-                        plugins: { legend: { display: true } }
-                    }
-                });
-            }
 
-            const vals = [10, 25, 15]; // Static-ish base values but can be random
+            // --- 2. НАЛАШТУВАННЯ ГРАФІКА ---
+            const ctx = document.getElementById('chartQR').getContext('2d');
+            
+            // Якщо графік вже існував — видаляємо старий, щоб не було накладання
+            if (qr.chart) qr.chart.destroy();
+
+            qr.chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Дані',
+                            data: [], // Дані заповнимо нижче
+                            backgroundColor: '#5d4037',
+                            pointRadius: 6
+                        },
+                        {
+                            label: 'Parity',
+                            data: [],
+                            backgroundColor: '#fbc02d',
+                            pointRadius: 6,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Крива відновлення',
+                            data: [],
+                            type: 'line',
+                            borderColor: '#8d6e63',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false }, 
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: true }
+                    }
+                },
+                // Цей плагін малює фон: картинку АБО колір
+                plugins: [{
+                    id: 'customBackground',
+                    beforeDraw: (chart) => {
+                        const { ctx, width, height } = chart;
+                        ctx.save();
+                        if (bgLoaded) {
+                            // Малюємо картинку з прозорістю
+                            ctx.globalAlpha = 0.2;
+                            ctx.drawImage(bgImg, 0, 0, width, height);
+                        } else {
+                            // ФОЛБЕК: Якщо картинки немає — малюємо фон "під серветку"
+                            ctx.fillStyle = '#fdfbf7'; 
+                            ctx.fillRect(0, 0, width, height);
+                        }
+                        ctx.restore();
+                    }
+                }]
+            });
+
+            // --- 3. ГЕНЕРАЦІЯ ДАНИХ ---
+            // Це теж частина init, тому вона має бути ТУТ
+            const vals = [10, 25, 15]; 
             const dataPoints = vals.map((v, i) => ({x: i+1, y: Math.floor(Math.random()*20)+10}));
             
-            // Calculate Parity x=4, x=5
+            // Розрахунок точок відновлення (Parity)
             const p1 = Math.round(MathCore.interpolate(dataPoints, 4));
             const p2 = Math.round(MathCore.interpolate(dataPoints, 5));
 
@@ -872,11 +926,11 @@
                 {id: 4, val: p1, type: 'parity'},
                 {id: 5, val: p2, type: 'parity'}
             ];
+            
             qr.damaged = [];
             qr.render();
             qr.updateChart();
-        },
-				
+        },	
 				
 				
         render: () => {
@@ -947,18 +1001,28 @@
     };
 
     // --- THEME SWITCHER ---
-    function setTab(name) {
-        // Toggle Content
+  function setTab(name) {
+        // 1. Спочатку вимикаємо будь-яку музику, що грала до цього
+        stopAllMusic();
+
+        // 2. Логіка перемикання вкладок (ваш старий код)
         document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
         document.getElementById(name).classList.add('active');
         
-        // Toggle UI Classes
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         const activeIdx = ['study', 'secret', 'qr'].indexOf(name);
         document.querySelectorAll('.tab')[activeIdx].classList.add('active');
 
-        // Switch Global Theme
         document.body.className = `theme-${name}`;
+
+        // 3. Вмикаємо потрібний трек залежно від вкладки
+        if (name === 'secret') {
+            // Браузери дозволяють грати аудіо тільки після дії користувача (клік по табу - це дія, тому все ок)
+            audioMI.play().catch(e => console.log("Audio play failed:", e));
+        } else if (name === 'qr') {
+            audioCoffee.play().catch(e => console.log("Audio play failed:", e));
+        }
+        // Для вкладки 'study' музика не вмикається (тиша)
     }
 
     window.onload = () => {
