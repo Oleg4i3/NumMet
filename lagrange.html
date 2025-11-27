@@ -395,7 +395,7 @@
 		   <p>
 			Уявіть, що для того, щоб натиснути на "червону кнопку", потрібне рішення і присутність не менше трьох генералів.</p>
          <p>  Метод розподілу секртету дозволяє розділити секрет (ключ, пароль, код доступу) \( S \) на \( n \) частин так, що для відновлення достатньо будь-яких \( k \) частин.
-            Частини секрета - точки полінома Лагранжа. Секрет — це точка перетину графіка з віссю Y (\( x=0 \)).
+            Частини секрета - точки полінома Лагранжа. Секрет — це точка перетину графіка з віссю Y (координата \( x=0\)).
         </p>
         
 		 <div class="info-box" style="border-color: var(--accent-red); background: rgba(255, 107, 107, 0.1);">
@@ -852,7 +852,7 @@
             secret.keys.forEach((key, idx) => {
                 const el = document.createElement('div');
                 el.className = 'key-card';
-                el.innerHTML = `KEY ${key.x}<br><small>${key.y}</small>`;
+                el.innerHTML = `KEY (${key.x}, <small>${key.y})</small>`;
                 el.onclick = () => secret.toggle(idx, el);
                 container.appendChild(el);
             });
