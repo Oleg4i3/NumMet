@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradient Battle: Pro Edition</title>
+    
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+        }
+      }
+    </script>
+	<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']] 
+    }
+  };
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
+    <style>
+        :root { --bg: #121212; --panel: #1e1e1e; --accent: #2196f3; --text: #e0e0e0; }
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; 
+            background-color: var(--bg); color: var(--text); 
+            overflow: hidden; display: flex; height: 100vh;
+        }
+
+        /* SIDEBAR STYLES */
+        #sidebar {
+            width: 360px; background: var(--panel); padding: 0;
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.6); z-index: 10;
+            border-right: 1px solid #333;
+        }
+        .scroll-area { flex: 1; overflow-y: auto; padding: 15px; }
+        .fixed-bottom { padding: 15px; background: #181818; border-top: 1px solid #333; }
+
+        h2 { margin: 15px 0 8px 0; font-size: 0.95rem; color: var(--accent); text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 4px; letter-spacing: 1px; }
+        .control-group { margin-bottom: 15px; }
+        label { font-size: 0.85rem; display: block; margin-bottom: 5px; color: #bbb; }
+
+        /* Method Item Styles */
+        .method-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px; margin-bottom: 4px;
+            border-left: 3px solid transparent;
+        }
+        .method-header {
+            display: flex; align-items: center; padding: 8px;
+            cursor: pointer; user-select: none;
+        }
+        .method-header:hover { background: rgba(255,255,255,0.05); }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .method-name { flex: 1; font-size: 0.9rem; font-weight: 500; }
+        .settings-btn { 
+            background: none; border: none; color: #666; cursor: pointer; font-size: 1.1rem; padding: 0 5px; transition: 0.2s;
+        }
+        .settings-btn:hover { color: var(--text); transform: rotate(45deg); }
+        .settings-btn.active { color: var(--accent); transform: rotate(90deg); }
+
+        .method-settings {
+            display: none; padding: 10px; background: rgba(0,0,0,0.2);
+            border-top: 1px solid #333; font-size: 0.8rem;
+        }
+        .method-settings.show { display: block; }
+        
+        .param-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .param-row input { width: 60px; background: #333; border: none; color: white; padding: 2px 5px; border-radius: 3px; text-align: right; }
+
+        /* General Inputs */
+        select, input[type="range"] { width: 100%; background: #2c2c2c; color: white; border: 1px solid #444; padding: 6px; border-radius: 4px; margin-bottom: 5px; }
+        input[type="range"] { padding: 0; cursor: pointer; accent-color: var(--accent); }
+        
+        .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+        .btn {
+            flex: 1; background: var(--accent); color: white; border: none; padding: 12px;
+            border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .btn-reset { background: #d32f2f; }
+
+        /* Stats Table */
+        #stats-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 10px; }
+        #stats-table td { padding: 4px; border-bottom: 1px solid #333; }
+        #stats-table td:first-child { font-weight: bold; }
+        #stats-table td:last-child { text-align: right; font-family: monospace; color: #aaa; }
+
+        /* Canvas & Overlay */
+        #scene-container { flex: 1; position: relative; background: #000; }
+        #info-overlay {
+            position: absolute; top: 15px; left: 15px; pointer-events: none;
+            color: rgba(255,255,255,0.4); font-family: monospace; font-size: 0.8rem;
+        }
+		
+		
+		/* --- Modal Styles --- */
+.modal-overlay {
+    display: none; /* Приховано за замовчуванням */
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 2000; /* Поверх всього */
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #1e1e1e;
+    width: 80%;
+    max-width: 900px;
+    max-height: 90vh;
+    border-radius: 8px;
+    border: 1px solid #444;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #252525;
+    border-radius: 8px 8px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0; border: none; padding: 0;
+    color: #f1c40f; font-size: 1.2rem;
+}
+
+.close-btn {
+    background: none; border: none;
+    color: #aaa; font-size: 1.5rem; cursor: pointer;
+    transition: 0.2s;
+}
+.close-btn:hover { color: white; transform: scale(1.1); }
+
+.modal-body {
+    padding: 25px;
+    overflow-y: auto; /* Власний скрол */
+    color: #ddd;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+/* Fix for MathJax in dark mode */
+mjx-container { color: #e0e0e0 !important; }
+
+/* Table styling in modal */
+.theory-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.theory-table th, .theory-table td { 
+    border: 1px solid #444; padding: 8px; text-align: left; 
+}
+.theory-table th { background: #333; color: #4fc3f7; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+
+        <div class="scroll-area">
+            <div class="control-group" style="border-left: 3px solid #f1c40f; padding-left: 10px;">
+                <label>⚡ Швидкі Пресети</label>
+                <select id="presetSelect">
+                    <option value="custom">-- Власні налаштування --</option>
+                    <option value="valley_cg">Вузький Каньйон (Перемагає CG)</option>
+                    <option value="rosenbrock">Розенброк (Складний)</option>
+                    <option value="beale">Плато Біла</option>
+                    <option value="himmelblau">Хіммельблау (4 мінімуми)</option>
+                    
+                </select>
+            </div>
+
+            <h2>Методи Оптимізації</h2>
+            <div id="methods-list">
+                </div>
+
+            <h2>Інші початкові точки</h2>
+            <label>Функція (Ландшафт)</label>
+            <select id="funcSelect">
+                <option value="valley">Квадратична долина</option>
+                <option value="rosenbrock">Розенброк (Banana)</option>
+                <option value="beale">Біла (Beale)</option>
+                <option value="himmelblau">Хіммельблау</option>
+                
+            </select>
+
+            <label>Швидкість (кроків/кадр): <span id="speedVal">1</span></label>
+            <input type="range" id="speedSlider" min="1" max="200" step="5" value="50">
+
+            <label>Вертикальний масштаб (Visual): <span id="vScaleVal">1.0</span></label>
+            <input type="range" id="vScaleSlider" min="0.01" max="3.0" step="0.1" value="0.2">
+        </div>
+
+        <div class="fixed-bottom">
+           
+            
+            <div class="btn-row">
+			<button id="btn-theory" class="btn" style="background: #f1c40f; color: #000; margin-top: 10px;">📖 ТЕОРІЯ ТА МЕТОДИ</button>
+                <button id="btn-start" class="btn">▶ Старт</button>
+                <button id="btn-reset" class="btn btn-reset">↺ Скидання</button>
+            </div>
+			 <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 5px;">Статус</div>
+            <table id="stats-table"></table>
+        </div>
+		
+    </div>
+	
+	
+
+    <div id="scene-container">
+        <div id="info-overlay">
+            ЛКМ: Обертання | ПКМ: Зміщення | Колесо: Зум<br>
+            Зелений прапор = Глобальний Мінімум
+        </div>
+    </div>
+
+<div id="theoryModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Градієнтна оптимізація</h2>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            
+            <h3 style="color: #4fc3f7;">1. Градієнтний спуск</h3>
+            <p>
+                Наша мета — знайти мінімум $f(x)$. Градієнт $\nabla f$ показує напрямок <b>найшвидшого зростання</b>.
+                Класичний спуск (SGD) просто йде проти градієнта: $x_{new} = x - \eta \nabla f$.
+            </p>
+			<p style="background: rgba(33, 150, 243, 0.1); padding: 10px; border-left: 3px solid #2196f3; font-size: 0.9em; margin: 10px 0;">
+                Літера $\eta$ ("ета") у формулах — це і є параметр <b>Learning Rate</b> у симуляторі. Вона визначає довжину вашого кроку.
+            </p>
+
+            <h3 style="color: #3388ff;">Що таке Momentum (Інерція)?</h3>
+            <p>
+                Звичайний спуск (SGD) миттєво зупиняється, якщо градієнт стає нулем. <b>Momentum</b> додає фізику "важкої кульки".
+                Ми накопичуємо швидкість: якщо кулька довго котиться вниз, вона розганяється.
+            </p>
+            <ul style="margin-bottom: 15px;">
+                <li>Це дозволяє <b>пролітати</b> дрібні ямки (локальні мінімуми) за інерцією.</li>
+                <li>Це допомагає не застрягати на пласких ділянках (плато), де градієнт малий.</li>
+            </ul>
+            <p>Саме тому цей параметр є в методі <i>Momentum</i> та в <i>Adam</i>.</p>
+			
+			
+            <div style="background: rgba(51, 136, 255, 0.15); border-left: 4px solid #3388ff; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                $$ v_{new} = \gamma \cdot v_{old} + \eta \cdot \nabla f(x) $$
+                $$ x_{new} = x_{old} - v_{new} $$
+            </div>
+
+            <p><b>Як це працює:</b></p>
+            <ul style="margin-bottom: 15px;">
+                <li>$\gamma$ (гамма) — це <b>параметр Momentum</b> (наприклад 0.9). Це "коефіцієнт збереження": ми беремо 90% старої швидкості і додаємо трохи нового градієнта.</li>
+                <li>Якщо $\gamma = 0$, метод перетворюється на звичайний SGD.</li>
+                <li>Це дозволяє <b>пролітати</b> дрібні ямки та плато за інерцією.</li>
+            </ul>
+			
+            <h3 style="color: #ffaa00;">2. Методи спряжених градієнтів (CG)</h3>
+            <p>
+                Головна ідея CG: <i>"Не псуй попередню роботу"</i>. Замість того, щоб йти просто вниз, ми шукаємо напрямок $d_{k}$, який є компромісом між "вниз" (новий градієнт) і "вперед за інерцією" (старий напрямок).
+            </p>
+            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; text-align:center;">
+                $$d_{k+1} = -\nabla f_{k+1} + \beta_k \cdot d_k$$
+            </div>
+            <p>Вся магія в коефіцієнті $\beta_k$ (бета). Він вирішує, наскільки сильно ми "слухаємо" старий напрямок. Різні методи рахують його по-різному:</p>
+
+            <table class="theory-table">
+                <tr>
+                    <th width="20%">Метод</th>
+                    <th width="40%">Геометрична Інтерпретація</th>
+                    <th>Для чого краще?</th>
+                </tr>
+                <tr>
+                    <td>
+                        <strong style="color:#ffaa00">FR</strong><br>
+                        (Fletcher-Reeves)
+                    </td>
+                    <td>
+                        $$ \beta = \frac{\|\nabla f_{new}\|^2}{\|\nabla f_{old}\|^2} $$
+                        <b>"Масштаб по Градієнту"</b><br>
+                        Ми дивимось лише на <i>довжину</i> векторів. Якщо схил став крутішим ($\|\nabla f\| \uparrow$), ми більше довіряємо інерції (старому $d_k$). Якщо виположується — гальмуємо.
+                    </td>
+                    <td>Ідеальні квадратичні чаші. В складних ярах може "зациклитись".</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong style="color:#ffff00">PR</strong><br>
+                        (Polak-Ribiere)
+                    </td>
+                    <td>
+                        $$ \beta = \frac{\nabla f_{new}^T (\nabla f_{new} - \nabla f_{old})}{\|\nabla f_{old}\|^2} $$
+                        <b>"Реакція на поворот"</b><br>
+                        Враховує скалярний добуток. Якщо градієнт різко змінив напрямок (ортогональний старому), $\beta$ стає $\approx 0$. Це працює як автоматичний "рестарт" (перетворення в SGD), що рятує в кривих ярах.
+                    </td>
+                    <td>Більшість нелінійних задач. Золотий стандарт CG.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong style="color:#ff00ff">HS</strong><br>
+                        (Hestenes-Stiefel)
+                    </td>
+                    <td>
+                        $$ \beta = \frac{\nabla f_{new}^T (\Delta g)}{d_{old}^T (\Delta g)} $$
+                        <b>"Проекція на шлях"</b><br>
+                        Схожий на PR, але знаменник враховує, наскільки змінився градієнт <i>вздовж попереднього кроку</i>. Це дає "чистішу" спряженість (conjugacy), коли функція не ідеально квадратична.
+                    </td>
+                    <td>Дуже схожий на PR, краще тримає "геометрію" спряженості.</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong style="color:#00ffff">DY</strong><br>
+                        (Dai-Yuan)
+                    </td>
+                    <td>
+                        $$ \beta = \frac{\|\nabla f_{new}\|^2}{d_{old}^T (\Delta g)} $$
+                        <b>"Жорсткий спуск"</b><br>
+                        Гібрид. Чисельник як у FR (довжина), знаменник як у HS (проекція).
+                        Гарантує, що ми завжди рухаємось вниз, навіть якщо функція дуже випукла. Менше ризику піти вгору.
+                    </td>
+                    <td>Складні, сильно випуклі задачі, де FR ламається.</td>
+                </tr>
+            </table>
+
+            <h3 style="color: #33ff33;">3. Адаптивні методи</h3>
+            <p>
+                <strong style="color:#33ff33">Adam</strong> не використовує "бета" для повороту. Він використовує статистику. Він запам'ятовує середню крутизну схилу (V) і середню швидкість (m).
+                Якщо схил крутий, але ми там рідко буваємо — він робить великий крок. Якщо схил постійно крутий — він зменшує крок, щоб не пролетіти.
+            </p>
+
+        </div>
+    </div>
+</div>
+
+    <script type="module">
+	
+	
+	// --- Modal Logic ---
+const modal = document.getElementById('theoryModal');
+const btnTheory = document.getElementById('btn-theory');
+
+// Функція відкриття
+btnTheory.addEventListener('click', () => {
+    modal.style.display = 'flex';
+    
+    // MAGIC FIX: Примусовий рендеринг формул
+    if (window.MathJax) {
+        window.MathJax.typesetPromise([modal]).then(() => {
+            console.log('MathJax rendered in modal');
+        }).catch((err) => console.log('MathJax error:', err));
+    }
+});
+
+// Функція закриття (глобальна, щоб працювала з onclick в HTML)
+window.closeModal = function() {
+    modal.style.display = 'none';
+};
+
+// Закриття по кліку за межами вікна
+window.onclick = function(event) {
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+
+
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- CONFIGURATION ---
+        const METHODS_CONFIG = {
+            SGD:      { name: "SGD", color: 0xff3333, defaultLR: 0.2, defaultMom: 0 },
+            Momentum: { name: "Momentum", color: 0x3388ff, defaultLR: 0.1, defaultMom: 0.9 },
+            Adam:     { name: "Adam", color: 0x33ff33, defaultLR: 0.1, defaultMom: 0.9 },
+            CG_FR:    { name: "CG (Fletcher-Reeves)", color: 0xffaa00, defaultLR: 0.2, defaultMom: 0 },
+            CG_PR:    { name: "CG (Polak-Ribiere)", color: 0xffff00, defaultLR: 0.2, defaultMom: 0 },
+            CG_HS:    { name: "CG (Hestenes-Stiefel)", color: 0xff00ff, defaultLR: 0.2, defaultMom: 0 },
+            CG_DY:    { name: "CG (Dai-Yuan)", color: 0x444455, defaultLR: 0.15, defaultMom: 0 },
+        };
+
+        const GLOBAL_STATE = {
+            func: 'valley',
+            startPos: { x: -6, y: -2 },
+            speed: 1,
+            visualScale: 0.05
+        };
+
+        let scene, camera, renderer, controls;
+        let surfaceMesh, wireframeMesh, targetMarkers = [];
+        let optimizers = [];
+        let isRunning = false;
+
+        // --- MATH FUNCTIONS ---
+        const Functions = {
+            valley: (x, y) => {
+                // f(x,y) = x^2 + 10y^2. Anisotropic.
+                const z = (x*x + 10*y*y) / 20;
+                return { z, dx: x/10, dy: y };
+            },
+            rosenbrock: (x, y) => {
+                // f(x,y) = (1-x)^2 + 10(y-x^2)^2. Scaled.
+                const a = 1, b = 10;
+                const z = (Math.pow(a - y, 2) + b * Math.pow(x - y*y, 2)) / 20;
+                const dx = (-2*(a-x) - 4*b*x*(y - x*x)) / 20;
+                const dy = (2*b*(y - x*x)) / 20;
+                return { z, dx, dy };
+            },
+            beale: (x, y) => {
+                // Beale function mapped. Usually defined on [-4.5, 4.5]
+                // f(x,y) = (1.5 - x + xy)^2 + (2.25 - x + xy^2)^2 + (2.625 - x + xy^3)^2
+                const t1 = 1.5 - x + x*y;
+                const t2 = 2.25 - x + x*y*y;
+                const t3 = 2.625 - x + x*y*y*y;
+                const z = (t1**2 + t2**2 + t3**2) / 150; 
+                // Analytical gradients are long, doing numerical approx for simplicity & safety here
+                // or specific derivation:
+                const dx = (2*t1*(y-1) + 2*t2*(y*y-1) + 2*t3*(y*y*y-1)) / 150;
+                const dy = (2*t1*(x) + 2*t2*(2*x*y) + 2*t3*(3*x*y*y)) / 150;
+                return { z, dx, dy };
+            },
+            himmelblau: (x, y) => {
+                const t1 = x*x + y - 11;
+                const t2 = x + y*y - 7;
+                const z = (t1*t1 + t2*t2) / 100;
+                const dx = (2*t1*2*x + 2*t2) / 100;
+                const dy = (2*t1 + 2*t2*2*y) / 100;
+                return { z, dx, dy };
+            },
+            saddle: (x, y) => {
+                // x^2 - y^2
+                const z = (x*x - y*y) / 10;
+                return { z, dx: x/5, dy: -y/5 };
+            }
+        };
+
+        const GlobalMinima = {
+            valley: [{x:0, y:0}],
+            rosenbrock: [{x:1, y:1}],
+            beale: [{x:3, y:0.5}],
+            himmelblau: [{x:3, y:2}, {x:-2.805, y:3.131}, {x:-3.779, y:-3.283}, {x:3.584, y:-1.848}],
+            saddle: [{x:0, y:0}] // Actually saddle point, but used as target ref
+        };
+
+
+
+        // --- OPTIMIZER LOGIC (UPDATED v3.1) ---
+        class Optimizer {
+            constructor(id, config, startPos) {
+                this.id = id;
+                this.config = config; 
+                this.meta = METHODS_CONFIG[id];
+                this.pos = { ...startPos };
+                
+                this.finished = false;
+                this.steps = 0;
+                
+                this.velocity = {x:0, y:0};
+                this.m = {x:0, y:0}; this.v = {x:0, y:0}; this.t = 0;
+                this.prevGrad = null; this.prevDir = null;
+
+                this.path = [];
+                
+                // Visual Setup
+                this.mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.25, 16, 16),
+                    new THREE.MeshStandardMaterial({ 
+                        color: this.meta.color, 
+                        emissive: this.meta.color, 
+                        emissiveIntensity: 0.6 
+                    })
+                );
+                scene.add(this.mesh);
+
+                this.trailGeo = new THREE.BufferGeometry();
+                this.trailMat = new THREE.LineBasicMaterial({ color: this.meta.color, linewidth: 2 });
+                this.trail = new THREE.Line(this.trailGeo, this.trailMat);
+                scene.add(this.trail);
+
+                this.recordPosition();
+            }
+
+            step() {
+                if (this.finished) return;
+
+                // 1. Get Gradient
+                const { z, dx, dy } = Functions[GLOBAL_STATE.func](this.pos.x, this.pos.y);
+                
+                // 2. Safety Check: If we hit Infinity/NaN, reset or stop
+                if (!isFinite(z) || isNaN(dx) || isNaN(dy)) {
+                    this.finished = true; // Stop optimization explicitly
+                    return;
+                }
+
+                // Check convergence (gradient is almost zero)
+                if (Math.sqrt(dx*dx + dy*dy) < 0.001) {
+                    this.finished = true; 
+                    return;
+                }
+
+                const lr = this.config.lr;
+                let sx = 0, sy = 0;
+
+                // --- ALGORITHMS ---
+                if (this.id === 'SGD') {
+                    sx = -lr * dx; sy = -lr * dy;
+                }
+                else if (this.id === 'Momentum') {
+                    const gamma = this.config.mom;
+                    this.velocity.x = gamma * this.velocity.x + lr * dx;
+                    this.velocity.y = gamma * this.velocity.y + lr * dy;
+                    sx = -this.velocity.x; sy = -this.velocity.y;
+                }
+                else if (this.id === 'Adam') {
+                    this.t++;
+                    const b1 = 0.9, b2 = 0.999, eps = 1e-8;
+                    this.m.x = b1*this.m.x + (1-b1)*dx;
+                    this.m.y = b1*this.m.y + (1-b1)*dy;
+                    this.v.x = b2*this.v.x + (1-b2)*(dx*dx);
+                    this.v.y = b2*this.v.y + (1-b2)*(dy*dy);
+                    
+                    // Bias correction
+                    const mH_x = this.m.x / (1 - Math.pow(b1, this.t));
+                    const mH_y = this.m.y / (1 - Math.pow(b1, this.t));
+                    const vH_x = this.v.x / (1 - Math.pow(b2, this.t));
+                    const vH_y = this.v.y / (1 - Math.pow(b2, this.t));
+                    
+                    sx = -lr * mH_x / (Math.sqrt(vH_x) + eps);
+                    sy = -lr * mH_y / (Math.sqrt(vH_y) + eps);
+                }
+                else if (this.id.startsWith('CG')) {
+                    if (!this.prevGrad) {
+                        this.prevDir = { x: -dx, y: -dy };
+                        this.prevGrad = { x: dx, y: dy };
+                    } else {
+                        const gTk = dx*dx + dy*dy;
+                        const gTk_prev = this.prevGrad.x**2 + this.prevGrad.y**2;
+                        const dGx = dx - this.prevGrad.x;
+                        const dGy = dy - this.prevGrad.y;
+                        
+                        let beta = 0;
+                        const eps = 1e-8;
+
+                        if (this.id === 'CG_FR') beta = gTk / (gTk_prev + eps);
+                        else if (this.id === 'CG_PR') beta = Math.max(0, (dx*dGx + dy*dGy)/(gTk_prev + eps));
+                        else if (this.id === 'CG_HS') beta = (dx*dGx + dy*dGy) / (this.prevDir.x*dGx + this.prevDir.y*dGy + eps);
+                        else if (this.id === 'CG_DY') beta = gTk / (this.prevDir.x*dGx + this.prevDir.y*dGy + eps);
+
+                        // CG Safety reset
+                        const dot = (-dx + beta * this.prevDir.x) * dx + (-dy + beta * this.prevDir.y) * dy;
+                        if (dot > 0 || beta > 10 || isNaN(beta)) {
+                            beta = 0; // Restart
+                            this.prevDir = { x: -dx, y: -dy };
+                        } else {
+                            this.prevDir = { 
+                                x: -dx + beta * this.prevDir.x, 
+                                y: -dy + beta * this.prevDir.y 
+                            };
+                        }
+                        this.prevGrad = { x: dx, y: dy };
+                    }
+                    sx = this.prevDir.x * lr;
+                    sy = this.prevDir.y * lr;
+                }
+
+                // --- GRADIENT CLIPPING (CRITICAL FIX) ---
+                // Запобігає вильоту в 10^23
+                const maxStep = 0.5; // Максимальний зсув за один тік
+                const stepLen = Math.sqrt(sx*sx + sy*sy);
+                
+                if (stepLen > maxStep) {
+                    const ratio = maxStep / stepLen;
+                    sx *= ratio;
+                    sy *= ratio;
+                    
+                    // Якщо Momentum надто розігнався - гальмуємо його вектор теж
+                    if (this.id === 'Momentum') {
+                        this.velocity.x *= ratio;
+                        this.velocity.y *= ratio;
+                    }
+                }
+
+                this.pos.x += sx;
+                this.pos.y += sy;
+                
+                // Bounds Check
+                if(Math.abs(this.pos.x) > 20 || Math.abs(this.pos.y) > 20) {
+                     this.finished = true;
+                }
+
+                this.steps++;
+                this.recordPosition();
+            }
+
+            // ... (решта методів класу: recordPosition, updateVisuals, getLoss, cleanup без змін)
+            recordPosition() {
+                const z = Functions[GLOBAL_STATE.func](this.pos.x, this.pos.y).z;
+                this.path.push(new THREE.Vector3(this.pos.x, z, this.pos.y));
+            }
+
+            updateVisuals() {
+                const scale = GLOBAL_STATE.visualScale;
+                const last = this.path[this.path.length-1];
+                
+                // Safety Display for NaN
+                if(!last) return;
+
+                const visualPos = new THREE.Vector3(this.pos.x, last.y * scale + 0.1, this.pos.y);
+                this.mesh.position.copy(visualPos);
+
+                if (this.path.length > 1) {
+                    const scaledPath = this.path.map(p => new THREE.Vector3(p.x, p.y * scale + 0.05, p.z));
+                    this.trailGeo.setFromPoints(scaledPath);
+                }
+            }
+
+            getLoss() {
+                if(this.path.length === 0) return 0;
+                return this.path[this.path.length-1].y;
+            }
+            
+            cleanup() {
+                scene.remove(this.mesh);
+                scene.remove(this.trail);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+                this.trailGeo.dispose();
+                this.trailMat.dispose();
+            }
+        }
+
+        // --- UI GENERATOR ---
+        function createMethodsUI() {
+            const container = document.getElementById('methods-list');
+            container.innerHTML = '';
+
+            Object.keys(METHODS_CONFIG).forEach(key => {
+                const cfg = METHODS_CONFIG[key];
+                
+                // Wrapper
+                const div = document.createElement('div');
+                div.className = 'method-item';
+                div.style.borderLeftColor = '#' + cfg.color.toString(16).padStart(6,'0');
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'method-header';
+                
+                // Checkbox
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = key;
+                cb.id = `cb_${key}`;
+               // if(['SGD','Momentum'].includes(key)) cb.checked = true;
+			   cb.checked = true;
+                cb.style.width = 'auto'; cb.style.marginRight = '10px';
+
+                // Label parts
+                const dot = document.createElement('div');
+                dot.className = 'color-dot';
+                dot.style.background = '#' + cfg.color.toString(16).padStart(6,'0');
+                
+                const name = document.createElement('span');
+                name.className = 'method-name';
+                name.innerText = cfg.name;
+
+                // Settings Toggle
+                const btn = document.createElement('button');
+                btn.className = 'settings-btn';
+                btn.innerHTML = '⚙️';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById(`settings_${key}`).classList.toggle('show');
+                    btn.classList.toggle('active');
+                };
+
+                // Append Header
+                header.append(cb, dot, name, btn);
+
+                // Settings Panel
+                const settings = document.createElement('div');
+                settings.className = 'method-settings';
+                settings.id = `settings_${key}`;
+                
+                // Inputs inside settings
+                settings.innerHTML = `
+                    <div class="param-row">
+                        <span>Learning Rate:</span>
+                        <input type="number" id="lr_${key}" value="${cfg.defaultLR}" step="0.001">
+                    </div>
+                    ${['Momentum', 'Adam'].includes(key) ? `
+                    <div class="param-row">
+                        <span>Momentum:</span>
+                        <input type="number" id="mom_${key}" value="${cfg.defaultMom}" step="0.1">
+                    </div>` : ''}
+                `;
+
+                div.append(header, settings);
+                container.appendChild(div);
+            });
+        }
+
+        // --- SCENE SETUP ---
+        function init() {
+            createMethodsUI();
+
+            const cont = document.getElementById('scene-container');
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(cont.clientWidth, cont.clientHeight);
+            cont.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x121212);
+
+            camera = new THREE.PerspectiveCamera(25, cont.clientWidth/cont.clientHeight, 0.1, 100);
+            camera.position.set(20, 12, 2);
+            
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+            dl.position.set(5, 10, 5);
+            scene.add(dl);
+
+            // Event Listeners
+            window.addEventListener('resize', onResize);
+            document.getElementById('btn-start').onclick = toggleSim;
+            document.getElementById('btn-reset').onclick = resetSim;
+            document.getElementById('presetSelect').onchange = applyPreset;
+            
+            document.getElementById('funcSelect').onchange = (e) => {
+                GLOBAL_STATE.func = e.target.value;
+                document.getElementById('presetSelect').value = 'custom';
+                drawSurface(); resetSim();
+            };
+            
+            document.getElementById('speedSlider').oninput = (e) => {
+                GLOBAL_STATE.speed = parseInt(e.target.value);
+                document.getElementById('speedVal').innerText = e.target.value;
+            };
+
+            document.getElementById('vScaleSlider').oninput = (e) => {
+                GLOBAL_STATE.visualScale = parseFloat(e.target.value);
+                document.getElementById('vScaleVal').innerText = GLOBAL_STATE.visualScale;
+                drawSurface(); // Re-draw mesh with new scale
+                optimizers.forEach(o => o.updateVisuals()); // Update existing balls
+            };
+
+            drawSurface();
+            resetSim();
+            animate();
+        }
+
+        function drawSurface() {
+            if(surfaceMesh) { scene.remove(surfaceMesh); scene.remove(wireframeMesh); }
+            targetMarkers.forEach(m => scene.remove(m));
+            targetMarkers = [];
+
+            const N = 100;
+            const geo = new THREE.PlaneGeometry(15, 15, N, N);
+            const pos = geo.attributes.position;
+            const colors = [];
+
+            // 1. Calculate values
+            let minZ = Infinity, maxZ = -Infinity;
+            for(let i=0; i<pos.count; i++){
+                const z = Functions[GLOBAL_STATE.func](pos.getX(i), -pos.getY(i)).z;
+                if(z < minZ) minZ = z; if(z > maxZ) maxZ = z;
+            }
+
+            // 2. Apply Scale and Colors
+            for(let i=0; i<pos.count; i++){
+                const x = pos.getX(i);
+                const y = -pos.getY(i);
+                const z = Functions[GLOBAL_STATE.func](x, y).z;
+                
+                // Apply VISUAL scale to Z (which maps to Y in 3D scene)
+                pos.setZ(i, z * GLOBAL_STATE.visualScale);
+
+                // Color based on unscaled Z relative range
+                const t = (z - minZ) / (maxZ - minZ + 0.0001);
+                const c = new THREE.Color();
+                c.setHSL(0.7 - t*0.7, 0.8, 0.4); 
+                colors.push(c.r, c.g, c.b);
+            }
+
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geo.computeVertexNormals();
+
+            surfaceMesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide }));
+            surfaceMesh.rotation.x = -Math.PI/2;
+            scene.add(surfaceMesh);
+
+            // Wireframe
+            const wireGeo = new THREE.WireframeGeometry(geo);
+            wireframeMesh = new THREE.LineSegments(wireGeo, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.05, transparent: true }));
+            wireframeMesh.rotation.x = -Math.PI/2;
+            scene.add(wireframeMesh);
+
+            // Minima Flags
+            const mins = GlobalMinima[GLOBAL_STATE.func];
+            if(mins) {
+                mins.forEach(m => {
+                    const mz = Functions[GLOBAL_STATE.func](m.x, m.y).z * GLOBAL_STATE.visualScale;
+                    const group = new THREE.Group();
+                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2), new THREE.MeshBasicMaterial({color:0x00ff00}));
+                    pole.position.y = 1;
+                    const flag = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 3), new THREE.MeshBasicMaterial({color:0x00ff00}));
+                    flag.position.y = 1.8; flag.rotation.x = Math.PI/2; flag.rotation.z = -Math.PI/2;
+                    group.add(pole, flag);
+                    group.position.set(m.x, mz, m.y);
+                    scene.add(group);
+                    targetMarkers.push(group);
+                });
+            }
+        }
+
+        function resetSim() {
+            isRunning = false;
+            document.getElementById('btn-start').innerText = "▶ Старт";
+            document.getElementById('btn-start').style.background = "#2196f3";
+            
+            optimizers.forEach(o => o.cleanup());
+            optimizers = [];
+
+            // Find Checked
+            const checked = document.querySelectorAll('#methods-list input[type="checkbox"]:checked');
+            checked.forEach(cb => {
+                const key = cb.value;
+                const lr = parseFloat(document.getElementById(`lr_${key}`).value);
+                const momElem = document.getElementById(`mom_${key}`);
+                const mom = momElem ? parseFloat(momElem.value) : 0;
+                
+                optimizers.push(new Optimizer(key, {lr, mom}, GLOBAL_STATE.startPos));
+            });
+
+            updateStats();
+        }
+
+        function toggleSim() {
+            isRunning = !isRunning;
+            const btn = document.getElementById('btn-start');
+            if(isRunning) { btn.innerText = "❚❚ Пауза"; btn.style.background = "#ff9800"; }
+            else { btn.innerText = "▶ Старт"; btn.style.background = "#2196f3"; }
+        }
+
+        function updateStats() {
+            const table = document.getElementById('stats-table');
+            // Rebuild stats only if row count differs (simple optim)
+            if(table.rows.length !== optimizers.length) {
+                table.innerHTML = '';
+                optimizers.forEach(opt => {
+                    const tr = document.createElement('tr');
+                    tr.id = `stat-row-${opt.id}`;
+                    tr.style.color = '#' + opt.meta.color.toString(16).padStart(6,'0');
+                    tr.innerHTML = `<td>${opt.meta.name.split('(')[0]}</td><td id="stat-val-${opt.id}">0.00</td>`;
+                    table.appendChild(tr);
+                });
+            }
+
+            optimizers.forEach(opt => {
+                const el = document.getElementById(`stat-val-${opt.id}`);
+                if(el) {
+                    el.innerText = `L: ${opt.getLoss().toFixed(4)} | i: ${opt.steps}`;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (isRunning) {
+                for(let i=0; i<GLOBAL_STATE.speed; i++) {
+                    optimizers.forEach(o => o.step());
+                }
+                optimizers.forEach(o => o.updateVisuals());
+                updateStats();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function applyPreset(e) {
+            const v = e.target.value;
+            const toggle = (list) => {
+                document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+                list.forEach(k => {
+                    const cb = document.getElementById(`cb_${k}`);
+                    if(cb) cb.checked = true;
+                });
+            };
+            const setLR = (k, val) => {
+                const inp = document.getElementById(`lr_${k}`);
+                if(inp) inp.value = val;
+            };
+
+            if (v === 'valley_cg') {
+                GLOBAL_STATE.func = 'valley';
+                GLOBAL_STATE.startPos = {x: 2, y: -6};
+               // toggle(['SGD', 'CG_FR', 'CG_PR']);
+                //setLR('SGD', 0.5); setLR('CG_FR', 0.8); setLR('CG_PR', 0.8);
+            } 
+            else if (v === 'rosenbrock') {
+                GLOBAL_STATE.func = 'rosenbrock';
+                GLOBAL_STATE.startPos = {x: -2, y: 3};
+                //toggle(['Momentum', 'Adam', 'CG_HS']);
+                //setLR('Momentum', 0.2); setLR('Adam', 0.5); setLR('CG_HS', 0.2);
+            }
+            else if (v === 'beale') {
+                GLOBAL_STATE.func = 'beale';
+                GLOBAL_STATE.startPos = {x: -3, y: 3};
+                //toggle(['SGD', 'Adam', 'CG_DY']);
+                //setLR('SGD', 0.5); setLR('Adam', 0.1); setLR('CG_DY', 0.5);
+            }
+            else if (v === 'himmelblau') {
+                GLOBAL_STATE.func = 'himmelblau';
+                GLOBAL_STATE.startPos = {x: 0, y: 0};
+                //toggle(['SGD', 'Momentum', 'Adam', 'CG_PR']); // 4 methods!
+            }
+            
+            document.getElementById('funcSelect').value = GLOBAL_STATE.func;
+            drawSurface(); resetSim();
+        }
+
+        function onResize() {
+            const c = document.getElementById('scene-container');
+            camera.aspect = c.clientWidth/c.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(c.clientWidth, c.clientHeight);
+        }
+
+        init();
+    </script>
+</body>
+</html>
