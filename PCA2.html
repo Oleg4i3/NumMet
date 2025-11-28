@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PCA Master Class: Від Векторів до Low Rank Approximation</title>
+    <title>PCA</title>
     
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script>
@@ -49,8 +49,8 @@
 
 <div class="header">
     <div>
-        <h1 style="margin:0;">PCA Симулятор</h1>
-        <small>Лінійна Алгебра | Статистика | Data Science</small>
+        <h1 style="margin:0;">Метод головних компонентів (PCA)</h1>
+        
     </div>
     <div>
         <button class="btn-primary" onclick="downloadCSV()">📥 Зберегти сирі дані (.csv)</button>
@@ -304,8 +304,8 @@
     // spread - стандартне відхилення (наскільки широко розкидані точки)
   const presets = {
         server: { 
-            type: 'linear', n: 100, slope: 1.8, noise: 10, 
-            xCenter: 40, xSpread: 15, yBase: 20,
+            type: 'linear', n: 100, slope: 1.6, noise: 15, 
+            xCenter: 60, xSpread: 15, yBase: 20,
             labels: { x: "CPU Load (%)", y: "Power (Watts)" },
             // Нове поле context
             context: "Уявіть, що це <b>логи сервера</b>:",
