@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCA Master Class: Від Векторів до Low Rank Approximation</title>
+    
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1280px; margin: 0 auto; padding: 20px; background-color: #f0f2f5; }
+        
+        /* Layout */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .container { display: flex; gap: 20px; align-items: flex-start; }
+        .control-panel { flex: 1; min-width: 380px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-height: 90vh; overflow-y: auto; }
+        .viz-panel { flex: 2; min-width: 500px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        /* Buttons & Inputs */
+        button.btn-primary { background-color: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+        button.btn-primary:hover { background-color: #34495e; }
+        button.btn-nav { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+        button.btn-nav:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        button.btn-action { background-color: #27ae60; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-size: 0.9em; }
+        
+        input[type="number"] { padding: 5px; width: 70px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* Elements */
+        .step-title { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        .formula-box { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px 15px; margin: 15px 0; font-size: 0.95em; }
+        .interactive-box { background: #e8f6f3; border: 1px solid #d1f2eb; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .calc-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .feedback { font-weight: bold; margin-left: 10px; }
+        .feedback.correct { color: #27ae60; }
+        .feedback.wrong { color: #c0392b; }
+        .hidden-answer { display: none; background: #fff; padding: 10px; border: 1px dashed #999; margin-top: 10px; }
+
+        .slider-group { margin-top: 20px; background: #ecf0f1; padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1 style="margin:0;">PCA Симулятор</h1>
+        <small>Лінійна Алгебра | Статистика | Data Science</small>
+    </div>
+    <div>
+        <button class="btn-primary" onclick="downloadCSV()">📥 Зберегти сирі дані (.csv)</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="control-panel">
+    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+            <label><b>Оберіть сценарій даних:</b></label><br>
+            <button class="btn-action" style="background:#3498db" onclick="setPreset('server')">🖥️ Сервер (CPU vs Watts)</button>
+            <button class="btn-action" style="background:#9b59b6" onclick="setPreset('traffic')">📉 Трафік (Негативна кор.)</button>
+            <button class="btn-action" style="background:#e67e22" onclick="setPreset('cluster')">🧩 Кластери (CPU vs GPU)</button>
+        </div>
+
+        <div id="explanation-area">Loading...</div>
+
+        <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <button id="prevBtn" class="btn-nav" onclick="changeStep(-1)">⬅️ Назад</button>
+            <div id="step-indicator" style="align-self: center; font-weight: bold; color: #7f8c8d;">1 / 7</div>
+            <button id="nextBtn" class="btn-nav" onclick="changeStep(1)">Далі ➡️</button>
+        </div>
+    </div>
+
+    <div class="viz-panel">
+        <div id="plotDiv" style="width:100%; height:600px;"></div>
+    </div>
+</div>
+
+<div id="steps-data" style="display:none;">
+    
+    <div data-step="0">
+        <h2 class="step-title">1. Аналіз вхідних даних</h2>
+        <p>У нас є набір даних $X$ розмірності $N \times 2$. 
+           <br>Уявіть, що це логи сервера:
+           <ul>
+               <li><b>$x_1$ (вісь X):</b> Завантаження CPU (%)</li>
+               <li><b>$x_2$ (вісь Y):</b> Енергоспоживання (Вт)</li>
+           </ul>
+        </p>
+        <p>Ми бачимо явну залежність: більше навантаження $\to$ більше енергії.</p>
+        <div class="formula-box">
+            <b>Завдання:</b> Оцініть візуально, чи можна стиснути ці дані до однієї змінної (наприклад, "Активність системи"), не втрачаючи багато інформації?
+        </div>
+        <p><i>Натисніть "Зберегти сирі дані", щоб отримати CSV для самостійної перевірки.</i></p>
+    </div>
+
+    <div data-step="1">
+        <h2 class="step-title">2. Центрування даних</h2>
+        <p>У лінійній алгебрі вектори виходять з $(0,0)$. Щоб застосувати методи алгебри (власні вектори), ми переносимо центр хмари точок у нуль.</p>
+        <div class="formula-box">
+            $$ \mu = \frac{1}{N} \sum_{i=1}^N x^{(i)} $$
+            $$ x_{centered} = x_{raw} - \mu $$
+        </div>
+        <p>Тепер середнє значення за кожною віссю дорівнює 0. Форма хмари не змінилася.</p>
+    </div>
+
+  <div data-step="2">
+        <h2 class="step-title">3. Практикум: Статистика та лінійна алгебра</h2>
+        
+        <div style="background: #fff8e1; border-left: 4px solid #f1c40f; padding: 10px 15px; margin-bottom: 15px;">
+            <p style="margin:0"><b>Статистика:</b></p>
+            <ul style="margin-top:5px; padding-left: 20px; font-size: 0.95em;">
+                <li><b>Дисперсія (Variance, $\sigma^2$):</b> Міра того, наскільки сильно дані "розкидані" навколо середнього.</li>
+                <li><b>Коваріація (Covariance):</b> Міра того, як дві випадкові величини змінюються <i>разом</i>. 
+                    <br><i>Позитивна</i> — ростуть разом. <i>Негативна</i> — одна росте, інша спадає. <i>Нуль</i> — незалежні.</li>
+            </ul>
+        </div>
+
+        <p>У "сирих" даних (CSV, який ви завантажили) значення не центровані. Тому формули виглядають так:</p>
+
+        <div class="formula-box">
+            $$ Var(x) = \frac{1}{N-1} \sum_{i=1}^N (x_i - \bar{x})^2 $$
+            $$ Cov(x,y) = \frac{1}{N-1} \sum_{i=1}^N (x_i - \bar{x})(y_i - \bar{y}) $$
+        </div>
+
+        <p><b>Зв'язок з лінійною алгеброю:</b></p>
+        <p>Якщо ми вже зробили центрування (відняли середнє, отримавши вектори $\mathbf{v}_x$ та $\mathbf{v}_y$), то формули стають елегантними:</p>
+        <ul>
+            <li><b>Дисперсія</b> — це квадрат довжини вектора (масштабований): $$Var(x) \approx \frac{1}{N-1} ||\mathbf{v}_x||^2$$</li>
+            <li><b>Коваріація</b> — це скалярний добуток (Dot Product): $$Cov(x,y) \approx \frac{1}{N-1} (\mathbf{v}_x \cdot \mathbf{v}_y)$$</li>
+        </ul>
+        
+        <div class="interactive-box">
+            <p><b>Завдання:</b> Розрахуйте матрицю коваріації $C$. <br>
+            Підказка: квадрати різниць (чисельники формул)</p>
+            
+            <ul style="font-size:0.9em; font-family:monospace; background:white; padding:10px; border-radius:4px;">
+                <li>$\sum (x_i - \bar{x})^2 = $ <span id="val-sxx">0</span></li>
+                <li>$\sum (y_i - \bar{y})^2 = $ <span id="val-syy">0</span></li>
+                <li>$\sum (x_i - \bar{x})(y_i - \bar{y}) = $ <span id="val-sxy">0</span></li>
+                <li>Кількість вимірів $N = $ <span id="val-n-raw">0</span> (ділимо на $N-1$)</li>
+            </ul>
+            
+            <div class="calc-row">
+                <label><b>$Var(x_1)$</b> (Дисперсія CPU):</label> 
+                <div><input type="number" id="inp-cxx" placeholder="?"> <span id="res-cxx" class="feedback"></span></div>
+            </div>
+            <div class="calc-row">
+                <label><b>$Cov(x_1, x_2)$</b> (Коваріація):</label> 
+                <div><input type="number" id="inp-cxy" placeholder="?"> <span id="res-cxy" class="feedback"></span></div>
+            </div>
+            <div class="calc-row">
+                <label><b>$Var(x_2)$</b> (Дисперсія Power):</label> 
+                <div><input type="number" id="inp-cyy" placeholder="?"> <span id="res-cyy" class="feedback"></span></div>
+            </div>
+
+            <button class="btn-action" onclick="checkCovariance()">Перевірити відповіді</button>
+            <button class="btn-action" style="background:#7f8c8d" onclick="showCovarianceAnswer()">Показати рішення</button>
+            
+            <div id="cov-answer" class="hidden-answer"></div>
+        </div>
+    </div>
+
+    <div data-step="3">
+        <h2 class="step-title">4. Геометрична інтуїція (Проекції)</h2>
+        <p><b>Головна компонента (PC1)</b> — це лінія, яка проходить крізь дані так, що:</p>
+        <ol>
+            <li>Сума квадратів відстаней від точок до лінії (ортогонально) є <b>мінімальною</b>.</li>
+            <li>АБО: Сума квадратів проекцій точок на лінію (Variance) є <b>максимальною</b>.</li>
+        </ol>
+        <p>Це еквівалентні твердження (теорема Піфагора).</p>
+        
+        <div class="slider-group">
+            <label>
+    <b>Кут: <span id="angleVal">0</span>°</b>
+    <span style="color: #666; font-weight: normal; margin-left: 15px; font-size: 0.9em;">
+        Нахил ($\tan \alpha$): <span id="tanVal" style="font-family: monospace; font-weight: bold;">0.00</span>
+    </span>
+</label>
+<input type="range" id="angleSlider" min="0" max="180" value="0" style="width:100%">
+
+
+            <div style="margin-top:10px; font-weight:bold; color: #c0392b;">
+                Variance (розкид проекцій): <span id="varVal">0</span>
+            </div>
+            <p><small>Знайдіть кут, де Variance максимальний.</small></p>
+        </div>
+    </div>
+
+    <div data-step="4">
+        <h2 class="step-title">5. PCA $\neq$ Лінійна Регресія</h2>
+        <p>Це найпоширеніша помилка. Порівняємо:</p>
+        <ul>
+            <li><span style="color:green; font-weight:bold">Регресія (Зелена)</span>: Мінімізує <b>вертикальну</b> помилку ($y - \hat{y}$). Прогнозує $y$ на основі $x$.</li>
+            <li><span style="color:red; font-weight:bold">PCA (Червона)</span>: Мінімізує <b>перпендикулярну</b> відстань. Шукає структуру даних ($x$ і $y$ рівноправні).</li>
+        </ul>
+
+        <div class="formula-box">
+            <b>Регресія:</b> нахил $\beta = \frac{Cov(x,y)}{Var(x)}$. <br>
+            <b>PCA:</b> нахил визначається власним вектором.
+        </div>
+
+        <div class="interactive-box">
+            <button class="btn-action" onclick="showRegVsPCA()">Розрахувати та показати лінії</button>
+            <div id="reg-pca-results" class="hidden-answer" style="display:none; margin-top:10px;">
+                <p><b>Рівняння регресії:</b> $y = \beta x$ (для центрованих)<br>
+                $\beta = \frac{C_{12}}{C_{11}} = $ <span id="val-reg-slope"></span></p>
+                
+                <hr>
+                
+                <p><b>PCA (Власний вектор):</b><br>
+                Характеристичне рівняння: $\det(C - \lambda I) = 0 \Rightarrow \lambda^2 - \text{Tr}(C)\lambda + \det(C) = 0$.<br>
+                Макс. власне число $\lambda_1 = $ <span id="val-lambda1"></span>.<br>
+                Власний вектор $v_1$ (Slope) $\approx$ <span id="val-pca-slope"></span>.
+                </p>
+                
+                <p style="background: #fff3cd; padding: 5px;">
+                    Бачите різницю? Регресія "тяжіє" до осі X, якщо кореляція не ідеальна. PCA проходить посередині "еліпса".
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div data-step="5">
+        <h2 class="step-title">6. Зміна базису (Результат)</h2>
+        <p>Ми знайшли власні вектори матриці коваріації. Це і є наші нові осі.</p>
+        <ul>
+            <li><b>PC1 (Вісь X):</b> Напрямок макс. дисперсії. Містить основну інформацію ("Навантаження").</li>
+            <li><b>PC2 (Вісь Y):</b> Ортогональний напрямок. Містить шум.</li>
+        </ul>
+        <p>Ми "повернули" дані. Тепер ми можемо просто відкинути вісь PC2.</p>
+    </div>
+
+    <div data-step="6">
+        <h2 class="step-title">7. Low Rank Approximation & SVD</h2>
+        <p>У реальному житті у вас 1000 ознак (стовпців). PCA дозволяє залишити, скажімо, 10.</p>
+        <p>Це тісно пов'язано з <b>Singular Value Decomposition (SVD)</b>:</p>
+        <div class="formula-box">
+            $$ X = U \Sigma V^T $$
+        </div>
+        <p>
+            Залишаючи тільки $k$ найбільших сингулярних чисел в $\Sigma$, ми отримуємо $X_k$ — <b>найкраще наближення рангу $k$</b> для матриці $X$ (за нормою Фробеніуса).
+        </p>
+        <p>Це основа стиснення зображень, рекомендаційних систем та семантичного пошуку.</p>
+    </div>
+	
+	<div data-step="7">
+        <h2 class="step-title">8. Практика: Що нам це дає?</h2>
+        <p>Коли ми кажемо "ми повернули систему координат", це звучить абстрактно. На практиці це означає, що ми <b>створили нову формулу</b> для опису даних.</p>
+
+        <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top:0">1. Ми створюємо "Супер-змінну"</h3>
+            <p>Уявіть, що PCA знайшов головний вектор (PC1) з координатами $(0.8, 0.6)$. Це дає нам рецепт:</p>
+            <div class="formula-box" style="text-align:center; margin: 10px 0;">
+                $$ \text{ServerIndex} = 0.8 \cdot \text{CPU} + 0.6 \cdot \text{Power} $$
+            </div>
+            <p>Ми створили нову синтетичну ознаку — <b>"Індекс Навантаження"</b>.</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <h3 style="margin-top:0">2. Стиснення (Відкидання зайвого)</h3>
+            <p>Як це виглядає в базі даних:</p>
+            <ul style="font-family: monospace; background: #f8f9fa; padding: 10px 20px; border-radius: 5px;">
+                <li><b>ДО PCA:</b> { cpu: 80, power: 300 } <span style="color:#999">// Зберігаємо 2 числа</span></li>
+                <li><b>ПІСЛЯ:</b> &nbsp;{ server_index: 244 } <span style="color:#27ae60">// Зберігаємо 1 число</span></li>
+            </ul>
+            <p><i>Навіщо?</i> Уявіть, що у вас <b>500 метрик</b> (температури ядер, кеш, вольтаж...). PCA каже: "Тобі не треба 500 графіків. Тобі треба стежити лише за 3 головними компонентами".</p>
+        </div>
+
+        <div style="border-left: 5px solid #e74c3c; background: #fdedec; padding: 15px; border-radius: 0 5px 5px 0;">
+            <h3 style="margin-top:0; color: #c0392b;">3. Реальний кейс: Аномалії (DevOps)</h3>
+            <p>Ми знаємо, що CPU і Power корелюють (це вісь PC1). А що таке PC2 (яку ми зазвичай ігноруємо)?</p>
+            <ul>
+                <li><b>PC1 (Велика вісь):</b> Нормальна робота сервера (навантажився — нагрівся).</li>
+                <li><b>PC2 (Мала вісь):</b> Порушення фізики.</li>
+            </ul>
+            <p><b>🚨 Практичне правило:</b> Якщо значення <code>PC2 > 0</code> (стає великим) — це тривога! <br>
+            Це означає: <i>CPU низький, а Power високий</i> (або навпаки). Кореляція зламалась. Щось горить або "коротить".</p>
+        </div>
+    </div>
+
+</div>
+<script>
+    // --- ГЛОБАЛЬНІ ЗМІННІ ---
+    let currentStep = 0;
+    const TOTAL_STEPS = 8;
+    let dataState = {
+        raw: [],      
+        centered: [], 
+        n: 0,
+        mean: {x:0, y:0},
+        sums: {xx:0, yy:0, xy:0}, 
+        cov: {xx:0, yy:0, xy:0},
+        pca: {lambda1:0, lambda2:0, v1:{x:0,y:0}, v2:{x:0,y:0}, angle:0},
+        reg: {slope: 0}
+    };
+    let currentAngle = 0;
+    let currentPresetConfig = {}; 
+
+    // --- ПРЕСЕТИ (Параметри адаптовані під Гаусса) ---
+    // xCenter/yCenter - центр "хмари"
+    // spread - стандартне відхилення (наскільки широко розкидані точки)
+    const presets = {
+        server: { 
+            type: 'linear', n: 100, slope: 1.8, noise: 20, 
+            xCenter: 40, xSpread: 15, yBase: 20, // CPU ~40% ±15, Base Power
+            labels: { x: "CPU Load (%)", y: "Power (Watts)" },
+            desc: "Сервер: <b>Позитивна кореляція</b>. Дані мають форму витягнутого еліпса."
+        },
+        traffic: { 
+            type: 'linear', n: 120, slope: -0.5, noise: 15, 
+            xCenter: 50, xSpread: 18, yBase: 80,
+            labels: { x: "Inbound Traffic (Mbps)", y: "Outbound Traffic (Mbps)" },
+            desc: "Мережа: <b>Слабка негативна кореляція</b>. Хмара більш кругла (широка), але нахил помітний."
+        },
+        cluster: { 
+            type: 'clusters', n: 150, noise: 12, // noise тут це розмір кластера
+            labels: { x: "CPU Load (%)", y: "GPU Load (%)" },
+            desc: "HPC Кластер: <b>3 Групи</b>. Кожен кластер — це маленька гауссова пляма."
+        }
+    };
+
+    // --- ХЕЛПЕР: Нормальний розподіл (Box-Muller transform) ---
+    // Повертає число з ~ N(0, 1)
+    function randn_bm() {
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+        while(v === 0) v = Math.random();
+        return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    }
+
+    // --- ІНІЦІАЛІЗАЦІЯ ---
+    function init() {
+        setPreset('server');
+    }
+
+    function setPreset(name) {
+        currentPresetConfig = presets[name];
+        generateData(currentPresetConfig);
+        currentStep = 0;
+        currentAngle = 0;
+        document.getElementById('angleSlider').value = 0;
+        
+        document.querySelectorAll('input').forEach(i => i.value = '');
+        document.querySelectorAll('.feedback').forEach(s => s.innerText = '');
+        document.querySelectorAll('.hidden-answer').forEach(d => d.style.display = 'none');
+        
+        updateUI();
+    }
+
+   // --- ГЕНЕРАЦІЯ ДАНИХ ---
+    function generateData(config) {
+        let raw = [];
+        let sx = 0, sy = 0;
+        
+        // Хелпери для перевірки
+        const isXPercent = config.labels.x.includes('%');
+        const isYPercent = config.labels.y.includes('%');
+
+        if (config.type === 'clusters') {
+            // --- ГЕНЕРАЦІЯ КЛАСТЕРІВ ---
+            const centers = [
+                {cx: 15, cy: 15, count: 50}, 
+                {cx: 80, cy: 30, count: 30}, 
+                {cx: 70, cy: 89, count: 70}  
+            ];
+            
+            centers.forEach(c => {
+                for(let i=0; i<c.count; i++) {
+                    let x = c.cx + randn_bm() * config.noise;
+                    let y = c.cy + randn_bm() * config.noise;
+                    
+                    // === ФІКС ТУТ ===
+                    // 1. Спочатку прибираємо мінуси (для всіх типів даних)
+                    x = Math.max(0, x);
+                    y = Math.max(0, y);
+
+                    // 2. Якщо це відсотки, обрізаємо зверху до 100
+                    if (isXPercent) x = Math.min(x, 100);
+                    if (isYPercent) y = Math.min(y, 100);
+                    // ===============
+
+                    raw.push({x, y});
+                    sx += x; sy += y;
+                }
+            });
+            dataState.n = 150;
+
+        } else {
+            // --- ГЕНЕРАЦІЯ ЛІНІЙНА / ТРАФІК ---
+            for(let i=0; i<config.n; i++) {
+                let x = config.xCenter + randn_bm() * config.xSpread;
+                let noise = randn_bm() * config.noise;
+                let y = (x * config.slope) + config.yBase + noise;
+                
+                // === ФІКС ТУТ ===
+                // 1. Спочатку прибираємо мінуси (фізика: трафік не буває < 0)
+                x = Math.max(0, x);
+                y = Math.max(0, y);
+
+                // 2. Якщо це відсотки, обрізаємо зверху до 100
+                if (isXPercent) x = Math.min(x, 100);
+                if (isYPercent) y = Math.min(y, 100);
+                // ===============
+
+                raw.push({x, y});
+                sx += x; sy += y;
+            }
+            dataState.n = config.n;
+        }
+        
+        // Далі без змін...
+        dataState.mean = { x: sx/dataState.n, y: sy/dataState.n };
+        dataState.raw = raw;
+
+        dataState.centered = [];
+        let sxx=0, syy=0, sxy=0;
+        
+        raw.forEach(p => {
+            let cx = p.x - dataState.mean.x;
+            let cy = p.y - dataState.mean.y;
+            dataState.centered.push({x: cx, y: cy});
+            sxx += cx*cx;
+            syy += cy*cy;
+            sxy += cx*cy;
+        });
+
+        dataState.sums = {xx: sxx, yy: syy, xy: sxy};
+        
+        let div = dataState.n - 1;
+        dataState.cov = {
+            xx: sxx / div,
+            yy: syy / div,
+            xy: sxy / div
+        };
+
+        dataState.reg.slope = dataState.cov.xy / dataState.cov.xx;
+
+        let a = dataState.cov.xx;
+        let c = dataState.cov.yy;
+        let b = dataState.cov.xy; 
+        
+        let trace = a + c;
+        let det = a*c - b*b;
+        let delta = Math.sqrt(trace*trace - 4*det);
+        
+        let l1 = (trace + delta) / 2;
+        let l2 = (trace - delta) / 2;
+        
+        dataState.pca.lambda1 = l1;
+        dataState.pca.lambda2 = l2;
+        
+        let theta = 0.5 * Math.atan2(2*b, a-c);
+        dataState.pca.angle = theta; 
+        
+        dataState.pca.v1 = { x: Math.cos(theta), y: Math.sin(theta) };
+        dataState.pca.v2 = { x: -Math.sin(theta), y: Math.cos(theta) };
+    }
+	
+	
+    // --- ЛОГІКА UI (Залишилась без змін) ---
+    function changeStep(delta) {
+        let newStep = currentStep + delta;
+        if (newStep < 0 || newStep >= TOTAL_STEPS) return;
+        currentStep = newStep;
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('prevBtn').disabled = (currentStep === 0);
+        document.getElementById('nextBtn').disabled = (currentStep === TOTAL_STEPS - 1);
+        document.getElementById('step-indicator').innerText = `${currentStep + 1} / ${TOTAL_STEPS}`;
+
+        const content = document.querySelector(`div[data-step="${currentStep}"]`).innerHTML;
+        const explDiv = document.getElementById('explanation-area');
+        explDiv.innerHTML = content;
+
+        if (currentStep === 0) {
+            const descHtml = `
+                <div style="background:#eef6fc; padding:10px; border-left:4px solid #3498db; margin-bottom:15px;">
+                    ${currentPresetConfig.desc}
+                </div>
+                <p><b>Осі графіку:</b><br>
+                X: ${currentPresetConfig.labels.x}<br>
+                Y: ${currentPresetConfig.labels.y}</p>
+            `;
+            const h2End = explDiv.innerHTML.indexOf('</h2>') + 5;
+            if (h2End > 5) {
+                explDiv.innerHTML = explDiv.innerHTML.slice(0, h2End) + descHtml + explDiv.innerHTML.slice(h2End);
+            }
+        }
+        
+        if(window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([explDiv]).catch(err => console.log(err));
+        }
+
+        if (currentStep === 2) {
+            document.getElementById('val-sxx').innerText = dataState.sums.xx.toFixed(2);
+            document.getElementById('val-syy').innerText = dataState.sums.yy.toFixed(2);
+            document.getElementById('val-sxy').innerText = dataState.sums.xy.toFixed(2);
+            document.getElementById('val-n-raw').innerText = dataState.n; 
+        }
+
+        renderPlot();
+    }
+
+    function checkCovariance() {
+        const tol = 1.0; 
+        const check = (id, correct) => {
+            let el = document.getElementById(id);
+            let val = parseFloat(el.value);
+            let res = document.getElementById(id.replace('inp', 'res'));
+            if (Math.abs(val - correct) < tol) {
+                res.innerText = "✅"; res.className = "feedback correct";
+            } else {
+                res.innerText = "❌"; res.className = "feedback wrong";
+            }
+        };
+        check('inp-cxx', dataState.cov.xx);
+        check('inp-cxy', dataState.cov.xy);
+        check('inp-cyy', dataState.cov.yy);
+    }
+
+    function showCovarianceAnswer() {
+        const div = document.getElementById('cov-answer');
+        div.style.display = 'block';
+        div.innerHTML = `
+            <b>Правильна відповідь:</b><br>
+            $$ C = \\begin{pmatrix} 
+            ${dataState.cov.xx.toFixed(2)} & ${dataState.cov.xy.toFixed(2)} \\\\ 
+            ${dataState.cov.xy.toFixed(2)} & ${dataState.cov.yy.toFixed(2)} 
+            \\end{pmatrix} $$
+        `;
+        MathJax.typesetPromise([div]);
+        document.getElementById('inp-cxx').value = dataState.cov.xx.toFixed(2);
+        document.getElementById('inp-cxy').value = dataState.cov.xy.toFixed(2);
+        document.getElementById('inp-cyy').value = dataState.cov.yy.toFixed(2);
+    }
+
+    function showRegVsPCA() {
+        const div = document.getElementById('reg-pca-results');
+        div.style.display = 'block';
+        
+        document.getElementById('val-reg-slope').innerText = dataState.reg.slope.toFixed(3);
+        document.getElementById('val-lambda1').innerText = dataState.pca.lambda1.toFixed(2);
+        
+        let pcaSlope = dataState.pca.v1.y / dataState.pca.v1.x;
+        document.getElementById('val-pca-slope').innerText = pcaSlope.toFixed(3);
+
+        MathJax.typesetPromise([div]);
+        renderPlot(true); 
+    }
+
+    function downloadCSV() {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        const xLbl = currentPresetConfig.labels.x.replace(/,/g, "");
+        const yLbl = currentPresetConfig.labels.y.replace(/,/g, "");
+        csvContent += `Index,${xLbl},${yLbl},Centered_X,Centered_Y\n`;
+        
+        dataState.raw.forEach((p, i) => {
+            let c = dataState.centered[i];
+            csvContent += `${i+1},${p.x.toFixed(4)},${p.y.toFixed(4)},${c.x.toFixed(4)},${c.y.toFixed(4)}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "pca_data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+ // --- СЛАЙДЕР (ОНОВЛЕНИЙ) ---
+    document.addEventListener('input', function(e){
+        if(e.target.id === 'angleSlider'){
+            currentAngle = parseFloat(e.target.value);
+            
+            // Оновлюємо градуси
+            document.getElementById('angleVal').innerText = currentAngle;
+
+            // --- ДОДАНО: Розрахунок тангенса ---
+            let rad = currentAngle * Math.PI / 180;
+            let tanValue = Math.tan(rad);
+            
+            // Красиве форматування
+            let tanDisplay;
+            if (Math.abs(tanValue) > 100) {
+                tanDisplay = "∞"; // Для 90 градусів
+            } else {
+                // toFixed(2) округлює до 2 знаків
+                // Використовуємо parseFloat, щоб прибрати зайві нулі (напр. 1.00 -> 1)
+                tanDisplay = parseFloat(tanValue.toFixed(2));
+            }
+
+            document.getElementById('tanVal').innerText = tanDisplay;
+            // ------------------------------------
+
+            renderPlot();
+        }
+    });
+
+    // --- ВІЗУАЛІЗАЦІЯ (Адаптована для Гаусса) ---
+    function renderPlot(showComparison = false) {
+        let traces = [];
+        let shapes = [];
+        let labels = currentPresetConfig.labels;
+        
+        let layout = {
+            hovermode: 'closest',
+            showlegend: true,
+            legend: {x: 0, y: 1},
+            xaxis: { title: labels.x, zeroline: false },
+            yaxis: { title: labels.y, scaleanchor: "x", scaleratio: 1, zeroline: false },
+            margin: {l:60, r:20, t:30, b:50}
+        };
+
+        // Авто-діапазони
+        const allX = dataState.raw.map(p => p.x);
+        const allY = dataState.raw.map(p => p.y);
+        const minX = Math.min(...allX), maxX = Math.max(...allX);
+        const minY = Math.min(...allY), maxY = Math.max(...allY);
+        
+        // Додаємо більше "повітря", щоб еліпси не обрізались
+        const padX = (maxX - minX) * 0.3; 
+        const padY = (maxY - minY) * 0.3;
+
+        let rangeX_Raw = [Math.max(0, minX - padX), maxX + padX];
+        let rangeY_Raw = [Math.max(0, minY - padY), maxY + padY];
+        
+        const maxAbs = Math.max(
+            Math.abs(minX - dataState.mean.x), Math.abs(maxX - dataState.mean.x),
+            Math.abs(minY - dataState.mean.y), Math.abs(maxY - dataState.mean.y)
+        ) * 1.3;
+        let rangeCentered = [-maxAbs, maxAbs];
+
+        if (currentStep === 0) {
+            traces.push({
+                x: dataState.raw.map(p => p.x),
+                y: dataState.raw.map(p => p.y),
+                mode: 'markers', name: 'Дані',
+                marker: { color: '#34495e', size: 8, opacity: 0.7 }
+            });
+            layout.xaxis.range = rangeX_Raw;
+            layout.yaxis.range = rangeY_Raw;
+        }
+        else {
+            traces.push({
+                x: dataState.centered.map(p => p.x),
+                y: dataState.centered.map(p => p.y),
+                mode: 'markers', name: 'Центровані',
+                marker: { color: currentStep >= 5 ? '#bdc3c7' : '#3498db', opacity: currentStep>=5?0.3:0.7, size: 8 }
+            });
+            layout.xaxis.range = rangeCentered;
+            layout.yaxis.range = rangeCentered;
+            layout.xaxis.title = labels.x + " (centered)";
+            layout.yaxis.title = labels.y + " (centered)";
+            
+            shapes.push(
+                { type: 'line', x0: rangeCentered[0], y0: 0, x1: rangeCentered[1], y1: 0, line: {color:'#ddd'} },
+                { type: 'line', x0: 0, y0: rangeCentered[0], x1: 0, y1: rangeCentered[1], line: {color:'#ddd'} }
+            );
+
+            if (currentStep === 3) {
+                let rad = currentAngle * Math.PI / 180;
+                let ux = Math.cos(rad);
+                let uy = Math.sin(rad);
+                let L = maxAbs; 
+
+                shapes.push({
+                    type: 'line',
+                    x0: -ux*L, y0: -uy*L, x1: ux*L, y1: uy*L,
+                    line: { color: '#e74c3c', width: 3 }
+                });
+
+                let variance = 0;
+                let px = [], py = [];
+                let linesX = [], linesY = [];
+                
+                dataState.centered.forEach(p => {
+                    let dot = p.x*ux + p.y*uy;
+                    variance += dot*dot;
+                    let projX = dot*ux;
+                    let projY = dot*uy;
+                    px.push(projX); py.push(projY);
+                    linesX.push(p.x, projX, null);
+                    linesY.push(p.y, projY, null);
+                });
+                
+                document.getElementById('varVal').innerText = Math.round(variance);
+
+                traces.push({
+                    x: px, y: py, mode: 'markers', name: 'Проекції',
+                    marker: { color: '#e74c3c', size: 6 }
+                });
+                traces.push({
+                    x: linesX, y: linesY, mode: 'lines', showlegend: false,
+                    line: { color: '#e74c3c', width: 0.5, dash: 'dot' }, opacity: 0.5
+                });
+            }
+
+            if (currentStep === 4 && showComparison) {
+                let L = maxAbs;
+                let yReg1 = dataState.reg.slope * (-L);
+                let yReg2 = dataState.reg.slope * (L);
+                traces.push({
+                    x: [-L, L], y: [yReg1, yReg2],
+                    mode: 'lines', name: 'Регресія',
+                    line: { color: '#27ae60', width: 3 }
+                });
+
+                let pcaSlope = dataState.pca.v1.y / dataState.pca.v1.x;
+                let yPca1 = pcaSlope * (-L);
+                let yPca2 = pcaSlope * (L);
+                traces.push({
+                    x: [-L, L], y: [yPca1, yPca2],
+                    mode: 'lines', name: 'PCA',
+                    line: { color: '#e74c3c', width: 3, dash: 'dash' }
+                });
+            }
+
+            if (currentStep >= 5) {
+                let ux = dataState.pca.v1.x;
+                let uy = dataState.pca.v1.y;
+
+                let rotX = [], rotY = [];
+                dataState.centered.forEach(p => {
+                    rotX.push(p.x * ux + p.y * uy);      
+                    rotY.push(-p.x * uy + p.y * ux);     
+                });
+
+                traces.push({
+                    x: rotX, y: rotY,
+                    mode: 'markers', name: 'PCA Transformed',
+                    marker: { color: '#2ecc71', size: 7 }
+                });
+
+                layout.title = "Простір Головних Компонент";
+                layout.xaxis.title = "PC1";
+                layout.yaxis.title = "PC2";
+                
+                const noiseY = maxAbs * 0.25; 
+                shapes.push({
+                    type: 'rect', x0: -maxAbs, x1: maxAbs, y0: -noiseY, y1: noiseY,
+                    fillcolor: 'rgba(46, 204, 113, 0.1)', line: {width: 0}
+                });
+            }
+        }
+
+        layout.shapes = shapes;
+        Plotly.newPlot('plotDiv', traces, layout, {staticPlot: false, responsive: true});
+    }
+
+    init();
+</script>
+
+</body>
+</html>
