@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gradient Battle: Pro Edition</title>
+    <title>Gradient Battle: Pro Edition + SGS</title>
     
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -77,7 +77,38 @@
         select, input[type="range"] { width: 100%; background: #2c2c2c; color: white; border: 1px solid #444; padding: 6px; border-radius: 4px; margin-bottom: 5px; }
         input[type="range"] { padding: 0; cursor: pointer; accent-color: var(--accent); }
         
-        .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+
+/* Стилі для компактного рядка кнопок */
+.btn-row { 
+    display: flex; 
+    gap: 4px; /* Дуже маленький відступ між кнопками */
+    margin-bottom: 10px; 
+    width: 100%;
+}
+
+.btn {
+    flex: 1; /* Кожна кнопка займає рівну частину */
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    transition: filter 0.2s;
+    
+    /* Компактність */
+    padding: 0; /* Прибираємо внутрішні відступи */
+    height: 40px; /* Фіксована висота */
+    font-size: 0.7rem; /* Зменшений шрифт */
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    white-space: nowrap; /* Текст в один рядок */
+}
+
+.btn:hover { filter: brightness(1.1); }
+.btn-reset { background: #d32f2f; }
+
+
         .btn {
             flex: 1; background: var(--accent); color: white; border: none; padding: 12px;
             border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase;
@@ -174,9 +205,9 @@ mjx-container { color: #e0e0e0 !important; }
             <div class="control-group" style="border-left: 3px solid #f1c40f; padding-left: 10px;">
                 <label>⚡ Швидкі Пресети</label>
                 <select id="presetSelect">
-                    <option value="custom">-- Власні налаштування --</option>
-                    <option value="valley_cg">Вузький Каньйон (Перемагає CG)</option>
-                    <option value="rosenbrock">Розенброк (Складний)</option>
+                  
+                    <option value="valley_cg">Вузький Каньйон</option>
+                    <option value="rosenbrock">Розенброк </option>
                     <option value="beale">Плато Біла</option>
                     <option value="himmelblau">Хіммельблау (4 мінімуми)</option>
                     
@@ -187,8 +218,7 @@ mjx-container { color: #e0e0e0 !important; }
             <div id="methods-list">
                 </div>
 
-            <h2>Інші початкові точки</h2>
-            <label>Функція (Ландшафт)</label>
+            <label>Ландшафт</label>
             <select id="funcSelect">
                 <option value="valley">Квадратична долина</option>
                 <option value="rosenbrock">Розенброк (Banana)</option>
@@ -198,7 +228,7 @@ mjx-container { color: #e0e0e0 !important; }
             </select>
 
             <label>Швидкість (кроків/кадр): <span id="speedVal">1</span></label>
-            <input type="range" id="speedSlider" min="1" max="200" step="5" value="50">
+            <input type="range" id="speedSlider" min="0.1" max="20" step="0.1" value="1">
 
             <label>Вертикальний масштаб (Visual): <span id="vScaleVal">1.0</span></label>
             <input type="range" id="vScaleSlider" min="0.01" max="3.0" step="0.1" value="0.2">
@@ -208,9 +238,11 @@ mjx-container { color: #e0e0e0 !important; }
            
             
             <div class="btn-row">
-			<button id="btn-theory" class="btn" style="background: #f1c40f; color: #000; margin-top: 10px;">📖 ТЕОРІЯ ТА МЕТОДИ</button>
-                <button id="btn-start" class="btn">▶ Старт</button>
-                <button id="btn-reset" class="btn btn-reset">↺ Скидання</button>
+			<button id="btn-theory" class="btn" style="background: #f1c40f; color: #000; ">ТЕОРІЯ</button>
+                <button id="btn-start" class="btn">▶ Go!</button>
+                <button id="btn-reset" class="btn btn-reset">↺ Reset</button>
+				
+				<button id="btn-random-pos" class="btn" style="background: #9c27b0;">🎲 rand.start</button>
             </div>
 			 <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 5px;">Статус</div>
             <table id="stats-table"></table>
@@ -223,7 +255,7 @@ mjx-container { color: #e0e0e0 !important; }
     <div id="scene-container">
         <div id="info-overlay">
             ЛКМ: Обертання | ПКМ: Зміщення | Колесо: Зум<br>
-            Зелений прапор = Глобальний Мінімум
+            Прапорець = Глобальний Мінімум
         </div>
     </div>
 
@@ -339,6 +371,21 @@ mjx-container { color: #e0e0e0 !important; }
                 <strong style="color:#33ff33">Adam</strong> не використовує "бета" для повороту. Він використовує статистику. Він запам'ятовує середню крутизну схилу (V) і середню швидкість (m).
                 Якщо схил крутий, але ми там рідко буваємо — він робить великий крок. Якщо схил постійно крутий — він зменшує крок, щоб не пролетіти.
             </p>
+			
+			<h3 style="color: #aaaabb;">4. Стохастичний градієнт (SGS)</h3>
+<p>
+    Класичний спуск вираховує ідеальний напрямок на основі всіх даних. <b>Стохастичний спуск</b> імітує ситуацію, коли ми бачимо лише частину даних (міні-батч), тому вектор руху містить <b>випадковий шум</b>.
+</p>
+<p>
+    У симуляторі це виглядає як "тремтіння" кульки. Хоча шлях здається неакуратним, цей шум є корисною фічею:
+</p>
+<ul style="margin-bottom: 15px;">
+    <li>Випадкові поштовхи дозволяють методу <b>вистрибувати</b> з неглибоких локальних мінімумів (пасток).</li>
+    <li>Він краще досліджує ландшафт, не застрягаючи в першій же ямці.</li>
+</ul>
+<div style="background: rgba(156, 39, 176, 0.15); border-left: 4px solid #9c27b0; padding: 10px; margin: 10px 0; border-radius: 4px;">
+    $$ x_{new} = x - \eta \cdot (\nabla f + \text{Noise}) $$
+</div>
 
         </div>
     </div>
@@ -382,6 +429,7 @@ window.onclick = function(event) {
         // --- CONFIGURATION ---
         const METHODS_CONFIG = {
             SGD:      { name: "SGD", color: 0xff3333, defaultLR: 0.2, defaultMom: 0 },
+            SGS:      { name: "SGS (Стохастичний)", color: 0xaaaaaa, defaultLR: 0.15, defaultMom: 2.3 }, // ADDED SGS
             Momentum: { name: "Momentum", color: 0x3388ff, defaultLR: 0.1, defaultMom: 0.9 },
             Adam:     { name: "Adam", color: 0x33ff33, defaultLR: 0.1, defaultMom: 0.9 },
             CG_FR:    { name: "CG (Fletcher-Reeves)", color: 0xffaa00, defaultLR: 0.2, defaultMom: 0 },
@@ -504,6 +552,7 @@ window.onclick = function(event) {
                 }
 
                 // Check convergence (gradient is almost zero)
+                // For SGS we loosen this check a bit or keep it same, but noise keeps it moving
                 if (Math.sqrt(dx*dx + dy*dy) < 0.001) {
                     this.finished = true; 
                     return;
@@ -515,6 +564,17 @@ window.onclick = function(event) {
                 // --- ALGORITHMS ---
                 if (this.id === 'SGD') {
                     sx = -lr * dx; sy = -lr * dy;
+                }
+                else if (this.id === 'SGS') {
+                    // ADDED SGS LOGIC
+                    // We use 'mom' config parameter as Noise Magnitude
+                    const noiseMag = this.config.mom;
+                    // Random noise uniform [-1, 1] scaled by magnitude
+                    const noiseX = (Math.random() * 2 - 1) * noiseMag;
+                    const noiseY = (Math.random() * 2 - 1) * noiseMag;
+                    
+                    sx = -lr * (dx + noiseX);
+                    sy = -lr * (dy + noiseY);
                 }
                 else if (this.id === 'Momentum') {
                     const gamma = this.config.mom;
@@ -694,14 +754,15 @@ window.onclick = function(event) {
                 settings.id = `settings_${key}`;
                 
                 // Inputs inside settings
+                // MODIFIED: Added check for SGS to display second input, and proper label
                 settings.innerHTML = `
                     <div class="param-row">
                         <span>Learning Rate:</span>
                         <input type="number" id="lr_${key}" value="${cfg.defaultLR}" step="0.001">
                     </div>
-                    ${['Momentum', 'Adam'].includes(key) ? `
+                    ${['Momentum', 'Adam', 'SGS'].includes(key) ? `
                     <div class="param-row">
-                        <span>Momentum:</span>
+                        <span>${key === 'SGS' ? 'Рівень шуму:' : 'Momentum:'}</span>
                         <input type="number" id="mom_${key}" value="${cfg.defaultMom}" step="0.1">
                     </div>` : ''}
                 `;
@@ -746,10 +807,12 @@ window.onclick = function(event) {
                 drawSurface(); resetSim();
             };
             
-            document.getElementById('speedSlider').oninput = (e) => {
-                GLOBAL_STATE.speed = parseInt(e.target.value);
-                document.getElementById('speedVal').innerText = e.target.value;
-            };
+        document.getElementById('speedSlider').oninput = (e) => {
+    // БУЛО: GLOBAL_STATE.speed = parseInt(e.target.value);
+    // СТАЛО (parseFloat):
+    GLOBAL_STATE.speed = parseFloat(e.target.value);
+    document.getElementById('speedVal').innerText = e.target.value;
+};
 
             document.getElementById('vScaleSlider').oninput = (e) => {
                 GLOBAL_STATE.visualScale = parseFloat(e.target.value);
@@ -757,6 +820,21 @@ window.onclick = function(event) {
                 drawSurface(); // Re-draw mesh with new scale
                 optimizers.forEach(o => o.updateVisuals()); // Update existing balls
             };
+			
+			
+document.getElementById('btn-random-pos').onclick = () => {
+    // Генеруємо випадкові X та Y в межах від -6 до 6
+    // (Межі обрані так, щоб точки гарантовано потрапляли у видиму зону камери)
+    const range = 6;
+    const rndX = (Math.random() * 2 - 1) * range;
+    const rndY = (Math.random() * 2 - 1) * range;
+
+    // Оновлюємо глобальний стан
+    GLOBAL_STATE.startPos = { x: rndX, y: rndY };
+
+    // Перезапускаємо симуляцію з новими координатами
+    resetSim();
+};
 
             drawSurface();
             resetSim();
@@ -810,19 +888,52 @@ window.onclick = function(event) {
             scene.add(wireframeMesh);
 
             // Minima Flags
+          // Minima Flags (ОНОВЛЕНО: Шаховий прапор)
             const mins = GlobalMinima[GLOBAL_STATE.func];
             if(mins) {
+                // 1. Створюємо текстуру шахівниці в пам'яті
+                const canvas = document.createElement('canvas');
+                canvas.width = 64; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,64,64); // Білий фон
+                ctx.fillStyle = '#000000'; 
+                // Малюємо чорні квадрати
+                ctx.fillRect(0,0,32,32); 
+                ctx.fillRect(32,32,32,32);
+                
+                const checkerTex = new THREE.CanvasTexture(canvas);
+                checkerTex.magFilter = THREE.NearestFilter; // Щоб пікселі були чіткими
+
                 mins.forEach(m => {
                     const mz = Functions[GLOBAL_STATE.func](m.x, m.y).z * GLOBAL_STATE.visualScale;
                     const group = new THREE.Group();
-                    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2), new THREE.MeshBasicMaterial({color:0x00ff00}));
-                    pole.position.y = 1;
-                    const flag = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 3), new THREE.MeshBasicMaterial({color:0x00ff00}));
-                    flag.position.y = 1.8; flag.rotation.x = Math.PI/2; flag.rotation.z = -Math.PI/2;
+
+                    // Флагшток (Сірий)
+                    const pole = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.03, 0.03, 2.0), 
+                        new THREE.MeshBasicMaterial({color:0xaaaaaa})
+                    );
+                    pole.position.y = 1.25; // Піднімаємо трохи вище
+
+                    // Сам прапор (Площина з текстурою)
+                    const flagGeo = new THREE.PlaneGeometry(0.8, 0.5);
+                    const flagMat = new THREE.MeshBasicMaterial({ 
+                        map: checkerTex, 
+                        side: THREE.DoubleSide 
+                    });
+                    const flag = new THREE.Mesh(flagGeo, flagMat);
+                    
+                    // Зміщуємо прапор, щоб він кріпився боком до палиці
+                    flag.position.set(0.4, 2.2, 0); 
+
                     group.add(pole, flag);
                     group.position.set(m.x, mz, m.y);
-                    scene.add(group);
+                    
+                    // Трохи нахиляємо всю групу для динаміки, якщо хочете (опціонально)
+                    // group.rotation.z = -0.1; 
+                    
                     targetMarkers.push(group);
+                    scene.add(group);
                 });
             }
         }
