@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced rSVD: Інтерактивний Підручник + 3D Scanner</title>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three-bvh-csg": "https://esm.sh/three-bvh-csg@0.0.16"
+            }
+        }
+    </script>
+
+    <script>
+        window.MathJax = { 
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root { --accent: #007acc; --bg: #1e1e1e; --panel: #252526; --text: #ddd; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Layout */
+        #sidebar { width: 340px; background: var(--panel); padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+        #workspace { flex-grow: 1; padding: 20px 40px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; align-items: center; }
+        
+        /* Grid for Stages */
+        .stage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 1200px; }
+        .full-width { grid-column: 1 / -1; }
+
+        /* Controls */
+        .control-panel { background: #333; padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent); }
+        h1 { margin: 0 0 5px 0; font-size: 1.4em; color: var(--accent); }
+        h2 { margin-top: 0; font-size: 1.1em; color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; }
+        
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #bbb; }
+        input[type=range] { width: 100%; cursor: pointer; margin-bottom: 10px; }
+        select { width: 100%; padding: 6px; background: #444; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 10px; }
+        
+        button { width: 100%; padding: 10px; background: #2d2d2d; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; transition: 0.2s; text-align: left; position: relative; }
+        button:hover { background: #3a3a3a; border-color: var(--accent); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; border-color: #444; }
+        button.active-step { background: var(--accent); border-color: var(--accent); }
+        button span.icon { float: right; }
+
+        /* Visualization Boxes */
+        .matrix-box { background: #2d2d30; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; border: 1px solid #3e3e42; transition: transform 0.2s; }
+        .matrix-box:hover { border-color: #666; }
+        .matrix-box canvas { width: 160px; height: 160px; image-rendering: pixelated; border: 1px solid #000; margin: 10px 0; background: #000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .matrix-title { font-weight: bold; color: var(--accent); font-size: 1.1em; }
+        
+        /* Explanation Text */
+        .explainer { font-size: 0.85em; color: #aaa; text-align: center; line-height: 1.4; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .explainer strong { color: #ddd; }
+        
+        /* Progress Bar */
+        #progress-container { width: 100%; max-width: 1200px; background: #333; height: 4px; border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        #progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease-out; }
+
+        /* Theory Section */
+        details { width: 100%; max-width: 1200px; background: #252526; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-top: 20px; }
+        summary { cursor: pointer; font-weight: bold; color: var(--accent); font-size: 1.1em; margin-bottom: 10px; outline: none; }
+        .theory-content { padding-top: 10px; border-top: 1px solid #333; color: #ccc; line-height: 1.6; font-size: 0.95em; columns: 2; column-gap: 40px; }
+        .theory-content h3 { color: #fff; margin-top: 0; }
+        
+        /* Highlight */
+        .highlight { border-color: var(--accent) !important; box-shadow: 0 0 15px rgba(0, 122, 204, 0.2); }
+
+        /* --- НОВІ СТИЛІ ДЛЯ СКАНЕРА (from rSVD-3D) --- */
+        #preview-3d-wrapper { display: none; margin-bottom: 15px; }
+        #preview-3d-container {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #444;
+            position: relative;
+        }
+        #preview-label {
+            position: absolute; top: 5px; left: 5px; 
+            background: rgba(0,0,0,0.7); color: var(--accent); 
+            padding: 2px 6px; font-size: 0.7em; border-radius: 3px;
+        }
+        #slice-container { display: none; background: #262626; padding: 10px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #333; }
+        .slice-active { display: block !important; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div style="text-align:center;">
+        <h1>rSVD Simulator</h1>
+        <div style="font-size:0.8em; color:#888;">Low-Rank Approximation Engine</div>
+    </div>
+    
+    <div id="preview-3d-wrapper">
+        <div id="preview-3d-container">
+            <div id="preview-label">3D Scanner Preview</div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <h2>1. Дані та Препроцесинг</h2>
+        <label>Зображення:</label>
+       <select id="imgSelect"> 
+	    <option value="skull">💀 3D Skull CT</option>
+        <option value="face">Обличчя (Структуроване)</option>
+        <option value="noisy_face">Обличчя + Шум (Denoising)</option> 
+        <option value="photo">Фотографія (Текстура)</option>
+        <option value="grad">Градієнт (Просте)</option>
+        <option value="noise">Чистий Шум</option>
+       
+    </select>
+
+        <div id="slice-container">
+            <label style="color:var(--accent);">↕ Площина сканування</label>
+            <input type="range" id="sliceSlider" min="0" max="100" value="30">
+        </div>
+
+        <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="chk-center" checked style="width:auto; margin:0 10px 0 0;">
+            <span>Центрувати дані (Mean Subtraction)</span>
+        </label>
+        <div style="font-size:0.75em; color:#888; margin-top:4px; margin-bottom:10px;">
+            <i>Видаляє середню яскравість. Це прибирає "смугасті" артефакти, дозволяючи SVD фокусуватись на деталях.</i>
+        </div>
+
+        <button id="btn-load">🔄 Завантажити / Скинути</button>
+    </div>
+
+    <div class="control-panel">
+        <h2>2. Гіперпараметри</h2>
+        <label>Цільовий ранг ($k$): <strong id="kVal">10</strong></label>
+        <input type="range" id="kSlider" min="1" max="50" value="10">
+        
+        <label>Oversampling ($p$): <strong id="pVal">5</strong></label>
+        <input type="range" id="pSlider" min="0" max="20" value="5">
+        <div style="font-size:0.75em; color:#888; margin-bottom:8px;">Запасні вектори для точності.</div>
+
+        <label>Power Iterations ($q$): <strong id="qVal">1</strong></label>
+        <input type="range" id="qSlider" min="0" max="10" value="1">
+        <div style="font-size:0.75em; color:#888;">
+            Фільтрує шум. $q=0$ — швидко, $q>2$ — дуже точно.
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <h2>3. Алгоритм</h2>
+        <button id="btn-step1">
+            1. Генерація $\Omega$
+            <span class="icon">🎲</span>
+        </button>
+        <button id="btn-step2" disabled>
+            2. Семплінг $Y$
+            <span class="icon">📐</span>
+        </button>
+        <button id="btn-step3" disabled>
+            3. Декомпозиція та Відновлення
+            <span class="icon">✨</span>
+        </button>
+        
+        <div style="margin-top: 15px; border-top: 1px solid #555; padding-top:10px; font-size:0.85em;">
+            <div style="display:flex; justify-content:space-between;">
+                <span>Розмір $A$:</span> <span id="stat-size" style="color:#fff">64x64</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                <span>Стиснення:</span> <span id="stat-compr" style="color:#0f0">0%</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                <span>Втрати (L2 Error):</span> <span id="stat-err" style="color:#f66">---</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="workspace">
+    <div id="progress-container"><div id="progress-fill"></div></div>
+
+    <div class="stage-grid">
+        <div class="matrix-box" id="box-A">
+            <div class="matrix-title">Матриця $A$</div>
+            <canvas id="cvs-A" width="64" height="64"></canvas>
+            <div class="explainer">
+                Вхідне зображення ($m \times n$).<br>
+                Ми шукаємо набір "патернів", з яких воно складається.
+            </div>
+        </div>
+
+        <div class="matrix-box" id="box-Omega">
+            <div class="matrix-title">Матриця $\Omega$</div>
+            <canvas id="cvs-Omega" width="64" height="64"></canvas>
+            <div class="explainer">
+                <strong>Крок 1:</strong> Випадкові вектори (Gaussian).<br>
+                Це "пробники". Ми множимо їх на $A$, щоб побачити, куди $A$ "тягне" простір.
+            </div>
+        </div>
+        
+        <div class="matrix-box" id="box-Y">
+            <div class="matrix-title">Ескіз $Y$</div>
+            <canvas id="cvs-Y" width="64" height="64"></canvas>
+            <div class="explainer">
+                <strong>Крок 2:</strong> $Y = (AA^T)^q A \Omega$.<br>
+                Це стисле представлення стовпчикового простору (Range) матриці $A$.
+            </div>
+        </div>
+    </div>
+
+    <div class="stage-grid">
+        <div class="matrix-box" id="box-U">
+            <div class="matrix-title">Базис $U_k$</div>
+            <canvas id="cvs-U" width="64" height="64"></canvas>
+            <div class="explainer">
+                <strong>Ортогоналізація ($Q$):</strong><br>
+                Ми очистили $Y$ (QR-розклад) і отримали головні "Eigen-blocks" (стовпчики).
+            </div>
+        </div>
+
+       <div class="matrix-box" id="box-Result" style="grid-column: span 2; flex-direction: row; gap: 20px; align-items: flex-start;">
+            <div style="text-align:center;">
+                <div class="matrix-title" style="margin-bottom:10px;">Відновлення $\tilde{A}$</div>
+                <canvas id="cvs-Final" width="128" height="128" style="width:200px; height:200px;"></canvas>
+            </div>
+            <div style="flex-grow:1;">
+                <h3 style="margin-top:0; color:var(--accent);">Аналіз Результату</h3>
+                <div class="explainer" style="text-align: left; background:none; padding:0;">
+                    <p>Ми отримали $\tilde{A} \approx Q (Q^T A)$. Це проекція вхідного зображення на підпростір знайдених базисних векторів.</p>
+                    <p>
+                        Якщо $k$ мале, ми бачимо лише загальні риси (очі, рот, контур).<br>
+                        Якщо $k$ велике, додаються дрібні деталі (текстура шкіри, шум).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <details>
+        <summary>🎓 Теорія: Алгоритм Randomized SVD</summary>
+        <div class="theory-content">
+            <h3>1. Постановка задачі</h3>
+            <p>
+                Нехай $A$ — щільна матриця розміру $m \times n$. Класичний сингулярний розклад (SVD) шукає факторизацію $A = U \Sigma V^T$.
+                Це обчислювально дорого: $O(\min(mn^2, m^2n))$.
+            </p>
+            <p>
+                <strong>Мета rSVD:</strong> Знайти наближену матрицю низького рангу $k$ ($A_k$), яка мінімізує норму Фробеніуса $\|A - A_k\|_F$,
+                використовуючи ймовірнісні методи для прискорення до $O(mn \log k)$.
+            </p>
+
+            <h3>2. Етап А: Побудова Базису (Range Finder)</h3>
+            <p>
+                На цьому етапі ми хочемо знайти ортонормовану матрицю $Q$ ($m \times (k+p)$), таку що $A \approx Q Q^T A$. Тобто, стовпці $Q$ повинні охоплювати діапазон (Range) матриці $A$.
+            </p>
+            <ol>
+                <li>
+                    <strong>Генерація пробників ($\Omega$):</strong> Створюємо випадкову гаусову матрицю $\Omega$ розміру $n \times (k+p)$.
+                    <br><em>Параметр $p$ (Oversampling)</em> потрібен для зменшення ймовірності втрати інформації. Зазвичай $p=5$ або $10$.
+                </li>
+                <li>
+                    <strong>Семплінг ($Y$):</strong> Обчислюємо ескіз $Y = A \Omega$.
+                    <br>Кожен стовпець $Y$ — це випадкова лінійна комбінація стовпців $A$.
+                </li>
+                <li>
+                    <strong>Степеневі ітерації (Power Iterations, $q$):</strong>
+                    Якщо спектр $A$ спадає повільно, $Y$ міститиме багато шуму. Ми підсилюємо сигнал, множачи на $A A^T$:
+                    $$Y^{(q)} = (A A^T)^q A \Omega$$
+                    Це працює як фільтр: сингулярні числа підносяться до степеня $2q+1$, тому малі $\sigma_i$ (шум) зникають швидше за великі (сигнал).
+                </li>
+                <li>
+                    <strong>Ортогоналізація:</strong> Будуємо ортонормований базис $Q$ для стовпців $Y$ (зазвичай через QR-розклад):
+                    $$Y = Q R$$
+                </li>
+            </ol>
+
+            <h3>3. Етап Б: Декомпозиція та Відновлення</h3>
+            <p>
+                Тепер, маючи малий базис $Q$, ми проектуємо задачу в менший вимір.
+            </p>
+            <ol>
+                <li>
+                    <strong>Проекція ($B$):</strong> Знаходимо малу матрицю $B = Q^T A$.
+                    <br>Розмір $B$ складає всього $(k+p) \times n$.
+                </li>
+                <li>
+                    <strong>Детермінований SVD:</strong> Оскільки $B$ мала, ми швидко обчислюємо її точний SVD стандартними методами:
+                    $$B = \tilde{U} \Sigma V^T$$
+                </li>
+                <li>
+                    <strong>Відновлення ($U$):</strong> Піднімаємо ліві сингулярні вектори назад у простір вихідної матриці:
+                    $$U \approx Q \tilde{U}$$
+                </li>
+            </ol>
+
+            <h3>4. Підсумкова апроксимація</h3>
+            <p>
+                У результаті ми отримуємо наближений розклад:
+                $$A \approx U \Sigma V^T$$
+                Похибка апроксимації залежить від швидкості спадання сингулярних чисел ($\sigma_{k+1}$) та кількості ітерацій $q$.
+                Згідно з теоремою <em>Eckart-Young-Mirsky</em>, найкраще наближення рангу $k$ дає похибку $\sigma_{k+1}$, і rSVD з $q \ge 2$ наближається до цього теоретичного мінімуму дуже близько.
+            </p>
+			
+			<h3>5. SVD vs JPEG</h3>
+            <p>
+                Стандартні кодеки (JPEG, HEIC) використовують дискретне косинусне перетворення (DCT) і квантування, оптимізоване під <strong>людський зір</strong> (психовізуальна модель). Вони безжально видаляють "непомітні" частоти, що створює артефакти блоків. У медицині це неприпустимо: артефакт стиснення можна сплутати з мікропухлиною або тріщиною.
+            </p>
+            <p>
+                Натомість, методи Low-Rank Approximation (як rSVD) працюють із <strong>математичною структурою даних</strong>:
+            </p>
+            <ul>
+                <li><strong>Зменшення дози опромінення (Low-Dose CT):</strong> При зниженні потужності рентгену з'являється сильний "зернистий" шум. Цей шум має високий ранг (розпорошений по спектру), тоді як анатомія — низький. SVD "відсікає" шум математично, залишаючи чисту структуру кістки/тканини.</li>
+                <li><strong>Відновлення (Compressed Sensing):</strong> В томогоафії часто пропускають частини сканування. rSVD дозволяє відновити повну картинку з неповних даних.</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+<script>
+    // --- ENGINE ---
+    const SIZE = 64;
+    let MatrixA = null; // Raw input
+    let MeanVal = 0;    // Mean value for centering
+    let MatrixCentered = null; // A - Mean
+    let MatrixOmega = null;
+    let MatrixY = null;
+    let MatrixQ = null;
+    let MatrixRec = null;
+
+    const ui = {
+        step: 0,
+        k: 10,
+        p: 5,
+        q: 1
+    };
+
+    // --- MATH UTILS ---
+    function createMatrix(rows, cols) {
+        return { rows, cols, data: new Float32Array(rows * cols) };
+    }
+    
+    function randomGaussianMatrix(rows, cols) {
+        const m = createMatrix(rows, cols);
+        for(let i=0; i<m.data.length; i++) {
+            // Box-Muller transform
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            m.data[i] = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+        return m;
+    }
+
+    function multiply(A, B) {
+        const C = createMatrix(A.rows, B.cols);
+        for (let r = 0; r < A.rows; r++) {
+            for (let c = 0; c < B.cols; c++) {
+                let sum = 0;
+                for (let k = 0; k < A.cols; k++) {
+                    sum += A.data[r * A.cols + k] * B.data[k * B.cols + c];
+                }
+                C.data[r * B.cols + c] = sum;
+            }
+        }
+        return C;
+    }
+
+    function transpose(A) {
+        const T = createMatrix(A.cols, A.rows);
+        for(let r=0; r<A.rows; r++)
+            for(let c=0; c<A.cols; c++)
+                T.data[c*T.cols + r] = A.data[r*A.cols + c];
+        return T;
+    }
+
+    function qr_gram_schmidt(A) {
+        const m = A.rows;
+        const n = A.cols;
+        const Q = createMatrix(m, n); // Deep copy
+        Q.data.set(A.data);
+
+        for (let i = 0; i < n; i++) {
+            // Norm of column i
+            let normSq = 0;
+            for(let r=0; r<m; r++) normSq += Q.data[r*n+i]**2;
+            let norm = Math.sqrt(normSq);
+            
+            // Avoid division by zero
+            if (norm < 1e-9) norm = 1;
+
+            // Normalize
+            for(let r=0; r<m; r++) Q.data[r*n+i] /= norm;
+
+            // Orthogonalize remaining columns against col i
+            for(let j = i+1; j < n; j++) {
+                let dot = 0;
+                for(let r=0; r<m; r++) dot += Q.data[r*n+i] * Q.data[r*n+j];
+                for(let r=0; r<m; r++) Q.data[r*n+j] -= dot * Q.data[r*n+i];
+            }
+        }
+        return Q;
+    }
+
+    // --- IMAGE GENERATION ---
+    // Modified to handle async retrieval from 3D module if needed, 
+    // but here we will make the 3D module write to a global variable or return sync data.
+    // NOTE: generateImage is updated below to handle 'skull'.
+
+    function generateImage(type) {
+        const m = createMatrix(SIZE, SIZE);
+        
+        if (type === 'skull') {
+            // Hook to 3D Engine
+            if (window.getSkullSliceData) {
+                const data = window.getSkullSliceData(); // Returns Uint8Array
+                // Normalize 0..255 to 0..1
+                for(let i=0; i<m.data.length; i++) {
+                    m.data[i] = data[i] / 255.0;
+                }
+            } else {
+                console.warn("3D Engine not ready");
+            }
+            return m;
+        }
+
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                let val = 0;
+                const x = (c - SIZE/2)/(SIZE/2);
+                const y = (r - SIZE/2)/(SIZE/2);
+
+                if (type === 'grad') {
+                    val = (x+1)/2 * (y+1)/2;
+                } else if (type === 'face') {
+                    // Simple parametric face
+                    // Face oval
+                    let d = Math.sqrt(x*x + y*y*1.2);
+                    if (d < 0.8) {
+                        val = 0.8 - d*0.5;
+                        // Eyes
+                        if (Math.abs(x - 0.3) < 0.1 && Math.abs(y + 0.2) < 0.1) val -= 0.4;
+                        if (Math.abs(x + 0.3) < 0.1 && Math.abs(y + 0.2) < 0.1) val -= 0.4;
+                        // Mouth
+                        if (Math.abs(x) < 0.3 && Math.abs(y - 0.4) < 0.05) val -= 0.3;
+                    }
+                } else if (type === 'noisy_face') {
+                    // Same as face but with noise
+                    let d = Math.sqrt(x*x + y*y*1.2);
+                    if (d < 0.8) {
+                        val = 0.8 - d*0.5;
+                        if (Math.abs(x - 0.3) < 0.1 && Math.abs(y + 0.2) < 0.1) val -= 0.4;
+                        if (Math.abs(x + 0.3) < 0.1 && Math.abs(y + 0.2) < 0.1) val -= 0.4;
+                        if (Math.abs(x) < 0.3 && Math.abs(y - 0.4) < 0.05) val -= 0.3;
+                    }
+                    val += (Math.random()-0.5) * 0.4; // Heavy noise
+                } else if (type === 'photo') {
+                    // Synthetic texture (Plasma-like)
+                    val = Math.sin(x*5 + y*5) * 0.5 + Math.cos(x*10 - y*5) * 0.5;
+                    val = val * 0.5 + 0.5;
+                } else if (type === 'noise') {
+                    val = Math.random();
+                }
+
+                m.data[r*SIZE + c] = val;
+            }
+        }
+        return m;
+    }
+
+    // --- VISUALIZATION ---
+    function drawMatrix(mat, canvasId, autoScale = true) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        const w = mat.cols;
+        const h = mat.rows;
+
+        // Ensure canvas size matches matrix
+        canvas.width = w;
+        canvas.height = h;
+
+        const imgData = ctx.createImageData(w, h);
+        
+        let min = 0, max = 1;
+        if(autoScale) {
+            min = Infinity; max = -Infinity;
+            for(let v of mat.data) {
+                if(v < min) min = v;
+                if(v > max) max = v;
+            }
+            if (max === min) max = min + 1;
+        }
+
+        for (let i = 0; i < mat.data.length; i++) {
+            let val = mat.data[i];
+            // Normalize 0..1
+            let n = (val - min) / (max - min);
+            
+            let r, g, b;
+            
+            // Colormap: Magma-like for abstract, Greyscale for images
+            if (canvasId === 'cvs-A' || canvasId === 'cvs-Final') {
+                let v = Math.floor(n * 255);
+                r=v; g=v; b=v;
+            } else {
+                // Diverging Red-Blue
+                // Let's assume 0 is roughly in the middle if centered
+                if (n < 0.5) {
+                    // Blue -> Black
+                    let intensity = (0.5 - n) * 2; // 0..1
+                    r = 0; 
+                    g = Math.floor(20*intensity); 
+                    b = Math.floor(255*intensity);
+                } else {
+                    // Black -> Red
+                    let intensity = (n - 0.5) * 2;
+                    r = Math.floor(255*intensity);
+                    g = Math.floor(40*intensity);
+                    b = 0;
+                }
+                // Add white base to see structure better
+                r += 20; g+= 20; b+= 20;
+            }
+
+            const idx = i * 4;
+            imgData.data[idx] = r;
+            imgData.data[idx+1] = g;
+            imgData.data[idx+2] = b;
+            imgData.data[idx+3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+    }
+    
+    function clearCanvas(id) {
+        const c = document.getElementById(id);
+        c.getContext('2d').clearRect(0,0,c.width,c.height);
+    }
+
+    function updateUI() {
+        document.getElementById('btn-step1').disabled = ui.step >= 1;
+        document.getElementById('btn-step2').disabled = ui.step !== 1;
+        document.getElementById('btn-step3').disabled = ui.step !== 2;
+        
+        // Highlights
+        ['box-A','box-Omega','box-Y','box-U','box-Result'].forEach(id => document.getElementById(id).classList.remove('highlight'));
+        if(ui.step===0) document.getElementById('box-Omega').classList.add('highlight');
+        if(ui.step===1) document.getElementById('box-Y').classList.add('highlight');
+        if(ui.step===2) document.getElementById('box-Result').classList.add('highlight');
+
+        // Progress
+        const p = (ui.step / 3) * 100;
+        document.getElementById('progress-fill').style.width = p + '%';
+
+        // Stats
+        if(ui.step === 3) {
+            const k = ui.k;
+            const size = SIZE*SIZE;
+            const compressed = k*(SIZE + SIZE); // U_k(m*k) + B(k*n) approx
+            const ratio = 100 - (compressed/size)*100;
+            document.getElementById('stat-compr').innerText = ratio.toFixed(1) + '%';
+            
+            // Calc Error
+            let errSq = 0;
+            for(let i=0; i<MatrixA.data.length; i++) {
+                errSq += (MatrixA.data[i] - MatrixRec.data[i])**2;
+            }
+            document.getElementById('stat-err').innerText = Math.sqrt(errSq).toFixed(2);
+        } else {
+            document.getElementById('stat-compr').innerText = '0%';
+            document.getElementById('stat-err').innerText = '---';
+        }
+    }
+
+    // --- MAIN FLOW ---
+    window.init = function() {
+        // UI Handling for Scanner
+        const type = document.getElementById('imgSelect').value;
+        const sliceUI = document.getElementById('slice-container');
+        const previewUI = document.getElementById('preview-3d-wrapper');
+        
+        if (type === 'skull') {
+            sliceUI.classList.add('slice-active');
+            previewUI.style.display = 'block';
+            if (window.init3D) window.init3D(); // Start 3D engine if needed
+        } else {
+            sliceUI.classList.remove('slice-active');
+            previewUI.style.display = 'none';
+        }
+
+        MatrixA = generateImage(type);
+        
+        // Centering
+        MeanVal = 0;
+        MatrixCentered = createMatrix(SIZE, SIZE);
+        if (document.getElementById('chk-center').checked) {
+            let sum = 0;
+            for(let v of MatrixA.data) sum += v;
+            MeanVal = sum / MatrixA.data.length;
+        }
+
+        for(let i=0; i<MatrixA.data.length; i++) MatrixCentered.data[i] = MatrixA.data[i] - MeanVal;
+
+        drawMatrix(MatrixA, 'cvs-A', false);
+        
+        clearCanvas('cvs-Omega');
+        clearCanvas('cvs-Y');
+        clearCanvas('cvs-U');
+        clearCanvas('cvs-Final');
+        
+        ui.step = 0;
+        updateUI();
+    };
+
+    window.doStep1 = function() {
+        ui.k = parseInt(document.getElementById('kSlider').value);
+        ui.p = parseInt(document.getElementById('pSlider').value);
+        const L = ui.k + ui.p;
+        
+        MatrixOmega = randomGaussianMatrix(SIZE, L);
+        drawMatrix(MatrixOmega, 'cvs-Omega');
+        
+        ui.step = 1;
+        updateUI();
+    };
+
+    window.doStep2 = function() {
+        ui.q = parseInt(document.getElementById('qSlider').value);
+        
+        MatrixY = multiply(MatrixCentered, MatrixOmega);
+        
+        // Power Iterations
+        if (ui.q > 0) {
+            const AT = transpose(MatrixCentered);
+            // Precompute A*A^T to save time in loop? Or just chain multiply.
+            // Chain: Y = A * (A^T * Y)
+            for(let i=0; i<ui.q; i++) {
+                let Y_temp = multiply(AT, MatrixY);
+                MatrixY = multiply(MatrixCentered, Y_temp);
+            }
+        }
+
+        drawMatrix(MatrixY, 'cvs-Y');
+        ui.step = 2;
+        updateUI();
+    }
+
+    function doStep3() {
+        // 1. QR -> Q
+        MatrixQ = qr_gram_schmidt(MatrixY);
+        drawMatrix(MatrixQ, 'cvs-U');
+
+        // 2. Projection B = Q^T * A
+        const QT = transpose(MatrixQ);
+        const B = multiply(QT, MatrixCentered);
+
+        // 3. Reconstruction A_approx = Q * B
+        const RecCentered = multiply(MatrixQ, B);
+        
+        // 4. Add Mean Back
+        MatrixRec = createMatrix(SIZE, SIZE);
+        let errSq = 0;
+        let normSq = 0;
+
+        for(let i=0; i<RecCentered.data.length; i++) {
+            let val = RecCentered.data[i] + MeanVal;
+            MatrixRec.data[i] = val;
+        }
+        
+        drawMatrix(MatrixRec, 'cvs-Final', false);
+        ui.step = 3;
+        updateUI();
+    }
+
+    // Listeners
+    document.getElementById('btn-load').onclick = init;
+    document.getElementById('imgSelect').onchange = init;
+    document.getElementById('chk-center').onchange = init;
+    
+    document.getElementById('btn-step1').onclick = doStep1;
+    document.getElementById('btn-step2').onclick = doStep2;
+    document.getElementById('btn-step3').onclick = doStep3;
+
+    document.getElementById('kSlider').oninput = (e) => { 
+        document.getElementById('kVal').innerText = e.target.value; 
+        if(ui.step>=1) doStep1(); 
+    };
+    document.getElementById('pSlider').oninput = (e) => { 
+        document.getElementById('pVal').innerText = e.target.value; 
+        if(ui.step>=1) doStep1(); 
+    };
+    document.getElementById('qSlider').oninput = (e) => { 
+        document.getElementById('qVal').innerText = e.target.value; 
+        if(ui.step>=2) doStep2(); 
+    };
+    
+    // Slice Slider Listener (Hooked in next script)
+    document.getElementById('sliceSlider').oninput = (e) => {
+        // Just trigger init to re-capture slice
+        if (document.getElementById('imgSelect').value === 'skull') {
+             window.init();
+        }
+    };
+
+    // Init on load
+    window.onload = () => setTimeout(init, 100);
+
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Brush, Evaluator, SUBTRACTION, INTERSECTION } from 'three-bvh-csg';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    const CT_SIZE = 64;
+    let renderer, scene, camera;
+    let renderTarget;
+    let laserPlane;
+    let is3DInitialized = false;
+    
+    // Зберігаємо CSG об'єкти
+    let skullBrush, jawBrush, teethBrush;
+    let fullHeadGroup; 
+
+    const Y_MIN = -3.5, Y_MAX = 2.5;
+
+    // --- 1. ГЕОМЕТРІЯ ---
+    
+    const evaluator = new Evaluator();
+    
+    const boneMaterial = new THREE.MeshPhysicalMaterial({ 
+        color: 0xE3DAC9, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide 
+    });
+
+    const scanMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFFFF, side: THREE.DoubleSide 
+    });
+
+    function initGeometries() {
+        // 1. ЧЕРЕП (Порожнистий з товстими стінками)
+        const outerGeo = new THREE.SphereGeometry(2.9, 60, 64);
+        let b1 = new Brush(outerGeo, boneMaterial);
+        b1.scale.set(0.92, 0.9, 1); b1.updateMatrixWorld();
+
+        const innerGeo = new THREE.SphereGeometry(2.5, 60, 62); 
+        let b2 = new Brush(innerGeo, boneMaterial);
+        b2.scale.set(0.92, 0.9, 1.1); b2.updateMatrixWorld();
+
+        // Створюємо порожнину
+        let mesh = evaluator.evaluate(b1, b2, SUBTRACTION);
+        skullBrush = new Brush(mesh.geometry, boneMaterial);
+
+        // Вирізаємо Очі
+        const eyeGeo = new THREE.CylinderGeometry(0.55, 0.55, 5, 32);
+        const eyeBrush = new Brush(eyeGeo, boneMaterial);
+        eyeBrush.rotation.x = Math.PI / 2;
+        
+        eyeBrush.position.set(1.2, 0.2, 2.0);
+        eyeBrush.rotation.z = -0.2; eyeBrush.rotation.y = 0.2; eyeBrush.updateMatrixWorld();
+        skullBrush = new Brush(evaluator.evaluate(skullBrush, eyeBrush, SUBTRACTION).geometry, boneMaterial);
+
+        eyeBrush.position.set(-1.2, 0.2, 2.0);
+        eyeBrush.rotation.z = 0.2; eyeBrush.rotation.y = -0.2; eyeBrush.updateMatrixWorld();
+        skullBrush = new Brush(evaluator.evaluate(skullBrush, eyeBrush, SUBTRACTION).geometry, boneMaterial);
+
+        // Вирізаємо Ніс
+        const noseGeo = new THREE.CylinderGeometry(0.0, 0.6, 3, 3);
+        const noseBrush = new Brush(noseGeo, boneMaterial);
+        noseBrush.rotation.x = Math.PI / 2; noseBrush.rotation.y = Math.PI;
+        noseBrush.position.set(0, -0.6, 2.0); noseBrush.scale.set(2, 3, 3.0); noseBrush.updateMatrixWorld();
+        skullBrush = new Brush(evaluator.evaluate(skullBrush, noseBrush, SUBTRACTION).geometry, boneMaterial);
+
+        // Зріз знизу
+        const cutBoxGeo = new THREE.BoxGeometry(4, 4, 4);
+        const cutBoxBrush = new Brush(cutBoxGeo, boneMaterial);
+        cutBoxBrush.position.y = -3.8; cutBoxBrush.updateMatrixWorld();
+        skullBrush = new Brush(evaluator.evaluate(skullBrush, cutBoxBrush, SUBTRACTION).geometry, boneMaterial);
+
+
+        // 2. ЩЕЛЕПА
+        const width = 2.0, height = 1.0, wall = 0.5;
+        const outerJawGeo = new THREE.CylinderGeometry(width, width*0.8, height, 64, 1, false, 0, Math.PI);
+        const j1 = new Brush(outerJawGeo, boneMaterial);
+      j1.position.z = 0.5;  j1.position.y = -3.0; j1.rotation.x = 0.2; j1.rotation.y = -Math.PI/2; j1.updateMatrixWorld();
+
+        const innerJawGeo = new THREE.CylinderGeometry(width-wall, (width*0.8)-wall, height+0.2, 64, 1, false, 0, Math.PI);
+        const j2 = new Brush(innerJawGeo, boneMaterial);
+        j2.position.y = -3.0; j2.rotation.x = 0.2; j2.rotation.y = -Math.PI/2; j2.updateMatrixWorld();
+
+       j1.position.z = 0.5;   jawBrush = new Brush(evaluator.evaluate(j1, j2, SUBTRACTION).geometry, boneMaterial);
+
+
+        // 3. ЗУБИ (Повноцінна генерація для CSG)
+        const toothGeoms = [];
+        
+        // Функція для створення геометрії одного ряду
+        const createRow = (isTop) => {
+            const count = 8;
+            const radius = isTop ? 1.8 : 1.6;
+            const startAngle = Math.PI * 0.15, endAngle = Math.PI * 0.85;
+            
+            // Базові трансформації ряду
+            const rowMatrix = new THREE.Matrix4();
+            if (isTop) {
+                rowMatrix.makeTranslation(0, -1.8, 0.7);
+            } else {
+                // Transl * RotX
+                const m1 = new THREE.Matrix4().makeTranslation(0, -2.45, 0.7);
+                const m2 = new THREE.Matrix4().makeRotationX(0.2);
+                rowMatrix.multiplyMatrices(m1, m2);
+            }
+
+            for (let i = 0; i < count; i++) {
+                const t = i / (count - 1);
+                const angle = startAngle + t * (endAngle - startAngle);
+                
+                // Геометрія зуба
+                const g = new THREE.BoxGeometry(0.35, 0.6, 0.25);
+                
+                // Локальна позиція зуба в ряду
+                const localMatrix = new THREE.Matrix4();
+                localMatrix.makeTranslation(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                
+                // Поворот зуба до центру (LookAt)
+                const lookAtM = new THREE.Matrix4();
+                const eye = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                const target = new THREE.Vector3(0,0,0);
+                lookAtM.lookAt(eye, target, new THREE.Vector3(0,1,0));
+                
+                // Комбінуємо матриці: Row * Local * LookAt (приблизно)
+                // Спростимо: просто позиція і глобальний офсет
+                
+                g.applyMatrix4(localMatrix); // Ставимо по дузі
+                g.applyMatrix4(rowMatrix);   // Ставимо ряд на місце
+                
+                toothGeoms.push(g);
+            }
+        };
+
+        createRow(true);
+        createRow(false);
+
+        // Об'єднуємо всі зуби в один меш
+        const mergedTeethGeo = BufferGeometryUtils.mergeGeometries(toothGeoms);
+        teethBrush = new Brush(mergedTeethGeo, boneMaterial);
+    }
+
+    // --- 2. ENGINE SETUP ---
+
+    window.init3D = function() {
+        if(is3DInitialized) return;
+        const container = document.getElementById('preview-3d-container');
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.localClippingEnabled = false; 
+        container.appendChild(renderer.domElement);
+        
+        renderTarget = new THREE.WebGLRenderTarget(CT_SIZE * 2, CT_SIZE * 2);
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(5, 2, 6);
+        camera.lookAt(0, -1, 0);
+
+        const light = new THREE.DirectionalLight(0xffffff, 1.5);
+        light.position.set(5, 10, 5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        initGeometries();
+
+        fullHeadGroup = new THREE.Group();
+        fullHeadGroup.add(skullBrush);
+        fullHeadGroup.add(jawBrush);
+        fullHeadGroup.add(teethBrush); // Додаємо зуби
+        
+        scene.add(fullHeadGroup);
+
+        const planeGeo = new THREE.PlaneGeometry(7, 7);
+        const planeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+        laserPlane = new THREE.Mesh(planeGeo, planeMat);
+        laserPlane.rotation.x = -Math.PI / 2;
+        scene.add(laserPlane);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0,-1,0);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (scene.background.getHex() !== 0x000000) {
+                 fullHeadGroup.rotation.y += 0.005;
+            }
+            controls.update();
+            renderer.setRenderTarget(null);
+            renderer.render(scene, camera);
+        }
+        animate();
+        is3DInitialized = true;
+    }
+
+    // --- 3. DATA CAPTURE (CSG INTERSECTION) ---
+
+    window.getSkullSliceData = function() {
+        if (!is3DInitialized) window.init3D();
+        //--------
+		const savedRot = fullHeadGroup.rotation.y;
+fullHeadGroup.rotation.y = 0;
+fullHeadGroup.updateMatrixWorld(true); // Оновлюємо матриці для правильного розрахунку
+// -----------------------
+		
+		
+        const sliderVal = document.getElementById('sliceSlider').value;
+        const yPos = Y_MIN + (sliderVal / 100) * (Y_MAX - Y_MIN);
+        laserPlane.position.y = yPos;
+
+        // "Ніж"
+        const sliceThick = 0.15;
+        const sliceGeo = new THREE.BoxGeometry(8, sliceThick, 8);
+        const sliceBrush = new Brush(sliceGeo, scanMaterial);
+        sliceBrush.position.y = yPos;
+        sliceBrush.updateMatrixWorld();
+
+        // ВИКОНУЄМО ПЕРЕТИН ДЛЯ ВСІХ ЧАСТИН
+        
+        // 1. Череп
+        let resultSkull = evaluator.evaluate(skullBrush, sliceBrush, INTERSECTION);
+        resultSkull.material = scanMaterial;
+        
+        // 2. Щелепа
+        let resultJaw = evaluator.evaluate(jawBrush, sliceBrush, INTERSECTION);
+        resultJaw.material = scanMaterial;
+
+        // 3. Зуби (Тепер теж перетинаються!)
+        let resultTeeth = evaluator.evaluate(teethBrush, sliceBrush, INTERSECTION);
+        resultTeeth.material = scanMaterial;
+
+        // Збірка сцени для знімка
+        const originalGroupVisible = fullHeadGroup.visible;
+        fullHeadGroup.visible = false; 
+        laserPlane.visible = false;
+        
+        const sliceGroup = new THREE.Group();
+        sliceGroup.add(resultSkull);
+        sliceGroup.add(resultJaw);
+        sliceGroup.add(resultTeeth);
+        scene.add(sliceGroup);
+
+        scene.background = new THREE.Color(0x000000);
+
+        const dataCam = new THREE.OrthographicCamera(-2.8, 2.8, 2.8, -2.8, 0.1, 20);
+        dataCam.position.set(0, 10, 0);
+        dataCam.lookAt(0, 0, 0);
+
+        renderer.setRenderTarget(renderTarget);
+        renderer.clear();
+        renderer.render(scene, dataCam);
+
+        const width = renderTarget.width;
+        const height = renderTarget.height;
+        const buffer = new Uint8Array(width * height * 4);
+        renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer);
+
+        // Очищення
+        scene.remove(sliceGroup);
+        resultSkull.geometry.dispose();
+        resultJaw.geometry.dispose();
+        resultTeeth.geometry.dispose();
+        
+        fullHeadGroup.visible = originalGroupVisible;
+        laserPlane.visible = true;
+        scene.background = new THREE.Color(0x222222);
+        renderer.setRenderTarget(null);
+
+        // Downsampling
+        const output = new Uint8Array(CT_SIZE * CT_SIZE);
+        for(let y = 0; y < CT_SIZE; y++) {
+            for(let x = 0; x < CT_SIZE; x++) {
+                const srcX = x * 2;
+                const srcY = y * 2;
+                let sum = 0;
+                for(let dy=0; dy<2; dy++) {
+                    for(let dx=0; dx<2; dx++) {
+                        const idx = ((srcY+dy) * width + (srcX+dx)) * 4;
+                        sum += buffer[idx]; 
+                    }
+                }
+                const targetY = CT_SIZE - 1 - y;
+                output[targetY * CT_SIZE + x] = sum / 4;
+            }
+        }
+
+        return output;
+    }
+</script>
+
+
+
+</body>
+</html>
