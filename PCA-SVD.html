@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigData Simulator: PCA & Detection</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #eaeff2; margin: 0; padding: 10px; color: #2c3e50; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        /* TABS */
+        .tabs { display: flex; gap: 5px; border-bottom: 2px solid #ddd; margin-bottom: 15px; }
+        .tab-btn { padding: 10px 25px; cursor: pointer; border: none; background: #f8f9fa; font-size: 15px; font-weight: 600; color: #7f8c8d; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+        .tab-btn:hover { background: #e9ecef; color: #3498db; }
+        .tab-btn.active { background: #3498db; color: white; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: grid; grid-template-columns: 280px 1fr; gap: 15px; }
+
+        /* CONTROLS */
+        .controls { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; height: fit-content; font-size: 0.9em; }
+        .viz { min-height: 550px; display: flex; flex-direction: column; }
+        
+        h2 { margin-top: 0; color: #2c3e50; font-size: 1.2rem; border-bottom: 2px solid #3498db; display: inline-block; padding-bottom: 5px; margin-bottom: 10px; }
+        
+        .btn { width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; font-size: 0.9rem; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: #3498db; }
+        .btn-danger { background: #e74c3c; } 
+        .btn-success { background: #27ae60; }
+        .btn-warning { background: #f39c12; }
+        
+        label { display: block; margin-top: 10px; font-weight: 600; margin-bottom: 4px; color: #34495e; }
+        input[type="range"], select { width: 100%; cursor: pointer; padding: 4px; border-radius: 4px; border: 1px solid #ccc; }
+        
+        .info-box { background: #eef7fb; border-left: 4px solid #3498db; padding: 10px; font-size: 0.85em; margin-top: 15px; line-height: 1.4; border-radius: 4px; }
+
+        /* COMPACT DASHBOARD FOR TAB 3 */
+        .img-dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 4px; 
+            width: 100%;
+            height: 600px;
+        }
+        .dash-card {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .dash-plot { width: 100%; height: 100%; }
+        
+        /* Plot sizing */
+        #plot1 { width: 100%; height: 550px; }
+		
+		
+		
+		/* Новий клас для блоку теорії на всю ширину */
+.theory-block {
+    grid-column: 1 / -1; /* Розтягує на всю ширину сітки */
+    background: #fff;
+    border-left: 5px solid #2c3e50; /* Темніший колір для "академічності" */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-top: 10px;
+}
+
+.theory-block summary {
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.theory-content {
+    margin-top: 15px;
+    font-size: 0.95em;
+    line-height: 1.6;
+    color: #444;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align: center; margin-bottom: 15px; color: #2c3e50; font-size: 1.5rem;">Чисельні методи в Big Data: PCA & Detection</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab1')">1. Геометрія</button>
+        <button class="tab-btn" onclick="switchTab('tab2')">2. Live ЕКГ</button>
+        <button class="tab-btn" onclick="switchTab('tab3')">3. Image Defects</button>
+    </div>
+
+    <div id="tab1" class="tab-content active">
+        <div class="controls">
+            <h2>Налаштування Даних</h2>
+            <button class="btn btn-primary" onclick="Tab1.generate()">🔄 Нова хмара точок</button>
+            <button class="btn btn-danger" onclick="Tab1.addAnomaly()">⚠️ Додати випадковий викид</button>
+            
+            <label>Кореляція (Нахил тренду):</label>
+            <input type="range" id="t1-slope" min="-2" max="2" step="0.1" value="0.8" oninput="Tab1.generate()">
+            
+            <label>Розкид (Дисперсія шуму):</label>
+            <input type="range" id="t1-spread" min="0.1" max="2.5" step="0.1" value="0.8" oninput="Tab1.generate()">
+            
+            <label>Поріг аномалії ($Threshold$): <span id="t1-val">2.0</span></label>
+            <input type="range" id="t1-thresh" min="0.5" max="5" step="0.1" value="2.0" oninput="Tab1.update()">
+
+            <div class="info-box">
+                <strong>Геометричний зміст:</strong>
+                <p>1. Ми шукаємо вісь $PC1$ (зелена), вздовж якої дані мають максимальну дисперсію.</p>
+                <p>2. Аномалія детектується через відстань від точки до цієї лінії (перпендикуляр).</p>
+            </div>
+        </div>
+        <div class="viz">
+            <div id="plot1"></div>
+        </div>
+		
+		<details class="theory-block">
+    <summary><strong>🎓 Теорія: Метод Головних Компонент (PCA)</strong></summary>
+    <div style="margin-top: 10px; font-size: 0.9em; line-height: 1.6;">
+        <p><strong>Суть методу:</strong> PCA (Principal Component Analysis) — це ортогональне лінійне перетворення, яке проектує дані в нову систему координат, де осі (головні компоненти) впорядковані за зменшенням дисперсії.</p>
+        
+        <strong>Алгоритм (Чисельні методи):</strong>
+        <ol style="padding-left: 20px; margin: 5px 0;">
+            <li><strong>Центрування:</strong> Віднімаємо середнє значення від кожного вектора даних: 
+                $$X_{centered} = X - \mu$$
+            </li>
+            <li><strong>Коваріаційна матриця:</strong> Обчислюємо матрицю $\Sigma$, яка описує зв'язок між ознаками:
+                $$\Sigma = \frac{1}{n-1} X_{centered}^T X_{centered}$$
+            </li>
+            <li><strong>Спектральний розклад:</strong> Розв'язуємо задачу на власні значення для $\Sigma$:
+                $$\Sigma v = \lambda v$$
+                Де $v$ — власний вектор (напрямок осі), а $\lambda$ — власне число (величина дисперсії вздовж цієї осі).
+            </li>
+            <li><strong>Проекція:</strong> Для зниження розмірності ми залишаємо лише вектори з найбільшими $\lambda$.</li>
+        </ol>
+
+        <p><strong>Детектування аномалій:</strong></p>
+        <p>Аномалія — це точка, яка погано апроксимується моделлю. Ми вимірюємо <em>Reconstruction Error</em> (відстань від точки до її проекції на підпростір PCA). В термінах лінійної алгебри, це норма проекції на ортогональне доповнення.</p>
+        
+        <p><strong>Застосування в Big Data:</strong> Стиснення даних перед збереженням, візуалізація багатовимірних даних (t-SNE, UMAP як розширення), попередній етап для K-Means кластеризації.</p>
+    </div>
+</details>
+		
+		
+    </div>
+
+    <div id="tab2" class="tab-content">
+        <div class="controls">
+            <h2>Live Моніторинг</h2>
+            <button class="btn btn-success" id="btn-ecg-start" onclick="Tab2.toggle()">▶ Старт / Пауза</button>
+            <button class="btn btn-warning" onclick="Tab2.reset()">⏮ Рестарт системи</button>
+            
+            <label>Параметри аналізу:</label>
+            <select id="t2-features-select" onchange="Tab2.reset()">
+                <option value="rt">R-Peak vs T-Wave (Pos Corr)</option>
+                <option value="rw">Ampl vs Width (Neg Corr)</option>
+            </select>
+            <p style="font-size:0.8em; color:#777; margin-top:2px;">*Для "Ampl vs Width" використовуйте Екстрасистолу</p>
+
+            <label>Швидкість симуляції:</label>
+            <input type="range" id="t2-speed" min="1" max="10" step="1" value="4">
+
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+
+            <label>Тип патології:</label>
+            <select id="t2-pathology-type">
+                <option value="invertedT">1. Інверсія T-зубця</option>
+                <option value="stElev">2. Елевація ST</option>
+                <option value="pvc">3. Екстрасистола (PVC)</option>
+                <option value="noise">4. Артефакт / Шум</option>
+            </select>
+            <button class="btn btn-danger" style="margin-top:5px;" onclick="Tab2.injectPathology()">⚡ Додати патологію</button>
+            
+            <label>Чутливість детектора:</label>
+            <input type="range" id="t2-thresh" min="2" max="15" step="0.5" value="6">
+            
+            <div class="info-box">
+                <p><strong>Порада:</strong> Екстрасистола (PVC) — це широке і раннє скорочення. Воно ідеально детектується через пару параметрів "Ampl vs Width".</p>
+            </div>
+        </div>
+        <div class="viz" style="gap: 10px;">
+            <div id="plot2-signal" style="height: 280px; border:1px solid #eee; border-radius:4px;"></div>
+            <div id="plot2-features" style="height: 280px; border:1px solid #eee; border-radius:4px;"></div>
+        </div>
+		
+		
+		<details class="theory-block">
+    <summary><strong>🎓 Теорія: Відстань Махаланобіса</strong></summary>
+    <div style="margin-top: 10px; font-size: 0.9em; line-height: 1.6;">
+        <p><strong>Проблема Евклідової відстані:</strong> У просторі ознак змінні часто корелюють (наприклад, зріст і вага). Використання звичайної відстані $d(x, \mu) = ||x - \mu||$ формує "сферичний" поріг, який ігнорує форму хмари даних, що призводить до помилок I та II роду.</p>
+        
+        <strong>Математична модель:</strong>
+        <p>Відстань Махаланобіса враховує коваріаційну матрицю $S$ для "вирівнювання" простору:</p>
+        $$D_M(x) = \sqrt{(x - \mu)^T S^{-1} (x - \mu)}$$
+        
+        <strong>Зв'язок з лінійною алгеброю:</strong>
+        <ul>
+            <li>Матриця $S^{-1}$ (Precision Matrix) діє як метричний тензор, що деформує простір так, щоб еліпс розсіювання перетворився на коло.</li>
+            <li>Якщо $S = I$ (одинична матриця, дані некорельовані), то $D_M$ перетворюється на Евклідову відстань.</li>
+        </ul>
+
+        <strong>Data Stream Mining:</strong>
+        <p>У потокових даних (як ЕКГ або логи серверів) параметри $\mu$ та $S$ оновлюються динамічно (online learning). Викидом вважається точка, для якої $D_M^2 > \chi^2_{k, \alpha}$ (поріг хі-квадрат розподілу).</p>
+        
+        <p><strong>Застосування:</strong> Fraud Detection (пошук нетипових транзакцій), Predictive Maintenance (моніторинг турбін, двигунів).</p>
+    </div>
+</details>
+    </div>
+
+    <div id="tab3" class="tab-content">
+        <div class="controls">
+            <h2>Візуальний Контроль</h2>
+            
+            <button class="btn btn-primary" style="margin-top:5px;" onclick="Tab3.generateNewDefect()">📷 Генерувати зразок</button>
+            <p style="font-size:0.8em; color:#777; margin-top:2px;">(Змінює позицію дефекту)</p>
+            
+            <label>Тип поверхні (Текстура):</label>
+            <select id="t3-texture-type" onchange="Tab3.recalc()">
+                <option value="stripes">Складні смуги</option>
+                <option value="grid"> Сітка</option>
+               
+                <option value="wood">Шумний градієнт</option>
+				<option value="waves">Хвилі</option>
+            </select>
+
+            <label>Рівень шуму (Denoising):</label>
+            <input type="range" id="t3-noise" min="0" max="0.3" step="0.01" value="0.05" oninput="Tab3.recalc()">
+            
+            <label>Складність моделі ($k$): <span id="t3-kval">1</span></label>
+            <input type="range" id="t3-components" min="1" max="5" step="1" value="1" oninput="Tab3.recalc()">
+            <p style="font-size:0.8em; color:#777; margin-top:2px;">*Для "Сітки" спробуйте k=2. Для хвиль вистачить k=1.</p>
+            
+            <label>Поріг чутливості:</label>
+            <input type="range" id="t3-thresh" min="0.05" max="1.5" step="0.05" value="0.5" oninput="Tab3.recalc()">
+
+            <div class="info-box">
+                <strong>Як підібрати $k$?</strong>
+                <p>Якщо $k$ замале — на карті аномалій видно фон (недовідновлення).</p>
+                <p>Якщо $k$ завелике — дефект зникає (перенавчання).</p>
+            </div>
+			
+			
+        </div>
+        <div class="viz">
+            <div class="img-dashboard">
+                <div class="dash-card">
+                    <div id="plot3-orig" class="dash-plot"></div>
+                </div>
+                <div class="dash-card">
+                    <div id="plot3-recon" class="dash-plot"></div>
+                </div>
+                <div class="dash-card">
+                    <div id="plot3-diff" class="dash-plot"></div>
+                </div>
+                <div class="dash-card">
+                    <div id="plot3-scree" class="dash-plot"></div>
+                </div>
+            </div>
+        </div>
+		
+		
+			<details class="theory-block">
+    <summary><strong>🎓 Теорія: Low-Rank Approximation (SVD)</strong></summary>
+    <div style="margin-top: 10px; font-size: 0.9em; line-height: 1.6;">
+        <p><strong>Зображення як матриця:</strong> У Big Data зображення або часові ряди часто розглядаються як матриці $A$ розмірності $m \times n$. Ми припускаємо, що "корисний сигнал" (фон) має низький ранг (мало лінійно незалежних патернів), а шум/дефекти — повний ранг.</p>
+        
+        <strong>Сингулярний розклад (SVD):</strong>
+        <p>Будь-яку матрицю можна розкласти як:</p>
+        $$A = U \Sigma V^T = \sum_{i=1}^{r} \sigma_i u_i v_i^T$$
+        <p>де $\sigma_i$ — сингулярні числа (вага компоненти).</p>
+
+        <strong>Eckart-Young-Mirsky Theorem:</strong>
+        <p>Найкраща апроксимація матриці $A$ рангом $k$ (де $k < r$) досягається усіченням суми SVD:</p>
+        $$A_k = \sum_{i=1}^{k} \sigma_i u_i v_i^T$$
+        
+        <strong>Алгоритм детектування (Robust PCA):</strong>
+        <ol style="padding-left: 20px; margin: 5px 0;">
+            <li>Розкладаємо зображення: $A = L + S$ (Low-rank + Sparse).</li>
+            <li>$L$ (фон) апроксимується першими $k$ компонентами ($A_k$).</li>
+            <li>$S$ (аномалії) отримуємо як різницю: $S = |A - A_k|$.</li>
+        </ol>
+
+        <p><strong>Застосування:</strong> Очищення зображень від шуму, рекомендаційні системи (Netflix Matrix Factorization), Latent Semantic Analysis (NLP).</p>
+    </div>
+</details>
+		
+
+		
+		
+    </div>
+</div>
+
+<script>
+    // === MATH ENGINE ===
+    const MathCore = {
+        mean: (pts) => {
+            let n = pts.length, sx = 0, sy = 0;
+            if(n===0) return [0,0];
+            pts.forEach(p => { sx += p[0]; sy += p[1]; });
+            return [sx/n, sy/n];
+        },
+        pca2D: (pts) => {
+            if(pts.length < 2) return null;
+            const mean = MathCore.mean(pts);
+            let n = pts.length, xx=0, xy=0, yy=0;
+            pts.forEach(p => {
+                let dx = p[0]-mean[0], dy = p[1]-mean[1];
+                xx += dx*dx; xy += dx*dy; yy += dy*dy;
+            });
+            let cov = [[xx/(n-1), xy/(n-1)], [xy/(n-1), yy/(n-1)]];
+            let a = cov[0][0], b = cov[0][1], d = cov[1][1];
+            let tr = a+d, det = a*d - b*b;
+            let L1 = (tr + Math.sqrt(tr*tr - 4*det))/2;
+            let L2 = (tr - Math.sqrt(tr*tr - 4*det))/2;
+            let theta = (Math.abs(b) > 1e-9) ? Math.atan2(L1 - a, b) : ((a<d)?Math.PI/2:0);
+            return { mean, L1, L2, angle: theta };
+        },
+        getEllipse: (mean, L1, L2, angle, scale) => {
+            let rx = Math.sqrt(Math.max(0, L1)) * scale;
+            let ry = Math.sqrt(Math.max(0, L2)) * scale;
+            let x=[], y=[];
+            for(let t=0; t<=2*Math.PI; t+=0.15) {
+                let dx = rx*Math.cos(t), dy = ry*Math.sin(t);
+                x.push(mean[0] + dx*Math.cos(angle) - dy*Math.sin(angle));
+                y.push(mean[1] + dx*Math.sin(angle) + dy*Math.cos(angle));
+            }
+            return {x, y};
+        }
+    };
+
+    function switchTab(id) {
+        document.querySelectorAll('.tab-content').forEach(d => d.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelector(`button[onclick="switchTab('${id}')"]`).classList.add('active');
+        
+        setTimeout(() => {
+            if(id === 'tab1') Tab1.update();
+            if(id === 'tab2') { Plotly.relayout('plot2-signal', {autosize: true}); Plotly.relayout('plot2-features', {autosize: true}); }
+            if(id === 'tab3') Tab3.recalc();
+        }, 100);
+    }
+
+    // === TAB 1: GEOMETRY ===
+    const Tab1 = {
+        data: [],
+        generate: () => {
+            Tab1.data = [];
+            const slope = parseFloat(document.getElementById('t1-slope').value);
+            const spread = parseFloat(document.getElementById('t1-spread').value);
+            for(let i=0; i<50; i++) {
+                let x = (Math.random()*16) - 8;
+                let noise = (Math.random()-0.5) * spread * 4.0; 
+                let y = slope * x + noise;
+                Tab1.data.push([x, y]);
+            }
+            Tab1.update();
+        },
+        addAnomaly: () => {
+            let x = (Math.random()*10) - 5;
+            let slope = parseFloat(document.getElementById('t1-slope').value);
+            let y = -slope * x + (Math.random()>0.5 ? 6 : -6);
+            Tab1.data.push([x, y]);
+            Tab1.update();
+        },
+        update: () => {
+            const thresh = parseFloat(document.getElementById('t1-thresh').value);
+            document.getElementById('t1-val').innerText = thresh.toFixed(1);
+            const res = MathCore.pca2D(Tab1.data);
+            if(!res) return;
+            let normX=[], normY=[], anomX=[], anomY=[], shapes=[];
+            Tab1.data.forEach(p => {
+                let dx = p[0]-res.mean[0], dy = p[1]-res.mean[1];
+                let scalar = dx*Math.cos(res.angle) + dy*Math.sin(res.angle);
+                let projX = res.mean[0] + scalar*Math.cos(res.angle);
+                let projY = res.mean[1] + scalar*Math.sin(res.angle);
+                let dist = Math.sqrt(Math.pow(p[0]-projX, 2) + Math.pow(p[1]-projY, 2));
+                let isAnom = dist > thresh;
+                if(isAnom) { anomX.push(p[0]); anomY.push(p[1]); }
+                else { normX.push(p[0]); normY.push(p[1]); }
+                shapes.push({
+                    type: 'line', x0: p[0], y0: p[1], x1: projX, y1: projY,
+                    line: { color: isAnom?'#e74c3c':'#2ecc71', width: isAnom?2:1, dash: isAnom?'solid':'dot' }
+                });
+            });
+            let pcLine = {
+                x: [res.mean[0] - Math.cos(res.angle)*10, res.mean[0] + Math.cos(res.angle)*10],
+                y: [res.mean[1] - Math.sin(res.angle)*10, res.mean[1] + Math.sin(res.angle)*10],
+                mode: 'lines', name: 'PC1 (Trend)', line: {color:'#27ae60', width: 3}
+            };
+            Plotly.newPlot('plot1', [
+                {x: normX, y: normY, mode:'markers', name:'Normal Data', marker:{color:'#3498db', size:9}},
+                {x: anomX, y: anomY, mode:'markers', name:'Detected Anomaly', marker:{color:'#e74c3c', size:13, symbol:'x'}},
+                pcLine
+            ], { 
+                title: 'Проекція на підпростір (PCA)', shapes: shapes, margin:{t:40,b:40,l:40,r:20},
+                xaxis: {range:[-12,12], title: 'Variable X', showgrid: true}, 
+                yaxis: {range:[-12,12], title: 'Variable Y', scaleanchor: "x", scaleratio: 1, showgrid: true} 
+            });
+        }
+    };
+
+    // === TAB 2: LIVE ECG ===
+    const Tab2 = {
+        isRunning: false,
+        dataQ: [],
+        beats: [],
+        time: 0,
+        activeAnomaly: null,
+        currentBeatIsAnomaly: false,
+        phase: 0,
+        cycleLen: 80,
+        currentBeatRand: 0, 
+        init: () => {
+            Tab2.currentBeatRand = Math.random();
+            for(let i=0; i<300; i++) Tab2.step();
+            Tab2.draw();
+        },
+        reset: () => {
+            Tab2.isRunning = false;
+            document.getElementById('btn-ecg-start').innerText = "▶ Старт";
+            Tab2.dataQ = [];
+            Tab2.beats = [];
+            Tab2.time = 0;
+            Tab2.phase = 0;
+            Tab2.activeAnomaly = null;
+            Tab2.init();
+        },
+        toggle: () => {
+            Tab2.isRunning = !Tab2.isRunning;
+            document.getElementById('btn-ecg-start').innerText = Tab2.isRunning ? "⏸ Пауза" : "▶ Старт";
+            if(Tab2.isRunning) Tab2.loop();
+        },
+        injectPathology: () => {
+            Tab2.activeAnomaly = document.getElementById('t2-pathology-type').value;
+        },
+        step: () => {
+            Tab2.time++;
+            Tab2.phase++;
+            if(Tab2.phase === 1) {
+                Tab2.currentBeatIsAnomaly = (Tab2.activeAnomaly !== null);
+                Tab2.currentBeatRand = (Math.random() - 0.5); 
+            }
+            let y = 0;
+            let t = Tab2.phase;
+            let rand = Tab2.currentBeatRand; 
+            y += (Math.random()-0.5) * 0.05;
+            let ampMod = 1.0 + rand * 0.3; 
+            
+            if(Tab2.activeAnomaly === 'noise') {
+                if(t > 30 && t < 50) y += (Math.random()-0.5) * 3.0; 
+                else y += (Math.random()-0.5) * 0.2;
+            } else if (Tab2.activeAnomaly === 'pvc') {
+                if (t > 20 && t < 60) {
+                     y += 2.0 * Math.exp(-Math.pow(t-40, 2)/50); 
+                     y -= 0.5 * Math.exp(-Math.pow(t-60, 2)/30);
+                }
+            } else {
+                if(t > 10 && t < 25) y += 0.15 * Math.exp(-Math.pow(t-18, 2)/10);
+                if(t > 30 && t < 40) {
+                     y -= 0.1 * ampMod * Math.exp(-Math.pow(t-32, 2)/2);
+                     y += 1.5 * ampMod * Math.exp(-Math.pow(t-35, 2)/2);
+                     y -= 0.2 * ampMod * Math.exp(-Math.pow(t-38, 2)/2);
+                }
+                if(Tab2.activeAnomaly === 'stElev' && t >= 37 && t < 60) y += 0.5; 
+                let tAmp = 0.25 * ampMod; 
+                if(t > 50 && t < 75) {
+                    if(Tab2.activeAnomaly === 'invertedT') y -= 0.4 * Math.exp(-Math.pow(t-60, 2)/40);
+                    else y += tAmp * Math.exp(-Math.pow(t-60, 2)/40);
+                }
+            }
+            Tab2.dataQ.push({x: Tab2.time, y: y});
+            if(Tab2.dataQ.length > 300) Tab2.dataQ.shift();
+            if(Tab2.phase >= Tab2.cycleLen) {
+                Tab2.processLastBeat();
+                Tab2.phase = 0;
+                Tab2.activeAnomaly = null; 
+            }
+        },
+        processLastBeat: () => {
+            let rawBeat = Tab2.dataQ.slice(Tab2.dataQ.length - Tab2.cycleLen).map(p => p.y);
+            if(rawBeat.length < Tab2.cycleLen) return;
+            let rPeak = Math.max(...rawBeat);
+            let tStart = Math.floor(Tab2.cycleLen * 0.6);
+            let tSum = rawBeat.slice(tStart).reduce((a,b)=>a+b,0);
+            let widthBase = 10 - (Tab2.currentBeatRand * 2); 
+            let width = widthBase + (Math.random()-0.5);
+            if(Tab2.currentBeatIsAnomaly && document.getElementById('t2-pathology-type').value === 'pvc') {
+                width = 25; 
+            }
+            let mode = document.getElementById('t2-features-select').value;
+            let features = (mode === 'rt') ? [rPeak, tSum] : [rPeak, width];
+            Tab2.beats.push({ features: features, time: Tab2.time, isAnomaly: Tab2.currentBeatIsAnomaly });
+            if(Tab2.beats.length > 50) Tab2.beats.shift();
+        },
+        loop: () => {
+            if(!Tab2.isRunning) return;
+            const speed = parseInt(document.getElementById('t2-speed').value);
+            for(let i=0; i<speed; i++) Tab2.step(); 
+            Tab2.draw();
+            requestAnimationFrame(Tab2.loop);
+        },
+        draw: () => {
+            let xData = Tab2.dataQ.map(p => p.x);
+            let yData = Tab2.dataQ.map(p => p.y);
+            let thresh = parseFloat(document.getElementById('t2-thresh').value);
+            let mode = document.getElementById('t2-features-select').value;
+            let normalBeats = Tab2.beats.filter(b => !b.isAnomaly);
+            let trainingSet = normalBeats.length > 2 ? normalBeats : Tab2.beats; 
+            let pca = MathCore.pca2D(trainingSet.map(b => b.features));
+            let shapes = [];
+            if(pca) {
+                Tab2.beats.forEach(b => {
+                     if(b.time > xData[0] && b.time < xData[xData.length-1] + 100) {
+                         let dx = b.features[0]-pca.mean[0], dy = b.features[1]-pca.mean[1];
+                         let tx = dx*Math.cos(pca.angle) + dy*Math.sin(pca.angle);
+                         let ty = -dx*Math.sin(pca.angle) + dy*Math.cos(pca.angle);
+                         let L1 = Math.abs(pca.L1) < 0.001 ? 0.001 : Math.abs(pca.L1);
+                         let L2 = Math.abs(pca.L2) < 0.001 ? 0.001 : Math.abs(pca.L2);
+                         let distSq = (tx*tx)/L1 + (ty*ty)/L2;
+                         if(distSq > thresh) {
+                             shapes.push({
+                                 type: 'rect', x0: b.time - Tab2.cycleLen, x1: b.time, 
+                                 y0: -2, y1: 3, fillcolor: 'rgba(231, 76, 60, 0.3)', line: {width:0}
+                             });
+                         }
+                     }
+                });
+            }
+            Plotly.react('plot2-signal', [{
+                x: xData, y: yData, mode: 'lines', line: {color: '#2c3e50', width: 2}
+            }], {
+                title: 'Live ECG Signal', margin: {t:30,b:20,l:30,r:10},
+                xaxis: { showticklabels: false }, yaxis: { range: [-1.5, 3.0] },
+                shapes: shapes
+            });
+            if(!pca) return;
+            let normX=[], normY=[], anomX=[], anomY=[];
+            let ellipse = MathCore.getEllipse(pca.mean, pca.L1, pca.L2, pca.angle, Math.sqrt(thresh));
+            Tab2.beats.forEach(b => {
+                 let dx = b.features[0]-pca.mean[0], dy = b.features[1]-pca.mean[1];
+                 let tx = dx*Math.cos(pca.angle) + dy*Math.sin(pca.angle);
+                 let ty = -dx*Math.sin(pca.angle) + dy*Math.cos(pca.angle);
+                 let L1 = Math.abs(pca.L1) < 0.001 ? 0.001 : Math.abs(pca.L1);
+                 let L2 = Math.abs(pca.L2) < 0.001 ? 0.001 : Math.abs(pca.L2);
+                 let distSq = (tx*tx)/L1 + (ty*ty)/L2;
+                 if(distSq > thresh) { anomX.push(b.features[0]); anomY.push(b.features[1]); }
+                 else { normX.push(b.features[0]); normY.push(b.features[1]); }
+            });
+            let xTitle = mode === 'rt' ? 'R-Peak Amplitude' : 'QRS Amplitude';
+            let yTitle = mode === 'rt' ? 'T-Wave Energy' : 'QRS Width (ms)';
+            Plotly.react('plot2-features', [
+                {x: normX, y: normY, mode:'markers', name:'Normal', marker:{color:'#3498db', size:6}},
+                {x: anomX, y: anomY, mode:'markers', name:'Pathology', marker:{color:'red', size:10, symbol:'x'}},
+                {x: ellipse.x, y: ellipse.y, mode:'lines', name:'Boundary', line:{color:'#f39c12', dash:'dot'}}
+            ], {
+                title: 'Feature Space', margin: {t:30,b:40,l:50,r:10}, 
+                showlegend: false, xaxis: {title: xTitle}, yaxis: {title: yTitle}
+            });
+        }
+    };
+
+    // === TAB 3: IMAGE DEFECTS (PERSISTENT STATE) ===
+    const Tab3 = {
+        size: 30,
+        original: [],
+        recon: [],
+        diff: [],
+        
+        // Persist anomaly state independently
+        state: { defectType: 0, defX: 15, defY: 15 },
+
+        generateNewDefect: () => {
+            // Randomize state only when this is called
+            Tab3.state.defectType = Math.floor(Math.random() * 3);
+            Tab3.state.defX = 5 + Math.floor(Math.random() * 20);
+            Tab3.state.defY = 5 + Math.floor(Math.random() * 20);
+            Tab3.recalc();
+        },
+
+        recalc: () => {
+            const k = parseInt(document.getElementById('t3-components').value);
+            const noiseLvl = parseFloat(document.getElementById('t3-noise').value);
+            const type = document.getElementById('t3-texture-type').value;
+            document.getElementById('t3-kval').innerText = k;
+
+            // 1. GENERATE TEXTURE using saved state for defect
+            Tab3.original = [];
+            for(let i=0; i<Tab3.size; i++) {
+                let row = [];
+                for(let j=0; j<Tab3.size; j++) {
+                    let bg = 0;
+                    // --- Textures with different Rank complexities ---
+                    if(type === 'waves') {
+                        // Rank ~1
+                        bg = (i+j)/Tab3.size + Math.sin(i/4)*0.5;
+                    } else if (type === 'grid') {
+                        // Rank ~2 (sin(i) + sin(j))
+                        bg = Math.sin(i/2) + Math.sin(j/2);
+                    } else if (type === 'stripes') {
+                        // Rank > 2 (Mixed Diagonal Frequencies)
+                        bg = Math.sin((i+j)/3) + Math.sin((i-j)/5)*0.5;
+                    } else if (type === 'wood') {
+                        bg = (i+j)/20 + Math.random()*0.2;
+                    }
+
+                    // --- Apply Saved Defect ---
+                    let isDefect = false;
+                    let { defectType, defX, defY } = Tab3.state;
+                    
+                    if(defectType === 0) { // Spot
+                         isDefect = (Math.pow(i-defX,2) + Math.pow(j-defY,2) < 9);
+                    } else if (defectType === 1) { // Horizontal/Vertical Line
+                         isDefect = (Math.abs(i-defX) < 1 && Math.abs(j-defY) < 6);
+                    } else { // Block/Cluster
+                         isDefect = (Math.abs(i-defX) < 3 && Math.abs(j-defY) < 3);
+                    }
+
+                    let defectVal = isDefect ? 2.5 : 0; 
+                    let noise = (Math.random()-0.5) * noiseLvl * 10; 
+                    row.push(bg + defectVal + noise);
+                }
+                Tab3.original.push(row);
+            }
+
+            // 2. PCA Logic
+            let data = Tab3.original;
+            let meanVec = new Array(Tab3.size).fill(0);
+            for(let j=0; j<Tab3.size; j++) {
+                let s=0; for(let i=0; i<Tab3.size; i++) s+=data[i][j];
+                meanVec[j] = s/Tab3.size;
+            }
+            let centered = data.map(row => row.map((v,j) => v - meanVec[j]));
+
+            let cov = Array(Tab3.size).fill(0).map(()=>Array(Tab3.size).fill(0));
+            for(let i=0; i<Tab3.size; i++) {
+                for(let j=i; j<Tab3.size; j++) {
+                    let s=0; for(let r=0; r<Tab3.size; r++) s+=centered[r][i]*centered[r][j];
+                    cov[i][j] = cov[j][i] = s/(Tab3.size-1);
+                }
+            }
+
+            let vectors = [];
+            let vals = [];
+            let currCov = JSON.parse(JSON.stringify(cov));
+
+            for(let comp=0; comp<k; comp++) {
+                let v = Array(Tab3.size).fill(0).map(()=>Math.random());
+                for(let iter=0; iter<30; iter++) {
+                    let nv = Array(Tab3.size).fill(0);
+                    for(let r=0; r<Tab3.size; r++) 
+                        for(let c=0; c<Tab3.size; c++) nv[r]+=currCov[r][c]*v[c];
+                    let mag = Math.sqrt(nv.reduce((a,b)=>a+b*b,0));
+                    if(mag < 1e-9) break;
+                    v = nv.map(x=>x/mag);
+                }
+                let lambda = 0;
+                for(let r=0; r<Tab3.size; r++) {
+                    let rs=0; for(let c=0; c<Tab3.size; c++) rs+=currCov[r][c]*v[c];
+                    lambda += v[r]*rs;
+                }
+                vectors.push(v);
+                vals.push(lambda);
+                for(let r=0; r<Tab3.size; r++)
+                    for(let c=0; c<Tab3.size; c++) currCov[r][c] -= lambda*v[r]*v[c];
+            }
+
+            // 3. RECONSTRUCT
+            Tab3.recon = [];
+            Tab3.diff = [];
+            for(let i=0; i<Tab3.size; i++) {
+                let row = centered[i];
+                let recRow = new Array(Tab3.size).fill(0);
+                for(let vk=0; vk<k; vk++) {
+                    let vec = vectors[vk];
+                    let dot = row.reduce((s,x,idx)=>s+x*vec[idx],0);
+                    for(let j=0; j<Tab3.size; j++) recRow[j] += dot*vec[j];
+                }
+                let finalRec = recRow.map((x,j) => x + meanVec[j]);
+                Tab3.recon.push(finalRec);
+                let diffRow = [];
+                for(let j=0; j<Tab3.size; j++) diffRow.push(Math.abs(data[i][j] - finalRec[j]));
+                Tab3.diff.push(diffRow);
+            }
+            Tab3.eigenvalues = vals;
+            Tab3.updateViz();
+        },
+
+        updateViz: () => {
+            const thresh = parseFloat(document.getElementById('t3-thresh').value);
+            let displayDiff = Tab3.diff.map(row => row.map(v => v > thresh ? v : 0));
+
+            const layout = { margin: {t:25,b:0,l:0,r:0}, xaxis:{visible:false}, yaxis:{visible:false, scaleanchor:"x"} };
+            
+            Plotly.newPlot('plot3-orig', [{z: Tab3.original, type: 'heatmap', colorscale: 'Viridis', showscale:false}], { ...layout, title: {text:'1. Input', font:{size:12}, y:0.95}});
+            
+            Plotly.newPlot('plot3-recon', [{z: Tab3.recon, type: 'heatmap', colorscale: 'Viridis', showscale:false}], { ...layout, title: {text:'2. Background Model', font:{size:12}, y:0.95}});
+            
+            Plotly.newPlot('plot3-diff', [{z: displayDiff, type: 'heatmap', colorscale: 'Jet', showscale:false, zmin:0, zmax:3}], { ...layout, title: {text:'3. Defect Map', font:{size:12}, y:0.95}});
+            
+            Plotly.newPlot('plot3-scree', [{
+                x: Tab3.eigenvalues.map((_,i)=>'PC'+(i+1)), y: Tab3.eigenvalues, type:'bar', marker:{color:'#3498db'}
+            }], { margin:{t:25,b:20,l:25,r:10}, xaxis:{title:''}, title: {text:'4. Variance', font:{size:12}, y:0.95} });
+        }
+    };
+
+    window.onload = () => {
+        Tab1.generate();
+        Tab2.init();
+        Tab3.generateNewDefect(); // Init first defect
+    };
+</script>
+</body>
+</html>
