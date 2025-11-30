@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDBSCAN 3D Master Class</title>
+    
+    <script>
+    MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
+        
+        /* --- ПАНЕЛІ --- */
+        .panel {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Права панель - Параметри */
+        #right-panel {
+            top: 10px;
+            right: 10px;
+            width: 270px;
+        }
+
+        /* Ліва панель - Навчання */
+        #left-panel {
+            top: 10px;
+            left: 10px;
+            width: 300px; /* Трохи ширше для тексту */
+            border-left: 5px solid #3498db;
+        }
+
+        h2 { margin-top: 0; font-size: 1.1rem; color: #2c3e50; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        h3 { margin: 10px 0 5px; font-size: 1rem; color: #34495e; }
+        p { font-size: 0.9rem; color: #555; line-height: 1.4; margin-bottom: 10px; }
+        ul { padding-left: 20px; margin: 5px 0; font-size: 0.85rem; color: #555; }
+        li { margin-bottom: 4px; }
+
+        /* Елементи керування */
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.85rem; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        select, button { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; margin-top: 5px;}
+        
+        button.primary { background: #3498db; color: white; border: none; font-weight: bold; transition: 0.2s; }
+        button.primary:hover { background: #2980b9; }
+        
+        button.theory-btn { background: #8e44ad; color: white; border: none; margin-top: 15px; }
+        button.theory-btn:hover { background: #732d91; }
+
+        .step-controls { display: flex; gap: 5px; margin-top: 15px; }
+        .step-btn { flex: 1; padding: 10px; background: #eee; border: none; font-weight: bold; }
+        .step-btn:hover { background: #ddd; }
+        .step-btn.active { background: #27ae60; color: white; }
+
+        /* Спойлери (Details) */
+        details.theory-spoiler {
+            background: #f1f8ff;
+            border: 1px solid #cceeff;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        details.theory-spoiler summary {
+            cursor: pointer;
+            color: #2980b9;
+            font-weight: bold;
+            outline: none;
+        }
+        details.theory-spoiler p { margin-bottom: 5px; margin-top: 5px; color: #333; }
+        details.theory-spoiler code { background: #fff; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+
+        /* Статистика */
+        .stat-box { background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #eee; margin-top: 10px; font-size: 0.85rem; }
+        .stat-row { display: flex; justify-content: space-between; }
+        .noise-badge { color: #e74c3c; font-weight: bold; }
+
+        /* --- МОДАЛЬНЕ ВІКНО --- */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        #modal-content {
+            background: white;
+            width: 70%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 30px;
+            border-radius: 10px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 24px; cursor: pointer; color: #888;
+        }
+        .close-btn:hover { color: #333; }
+        .theory-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .theory-section:last-child { border: none; }
+        
+        /* Tooltip */
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            pointer-events: none;
+            display: none;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="tooltip"></div>
+
+    <div id="modal-overlay" onclick="closeModal(event)">
+        <div id="modal-content">
+            <span class="close-btn" onclick="document.getElementById('modal-overlay').style.display='none'">&times;</span>
+            <h2 style="font-size: 1.8rem; border-color: #8e44ad;">Теоретична довідка: HDBSCAN</h2>
+            
+<div class="theory-section" style="background: #f0f7fb; padding: 15px; border-radius: 8px; border: 1px solid #cceeff; margin-top: 20px;">
+                <h3 style="color: #2c3e50;">Сценарій 1: DevOps / SRE (Моніторинг кластера)</h3>
+                <p><strong>Вхідні дані:</strong> 50+ метрик з кожного сервера (CPU, RAM, Disk I/O, Network, Errors), зтиснуті через PCA до 3-х вимірів.</p>
+                
+                <p><strong>Інтерпретація Осей:</strong></p>
+                <ul style="margin-bottom: 10px;">
+                    <li><strong>PC1 (Вісь X):</strong> Загальне навантаження (CPU + RAM).</li>
+                    <li><strong>PC2 (Вісь Y):</strong> Інтенсивність дискових операцій (Disk I/O).</li>
+                    <li><strong>PC3 (Вісь Z):</strong> Стабільність (Error Rate + Latency).</li>
+                </ul>
+
+                <p><strong>Що ми шукаємо у симуляторі?</strong></p>
+                <ul style="list-style-type: none; padding-left: 5px;">
+                    <li>🟢 <strong>1. Великий щільний кластер:</strong> 95% серверів, що працюють у штатному режимі (середнє навантаження, мінімум помилок).</li>
+                    <li>🔵 <strong>2. Менший щільний кластер:</strong> Сервери, що виконують плановий бекап або важкі фонові задачі (мають високий PC2/Вісь Y через активний диск). Це норма, не аномалія.</li>
+                    <li>⚫ <strong>3. Шум (Noise / Відірвані точки):</strong> Це найважливіше! Одинокі чорні точки. 
+                        <br><em>Приклади:</em> "Завислий" процес (високий X, нульовий Y) або початок DDoS-атаки (аномальний Z). HDBSCAN автоматично фарбує їх у "шум", вказуючи адміну на проблему.</li>
+                </ul>
+            </div>
+
+            <div class="theory-section" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid #fae5cd; margin-top: 15px;">
+                <h3 style="color: #d35400;">🛒 Сценарій 2: E-commerce (Сегментація покупців)</h3>
+                <p><strong>Вхідні дані:</strong> Історія покупок, час на сайті, кліки, середній чек, повернення товарів.</p>
+
+                <p><strong>Інтерпретація Осей:</strong></p>
+                <ul style="margin-bottom: 10px;">
+                    <li><strong>PC1 (Вісь X):</strong> "Платоспроможність" (Ціна товарів, VIP статус).</li>
+                    <li><strong>PC2 (Вісь Y):</strong> "Залученість" (Час на сайті, глибина перегляду).</li>
+                    <li><strong>PC3 (Вісь Z):</strong> "Імпульсивність" (Швидкість прийняття рішення).</li>
+                </ul>
+
+                <p><strong>Типові кластери (Групи):</strong></p>
+                <ul style="list-style-type: none; padding-left: 5px;">
+                    <li>🐢 <strong>"Loiterers" (Зеваки):</strong> Високий Y (довго дивляться), низький X (мало купують).</li>
+                    <li>🐋 <strong>"Whales" (Кити):</strong> Високий X (великий чек), високий Z (швидкі покупки).</li>
+                    <li>🦊 <strong>"Bargain Hunters":</strong> Окрема група, що активується тільки під час розпродажів.</li>
+                </ul>
+
+                <p><strong>Навіщо тут "Розрізання дерева" (Slider)?</strong></p>
+                <p>Рухаючи слайдер порогу ($\epsilon$) вліво, ви бачите, як великий кластер "Завсідники розпродажів" розпадається на підгрупи (наприклад, "Любителі гаджетів" відокремлюються від "Модників"). Це допомагає маркетологам вирішити: робити одну загальну розсилку чи дві різні.</p>
+            </div>
+            
+            
+            <div class="theory-section">
+                <h3>🔍 Контекст Big Data</h3>
+                <p>Класичні алгоритми, як K-means, погано працюють з великими даними, які мають:</p>
+                <ul>
+                    <li>Шум та викиди (Outliers).</li>
+                    <li>Кластери довільної геометричної форми (не тільки сфери).</li>
+                    <li>Різну щільність даних.</li>
+                </ul>
+                <p><strong>HDBSCAN</strong> (Hierarchical Density-Based Spatial Clustering of Applications with Noise) вирішує ці проблеми, поєднуючи ідеї DBSCAN та ієрархічної кластеризації.</p>
+            </div>
+
+            <div class="theory-section">
+                <h3>📏 Крок 1: Core Distance ($d_{core}$)</h3>
+                <p>Для кожної точки $x$ знаходимо відстань до її $k$-го найближчого сусіда (де $k = m_{pts}$).</p>
+                <p>$$ d_{core}(x) = dist(x, k\text{-th neighbor}) $$</p>
+                <p>Це міра "розрідженості". У щільних регіонах $d_{core}$ мала, у розріджених (шум) — велика.</p>
+            </div>
+
+            <div class="theory-section">
+                <h3>🤝 Крок 2: Mutual Reachability Distance ($d_{mreach}$)</h3>
+                <p>Щоб "відсунути" шумові точки далі від кластерів, ми вводимо нову метрику:</p>
+                <p>$$ d_{mreach}(a, b) = \max \{ d_{core}(a), d_{core}(b), d(a, b) \} $$</p>
+                <p>Якщо хоча б одна з точок має велику $d_{core}$ (є шумом), відстань між ними стає великою. Це стабілізує кластеризацію.</p>
+            </div>
+
+            <div class="theory-section">
+                <h3>🌳 Крок 3: Побудова MST (Мінімальне Остовне Дерево)</h3>
+                <p>Ми будуємо граф, де вершини — це точки, а вага ребер — $d_{mreach}$. Алгоритм (такий як Пріма або Крускала) знаходить дерево, що з'єднує всі точки з мінімальною сумарною вагою.</p>
+                <p>Це дерево представляє ієрархію кластерів.</p>
+            </div>
+
+            <div class="theory-section">
+                <h3>✂️ Крок 4: Розрізання дерева (Extract Clusters)</h3>
+                <p>Ми встановлюємо поріг $\epsilon$. Видаляємо всі ребра, вага яких $> \epsilon$.</p>
+                <ul>
+                    <li>Компоненти зв'язності перетворюються на кластери.</li>
+                    <li>Якщо розмір компоненти менший за $m_{pts}$, ці точки вважаються <strong>шумом</strong> (Noise).</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="left-panel" class="panel">
+        <h2>🎓 Кроки алгоритму</h2>
+        
+        <div id="step-desc-0" class="step-content">
+            <h3>0. Генерація даних</h3>
+            <p>Згенеровано набір точок. Деякі утворюють щільні групи, інші розкидані хаотично (шум).</p>
+            <p>Натисніть <strong>"Далі"</strong>, щоб почати аналіз.</p>
+        </div>
+        
+        <div id="step-desc-1" class="step-content" style="display:none">
+            <h3>1. Core Distance</h3>
+            <p>Для кожної точки рахуємо радіус, що охоплює $m_{pts}$ сусідів.</p>
+            <p><em>Візуалізація:</em> Жовті сфери показують $d_{core}$. Великі сфери = низька щільність = ймовірний шум.</p>
+        </div>
+        
+        <div id="step-desc-2" class="step-content" style="display:none">
+            <h3>2. Mutual Reachability</h3>
+            <p>Перераховуємо відстані між усіма парами точок за формулою:</p>
+            <p style="background:#fff; padding:5px; border-radius:4px; border:1px solid #eee;">$d_{mr}(a,b) = \max(d_{core}(a), d_{core}(b), d(a,b))$</p>
+            <p>Це "роздуває" простір у розріджених зонах.</p>
+            
+            <details class="theory-spoiler">
+                <summary>📐 Детальніше про Метрики</summary>
+                <p><strong>1. Евклідова ($L_2$):</strong> $$d(x,y) = \sqrt{\sum(x_i-y_i)^2}$$</p>
+                <p><em>Use-case:</em> Фізичні об'єкти, координати на площині.</p>
+                <hr style="border-top:1px dashed #ccc; margin:5px 0;">
+                <p><strong>2. Косинусна:</strong> $$d_{cos} = 1 - \frac{x \cdot y}{\|x\|\|y\|}$$</p>
+                <p><em>Use-case:</em> Текстовий аналіз (NLP), де важливий напрямок (тема), а не довжина документа.</p>
+                <hr style="border-top:1px dashed #ccc; margin:5px 0;">
+                <p><strong>Нюанс Нормалізації:</strong></p>
+                <p>Якщо ми нормалізуємо вектори (всі точки лежать на сфері одиничного радіусу, $\|x\|=1$), то існує чіткий зв'язок:</p>
+                <p>$$d_{eucl}^2 = 2(1 - \cos \theta)$$</p>
+                <p>Тобто <strong>Евклідова відстань на нормалізованих даних майже еквівалентна Косинусній</strong> (зберігає той самий порядок сусідів).</p>
+            </details>
+        </div>
+        
+        <div id="step-desc-3" class="step-content" style="display:none">
+            <h3>3. Побудова MST</h3>
+            <p>Будуємо Мінімальне Остовне Дерево (MST), з'єднуючи точки найкоротшими "м'ючуал" ребрами.</p>
+            <p><em>Візуалізація:</em> Сірі лінії показують скелет даних.</p>
+
+            <details class="theory-spoiler">
+                <summary>🚀 Big Data: Як це реально працює?</summary>
+                <p>У цьому симуляторі ми рахуємо MST на повному графі ($O(N^2)$). Для 1 млн точок це зайняло б терабайти пам'яті!</p>
+                <p><strong>Як це роблять у production (бібліотека hdbscan):</strong></p>
+                <ol>
+                    <li>Не будують повний граф. Знаходять тільки $k$ найближчих сусідів (<strong>k-NN graph</strong>).</li>
+                    <li>Для пошуку сусідів використовують швидкі структури: <strong>KD-Tree</strong> (мала розмірність) або <strong>Ball Tree</strong> / <strong>PyNNDescent</strong> (велика розмірність, наближений пошук).</li>
+                    <li>MST будують не алгоритмом Пріма чи Крускала, а алгоритмом <strong>Boruvka</strong> або спеціальними Dual-Tree алгоритмами.</li>
+                </ol>
+                <p>Це знижує складність до $O(N \log N)$.</p>
+            </details>
+        </div>
+        
+        <div id="step-desc-4" class="step-content" style="display:none">
+            <h3>4. Кластеризація (Cut)</h3>
+            <p>Керуйте <strong>Слайдером Поріг</strong> справа!</p>
+            <p>Ми видаляємо ребра, довші за поріг. Дерево розпадається.</p>
+            <ul>
+                <li><span style="color:red">●</span> Шум (чорні/дрібні): Групи < $m_{pts}$</li>
+                <li><span style="color:green">●</span> Кластери: Різнокольорові групи</li>
+            </ul>
+        </div>
+
+        <div class="step-controls">
+            <button class="step-btn" onclick="sim.prevStep()">⬅ Назад</button>
+            <button class="step-btn primary" onclick="sim.nextStep()">Далі ➡</button>
+        </div>
+        <p style="text-align:center; margin-top:5px; color:#888;">Крок: <span id="step-indicator">0</span> / 4</p>
+    </div>
+
+    <div id="right-panel" class="panel">
+        <h3>Налаштування</h3>
+
+        <div class="control-group">
+            <button class="primary" onclick="sim.generateData()">🔄 Нові дані</button>
+            <button class="theory-btn" onclick="document.getElementById('modal-overlay').style.display='flex'">📚 ? Теорія</button>
+        </div>
+
+        <div class="control-group">
+            <label>Ступінь скупченості (Spread):</label>
+            <input type="range" id="spreadRange" min="0.5" max="3.0" step="0.1" value="1.5" oninput="sim.generateData()">
+        </div>
+
+        <div class="control-group">
+            <label>Метрика відстані:</label>
+            <select id="metricSelect" onchange="sim.fullRecalculate()">
+                <option value="euclidean">Евклідова (L2)</option>
+                <option value="cosine">Косинусна</option>
+            </select>
+            <div style="margin-top:5px">
+                <input type="checkbox" id="normalizeCheck" onchange="sim.fullRecalculate()"> Нормалізація
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="control-group">
+            <label>Min Points ($m_{pts}$): <span id="mptsVal">4</span></label>
+            <input type="range" id="mptsRange" min="2" max="15" value="4" step="1" oninput="sim.fullRecalculate()">
+        </div>
+
+        <div class="control-group" id="cut-control" style="opacity: 0.5; pointer-events: none;">
+            <label>Поріг розрізання ($ \epsilon $): <span id="cutVal">Max</span></label>
+            <input type="range" id="cutRange" min="0" max="100" value="100" step="0.01" oninput="sim.cutTree()">
+        </div>
+
+        <div class="stat-box">
+            <div class="stat-row"><span>Кластерів:</span> <strong id="clusterCount">0</strong></div>
+            <div class="stat-row"><span>Шум:</span> <strong id="noiseCount" class="noise-badge">0</strong></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let pointsMesh, linesMesh, coreSpheresMesh;
+        let raycaster, mouse;
+
+        const DATA_COUNT = 200;
+        
+        // Палітра: 0 - Шум (чорний/темно-сірий), 1..N - Кластери
+        const NOISE_COLOR = new THREE.Color(0x2c3e50); 
+        const NOISE_COLOR_HEX = 0x2c3e50;
+        const PALETTE = [
+            0xff0000, 0x00ff00, 0x0000ff, 0xddaa00, 0x11ffff, 
+            0xee00dd, 0x1abc9c, 0xd35400, 0x27ae60, 0x2980b9, 0x8e44ad
+        ];
+
+        class HDBSCANSim {
+            constructor() {
+                this.step = 0; // 0..4
+                this.rawData = [];
+                this.processedData = [];
+                this.distMatrix = [];
+                this.coreDists = [];
+                this.mstEdges = [];
+                this.mpts = 4;
+                this.maxEdgeWeight = 10;
+            }
+
+            init() {
+                this.setupScene();
+                this.generateData();
+                window.addEventListener('resize', this.onResize.bind(this));
+                window.addEventListener('mousemove', this.onMouseMove.bind(this));
+                this.animate();
+            }
+
+            setupScene() {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf4f4f9);
+                scene.fog = new THREE.Fog(0xf4f4f9, 20, 150);
+
+                camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(25, 20, 25);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+
+                // Light
+                const amb = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(amb);
+                const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+                dir.position.set(10, 30, 10);
+                scene.add(dir);
+
+                // Grid
+                const grid = new THREE.GridHelper(40, 40, 0xdddddd, 0xeaeaea);
+                scene.add(grid);
+
+                raycaster = new THREE.Raycaster();
+                mouse = new THREE.Vector2();
+            }
+
+            generateData() {
+                this.rawData = [];
+                const spread = parseFloat(document.getElementById('spreadRange').value);
+                
+                // Centers
+                const centers = [
+                    {x: 8, y: 5, z: 0}, {x: -8, y: -5, z: -2}, 
+                    {x: 0, y: -8, z: 5}, {x: -5, y: 8, z: -5}, {x: 0, y: 0, z: 0}
+                ];
+                
+                centers.forEach((c, idx) => {
+                    const count = 30 + Math.floor(Math.random() * 20);
+                    // Центр 4 (0,0,0) робимо розрідженим "містком"
+                    const localSpread = (idx === 4) ? spread * 2.5 : spread; 
+
+                    for(let i=0; i<count; i++) {
+                        this.rawData.push({
+                            x: c.x + (Math.random()-0.5)*localSpread*3,
+                            y: c.y + (Math.random()-0.5)*localSpread*3,
+                            z: c.z + (Math.random()-0.5)*localSpread*3,
+                            id: this.rawData.length
+                        });
+                    }
+                });
+
+                // Noise
+                for(let i=0; i<40; i++) {
+                    this.rawData.push({
+                        x: (Math.random()-0.5)*35,
+                        y: (Math.random()-0.5)*35,
+                        z: (Math.random()-0.5)*35,
+                        id: this.rawData.length
+                    });
+                }
+
+                this.fullRecalculate();
+            }
+
+            fullRecalculate() {
+                // UI Params
+                this.mpts = parseInt(document.getElementById('mptsRange').value);
+                document.getElementById('mptsVal').innerText = this.mpts;
+                const metric = document.getElementById('metricSelect').value;
+                const normalize = document.getElementById('normalizeCheck').checked;
+
+                // 1. Process Data
+                this.processedData = this.rawData.map(p => {
+                    let v = new THREE.Vector3(p.x, p.y, p.z);
+                    if(normalize) v.normalize().multiplyScalar(10);
+                    return { vec: v, id: p.id };
+                });
+
+                // 2. Dist Matrix
+                const n = this.processedData.length;
+                this.distMatrix = Array(n).fill().map(() => Array(n).fill(0));
+                
+                for(let i=0; i<n; i++){
+                    for(let j=i+1; j<n; j++){
+                        let d;
+                        if(metric === 'euclidean') d = this.processedData[i].vec.distanceTo(this.processedData[j].vec);
+                        else {
+                            const v1 = this.processedData[i].vec;
+                            const v2 = this.processedData[j].vec;
+                            // Safe cosine dist
+                            d = 1.0 - (v1.dot(v2) / (v1.length()*v2.length() + 1e-9));
+                        }
+                        this.distMatrix[i][j] = d;
+                        this.distMatrix[j][i] = d;
+                    }
+                }
+
+                // 3. Core Dists
+                this.coreDists = new Array(n).fill(0);
+                for(let i=0; i<n; i++){
+                    let row = [...this.distMatrix[i]].sort((a,b)=>a-b);
+                    this.coreDists[i] = row[Math.min(this.mpts-1, n-1)];
+                }
+
+                // 4. MST (Prim's)
+                this.mstEdges = [];
+                let visited = new Array(n).fill(false);
+                let minEdge = new Array(n).fill(Infinity);
+                let parent = new Array(n).fill(-1);
+                minEdge[0] = 0;
+
+                for(let i=0; i<n; i++){
+                    let u = -1;
+                    for(let v=0; v<n; v++){
+                        if(!visited[v] && (u===-1 || minEdge[v] < minEdge[u])) u = v;
+                    }
+                    if(minEdge[u] === Infinity) break;
+                    visited[u] = true;
+                    
+                    if(parent[u] !== -1){
+                        this.mstEdges.push({u: parent[u], v: u, weight: minEdge[u]});
+                    }
+
+                    for(let v=0; v<n; v++){
+                        if(!visited[v]){
+                            let d_orig = this.distMatrix[u][v];
+                            let mr = Math.max(this.coreDists[u], this.coreDists[v], d_orig);
+                            if(mr < minEdge[v]){
+                                minEdge[v] = mr;
+                                parent[v] = u;
+                            }
+                        }
+                    }
+                }
+                
+                this.mstEdges.sort((a,b) => a.weight - b.weight);
+                this.maxEdgeWeight = this.mstEdges.length ? this.mstEdges[this.mstEdges.length-1].weight : 1;
+                
+                // Update Slider
+                const slider = document.getElementById('cutRange');
+                slider.max = this.maxEdgeWeight * 1.01;
+                slider.value = slider.max;
+
+                this.rebuildSceneObjects();
+                this.updateStepUI(); // Refresh visualization based on current step
+            }
+
+            rebuildSceneObjects() {
+                // Points
+                if(pointsMesh) scene.remove(pointsMesh);
+                const geom = new THREE.SphereGeometry(0.3, 16, 16);
+                // 1. Ставимо білий колір (щоб не приглушував інші)
+// 2. Міняємо на PhongMaterial (додає блік і об'єм, робить схожим на пластик)
+const mat = new THREE.MeshPhongMaterial({ 
+    color: 0xffffff, 
+    shininess: 50,
+    specular: 0x111111 
+});
+                pointsMesh = new THREE.InstancedMesh(geom, mat, this.processedData.length);
+                const dummy = new THREE.Object3D();
+                for(let i=0; i<this.processedData.length; i++){
+                    dummy.position.copy(this.processedData[i].vec);
+                    dummy.updateMatrix();
+                    pointsMesh.setMatrixAt(i, dummy.matrix);
+                }
+                pointsMesh.instanceMatrix.needsUpdate = true;
+                scene.add(pointsMesh);
+
+                // Core Spheres (Instanced for performance)
+                if(coreSpheresMesh) scene.remove(coreSpheresMesh);
+                const sGeom = new THREE.SphereGeometry(1, 16, 16);
+                const sMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.15, wireframe: true });
+                coreSpheresMesh = new THREE.InstancedMesh(sGeom, sMat, this.processedData.length);
+                for(let i=0; i<this.processedData.length; i++){
+                    dummy.position.copy(this.processedData[i].vec);
+                    let r = this.coreDists[i];
+                    dummy.scale.set(r, r, r);
+                    dummy.updateMatrix();
+                    coreSpheresMesh.setMatrixAt(i, dummy.matrix);
+                }
+                coreSpheresMesh.visible = false; // Hidden by default
+                scene.add(coreSpheresMesh);
+
+                // Lines
+                if(linesMesh) scene.remove(linesMesh);
+                const lGeom = new THREE.BufferGeometry();
+                // Pre-allocate max size
+                const positions = new Float32Array(this.mstEdges.length * 6);
+                lGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const lMat = new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.4 });
+                linesMesh = new THREE.LineSegments(lGeom, lMat);
+                linesMesh.frustumCulled = false; // Always render
+                linesMesh.visible = false;
+                scene.add(linesMesh);
+            }
+
+            // --- Step & Animation Logic ---
+            nextStep() { if(this.step < 4) { this.step++; this.updateStepUI(); } }
+            prevStep() { if(this.step > 0) { this.step--; this.updateStepUI(); } }
+
+            updateStepUI() {
+                // UI Text
+                document.getElementById('step-indicator').innerText = this.step;
+                for(let i=0; i<=4; i++) {
+                    const el = document.getElementById(`step-desc-${i}`);
+                    if(el) el.style.display = (i === this.step) ? 'block' : 'none';
+                }
+
+                // Scene objects visibility
+                if(coreSpheresMesh) coreSpheresMesh.visible = (this.step === 1 || this.step === 2);
+                if(linesMesh) linesMesh.visible = (this.step >= 3);
+                
+                const cutControl = document.getElementById('cut-control');
+                if(this.step === 4) {
+                    cutControl.style.opacity = '1';
+                    cutControl.style.pointerEvents = 'auto';
+                    this.cutTree(); // Apply coloring
+                } else {
+                    cutControl.style.opacity = '0.5';
+                    cutControl.style.pointerEvents = 'none';
+                    // Reset colors to default grey
+                    for(let i=0; i<this.processedData.length; i++) {
+                        pointsMesh.setColorAt(i, new THREE.Color(0x999999));
+                        // Reset scales (fix noise shrinking)
+                        const dummy = new THREE.Object3D();
+                        dummy.position.copy(this.processedData[i].vec);
+                        dummy.scale.set(1,1,1);
+                        dummy.updateMatrix();
+                        pointsMesh.setMatrixAt(i, dummy.matrix);
+                    }
+                    pointsMesh.instanceColor.needsUpdate = true;
+                    pointsMesh.instanceMatrix.needsUpdate = true;
+
+                    // If step 3, show full tree
+                    if(this.step === 3) this.drawLines(Infinity);
+                }
+            }
+
+            drawLines(threshold) {
+                const positions = linesMesh.geometry.attributes.position.array;
+                let idx = 0;
+                for(let e of this.mstEdges) {
+                    if(e.weight <= threshold) {
+                        const p1 = this.processedData[e.u].vec;
+                        const p2 = this.processedData[e.v].vec;
+                        positions[idx++] = p1.x; positions[idx++] = p1.y; positions[idx++] = p1.z;
+                        positions[idx++] = p2.x; positions[idx++] = p2.y; positions[idx++] = p2.z;
+                    }
+                }
+                // Fill rest with 0 to hide
+                for(let i=idx; i<positions.length; i++) positions[i] = 0;
+                linesMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            cutTree() {
+                if(this.step !== 4) return;
+                const thresh = parseFloat(document.getElementById('cutRange').value);
+                document.getElementById('cutVal').innerText = thresh.toFixed(2);
+
+                this.drawLines(thresh);
+
+                // Union Find
+                const n = this.processedData.length;
+                const parent = Array(n).fill(0).map((_,i)=>i);
+                const find = i => parent[i] === i ? i : parent[i] = find(parent[i]);
+                const union = (i,j) => {
+                    let rootI = find(i), rootJ = find(j);
+                    if(rootI !== rootJ) parent[rootI] = rootJ;
+                };
+
+                for(let e of this.mstEdges) {
+                    if(e.weight <= thresh) union(e.u, e.v);
+                }
+
+                // Groups & Colors
+                const counts = {};
+                for(let i=0; i<n; i++) {
+                    let r = find(i);
+                    counts[r] = (counts[r]||0) + 1;
+                }
+
+                let clusterMap = {};
+                let colorIdx = 0;
+                let clusters = 0, noise = 0;
+
+                const dummy = new THREE.Object3D();
+
+                for(let i=0; i<n; i++) {
+                    let r = find(i);
+                    let size = counts[r];
+                    let col;
+
+                    if(size >= this.mpts) {
+                        // Cluster
+                        if(!(r in clusterMap)) {
+                            clusterMap[r] = PALETTE[colorIdx % PALETTE.length];
+                            colorIdx++;
+                            clusters++;
+                        }
+                        col = new THREE.Color(clusterMap[r]);
+                        
+                        // Normal size
+                        dummy.position.copy(this.processedData[i].vec);
+                        dummy.scale.set(1, 1, 1);
+                        dummy.updateMatrix();
+                        pointsMesh.setMatrixAt(i, dummy.matrix);
+
+                    } else {
+                        // Noise
+                        col = NOISE_COLOR.clone();
+                        noise++;
+
+                        // Make noise points smaller
+                        dummy.position.copy(this.processedData[i].vec);
+                        dummy.scale.set(0.5, 0.5, 0.5); 
+                        dummy.updateMatrix();
+                        pointsMesh.setMatrixAt(i, dummy.matrix);
+                    }
+                    pointsMesh.setColorAt(i, col);
+                }
+
+                pointsMesh.instanceColor.needsUpdate = true;
+                pointsMesh.instanceMatrix.needsUpdate = true;
+
+                // Adjust noise count logic: `clusters` counts unique groups, `noise` counts points
+                // Correct logic: `clusters` is num of groups > mpts.
+                document.getElementById('clusterCount').innerText = Object.keys(clusterMap).length;
+                document.getElementById('noiseCount').innerText = noise;
+            }
+
+            onMouseMove(e) {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                
+                const intersects = raycaster.intersectObject(pointsMesh);
+                const tooltip = document.getElementById('tooltip');
+                
+                if(intersects.length > 0) {
+                    const id = intersects[0].instanceId;
+                    const d = this.coreDists[id].toFixed(3);
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.innerHTML = `ID: ${id}<br>Core Dist: ${d}`;
+                    
+                    // Highlight logic if needed
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            }
+
+            onResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                controls.update();
+                renderer.render(scene, camera);
+            }
+        }
+
+        window.sim = new HDBSCANSim();
+        window.sim.init();
+
+        window.closeModal = function(e) {
+             if(e.target.id === 'modal-overlay') e.target.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
