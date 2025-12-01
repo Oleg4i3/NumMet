@@ -2,893 +2,1000 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Симулятор Глобальної Оптимізації</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Global Optimization Simulator (Ultimate Edition)</title>
     
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-	
-	<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\(', '\\)']] 
-    }
-  };
-</script>
-	
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.150.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.150.0/examples/jsm/"
+        }
+      }
+    </script>
     
-    <script src="p5.min.js"></script>
+    <script>
+      window.MathJax = {
+        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 
     <style>
-        /* === Стилі інтерфейсу === */
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f4f4f9;
-            color: #333;
+        :root { 
+            --bg: #121212; --panel: #1e1e1e; --accent: #2196f3; 
+            --text: #e0e0e0; --danger: #e74c3c; --success: #2ecc71; 
+            --warning: #f1c40f; --info: #9b59b6;
         }
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; margin: 0; 
+            background-color: var(--bg); color: var(--text); 
+            overflow: hidden; display: flex; height: 100vh;
+        }
+
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: 400px; background: var(--panel); 
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.6); z-index: 10;
+            border-right: 1px solid #333;
+        }
+        .scroll-area { flex: 1; overflow-y: auto; padding: 15px; }
+        .fixed-bottom { padding: 15px; background: #181818; border-top: 1px solid #333; }
+
+        h2 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--accent); text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        h3 { margin: 15px 0 5px 0; font-size: 0.95rem; color: #ccc; border-left: 3px solid var(--accent); padding-left: 8px; background: rgba(255,255,255,0.05); }
+
+        .control-group { margin-bottom: 12px; }
+        label { font-size: 0.85rem; display: flex; justify-content: space-between; margin-bottom: 2px; color: #aaa; align-items: center; }
         
-        /* Панель керування */
-        .controls-container {
-            width: 100%;
-            max-width: 1200px;
-            padding: 20px;
-            background-color: #fff;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2px;
-            border-bottom: 1px solid #ddd;
-            z-index: 10;
+        input[type="number"], select { 
+            background: #2c2c2c; border: 1px solid #444; color: white; 
+            border-radius: 4px; padding: 3px 6px; width: 70px; text-align: right;
         }
+        select { width: 100%; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent); cursor: pointer; }
 
-        h2.panel-title {
-            margin-top: 0;
-            margin-bottom: 15px;
-            text-align: center;
-            color: #2c3e50;
-            font-size: 1.5rem;
+        /* Method Tabs */
+        .method-tabs { display: flex; gap: 2px; margin-bottom: 15px; background: #111; padding: 3px; border-radius: 6px; }
+        .tab-btn {
+            flex: 1; padding: 10px; background: transparent; border: none; color: #666;
+            cursor: pointer; font-weight: bold; font-size: 0.8rem; border-radius: 4px;
+            transition: 0.2s;
         }
+        .tab-btn.active { background: var(--accent); color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .tab-btn:hover:not(.active) { background: #333; color: #ddd; }
 
-        .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 15px;
-        }
+        .settings-panel { display: none; }
+        .settings-panel.active { display: block; animation: fadeIn 0.3s; }
 
-        .settings-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            padding-top: 10px;
-            border-top: 1px solid #eee;
+        /* Buttons */
+        .btn-row { display: flex; gap: 8px; margin-top: 5px; }
+        .btn {
+            flex: 1; border: none; border-radius: 4px; cursor: pointer;
+            font-weight: bold; text-transform: uppercase; padding: 10px 0;
+            color: white; font-size: 0.75rem; transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
+        .btn-primary { background: var(--accent); }
+        .btn-danger { background: var(--danger); }
+        .btn-theory { background: var(--warning); color: #222; }
+        .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
 
-        /* Елементи керування */
-        button {
-            padding: 8px 16px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-        button:hover {
-            background-color: #eef2f7;
-            border-color: #3498db;
-            color: #3498db;
-        }
-        button.active {
-            background-color: #3498db;
-            color: white;
-            border-color: #2980b9;
-        }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background-color: #f0f0f0;
-            color: #999;
-        }
+        /* Legend */
+        .legend-box { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 10px; border: 1px solid #333; }
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; margin-top: 4px; color: #ccc; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 0 3px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); }
 
-        select, input[type="range"], input[type="number"] {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        /* 3D Canvas */
+        #scene-container { flex: 1; position: relative; background: #000; overflow: hidden; }
+        #info-overlay {
+            position: absolute; top: 15px; left: 15px; pointer-events: none;
+            color: rgba(255,255,255,0.7); font-family: 'Consolas', monospace; font-size: 0.9rem;
+            background: rgba(0,0,0,0.6); padding: 12px; border-radius: 6px; backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
+        .val-highlight { color: var(--success); font-weight: bold; font-size: 1.1em; }
 
-        /* Легенда */
-        .legend {
-            width: 100%;
-            background-color: #fff;
-            border-bottom: 1px solid #ccc;
-            padding: 8px 0;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            font-size: 0.9rem;
-            color: #555;
+        /* Modal (Theory) */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 2000;
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
-        .legend span { font-weight: bold; }
-
-        /* Details / Parameters */
-        details {
-            background-color: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            width: 280px;
+        .modal-content {
+            background: #1e1e1e; width: 85%; max-width: 900px; max-height: 90vh;
+            border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
         }
-        summary {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-weight: 600;
-            background-color: #eceff1;
-            list-style: none; /* Приховати стандартний трикутник */
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .modal-header {
+            padding: 15px 25px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; background: #252525;
         }
-        summary::after {
-            content: '+'; 
-            font-weight: bold;
-        }
-        details[open] summary::after {
-            content: '-';
-        }
-        .param-content {
-            padding: 10px;
-        }
-        .param {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-        .param input {
-            width: 70px;
-            text-align: right;
-        }
-
-        /* Canvas */
-        #canvas-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        canvas {
-            display: block;
-            max-width: 100%;
-        }
-
-        /* === Стилі Теорії === */
-        .theory-container {
-            max-width: 1000px;
-            width: 90%;
-            margin: 40px auto;
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        }
+        .modal-title { font-size: 1.2rem; color: var(--warning); font-weight: bold; }
+        .close-btn { background: none; border: none; color: #888; font-size: 1.8rem; cursor: pointer; transition: 0.2s; }
+        .close-btn:hover { color: white; }
+        .modal-body { padding: 30px; overflow-y: auto; color: #ddd; line-height: 1.7; font-size: 1rem; }
         
-        .theory-container h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 40px;
-            font-size: 2.2rem;
-        }
-        
-        .theory-section {
-            margin-bottom: 40px;
-        }
-        
-        .theory-section h2 {
-            color: #2980b9;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-top: 30px;
-        }
-        
-        .theory-section h3 {
-            color: #34495e;
-            margin-top: 25px;
-            font-size: 1.3rem;
-        }
+        .math-block { background: rgba(0,0,0,0.3); padding: 15px; text-align: center; margin: 20px 0; border-radius: 6px; border: 1px solid #333; }
+        .concept-box { border-left: 4px solid var(--accent); background: rgba(33, 150, 243, 0.1); padding: 15px; margin: 15px 0; }
+        strong { color: white; }
 
-        .theory-section p, .theory-section li {
-            line-height: 1.7;
-            color: #444;
-            font-size: 1.05rem;
-        }
-
-        .algorithm-box {
-            background-color: #fcfcfc;
-            border: 1px solid #eef2f5;
-            border-left: 5px solid #27ae60;
-            padding: 20px 30px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-
-        .math-block {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-            margin: 15px 0;
-            overflow-x: auto;
-            font-size: 1.1rem;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="controls-container">
-        <h2 class="panel-title">Панель керування симулятором</h2>
-        
-        <div class="button-group">
-            <button id="btn-pso" onclick="setMethod('pso')" class="active">PSO (Рій частинок)</button>
-            <button id="btn-sa" onclick="setMethod('sa')">Simulated Annealing (Відпал)</button>
-            <button id="btn-ga" onclick="setMethod('ga')">GA (Генетичний)</button>
-            <div style="width: 20px;"></div> <button onclick="toggleMode()">Режим: <span id="mode">автоматичний</span></button>
-            <button onclick="step()" id="stepBtn" disabled>Зробити крок</button>
-            <button onclick="reset()" style="color: #c0392b; border-color: #e74c3c;">Скинути</button>
-        </div>
-        
-        <div class="button-group">
-             <select onchange="setFunction(this.value)" style="padding: 8px; width: 300px;">
-                <option value="0">Функція 1: Складна негладка</option>
-                <option value="1">Функція 2: Ackley (Багато мінімумів)</option>
-                <option value="2">Функція 3: Випадковий сплайн (Random)</option>
-            </select>
-            <label style="display: flex; align-items: center; gap: 10px; margin-left: 20px;">
-                Швидкість: <input type="range" id="speed" min="1" max="60" value="30" onchange="updateSpeed()">
-            </label>
+<div id="sidebar">
+    <div class="scroll-area">
+        <h2>Глобальна Оптимізація</h2>
+
+        <h3>1. Метод (Алгоритм)</h3>
+        <div class="method-tabs">
+            <button class="tab-btn active" onclick="setMethod('pso')" id="btn-pso">Рій (PSO)</button>
+            <button class="tab-btn" onclick="setMethod('sa')" id="btn-sa">Відпал (SA)</button>
+            <button class="tab-btn" onclick="setMethod('ga')" id="btn-ga">Генетичний (GA)</button>
         </div>
 
-        <div class="settings-group">
-            <details>
-                <summary>PSO Налаштування</summary>
-                <div class="param-content">
-                    <div class="param">
-                        <label>Частинок:</label>
-                        <input type="number" id="psoParticles" value="30" min="5" max="100">
-                    </div>
-                    <div class="param">
-                        <label>Інерція (w):</label>
-                        <input type="number" id="psoInertia" value="0.7" min="0" max="1" step="0.1">
-                    </div>
-                    <div class="param">
-                        <label>Особистий (c1):</label>
-                        <input type="number" id="psoC1" value="1.4" min="0" max="3" step="0.1">
-                    </div>
-                    <div class="param">
-                        <label>Соціальний (c2):</label>
-                        <input type="number" id="psoC2" value="1.4" min="0" max="3" step="0.1">
-                    </div>
-                </div>
-            </details>
+        <div id="settings-pso" class="settings-panel active">
+            <div class="control-group">
+                <label>Кількість частинок (N): <input type="number" id="psoParticles" value="50" min="5" max="500"></label>
+            </div>
             
-            <details>
-                <summary>SA Налаштування</summary>
-                <div class="param-content">
-                    <div class="param">
-                        <label>Початкова T:</label>
-                        <input type="number" id="saTemp" value="500" min="1" max="2000">
-                    </div>
-                    <div class="param">
-                        <label>Охолодження:</label>
-                        <input type="number" id="saCooling" value="0.99" min="0.9" max="0.999" step="0.001">
-                    </div>
-                    <div class="param">
-                        <label>Крок (Step):</label>
-                        <input type="number" id="saStep" value="1.5" min="0.1" max="5" step="0.1">
-                    </div>
-                </div>
-            </details>
+            <div class="control-group">
+                <label>Інерція (w): <span id="val-psoInertia">0.70</span></label>
+                <input type="range" id="psoInertia" min="0" max="1.2" step="0.01" value="0.7" oninput="updateLabel(this)">
+                <small style="color:#666">Вплив попередньої швидкості</small>
+            </div>
             
-            <details>
-                <summary>GA Налаштування</summary>
-                <div class="param-content">
-                    <div class="param">
-                        <label>Популяція:</label>
-                        <input type="number" id="gaPopSize" value="40" min="10" max="200">
-                    </div>
-                    <div class="param">
-                        <label>Шанс мутації:</label>
-                        <input type="number" id="gaMutation" value="0.4" min="0" max="1" step="0.05">
-                    </div>
-                    <div class="param">
-                        <label>Сила мутації:</label>
-                        <input type="number" id="gaMutPower" value="0.5" min="0.1" max="5" step="0.1">
-                    </div>
-                    <div class="param">
-                        <label>Турнір:</label>
-                        <input type="number" id="gaTournament" value="3" min="2" max="10">
-                    </div>
-                </div>
-            </details>
-        </div>
-    </div>
-
-    <div class="legend">
-        <span><b style="color: blue;">■</b> Частинки / Батьки</span>
-        <span><b style="color: green;">■</b> Нащадок / Найкращий (SA)</span>
-        <span><b style="color: red;">■</b> Мутація</span>
-        <span><b style="color: orange;">■</b> Поточний (SA)</span>
-        <span id="ga-threshold-legend" style="display:none;"><b style="color: rgba(255,0,0,0.5);">—</b> Поріг виживання</span>
-    </div>
-
-    <div id="canvas-container"></div>
-
-    <div class="theory-container">
-        <h1>Опис методів глобальної оптимізації</h1>
-
-        <div class="theory-section">
-            <h2>Вступ</h2>
-            <p>
-                Задачі глобальної оптимізації полягають у пошуку найкращого (мінімального або максимального) значення функції серед усіх можливих рішень. На відміну від локальних методів (наприклад, градієнтного спуску), які часто "застрягають" у найближчій ямі, глобальні методи розроблені для дослідження всього простору пошуку.
-            </p>
-        </div>
-
-        <div class="theory-section">
-            <h2>Аналіз алгоритмів</h2>
-
-            <div class="algorithm-box">
-                <h3>1. Метод Рою Частинок (PSO - Particle Swarm Optimization)</h3>
-                <p>
-                    <b>Концепція:</b> Імітує соціальну поведінку зграї птахів. У популяції є безліч "частинок". Кожна частинка "пам'ятає" своє найкраще знайдене положення ($p_{best}$) і знає про найкраще положення всієї зграї ($g_{best}$). Вона летить у напрямку, що є комбінацією руху до цих двох точок та інерції попереднього руху.
-                </p>
-                <p><b>Рівняння руху:</b></p>
-                <div class="math-block">
-                    \[ v_{i}^{t+1} = w \cdot v_{i}^{t} + c_1 r_1 (p_{best}^{i} - x_{i}^{t}) + c_2 r_2 (g_{best} - x_{i}^{t}) \]
-                    \[ x_{i}^{t+1} = x_{i}^{t} + v_{i}^{t+1} \]
-                </div>
-                <ul>
-                    <li>$w$ (Інерція): Зберігає імпульс руху. Велике значення сприяє глобальному пошуку, мале — локальному уточненню.</li>
-                    <li>$c_1$ (Когнітивний компонент): Тяга до власного досвіду ("Я знаю гарне місце").</li>
-                    <li>$c_2$ (Соціальний компонент): Тяга до лідера ("Всі летимо туди").</li>
-                </ul>
+            <div class="control-group">
+                <label>Когнітивний (c1): <span id="val-psoC1">1.4</span></label>
+                <input type="range" id="psoC1" min="0" max="4" step="0.1" value="1.4" oninput="updateLabel(this)">
+                <small style="color:#666">Тяга до власного кращого (pBest)</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Соціальний (c2): <span id="val-psoC2">1.4</span></label>
+                <input type="range" id="psoC2" min="0" max="4" step="0.1" value="1.4" oninput="updateLabel(this)">
+                <small style="color:#666">Тяга до лідера зграї (gBest)</small>
             </div>
 
-            <div class="algorithm-box">
-                <h3>2. Імітація Відпалу (Simulated Annealing, SA)</h3>
-                <p>
-                    <b>Концепція:</b> Метод базується на фізичному процесі охолодження металу. Алгоритм починає з високої "температури", що дозволяє йому хаотично стрибати по графіку і приймати навіть гірші рішення (щоб вистрибнути з локальних ям). З часом температура падає, і алгоритм стає більш "жадібним", спускаючись лише вниз.
-                </p>
-                <p><b>Критерій Метрополіса (ймовірність прийняття гіршого рішення):</b></p>
-                <div class="math-block">
-                    \[ P = e^{-\frac{\Delta E}{T}} \]
-                </div>
-                <p>Де $\Delta E$ — погіршення функції, а $T$ — поточна температура. Чим менша $T$, тим менша ймовірність прийняти поганий крок.</p>
-            </div>
-
-            <div class="algorithm-box">
-                <h3>3. Генетичний Алгоритм (GA)</h3>
-                <p>
-                    <b>Концепція:</b> Еволюційний підхід. Рішення — це "особини". Слабкі особини вимирають, сильні — схрещуються.
-                </p>
-                <ul>
-                    <li><b>Відбір (Selection):</b> Турнірний метод. Обираємо кілька випадкових точок і беремо з них найкращу як "батька".</li>
-                    <li><b>Схрещування (Crossover):</b> Створення "дитини" десь між двома батьками.
-                        \[ x_{child} = \alpha \cdot x_{parent1} + (1-\alpha) \cdot x_{parent2} \]
-                    </li>
-                    <li><b>Мутація (Mutation):</b> Випадкова зміна положення дитини. В даному симуляторі використовується <i>Гауссова мутація</i>, що дозволяє як малі кроки (уточнення на схилах), так і рідкісні великі стрибки.</li>
-                </ul>
+            <div class="legend-box">
+                <div class="legend-item"><span class="dot" style="background:#2196f3; box-shadow: 0 0 5px #2196f3;"></span> Частинка</div>
+                <div class="legend-item"><span class="dot" style="background:rgba(255, 0, 255, 0.5); border-radius:0; width:15px; height:4px;"></span> Рівень найкращого</div>
             </div>
         </div>
+
+        <div id="settings-sa" class="settings-panel">
+            <div class="control-group">
+                <label>Початкова Температура (T): <input type="number" id="saTemp" value="1000" min="10" max="5000"></label>
+            </div>
+
+            <div class="control-group">
+                <label>Коеф. охолодження (Alpha): <span id="val-saCooling">0.99</span></label>
+                <input type="range" id="saCooling" min="0.800" max="0.999" step="0.001" value="0.99" oninput="updateLabel(this)">
+                <small style="color:#666">Чим ближче до 1, тим повільніше холоне</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Розмір кроку: <span id="val-saStep">1.5</span></label>
+                <input type="range" id="saStep" min="0.1" max="5.0" step="0.1" value="1.5" oninput="updateLabel(this)">
+            </div>
+            
+            <div class="legend-box">
+                <div class="legend-item"><span class="dot" style="background:#ff9800;"></span> Поточний стан</div>
+                <div class="legend-item"><span class="dot" style="background:#2ecc71; box-shadow: 0 0 8px #2ecc71;"></span> Найкращий знайдений</div>
+                <div class="legend-item"><span class="dot" style="background:rgba(255, 0, 255, 0.5); border-radius:0; width:15px; height:4px;"></span> Рівень найкращого</div>
+            </div>
+        </div>
+
+        <div id="settings-ga" class="settings-panel">
+            <div class="control-group">
+                <label>Розмір популяції: <input type="number" id="gaPopSize" value="60" min="10" max="300"></label>
+            </div>
+            
+            <div class="control-group">
+                <label>Шанс мутації: <span id="val-gaMutation">0.3</span></label>
+                <input type="range" id="gaMutation" min="0" max="1" step="0.05" value="0.3" oninput="updateLabel(this)">
+            </div>
+            
+            <div class="control-group">
+                <label>Сила мутації: <span id="val-gaMutPower">4</span></label>
+                <input type="range" id="gaMutPower" min="0.1" max="6" step="0.1" value="4" oninput="updateLabel(this)">
+            </div>
+            
+            <div class="control-group">
+                <label>Розмір турніру (Selection): <input type="number" id="gaTournament" value="4" min="2" max="10"></label>
+            </div>
+
+            <div class="control-group">
+                <label>Елітаризм (Зберегти найкращих): <input type="number" id="gaElites" value="2" min="0" max="10"></label>
+            </div>
+
+            <div class="legend-box">
+                <div class="legend-item"><span class="dot" style="background:#2ecc71;"></span> <b>Еліта</b> (Виживають)</div>
+                <div class="legend-item"><span class="dot" style="background:#f1c40f;"></span> <b>Стандарт</b></div>
+                <div class="legend-item"><span class="dot" style="background:#e74c3c;"></span> <b>Гірші</b> (В зоні ризику)</div>
+                <hr style="border:0; border-top:1px solid #444; margin:5px 0;">
+                <div class="legend-item"><span class="dot" style="background:rgba(255, 0, 255, 0.5); border-radius:0; width:15px; height:4px;"></span> Рівень рекорду (Best)</div>
+                <div class="legend-item"><span class="dot" style="background:rgba(255, 0, 0, 0.4); border-radius:0; width:15px; height:4px;"></span> <b>Рівень виживання</b></div>
+            </div>
+        </div>
+
+        <h3>2. Функція (Ландшафт)</h3>
+        <select id="funcSelect" onchange="changeFunction()">
+           <option value="random">1. Випадковий Ландшафт (Spline)</option>
+		   <option value="complex">2. Складна (Rastrigin Modified)</option>
+			
+            <option value="ackley">3. Ackley (Багато локальних мінімумів)</option>
+           
+        </select>
+        
+        <h3>3. Контроль Часу</h3>
+        <div class="control-group">
+            <label>Швидкість (Slow <-> Fast)</label>
+            <input type="range" id="simSpeed" min="1" max="20" value="10" oninput="updateLabel(this)">
+            <span id="val-simSpeed" style="display:none"></span>
+        </div>
+
+        <div class="control-group">
+            <label>Масштаб Висоти (Visual):</label>
+            <input type="range" id="vScaleSlider" min="0.1" max="3.0" step="0.1" value="0.5" oninput="updateVisualScale()">
+        </div>
+
     </div>
 
-    <script>
-        // --- Глобальні змінні ---
-        let method = 'pso';
-        let isAuto = true;
-        let frameRateValue = 30;
-        let currentFunction = 0;
+    <div class="fixed-bottom">
+        <div style="margin-bottom: 10px; font-size: 0.8rem; color: #888; display: flex; justify-content: space-between;">
+            <span>Статус: <b id="status-text" style="color: white;">ГОТОВО</b></span>
+            <span>Режим: <b id="mode-text" style="color: var(--accent);">АВТО</b></span>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-theory" onclick="openModal()">📖 Теорія</button>
+            <button class="btn btn-primary" onclick="togglePlay()" id="btn-play">Pause</button>
+            <button class="btn btn-primary" style="background: #444;" onclick="step()" id="btn-step" disabled>Step</button>
+            <button class="btn btn-danger" onclick="resetSim()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<div id="scene-container">
+    <div id="info-overlay">
+        <div><b>Global Best (Z):</b> <span id="gbest-val" class="val-highlight">--</span></div>
+        <div style="font-size: 0.8em; color: #aaa; margin-top: 5px;">ЛКМ: Обертання | ПКМ: Зміщення | Колесо: Зум</div>
+    </div>
+</div>
+
+<div id="theoryModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Теорія Глобальної Оптимізації</div>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            
+            <div class="concept-box">
+                <p><b>Глобальна оптимізація</b> — це пошук "найглибшої ями" (глобального мінімуму) на складній поверхні, яка має багато "фальшивих ям" (локальних мінімумів). Класичні методи (градієнтний спуск) часто застрягають у найближчій ямі. Еволюційні та ройові методи намагаються дослідити всю поверхню.</p>
+            </div>
+
+            <h3>1. Метод Рою Частинок (PSO - Particle Swarm Optimization)</h3>
+            <p>Цей метод натхненний соціальною поведінкою зграй птахів або косяків риб. Ми запускаємо "рій" частинок, які літають над ландшафтом.</p>
+            <ul>
+                <li>Кожна частинка пам'ятає своє особисте найкраще знайдене місце ($p_{best}$).</li>
+                <li>Всі частинки знають глобальне найкраще місце, знайдене будь-ким із зграї ($g_{best}$).</li>
+                <li>Швидкість частинки коригується на кожному кроці, притягуючись до цих двох точок.</li>
+            </ul>
+            <div class="math-block">
+                $$ v_{t+1} = w \cdot v_{t} + c_1 r_1 (p_{best} - x_{t}) + c_2 r_2 (g_{best} - x_{t}) $$
+                $$ x_{t+1} = x_{t} + v_{t+1} $$
+            </div>
+            <p>Де $w$ — <b>інерція</b> (як важко птаху змінити курс), $c_1$ — <b>когнітивний коефіцієнт</b> (довіра собі), $c_2$ — <b>соціальний коефіцієнт</b> (довіра зграї).</p>
+
+            <h3>2. Імітація Відпалу (SA - Simulated Annealing)</h3>
+            <p>Метод натхненний процесом відпалу в металургії. Коли метал гарячий, атоми рухаються хаотично (висока енергія). Коли він холоне, атоми шикуються в кристалічну решітку (мінімум енергії).</p>
+            <ul>
+                <li>Агент блукає випадково.</li>
+                <li>Якщо він знаходить кращу точку — переходить туди.</li>
+                <li>Якщо він знаходить <b>гіршу</b> точку — він все одно може туди перейти, але з ймовірністю $P$, яка залежить від температури $T$.</li>
+            </ul>
+            <div class="math-block">
+                $$ P = \exp\left( \frac{-\Delta E}{T} \right) $$
+            </div>
+            <p>Спочатку $T$ висока (ми можемо вистрибнути з будь-якої ями), потім $T$ падає (ми осідаємо на дні).</p>
+
+            <h3>3. Генетичний Алгоритм (GA)</h3>
+            <p>Симуляція природного відбору Дарвіна. У нас є популяція рішень ("хромосом").</p>
+            <ul>
+                <li><b>Селекція (Selection):</b> Обираємо батьків. Кращі рішення мають більше шансів стати батьками (використовується "турнірний відбір").</li>
+                <li><b>Кросинговер (Crossover):</b> Батьки обмінюються координатами, створюючи нащадка (суміш властивостей).</li>
+                <li><b>Мутація (Mutation):</b> Випадкова зміна координат нащадка. Це додає різноманіття і дозволяє знаходити нові області.</li>
+                <li><b>Елітаризм:</b> Найкращі особини автоматично переносяться в наступне покоління.</li>
+                <li><b>Рівень виживання:</b> Особини, що знаходяться "вище" (на графіку) певної межі, вважаються слабкими і замінюються.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // === GLOBAL CONFIGURATION ===
+    const STATE = {
+        method: 'pso',
+        func: 'random',
+        isAuto: true,
+        isPlaying: true,
+        visualScale: 0.5,
+        range: 6, // Simulation boundary [-6, 6]
+        maxStepsPerFrame: 1
+    };
+
+    // === THREE.JS VARIABLES ===
+    let scene, camera, renderer, controls;
+    let surfaceMesh, wireframeMesh;
+    let bestPlane;    // Shows the best Z found (Magenta)
+    let survivalPlane; // Shows the "cutoff" Z for GA (Red)
+    let markers = []; // Agent visuals
+    let bestMarker;   // Specifically for SA/Single best visualization
+    let gBestVal = Infinity; // Global best value (Z height)
+    let survivalZ = Infinity; // For GA visuals
+
+    // === ALGORITHM DATA ===
+    let particles = []; // PSO Data
+    let saState = {};   // SA Data
+    let gaPop = [];     // GA Data
+    let randomHills = []; // Random Landscape Data
+
+    // ==========================================
+    // 1. MATH & LANDSCAPE FUNCTIONS
+    // ==========================================
+
+    function calculateSpline(points) {
+        const n = points.length - 1;
+        const a = [], b = [], c = [], d = [], h = [], alpha = [];
+        const l = [], mu = [], z = [];
+
+        for (let i = 0; i < n; i++) h[i] = points[i + 1].p - points[i].p;
+        for (let i = 1; i < n; i++) {
+            alpha[i] = (3 / h[i]) * (points[i + 1].val - points[i].val) - (3 / h[i - 1]) * (points[i].val - points[i - 1].val);
+        }
+
+        l[0] = 1; mu[0] = 0; z[0] = 0;
+        for (let i = 1; i < n; i++) {
+            l[i] = 2 * (points[i + 1].p - points[i - 1].p) - h[i - 1] * mu[i - 1];
+            mu[i] = h[i] / l[i];
+            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
+        }
+        l[n] = 1; z[n] = 0; c[n] = 0;
+
+        for (let j = n - 1; j >= 0; j--) {
+            c[j] = z[j] - mu[j] * c[j + 1];
+            b[j] = (points[j + 1].val - points[j].val) / h[j] - h[j] * (c[j + 1] + 2 * c[j]) / 3;
+            d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+            a[j] = points[j].val;
+        }
+
+        let coeffs = [];
+        for (let i = 0; i < n; i++) {
+            coeffs.push({ a: a[i], b: b[i], c: c[i], d: d[i], x: points[i].p });
+        }
+        return coeffs;
+    }
+
+    function evaluateSpline(t, coeffs) {
+        if (!coeffs) return 0;
+        let seg = 0;
+        for (let i = 0; i < coeffs.length; i++) {
+            if (t >= coeffs[i].x) seg = i;
+        }
+        const { a, b, c, d, x } = coeffs[seg];
+        const dx = t - x;
+        return a + b * dx + c * dx * dx + d * dx * dx * dx;
+    }
+
+ function generateSplineData() {
+    randomHills = [];
+    const numHills = 25; // Кількість пагорбів
+    
+    for(let i=0; i < numHills; i++) {
+        randomHills.push({
+            x: (Math.random() * 12) - 6, // Випадкова позиція X від -6 до 6
+            y: (Math.random() * 12) - 6, // Випадкова позиція Y від -6 до 6
+            h: (Math.random() - 0.5) * 8, // Висота (може бути яма, якщо від'ємна)
+            s: 0.5 + Math.random() * 1.5  // Ширина ("товщина") пагорба
+        });
+    }
+}
+
+    const Functions = {
+        complex: (x, y) => {
+            const z = (x*x + y*y)/20 - Math.cos(x)*Math.cos(y) + Math.sin(x*x/10 + y*y/10);
+            return z * 2; 
+        },
+        ackley: (x, y) => {
+            const part1 = -20 * Math.exp(-0.2 * Math.sqrt(0.5 * (x*x + y*y)));
+            const part2 = -Math.exp(0.5 * (Math.cos(2*Math.PI*x) + Math.cos(2*Math.PI*y)));
+            return (part1 + part2 + 20 + Math.E) * 0.4 - 2; 
+        },
+      random: (x, y) => {
+    let z = 0;
+    // Проходимо по всіх згенерованих пагорбах
+    for (let hill of randomHills) {
+        // Рахуємо відстань від точки (x,y) до центру пагорба
+        const dx = x - hill.x;
+        const dy = y - hill.y;
+        const distSq = dx*dx + dy*dy;
         
-        // Дані для функції сплайна
-        let randomPoints = [];
-        let splineCoefficients = [];
+        // Формула Гауса (дзвін): висота * exp(-відстань / ширину)
+        z += hill.h * Math.exp(-distSq / hill.s);
+    }
+    return z;
+}
+    };
+
+    function getZ(x, y) {
+        return Functions[STATE.func](x, y);
+    }
+
+    // ==========================================
+    // 2. THREE.JS SCENE SETUP
+    // ==========================================
+
+    function initThree() {
+        const container = document.getElementById('scene-container');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x050505, 10, 50);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(12, 10, 12);
         
-        // Змінні алгоритмів
-        let particles = []; // PSO
-        let saState = {};   // SA
-        let gaPop = [];     // GA Population
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Controls
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
         
-        // Змінні стану GA (для візуалізації кроків)
-        let gaStage = 'selection'; 
-        let gaParents = [];
-        let gaOffspring = null;
-        let gaMutated = null;
-        let fitnessThreshold = 0; // Для візуалізації найгіршого
+        // Lighting
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+        const pointLight = new THREE.PointLight(0x2196f3, 0.5, 20);
+        pointLight.position.set(0, 5, 0);
+        scene.add(pointLight);
 
-        let canvasObj;
+        // Grid
+        const grid = new THREE.GridHelper(30, 30, 0x333333, 0x111111);
+        grid.position.y = -3;
+        scene.add(grid);
 
-        // --- P5.js Setup & Draw ---
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
 
-        function setup() {
-            canvasObj = createCanvas(windowWidth > 1200 ? 1200 : windowWidth - 40, 500);
-            canvasObj.parent('canvas-container');
+        // 1. BEST Plane (Purple - Record)
+        const tGeo = new THREE.PlaneGeometry(12.5, 12.5);
+        const tMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff00ff, 
+            transparent: true, 
+            opacity: 0.15, 
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        bestPlane = new THREE.Mesh(tGeo, tMat);
+        bestPlane.rotation.x = -Math.PI/2;
+        bestPlane.visible = false;
+        scene.add(bestPlane);
+
+        // 2. SURVIVAL Plane (Red - GA cutoff)
+        const sMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            transparent: true, 
+            opacity: 0.15, 
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        survivalPlane = new THREE.Mesh(tGeo, sMat);
+        survivalPlane.rotation.x = -Math.PI/2;
+        survivalPlane.visible = false;
+        scene.add(survivalPlane);
+    }
+
+    function drawSurface() {
+        if(surfaceMesh) {
+            scene.remove(surfaceMesh);
+            scene.remove(wireframeMesh);
+            surfaceMesh.geometry.dispose();
+            wireframeMesh.geometry.dispose();
+        }
+
+        const segments = 100;
+        const range = STATE.range; // 6
+        const geo = new THREE.PlaneGeometry(range*2, range*2, segments, segments);
+        
+        const pos = geo.attributes.position;
+        const colors = [];
+        
+        // Colors for gradient (Height map)
+        const cLow = new THREE.Color(0x000033);
+        const cMid = new THREE.Color(0x2196f3);
+        const cHigh = new THREE.Color(0xffffff);
+
+        let minZ = Infinity, maxZ = -Infinity;
+
+        // 1. Calculate Z and Find Min/Max
+        for(let i=0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = -pos.getY(i); 
+            const z = getZ(x, y);
+            pos.setZ(i, z * STATE.visualScale);
+            if(z < minZ) minZ = z;
+            if(z > maxZ) maxZ = z;
+        }
+        
+        geo.computeVertexNormals();
+
+        // 2. Colorize
+        for(let i=0; i < pos.count; i++) {
+            const zRaw = pos.getZ(i) / STATE.visualScale;
+            let t = (zRaw - minZ) / (maxZ - minZ + 0.0001);
+            const c = new THREE.Color();
+            if(t < 0.5) c.lerpColors(cLow, cMid, t*2);
+            else c.lerpColors(cMid, cHigh, (t-0.5)*2);
+            colors.push(c.r, c.g, c.b);
+        }
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        // Material
+        const mat = new THREE.MeshStandardMaterial({ 
+            vertexColors: true, 
+            roughness: 0.3, 
+            metalness: 0.1,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.75 
+        });
+
+        surfaceMesh = new THREE.Mesh(geo, mat);
+        surfaceMesh.rotation.x = -Math.PI / 2; 
+        scene.add(surfaceMesh);
+
+        // Wireframe Overlay
+        const wireMat = new THREE.MeshBasicMaterial({ color: 0x88ccff, wireframe: true, transparent: true, opacity: 0.08 });
+        wireframeMesh = new THREE.Mesh(geo, wireMat);
+        wireframeMesh.rotation.x = -Math.PI / 2;
+        scene.add(wireframeMesh);
+    }
+
+    // ==========================================
+    // 3. OPTIMIZATION ALGORITHMS
+    // ==========================================
+
+    function resetSim() {
+        gBestVal = Infinity;
+        survivalZ = Infinity;
+        document.getElementById('gbest-val').innerText = "--";
+        
+        // Remove markers
+        markers.forEach(m => scene.remove(m));
+        markers = [];
+        if(bestMarker) { scene.remove(bestMarker); bestMarker = null; }
+        
+        // Reset Planes
+        bestPlane.visible = true;
+        bestPlane.position.y = 5; 
+        
+        // Survival plane only for GA
+        survivalPlane.visible = (STATE.method === 'ga');
+        survivalPlane.position.y = 6; 
+
+        if(STATE.method === 'pso') initPSO();
+        else if(STATE.method === 'sa') initSA();
+        else if(STATE.method === 'ga') initGA();
+        
+        updateControlsState();
+    }
+
+    // --- PSO ---
+    function initPSO() {
+        const n = parseInt(document.getElementById('psoParticles').value);
+        particles = [];
+        
+        const sphereGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const sphereMat = new THREE.MeshStandardMaterial({ color: 0x2196f3, emissive: 0x002244 });
+
+        for(let i=0; i<n; i++) {
+            const x = (Math.random()*2 - 1) * STATE.range;
+            const y = (Math.random()*2 - 1) * STATE.range;
+            const val = getZ(x,y);
             
-            frameRate(frameRateValue);
-            generateRandomFunction(); // Створюємо сплайн заздалегідь
-            
-            // Встановлюємо метод за замовчуванням та ініціалізуємо
-            reset();
-        }
-
-        function windowResized() {
-            resizeCanvas(windowWidth > 1200 ? 1200 : windowWidth - 40, 500);
-        }
-
-        function draw() {
-            background(255);
-            
-            // 1. Малюємо графік функції
-            drawFunction();
-            
-            // 2. Оновлюємо та малюємо обраний алгоритм
-            if (method === 'pso') {
-                if (isAuto) updatePSO();
-                drawPSO();
-            } else if (method === 'sa') {
-                if (isAuto) updateSA();
-                drawSA();
-            } else if (method === 'ga') {
-                if (isAuto) updateGA();
-                drawGA();
-            }
-            
-            // Рамка канви
-            noFill();
-            stroke(200);
-            rect(0, 0, width, height);
-        }
-
-        // --- Функції оптимізації (Objective Functions) ---
-
-        function generateRandomFunction() {
-            // Генеруємо точки для сплайна
-            randomPoints = Array(20).fill().map(() => ({
-                x: random(-5, 5),
-                y: random(-3, 6)
-            })).sort((a, b) => a.x - b.x);
-            // Розширюємо межі, щоб не було обривів
-            if(randomPoints[0].x > -5) randomPoints.unshift({x: -5.1, y: random(0,5)});
-            if(randomPoints[randomPoints.length-1].x < 5) randomPoints.push({x: 5.1, y: random(0,5)});
-            
-            splineCoefficients = computeCubicSpline();
-        }
-
-        // Обчислення коефіцієнтів кубічного сплайна
-        function computeCubicSpline() {
-            let n = randomPoints.length - 1;
-            let h = [], a = [], b = [], c = [], d = [];
-            for (let i = 0; i < n; i++) h[i] = randomPoints[i + 1].x - randomPoints[i].x;
-            let alpha = [];
-            for (let i = 1; i < n; i++) alpha[i] = (3 / h[i]) * (randomPoints[i + 1].y - randomPoints[i].y) - (3 / h[i - 1]) * (randomPoints[i].y - randomPoints[i - 1].y);
-            
-            let l = [1], mu = [0], z = [0];
-            for (let i = 1; i < n; i++) {
-                l[i] = 2 * (randomPoints[i + 1].x - randomPoints[i - 1].x) - h[i - 1] * mu[i - 1];
-                mu[i] = h[i] / l[i];
-                z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
-            }
-            l[n] = 1; z[n] = 0; c[n] = 0;
-            for (let j = n - 1; j >= 0; j--) {
-                c[j] = z[j] - mu[j] * c[j + 1];
-                b[j] = (randomPoints[j + 1].y - randomPoints[j].y) / h[j] - h[j] * (c[j + 1] + 2 * c[j]) / 3;
-                d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
-                a[j] = randomPoints[j].y;
-            }
-            let coeffs = [];
-            for (let i = 0; i < n; i++) coeffs.push({ a: a[i], b: b[i], c: c[i], d: d[i], x: randomPoints[i].x });
-            return coeffs;
-        }
-
-        function evaluateSpline(x) {
-            for (let i = 0; i < splineCoefficients.length; i++) {
-                let coeff = splineCoefficients[i];
-                if (x >= coeff.x && (i === splineCoefficients.length - 1 || x < randomPoints[i + 1].x)) {
-                    let dx = x - coeff.x;
-                    return coeff.a + coeff.b * dx + coeff.c * dx * dx + coeff.d * dx * dx * dx;
-                }
-            }
-            return randomPoints[0].y;
-        }
-
-        function fitness(x) {
-            // Обмежуємо область визначення
-            if (x < -5 || x > 5) return 1000; 
-
-            if (currentFunction == 0) {
-                // Складна функція з "шумом"
-                return (Math.sin(4 * x)/(Math.abs( Math.sin(6.1 * x) )+0.1) * (0.08 * (x+1)**2-0.02*(x+2)**3)+10+0.02*x*x)*0.5 - 3;
-            } else if (currentFunction == 1) {
-                // Ackley Function (shifted for view)
-                let term1 = -20 * Math.exp(-0.2 * Math.sqrt(x * x));
-                let term2 = -Math.exp(Math.cos(2 * Math.PI * x));
-                return term1 + term2 + 20 + Math.E - 5;
-            } else {
-                return evaluateSpline(x);
-            }
-        }
-
-        // Динамічний діапазон Y для малювання (ВИПРАВЛЕНО)
-        function getYRange() {
-            if (currentFunction == 0) return { min: -5, max: 10 };
-            if (currentFunction == 1) return { min: -5, max: 20 };
-            
-            // Для сплайна (Функція 2) потрібно просканувати саму криву, 
-            // бо вона може вигинатися вище/нижче опорних точок.
-            if (currentFunction == 2) {
-                let minVal = Infinity;
-                let maxVal = -Infinity;
-                
-                // Скануємо з кроком 0.1
-                for(let tx = -5; tx <= 5; tx += 0.1) {
-                    let val = evaluateSpline(tx);
-                    if(val < minVal) minVal = val;
-                    if(val > maxVal) maxVal = val;
-                }
-                
-                // Додаємо відступи (padding)
-                return { min: minVal - 2, max: maxVal + 2 };
-            }
-            
-            return {min: -5, max: 5};
-        }
-
-        function drawFunction() {
-            let range = getYRange();
-            stroke(50);
-            strokeWeight(2);
-            noFill();
-            beginShape();
-            for (let x = -5; x <= 5; x += 0.02) {
-                let y = fitness(x);
-                let px = map(x, -5, 5, 0, width);
-                let py = map(y, range.min, range.max, height, 0);
-                vertex(px, py);
-            }
-            endShape();
-        }
-
-        // --- ALGORITHM 1: PSO ---
-
-        function initPSO() {
-            let n = parseInt(document.getElementById('psoParticles').value);
-            particles = [];
-            for(let i=0; i<n; i++) {
-                let x = random(-5, 5);
-                particles.push({
-                    x: x,
-                    v: random(-0.1, 0.1),
-                    pBest: x,
-                    pBestVal: fitness(x)
-                });
-            }
-        }
-
-        function updatePSO() {
-            let w = parseFloat(document.getElementById('psoInertia').value);
-            let c1 = parseFloat(document.getElementById('psoC1').value);
-            let c2 = parseFloat(document.getElementById('psoC2').value);
-            
-            // Знаходимо Global Best
-            let gBest = particles[0];
-            for(let p of particles) {
-                if (p.pBestVal < gBest.pBestVal) gBest = p;
-            }
-            
-            for(let p of particles) {
-                let r1 = random();
-                let r2 = random();
-                
-                // Оновлення швидкості
-                p.v = w * p.v + c1 * r1 * (p.pBest - p.x) + c2 * r2 * (gBest.pBest - p.x);
-                
-                // Обмеження швидкості (щоб не вилітали)
-                p.v = constrain(p.v, -1, 1); 
-
-                // Оновлення позиції
-                p.x += p.v;
-                p.x = constrain(p.x, -5, 5);
-                
-                let val = fitness(p.x);
-                if (val < p.pBestVal) {
-                    p.pBest = p.x;
-                    p.pBestVal = val;
-                }
-            }
-        }
-
-        function drawPSO() {
-            let range = getYRange();
-            fill(0, 0, 255, 150);
-            noStroke();
-            for(let p of particles) {
-                let px = map(p.x, -5, 5, 0, width);
-                let py = map(fitness(p.x), range.min, range.max, height, 0);
-                ellipse(px, py, 10, 10);
-            }
-        }
-
-        // --- ALGORITHM 2: SA (Simulated Annealing) ---
-
-        function initSA() {
-            let t = parseFloat(document.getElementById('saTemp').value);
-            let x = random(-5, 5);
-            saState = {
-                x: x,
-                val: fitness(x),
-                bestX: x,
-                bestVal: fitness(x),
-                temp: t
+            const p = {
+                x: x, y: y,
+                vx: (Math.random()-0.5), vy: (Math.random()-0.5),
+                pBestX: x, pBestY: y, pBestVal: val,
+                val: val
             };
+            particles.push(p);
+
+            const mesh = new THREE.Mesh(sphereGeo, sphereMat);
+            mesh.position.set(x, val * STATE.visualScale, y);
+            scene.add(mesh);
+            markers.push(mesh);
         }
 
-        function updateSA() {
-            let cooling = parseFloat(document.getElementById('saCooling').value);
-            let stepSize = parseFloat(document.getElementById('saStep').value);
-            
-            saState.temp *= cooling;
-            
-            // Генеруємо сусіда
-            let nextX = saState.x + random(-stepSize, stepSize);
-            nextX = constrain(nextX, -5, 5);
-            let nextVal = fitness(nextX);
-            
-            let delta = nextVal - saState.val;
-            
-            // Логіка прийняття: якщо кращий - беремо, якщо гірший - беремо з ймовірністю
-            if (delta < 0 || random() < Math.exp(-delta * 100 / saState.temp)) { // *100 для масштабування
-                saState.x = nextX;
-                saState.val = nextVal;
+        // Find initial global best
+        if(particles.length > 0) {
+            particles.gBestVal = Infinity;
+            particles.forEach(p => {
+                if(p.val < particles.gBestVal) {
+                    particles.gBestVal = p.val;
+                    particles.gBestX = p.x;
+                    particles.gBestY = p.y;
+                }
+            });
+            gBestVal = particles.gBestVal;
+        }
+    }
+
+    function updatePSO() {
+        const w = parseFloat(document.getElementById('psoInertia').value);
+        const c1 = parseFloat(document.getElementById('psoC1').value);
+        const c2 = parseFloat(document.getElementById('psoC2').value);
+        const rLimit = STATE.range;
+
+        particles.forEach((p, idx) => {
+            const r1 = Math.random();
+            const r2 = Math.random();
+
+            p.vx = w * p.vx + c1 * r1 * (p.pBestX - p.x) + c2 * r2 * (particles.gBestX - p.x);
+            p.vy = w * p.vy + c1 * r1 * (p.pBestY - p.y) + c2 * r2 * (particles.gBestY - p.y);
+
+            const maxV = 2.0;
+            p.vx = Math.max(-maxV, Math.min(maxV, p.vx));
+            p.vy = Math.max(-maxV, Math.min(maxV, p.vy));
+
+            p.x += p.vx * 0.1; 
+            p.y += p.vy * 0.1;
+
+            if(p.x < -rLimit) { p.x = -rLimit; p.vx *= -0.5; }
+            if(p.x > rLimit) { p.x = rLimit; p.vx *= -0.5; }
+            if(p.y < -rLimit) { p.y = -rLimit; p.vy *= -0.5; }
+            if(p.y > rLimit) { p.y = rLimit; p.vy *= -0.5; }
+
+            p.val = getZ(p.x, p.y);
+
+            if(p.val < p.pBestVal) {
+                p.pBestVal = p.val;
+                p.pBestX = p.x;
+                p.pBestY = p.y;
             }
-            
-            if (saState.val < saState.bestVal) {
-                saState.bestX = saState.x;
-                saState.bestVal = saState.val;
+            if(p.val < particles.gBestVal) {
+                particles.gBestVal = p.val;
+                particles.gBestX = p.x;
+                particles.gBestY = p.y;
             }
-        }
 
-        function drawSA() {
-            let range = getYRange();
-            
-            // Найкращий знайдений
-            fill(0, 200, 0);
-            let bx = map(saState.bestX, -5, 5, 0, width);
-            let by = map(saState.bestVal, range.min, range.max, height, 0);
-            ellipse(bx, by, 15, 15);
-            
-            // Поточний
-            fill(255, 165, 0);
-            let cx = map(saState.x, -5, 5, 0, width);
-            let cy = map(saState.val, range.min, range.max, height, 0);
-            ellipse(cx, cy, 20, 20);
-            
-            fill(0);
-            noStroke();
-            textAlign(LEFT, TOP);
-            text("Temp: " + saState.temp.toFixed(2), 10, 10);
-        }
+            markers[idx].position.set(p.x, p.val * STATE.visualScale, p.y);
+        });
+        gBestVal = particles.gBestVal;
+    }
 
-        // --- ALGORITHM 3: GA (Genetic Algorithm) ---
+    // --- SA ---
+    function initSA() {
+        const temp = parseFloat(document.getElementById('saTemp').value);
+        saState = {
+            x: (Math.random()*2 - 1) * STATE.range,
+            y: (Math.random()*2 - 1) * STATE.range,
+            temp: temp,
+            bestX: 0, bestY: 0, bestVal: Infinity
+        };
+        saState.val = getZ(saState.x, saState.y);
+        saState.bestX = saState.x;
+        saState.bestY = saState.y;
+        saState.bestVal = saState.val;
+        gBestVal = saState.bestVal;
 
-        function initGA() {
-            let n = parseInt(document.getElementById('gaPopSize').value);
-            gaPop = [];
-            for(let i=0; i<n; i++) {
-                let x = random(-5, 5);
-                gaPop.push({ x: x, val: fitness(x) });
-            }
-            gaStage = 'selection';
-            gaParents = [];
-            gaOffspring = null;
-            gaMutated = null;
-            updateFitnessThreshold();
-        }
+        const currentGeo = new THREE.SphereGeometry(0.2, 16, 16);
+        const currentMat = new THREE.MeshStandardMaterial({ color: 0xff9800, emissive: 0xaa4400 });
+        const currentMesh = new THREE.Mesh(currentGeo, currentMat);
+        scene.add(currentMesh);
+        markers.push(currentMesh);
+
+        const bestGeo = new THREE.SphereGeometry(0.2, 16, 16);
+        const bestMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x005500 });
+        bestMarker = new THREE.Mesh(bestGeo, bestMat);
+        bestMarker.position.set(saState.bestX, saState.bestVal * STATE.visualScale, saState.bestY);
+        scene.add(bestMarker);
         
-        function updateFitnessThreshold() {
-            // Знаходимо найгіршого для візуалізації "дна" популяції
-            if(gaPop.length > 0) {
-                fitnessThreshold = Math.max(...gaPop.map(p => p.val));
-            }
-        }
+        currentMesh.position.set(saState.x, saState.val * STATE.visualScale, saState.y);
+    }
 
-        function updateGA() {
-            // Реалізуємо Steady State GA (покроково для візуалізації)
-            
-            if (gaStage === 'selection') {
-                // 1. Вибір батьків (Турнір)
-                let tSize = parseInt(document.getElementById('gaTournament').value);
-                
-                let p1 = runTournament(tSize);
-                let p2 = runTournament(tSize);
-                gaParents = [p1, p2];
-                gaStage = 'crossover';
-                
-            } else if (gaStage === 'crossover') {
-                // 2. Схрещування (Середнє арифметичне з вагою)
-                let alpha = random(0.2, 0.8); // Щоб не були клонами батьків
-                let childX = alpha * gaParents[0].x + (1-alpha) * gaParents[1].x;
-                gaOffspring = { x: childX, val: fitness(childX) };
-                gaStage = 'mutation';
-                
-            } else if (gaStage === 'mutation') {
-                // 3. Мутація (Гауссова!)
-                let chance = parseFloat(document.getElementById('gaMutation').value);
-                let power = parseFloat(document.getElementById('gaMutPower').value);
-                
-                let mx = gaOffspring.x;
-                let isMutated = false;
-                
-                if (random() < chance) {
-                    // Використовуємо randomGaussian для "схилів"
-                    mx += randomGaussian(0, 1) * power; 
-                    mx = constrain(mx, -5, 5);
-                    isMutated = true;
-                }
-                
-                gaMutated = { x: mx, val: fitness(mx), isMut: isMutated };
-                gaStage = 'replacement';
-                
-            } else if (gaStage === 'replacement') {
-                // 4. Заміна (Replace Worst / Steady State)
-                // Знаходимо індекс найгіршого
-                let worstIdx = -1;
-                let worstVal = -Infinity;
-                
-                for(let i=0; i<gaPop.length; i++) {
-                    if (gaPop[i].val > worstVal) {
-                        worstVal = gaPop[i].val;
-                        worstIdx = i;
-                    }
-                }
-                
-                // Замінюємо найгіршого новим нащадком
-                if (worstIdx !== -1) {
-                    gaPop[worstIdx] = { x: gaMutated.x, val: gaMutated.val };
-                }
+    function updateSA() {
+        const cooling = parseFloat(document.getElementById('saCooling').value);
+        const stepSize = parseFloat(document.getElementById('saStep').value);
+        const rLimit = STATE.range;
 
-                updateFitnessThreshold();
-                
-                // Скидання циклу
-                gaStage = 'selection';
-                
-                // У ручному режимі зупиняємося після повного циклу народження
-                if (!isAuto) noLoop();
-            }
-        }
+        let nx = saState.x + (Math.random()*2 - 1) * stepSize;
+        let ny = saState.y + (Math.random()*2 - 1) * stepSize;
         
-        function runTournament(k) {
+        nx = Math.max(-rLimit, Math.min(rLimit, nx));
+        ny = Math.max(-rLimit, Math.min(rLimit, ny));
+
+        const nVal = getZ(nx, ny);
+        const delta = nVal - saState.val;
+
+        if (delta < 0 || Math.random() < Math.exp(-delta * 10 / (saState.temp * 0.01))) { 
+            saState.x = nx;
+            saState.y = ny;
+            saState.val = nVal;
+        }
+
+        if (saState.val < saState.bestVal) {
+            saState.bestVal = saState.val;
+            saState.bestX = saState.x;
+            saState.bestY = saState.y;
+            bestMarker.position.set(saState.bestX, saState.bestVal * STATE.visualScale, saState.bestY);
+        }
+
+        saState.temp *= cooling;
+        gBestVal = saState.bestVal;
+
+        markers[0].position.set(saState.x, saState.val * STATE.visualScale, saState.y);
+    }
+
+    // --- GA ---
+    function initGA() {
+        const n = parseInt(document.getElementById('gaPopSize').value);
+        gaPop = [];
+        
+        const sphereGeo = new THREE.SphereGeometry(0.15, 16, 16);
+
+        window.gaMats = {
+            elite: new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x004400 }), // Green
+            norm: new THREE.MeshStandardMaterial({ color: 0xf1c40f }), // Yellow
+            worst: new THREE.MeshStandardMaterial({ color: 0xe74c3c })  // Red
+        };
+
+        for(let i=0; i<n; i++) {
+            const x = (Math.random()*2 - 1) * STATE.range;
+            const y = (Math.random()*2 - 1) * STATE.range;
+            const val = getZ(x, y);
+            
+            gaPop.push({ x, y, val, type: 'norm' });
+            
+            const mesh = new THREE.Mesh(sphereGeo, window.gaMats.norm);
+            mesh.position.set(x, val * STATE.visualScale, y);
+            scene.add(mesh);
+            markers.push(mesh);
+        }
+        updateGAVisualsOnly();
+    }
+
+    function updateGAVisualsOnly() {
+        gaPop.sort((a, b) => a.val - b.val);
+        gBestVal = gaPop[0].val;
+        
+        const n = gaPop.length;
+        const elites = parseInt(document.getElementById('gaElites').value);
+        
+        // Determing survival/worst threshold
+        // Let's assume bottom 30% are "Worst" (Red)
+        const cutoffIndex = Math.floor(n * 0.7);
+        survivalZ = gaPop[cutoffIndex].val;
+
+        gaPop.forEach((ind, i) => {
+            let m = markers[i];
+            m.position.set(ind.x, ind.val * STATE.visualScale, ind.y);
+            
+            if(i < elites) m.material = window.gaMats.elite;
+            else if (i >= cutoffIndex) m.material = window.gaMats.worst;
+            else m.material = window.gaMats.norm;
+        });
+    }
+
+    function updateGA() {
+        const mutRate = parseFloat(document.getElementById('gaMutation').value);
+        const mutPower = parseFloat(document.getElementById('gaMutPower').value);
+        const tournamentSize = parseInt(document.getElementById('gaTournament').value);
+        const numElites = parseInt(document.getElementById('gaElites').value);
+        const rLimit = STATE.range;
+        const popSize = gaPop.length;
+
+        gaPop.sort((a, b) => a.val - b.val);
+        gBestVal = gaPop[0].val;
+
+        let newPop = [];
+
+        // Elitism
+        for(let i=0; i<numElites; i++) {
+            if (i < gaPop.length) {
+                newPop.push({ ...gaPop[i] });
+            }
+        }
+
+        function tournament() {
             let best = null;
-            for(let i=0; i<k; i++) {
-                let ind = gaPop[floor(random(gaPop.length))];
-                if (best === null || ind.val < best.val) {
-                    best = ind;
-                }
+            for(let i=0; i<tournamentSize; i++) {
+                let ind = gaPop[Math.floor(Math.random() * popSize)];
+                if(!best || ind.val < best.val) best = ind;
             }
             return best;
         }
 
-        function drawGA() {
-            let range = getYRange();
-            
-            // Лінія відсікання (найгірший)
-            let limitY = map(fitnessThreshold, range.min, range.max, height, 0);
-            stroke(255, 0, 0, 100);
-            line(0, limitY, width, limitY);
-            
-            // Малюємо популяцію
-            noStroke();
-            for(let p of gaPop) {
-                let px = map(p.x, -5, 5, 0, width);
-                let py = map(p.val, range.min, range.max, height, 0);
-                
-                // Якщо це батько - синій
-                if (gaParents.includes(p)) fill(0, 0, 255);
-                else fill(100);
-                
-                ellipse(px, py, 10, 10);
+        while(newPop.length < popSize) {
+            let p1 = tournament();
+            let p2 = tournament();
+
+            let child = {
+                x: (p1.x + p2.x)/2,
+                y: (p1.y + p2.y)/2,
+            };
+
+            if(Math.random() < mutRate) {
+                child.x += (Math.random()*2 - 1) * mutPower;
+                child.y += (Math.random()*2 - 1) * mutPower;
             }
-            
-            // Малюємо нащадка (зелений) або мутанта (червоний)
-            if (gaStage === 'mutation' && gaOffspring) {
-                 let ox = map(gaOffspring.x, -5, 5, 0, width);
-                 let oy = map(gaOffspring.val, range.min, range.max, height, 0);
-                 fill(0, 200, 0);
-                 ellipse(ox, oy, 14, 14);
+
+            child.x = Math.max(-rLimit, Math.min(rLimit, child.x));
+            child.y = Math.max(-rLimit, Math.min(rLimit, child.y));
+            child.val = getZ(child.x, child.y);
+
+            newPop.push(child);
+        }
+
+        gaPop = newPop;
+        updateGAVisualsOnly();
+    }
+
+    // ==========================================
+    // 4. MAIN LOOP
+    // ==========================================
+
+    function performStep() {
+        if (STATE.method === 'pso') updatePSO();
+        else if (STATE.method === 'sa') updateSA();
+        else if (STATE.method === 'ga') updateGA();
+    }
+
+    let frameCount = 0;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+
+        if (STATE.isPlaying && STATE.isAuto) {
+            const speedVal = parseInt(document.getElementById('simSpeed').value);
+            frameCount++;
+
+            let shouldUpdate = false;
+            let loops = 1;
+
+            if (speedVal < 10) {
+                // Throttling for slow speed
+                const waitFrames = (10 - speedVal) * 2; 
+                if (frameCount % waitFrames === 0) {
+                    shouldUpdate = true;
+                    loops = 1;
+                }
+            } else {
+                // Multi-step for fast speed
+                shouldUpdate = true;
+                loops = (speedVal - 9);
             }
-            
-            if (gaStage === 'replacement' && gaMutated) {
-                 let mx = map(gaMutated.x, -5, 5, 0, width);
-                 let my = map(gaMutated.val, range.min, range.max, height, 0);
-                 fill(gaMutated.isMut ? 'red' : 'green');
-                 ellipse(mx, my, 14, 14);
+
+            if (shouldUpdate) {
+                for(let k=0; k < loops; k++) {
+                    performStep();
+                }
             }
-            
-            // Текст етапу
-            fill(0);
-            textAlign(LEFT, TOP);
-            textSize(16);
-            text("Етап: " + translateStage(gaStage), 10, 10);
         }
         
-        function translateStage(s) {
-            if (s === 'selection') return "Відбір батьків";
-            if (s === 'crossover') return "Схрещування";
-            if (s === 'mutation') return "Мутація";
-            if (s === 'replacement') return "Заміна найгіршого";
-            return s;
+        // UI Updates
+        if(gBestVal !== Infinity && gBestVal !== undefined) {
+             const el = document.getElementById('gbest-val');
+             if(el) el.innerText = gBestVal.toFixed(4);
+             
+             // Move Best Plane
+             if(bestPlane && bestPlane.visible) {
+                 let targetY = gBestVal * STATE.visualScale;
+                 bestPlane.position.y += (targetY - bestPlane.position.y) * 0.1;
+             }
+
+             // Move Survival Plane (GA only)
+             if(survivalPlane && survivalPlane.visible && survivalZ !== Infinity) {
+                 let targetY = survivalZ * STATE.visualScale;
+                 // Lerp smooth
+                 survivalPlane.position.y += (targetY - survivalPlane.position.y) * 0.1;
+             }
         }
 
-        // --- Керування ---
+        renderer.render(scene, camera);
+    }
 
-        function setMethod(m) {
-            method = m;
-            
-            // Оновлення UI кнопок
-            document.getElementById('btn-pso').className = '';
-            document.getElementById('btn-sa').className = '';
-            document.getElementById('btn-ga').className = '';
-            document.getElementById('btn-'+m).className = 'active';
-            
-            document.getElementById('ga-threshold-legend').style.display = (m === 'ga') ? 'inline' : 'none';
-            
-            reset();
+    // ==========================================
+    // 5. INTERFACE BINDINGS
+    // ==========================================
+    
+    window.setMethod = (m) => {
+        STATE.method = m;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + m).classList.add('active');
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('settings-' + m).classList.add('active');
+        resetSim();
+    };
+
+    window.changeFunction = () => {
+        STATE.func = document.getElementById('funcSelect').value;
+        if(STATE.func === 'random') generateSplineData();
+        drawSurface();
+        resetSim();
+    };
+
+    window.togglePlay = () => {
+        STATE.isAuto = !STATE.isAuto;
+        document.getElementById('mode-text').innerText = STATE.isAuto ? 'АВТО' : 'ПОКРОКОВИЙ';
+        document.getElementById('btn-play').innerText = STATE.isAuto ? 'PAUSE' : 'PLAY';
+        document.getElementById('btn-step').disabled = STATE.isAuto;
+        document.getElementById('status-text').innerText = STATE.isAuto ? 'ПРАЦЮЄ...' : 'ПАУЗА';
+    };
+
+    window.step = () => {
+        STATE.isAuto = false;
+        performStep();
+    };
+
+    window.resetSim = resetSim;
+
+    window.updateLabel = (el) => {
+        const label = document.getElementById('val-' + el.id);
+        if(label) label.innerText = el.value;
+    };
+    
+    window.updateVisualScale = () => {
+        STATE.visualScale = parseFloat(document.getElementById('vScaleSlider').value);
+        drawSurface();
+        
+        if(STATE.method === 'pso') {
+            particles.forEach((p, i) => markers[i].position.y = p.val * STATE.visualScale);
+        } else if(STATE.method === 'sa') {
+            markers[0].position.y = saState.val * STATE.visualScale;
+            if(bestMarker) bestMarker.position.y = saState.bestVal * STATE.visualScale;
+        } else if(STATE.method === 'ga') {
+            gaPop.forEach((p, i) => markers[i].position.y = p.val * STATE.visualScale);
         }
+    };
+    
+    window.updateControlsState = () => {
+        document.querySelectorAll('input[type="range"]').forEach(input => window.updateLabel(input));
+    };
 
-        function reset() {
-            if (method === 'pso') initPSO();
-            if (method === 'sa') initSA();
-            if (method === 'ga') initGA();
-            loop();
-            updateStepButton();
-        }
+    window.openModal = () => { document.getElementById('theoryModal').style.display = 'flex'; };
+    window.closeModal = () => { document.getElementById('theoryModal').style.display = 'none'; };
 
-        function setFunction(val) {
-            currentFunction = parseInt(val);
-            if(currentFunction === 2) generateRandomFunction();
-            reset();
-        }
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    initThree();
+    generateSplineData();
+    drawSurface();
+    resetSim();
+    animate();
 
-        function toggleMode() {
-            isAuto = !isAuto;
-            document.getElementById('mode').innerText = isAuto ? 'автоматичний' : 'покроковий';
-            updateStepButton();
-            if (isAuto) loop();
-            else noLoop();
-        }
-
-        function step() {
-            if (!isAuto) {
-                // Робимо один крок логіки
-                if (method === 'pso') updatePSO();
-                else if (method === 'sa') updateSA();
-                else if (method === 'ga') updateGA();
-                
-                redraw(); // Оновлюємо екран
-            }
-        }
-
-        function updateStepButton() {
-            document.getElementById('stepBtn').disabled = isAuto;
-        }
-
-        function updateSpeed() {
-            frameRateValue = parseInt(document.getElementById('speed').value);
-            frameRate(frameRateValue);
-        }
-
-    </script>
+</script>
 </body>
 </html>
