@@ -278,6 +278,7 @@
                     <select id="model-select" onchange="changeModel()">
                         <option value="snowman">Сніговик</option>
 						<option value="hatHead">Студент</option>
+						<option value="skull">Колишній студент</option>
                         <option value="box">Куб</option>
                         <option value="torus">Тор (пончик)</option>
                         <option value="torusKnot">Вузол</option>
@@ -356,10 +357,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
     <script type="importmap">
         { 
-            "imports": { 
-                "three": "https://unpkg.com/three@0.164.1/build/three.module.js", 
-                "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/" 
-            } 
+          "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "three-bvh-csg": "https://esm.sh/three-bvh-csg@0.0.16"
+    }
         }
     </script>
 
@@ -367,7 +369,7 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { TeapotGeometry } from 'three/addons/geometries/TeapotGeometry.js'; // Імпорт "чайника"
-
+		import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
         let originalScene, transformedScene, lowrankScene, camera, originalRenderer, transformedRenderer, lowrankRenderer, controls1, controls2, controls3;
         let originalModel, transformedModel, lowrankModel;
         let originalWrapper, transformedWrapper, lowrankWrapper; // Обгортки для моделей
@@ -388,6 +390,11 @@
             degenerate: [1,0,0, 1,0,0, 0,0,1]
         };
         
+		
+		
+		
+		
+		
         function init() {
             try {
                 eigenMessageDiv = document.getElementById('eigen-message');
@@ -537,6 +544,118 @@
                 depthTest: true
             };
             
+			///////
+			// --- Функція створення Черепа (з skull.html) ---
+    function createSkullModel() {
+        const evaluator = new Evaluator();
+        
+        // Матеріали
+        const boneMaterial = new THREE.MeshPhysicalMaterial({ 
+            color: 0xE3DAC9, roughness: 0.5, metalness: 0.1,
+            transparent: true, opacity: 0.8, side: THREE.FrontSide, depthWrite: false
+        });
+        const toothMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xEEEEEE, roughness: 0.2, metalness: 0.0
+        });
+
+        // 1. Черепна коробка
+        const outerGeo = new THREE.SphereGeometry(2.9, 64, 64);
+        const outerBrush = new Brush(outerGeo, boneMaterial);
+        outerBrush.scale.set(0.92, 0.9, 1); 
+        outerBrush.updateMatrixWorld();
+
+        const innerGeo = new THREE.SphereGeometry(2.6, 64, 64);
+        const innerBrush = new Brush(innerGeo, boneMaterial);
+        innerBrush.scale.set(0.92, 0.9, 1);
+        innerBrush.updateMatrixWorld();
+
+        let result = evaluator.evaluate(outerBrush, innerBrush, SUBTRACTION);
+
+        // 2. Очі
+        const eyeGeo = new THREE.CylinderGeometry(0.55, 0.55, 5, 32);
+        const eyeBrush = new Brush(eyeGeo, boneMaterial);
+        eyeBrush.rotation.x = Math.PI / 2;
+        eyeBrush.position.set(-0.9, 0.3, 2.5); 
+        eyeBrush.updateMatrixWorld();
+        result = evaluator.evaluate(result, eyeBrush, SUBTRACTION); // Ліве око
+        
+        eyeBrush.position.set(0.9, 0.3, 2.5);
+        eyeBrush.updateMatrixWorld();
+        result = evaluator.evaluate(result, eyeBrush, SUBTRACTION); // Праве око
+
+        // 3. Ніс
+        const noseGeo = new THREE.CylinderGeometry(0.0, 0.6, 3, 3);
+        const noseBrush = new Brush(noseGeo, boneMaterial);
+        noseBrush.rotation.x = Math.PI / 2;
+        noseBrush.rotation.y = Math.PI;
+        noseBrush.position.set(0, -0.6, 2.0);
+        noseBrush.scale.set(2, 3, 3.0); 
+        noseBrush.updateMatrixWorld();
+        result = evaluator.evaluate(result, noseBrush, SUBTRACTION);
+
+        // 4. Зріз знизу
+        const cutBoxGeo = new THREE.BoxGeometry(6, 6, 6);
+        const cutBrush = new Brush(cutBoxGeo, boneMaterial);
+        cutBrush.position.set(0, -4.8, 0); 
+        cutBrush.updateMatrixWorld();
+        result = evaluator.evaluate(result, cutBrush, SUBTRACTION);
+
+        // Формуємо основний меш
+        const skullMesh = result;
+        skullMesh.material = boneMaterial; // Перестраховка
+
+        // 5. Зуби
+        const teethGroup = new THREE.Group();
+        const addRow = (isUpper) => {
+            const rowGroup = new THREE.Group();
+            const count = 10; 
+            const radius = 1.3; 
+            const startAngle = -Math.PI / 3; 
+            const endAngle = Math.PI / 3;    
+
+            for (let i = 0; i < count; i++) {
+                const t = i / (count - 1);
+                const angle = startAngle + t * (endAngle - startAngle);
+                
+                // Визначення форми зуба
+                const distFromCenter = Math.abs(i - (count - 1) / 2);
+                let w = 0.26, h = 0.45, d = 0.2; // Різці
+                if (distFromCenter >= 2.5) { w = 0.35; h = 0.4; d = 0.35; } // Корінні
+
+                const geo = new THREE.BoxGeometry(w, h, d);
+                // Заокруглення зубів (Subdivision modifier тут немає, тому просто бокс)
+                const tooth = new THREE.Mesh(geo, toothMaterial);
+
+                // Позиціонування по дузі
+                tooth.position.x = radius * Math.sin(angle);
+                tooth.position.z = radius * Math.cos(angle);
+                tooth.rotation.y = angle;
+
+                rowGroup.add(tooth);
+            }
+
+            if (isUpper) {
+                rowGroup.position.set(0, -1.8, 0.7); 
+            } else {
+                rowGroup.position.set(0, -2.45, 0.7); 
+                rowGroup.rotation.x = 0.2; 
+            }
+            teethGroup.add(rowGroup);
+        };
+
+        addRow(true);
+        addRow(false);
+
+        // Збираємо все в одну групу
+        const masterGroup = new THREE.Group();
+        masterGroup.add(skullMesh);
+        masterGroup.add(teethGroup);
+
+        // Масштабування для сцени LowRank (щоб влізло в екран)
+        masterGroup.scale.set(0.4, 0.4, 0.4); 
+        return masterGroup;
+    }
+			
             // Універсальний матеріал для простих фігур
             const defaultMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00, metalness: 0.2, roughness: 0.6, ...commonProps, opacity: 0.95 });
 
@@ -544,6 +663,8 @@
                 case 'box':
                     modelGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), defaultMaterial));
                     break;
+					
+				case 'skull': return createSkullModel();
                 case 'torus':
                     // Створимо окремий матеріал для пончика
                     const torusMaterial = new THREE.MeshStandardMaterial({ 
