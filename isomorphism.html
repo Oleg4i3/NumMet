@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Симулятор Коливань: (Ізоморфізм та Моди)</title>
+    
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            gap: 20px;
+            background-color: #f4f7f9;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        #main-container {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 1200px; /* Обмежимо ширину */
+            gap: 20px;
+        }
+        .graph-column {
+            width: 48%;
+            padding: 15px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        canvas {
+            background-color: #fdfdfd;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            width: 100%;
+            height: auto;
+        }
+        h2 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        #controls-container {
+            padding: 15px 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 1200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .preset-selector {
+            display: flex; gap: 10px; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #eee;
+        }
+        .preset-selector label { font-weight: 600; font-size: 1.1em; color: #0056b3; }
+        .preset-selector select { padding: 8px; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; }
+        
+        #animation-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        #animation-controls button {
+            padding: 10px 15px; font-size: 14px; cursor: pointer; border: none; border-radius: 5px;
+            background-color: #28a745; color: white; transition: background-color 0.2s;
+        }
+        #animation-controls button:disabled {
+            background-color: #a0a0a0;
+        }
+        #animation-controls button:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        #animation-controls select {
+            padding: 8px; font-size: 14px; border-radius: 5px; border: 1px solid #ccc;
+        }
+        .slider-group {
+            display: flex; flex-direction: column; align-items: center; font-size: 12px;
+        }
+        input[type="range"] { width: 120px; }
+        
+        #equalizer-container {
+            display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap;
+        }
+        
+        /* Секція теорії */
+        #theory-spoiler {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+            background-color: #fff;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        #theory-spoiler summary {
+            font-size: 1.5em;
+            font-weight: 600;
+            padding: 15px 20px;
+            cursor: pointer;
+            color: #0056b3;
+        }
+        #theory-spoiler summary:hover {
+            background-color: #f9f9f9;
+        }
+        .theory-content {
+            padding: 0 20px 20px 20px;
+            line-height: 1.6;
+        }
+        .theory-content h3 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .theory-content code {
+            background-color: #eef;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .theory-content .highlight {
+            background-color: #fff8e1;
+            border: 1px solid #ffeeba;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        /* Стиль для індексів */
+        i { font-style: italic; }
+        sub { font-size: 0.8em; }
+    </style>
+</head>
+<body>
+
+    <h1>Ізоморфізм графів та Спектральний Аналіз</h1>
+
+    <div id="controls-container">
+        <div class="preset-selector">
+            <label for="presetSelect">Оберіть приклад:</label>
+            <select id="presetSelect">
+                <option value="cospectral">Приклад 1: Однаковий спектр (Коспектральні)</option>
+                <option value="non-cospectral">Приклад 2: Різний спектр (Не зв'язний)</option>
+                <option value="connected-non-cospectral">Приклад 3: Зв'язні, Різний спектр</option>
+            </select>
+        </div>
+        
+        <div id="animation-controls">
+            <label for="animationModeSelect">Мод коливань:</label>
+            <select id="animationModeSelect">
+                <option value="-1">Вимкнено</option>
+                <option value="0">Мод 1 ($\lambda_1$, тривіальний)</option>
+                <option value="1">Мод 2 ($\lambda_2$, Вектор Фідлера)</option>
+                <option value="2">Мод 3 ($\lambda_3$)</option>
+                <option value="3">Мод 4 ($\lambda_4$)</option>
+                <option value="4">Мод 5 ($\lambda_5$)</option>
+                <option value="5">Мод 6 ($\lambda_6$)</option>
+                <option value="6">Комбінація</option>
+            </select>
+            <button id="toggleAnimationButton" disabled>Запустити анімацію</button>
+            
+            <div class="slider-group" style="flex-direction: row; gap: 10px;">
+                <label for="speedSlider">Швидкість:</label>
+                <input type="range" min="10" max="200" value="100" id="speedSlider" style="width: 100px;">
+                <span id="speedValue">1.0x</span>
+            </div>
+        </div>
+        
+        <div id="equalizer-container" style="display: none;">
+            <div class="slider-group"><label for="amp-slider-0">Амп. $\lambda_1$</label><input type="range" min="0" max="100" value="50" id="amp-slider-0"></div>
+            <div class="slider-group"><label for="amp-slider-1">Амп. $\lambda_2$</label><input type="range" min="0" max="100" value="75" id="amp-slider-1"></div>
+            <div class="slider-group"><label for="amp-slider-2">Амп. $\lambda_3$</label><input type="range" min="0" max="100" value="75" id="amp-slider-2"></div>
+            <div class="slider-group"><label for="amp-slider-3">Амп. $\lambda_4$</label><input type="range" min="0" max="100" value="75" id="amp-slider-3"></div>
+            <div class="slider-group"><label for="amp-slider-4">Амп. $\lambda_5$</label><input type="range" min="0" max="100" value="75" id="amp-slider-4"></div>
+            <div class="slider-group"><label for="amp-slider-5">Амп. $\lambda_6$</label><input type="range" min="0" max="100" value="75" id="amp-slider-5"></div>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div class="graph-column">
+            <h2 id="graph1-title">Граф 1</h2>
+            <p id="graph1-desc">Вершини <b>0</b>(d=3) і <b>1</b>(d=3) <b>НЕ суміжні</b> (на відстані 2).</p>
+            <canvas id="canvasGraph1" width="500" height="400"></canvas>
+        </div>
+        <div class="graph-column">
+            <h2 id="graph2-title">Граф 2</h2>
+            <p id="graph2-desc">Вершини <b>0</b>(d=3) і <b>1</b>(d=3) <b>Є суміжними</b>.</p>
+            <canvas id="canvasGraph2" width="500" height="400"></canvas>
+        </div>
+    </div>
+
+    <details id="theory-spoiler" open>
+        <summary>Теоретичні відомості: Ізоморфізм та Спектральний аналіз</summary>
+        <div class="theory-content">
+            <p>Цей симулятор демонструє <strong>неізоморфні</strong> графи. Це означає, що хоча вони можуть мати багато однакових властивостей, їхня фундаментальна структура (зв'язність) різна. Неможливо "перейменувати" вершини Графа 1 так, щоб отримати точну копію Графа 2.</p>
+            
+            <div class="highlight">
+                <strong>Ключова ідея (Приклад 1):</strong> Ці два графи ілюструють "колізію" інваріантів. Вони <strong>неізоморфні</strong>, але всі прості інваріанти у них <strong>збігаються</strong>:
+                <br>
+                1. Кількість вершин (6), 2. Кількість ребер (6), 3. Послідовність степенів (3,3,2,2,1,1), 4. Кількість компонент (1), 5. <strong>Спектр (набір частот $\lambda_1, \lambda_2, \dots, \lambda_6$)</strong>.
+                <br>
+                Різниця стає очевидною лише при аналізі <strong>форм</strong> коливань (власних векторів).
+            </div>
+            
+             <div class="highlight" style="background-color: #e6f7ff; border-color: #b3e0ff;">
+                <strong>Ключова ідея (Приклад 2):</strong> Тут спектр є сильнішим інваріантом, ніж послідовність степенів. Обидва графи мають <strong>однакову</strong> послідовність степенів `(2,2,2,2,2,2)`, але <strong>різні</strong> спектри.
+                <br>
+                1. <strong>Граф 1 (2 трикутники):</strong> Має 2 компоненти, тому $\lambda_2 = 0$.
+                <br>
+                2. <strong>Граф 2 (Цикл):</strong> Має 1 компоненту, тому $\lambda_2 > 0$ (тут $\lambda_2 = 1$).
+            </div>
+            
+            <div class="highlight" style="background-color: #e6ffe6; border-color: #b3ffb3;">
+                <strong>Ключова ідея (Приклад 3):</strong> Два графи (Призма та $K_{3,3}$) є <strong>зв'язними</strong> і мають <strong>однакову</strong> послідовність степенів `(3,3,3,3,3,3)`, але <strong>різні</strong> спектри.
+                <br>1. <strong>Граф 1 (Призма):</strong> $\lambda_2 = 2.0$.
+                <br>2. <strong>Граф 2 ($K_{3,3}$):</strong> $\lambda_2 = 3.0$.
+                <br>Вони неізоморфні (Призма має трикутники, $K_{3,3}$ - ні) і тому коливаються з різною швидкістю.
+            </div>
+
+            <h3>1. Що таке "коливальні моди" (власні вектори) для IT?</h3>
+            <p>Важливо розуміти, що "коливання" — це зручна фізична аналогія. Насправді ми говоримо про <strong>власні вектори (Eigenvectors)</strong> матриці графа (зазвичай, матриці Лапласа).</p>
+            <p>Уявіть, що граф — це не фізична система, а соціальна мережа або комп'ютерна мережа.</p>
+            <ul>
+                <li><strong>Власний вектор (мод)</strong> — це фундаментальний "патерн" або "структурна властивість" цієї мережі. Кожен власний вектор присвоює кожній вершині (<code>v0, v1, ..., v5</code>) певне числове значення.</li>
+                <li><strong>"Синфазно" (один знак):</strong> Вершини, що мають значення одного знаку (напр., всі додатні), утворюють "спільноту" (community) або "кластер". Вони структурно тісно пов'язані.</li>
+                <li><strong>"Протифазно" (різні знаки):</strong> Вершини з різними знаками (напр., +0.5 та -0.5) належать до різних спільнот. Власний вектор ніби "розрізає" граф на природні частини.</li>
+            </ul>
+            <p><strong>Найважливіший мод для IT — це Мод 2 (Вектор Фідлера):</strong></p>
+            <ul>
+                <li>Він відповідає найменшій ненульовій "частоті" (власному значенню Лапласіана, $\lambda_2$).</li>
+                <li>Він показує <strong>найкращий спосіб розрізати граф на дві частини</strong>. Це основа <strong>спектральної кластеризації</strong>.</li>
+                <li>У Прикладі 1, Мод 2 показує однаковий "бажаний" розріз $\lambda_2$ для обох графів, незважаючи на їх неізоморфність.</li>
+                 <li>У Прикладі 2, Мод 2 для першого графа ($\lambda_2=0$) просто розділяє дві компоненти зв'язності.</li>
+                 <li>У Прикладі 3, Мод 2 показує різні частоти ($\lambda_2=2.0$ vs $\lambda_2=3.0$), доводячи, що графи не лише неізоморфні, але й не коспектральні.</li>
+            </ul>
+
+            <h3>2. Визначення ізоморфізму</h3>
+            <p>Два графи $G_1 = (V_1, E_1)$ та $G_2 = (V_2, E_2)$ називаються <strong>ізоморфними</strong>, якщо існує бієктивна функція (взаємно однозначна відповідність) $f: V_1 \to V_2$ така, що будь-які дві вершини $u$ і $v$ з $V_1$ є суміжними в $G_1$ <strong>тоді й тільки тоді</strong>, коли вершини $f(u)$ і $f(v)$ є суміжними в $G_2$.</p>
+            <p>Простіше кажучи: це один і той самий граф, але вершини можуть мати різні імена (номери). Ізоморфізм — це "словник" для перейменування.</p>
+
+            <h3>3. Способи виявлення (Проблема Ізоморфізму)</h3>
+            <p>Задача визначення, чи є два графи ізоморфними (<strong>Graph Isomorphism Problem, GI</strong>) — одна з відомих відкритих проблем в CS. Вона належить до класу складності <strong>NP</strong>, але невідомо, чи є вона <strong>P</strong> (легко розв'язуваною) або <strong>NP-повною</strong> (найскладнішою в NP).</p>
+            
+            <h4>а) Метод інваріантів ("Хешування")</h4>
+            <p>Інваріант — це властивість графа, яка не залежить від нумерації його вершин. Якщо хоча б один інваріант у двох графів різний, вони <strong>точно не ізоморфні</strong>.</p>
+            <p>Найпоширеніші інваріанти:</p>
+            <ul>
+                <li>Кількість вершин (напр., $|V|$)</li>
+                <li>Кількість ребер (напр., $|E|$)</li>
+                <li>Кількість компонент зв'язності</li>
+                <li><strong>Послідовність степенів:</strong> відсортований список степенів усіх вершин.</li>
+                <li><strong>Спектр графа:</strong> набір власних значень (наші $\lambda_1, \lambda_2, \dots$).</li>
+            </ul>
+            <p><strong>"Уловка":</strong> Інваріанти — це необхідна, але <strong>не достатня</strong> умова. Як ми бачимо у Прикладі 1, два неізоморфні графи можуть мати <strong>однакові</strong> інваріанти (включно зі спектром). Це як "колізія" в хэш-функції.</p>
+
+            <h4>б) Канонічна розмітка (Сучасний підхід)</h4>
+            <p>Практично, задача розв'язується за допомогою алгоритмів <strong>канонічної розмітки</strong> (canonical labeling), найвідоміший з яких — <strong>Nauty/Traces</strong>. Ідея полягає в тому, щоб знайти "унікальне ім'я" (канонічну форму, наприклад, унікальний рядок або матрицю) для графа, яке не залежатиме від початкової нумерації. Якщо два графи мають однакову канонічну форму, вони ізоморфні. Хоча в гіршому випадку це все ще складно, на практиці ці алгоритми працюють надзвичайно швидко.</p>
+
+            <h4>в) Повний перебір (Brute Force)</h4>
+            <p>Для графів з $n$ вершинами можна перевірити всі $n!$ (n-факторіал) можливих функцій $f$. Це стає обчислювально неможливим вже при $n > 10$.</p>
+
+            <h3>4. Практичні застосунки</h3>
+            <ul>
+                <li><strong>Хімія (Хемоінформатика):</strong> Молекули — це графи (атоми — вершини, зв'язки — ребра). Пошук хімічної сполуки в базі даних (наприклад, PubChem) — це задача пошуку ізоморфізму підграфу.</li>
+                <li><strong>Проектування мікросхем (VLSI Design):</strong> Перевірка того, чи дві електричні схеми (представлені як графи) є функціонально ідентичними.</li>
+                <li><strong>Комп'ютерний зір та Розпізнавання образів:</strong> Зіставлення структурних елементів на зображенні (представлених як графи) з еталонними зразками.</li>
+                <li><strong>Оптимізація запитів у Базах Даних:</strong> Деякі системи представляють SQL-запити у вигляді дерев (графів) і намагаються знайти ізоморфні підструктури для оптимізації.</li>
+            </ul>
+        </div>
+    </details>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- SETUP & STATE ---
+    const canvas1 = document.getElementById('canvasGraph1'), ctx1 = canvas1.getContext('2d');
+    const canvas2 = document.getElementById('canvasGraph2'), ctx2 = canvas2.getContext('2d');
+    const presetSelect = document.getElementById('presetSelect'); // Новий
+    const animationModeSelect = document.getElementById('animationModeSelect');
+    const toggleAnimationButton = document.getElementById('toggleAnimationButton');
+    const equalizerContainer = document.getElementById('equalizer-container');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    
+    // HTML елементи для оновлення
+    const graph1Title = document.getElementById('graph1-title');
+    const graph1Desc = document.getElementById('graph1-desc');
+    const graph2Title = document.getElementById('graph2-title');
+    const graph2Desc = document.getElementById('graph2-desc');
+
+    let isAnimating = false, animationFrameId = null, animationStartTime = 0;
+    let speedFactor = 1.0;
+    
+    // Глобальні змінні для поточних даних графа
+    let currentGraphData1 = { vertices: [], originalPositions: [], edges: [], eigenvalues: [], eigenvectors: [] };
+    let currentGraphData2 = { vertices: [], originalPositions: [], edges: [], eigenvalues: [], eigenvectors: [] };
+
+    // --- БАЗА ДАНИХ ПРЕСЕТІВ ---
+    
+    const presetData = {
+        "cospectral": {
+            title1: "Граф 1 (Коспектральний)",
+            desc1: "Вершини <b>0</b>(d=3) і <b>1</b>(d=3) <b>НЕ суміжні</b>. Посл. степенів: (3,3,2,2,1,1).",
+            g1: {
+                originalPositions: [ { x: 150, y: 200 }, { x: 350, y: 200 }, { x: 250, y: 120 }, { x: 250, y: 280 }, { x: 50,  y: 200 }, { x: 450, y: 200 } ],
+                edges: [ [0,2], [2,1], [1,3], [3,0], [0,4], [1,5] ],
+                eigenvalues: [0.0, 0.586, 2.0, 3.0, 3.414, 5.0],
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // λ=0.0
+                    [-0.5, -0.5, 0.5, 0.5, -0.5, -0.5],         // λ=0.586 (Фідлер)
+                    [0.5, -0.5, 0, 0, 0.5, -0.5],               // λ=2.0 
+                    [0, 0, 0.707, -0.707, 0, 0],                // λ=3.0
+                    [-0.5, -0.5, -0.5, -0.5, 0.5, 0.5],         // λ=3.414
+                    [0.288, -0.288, -0.577, 0.577, -0.288, 0.288] // λ=5.0
+                ],
+                vertices: [] 
+            },
+            title2: "Граф 2 (Коспектральний)",
+            desc2: "Вершини <b>0</b>(d=3) і <b>1</b>(d=3) <b>Є суміжними</b>. Посл. степенів: (3,3,2,2,1,1).",
+            g2: {
+                originalPositions: [ { x: 200, y: 150 }, { x: 300, y: 150 }, { x: 300, y: 250 }, { x: 200, y: 250 }, { x: 150, y: 50  }, { x: 350, y: 50  } ],
+                edges: [ [0,1], [1,2], [2,3], [3,0], [0,4], [1,5] ],
+                eigenvalues: [0.0, 0.586, 2.0, 3.0, 3.414, 5.0], // Спектр той самий!
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // λ=0.0
+                    [-0.5, -0.5, 0.5, 0.5, -0.5, -0.5],         // λ=0.586 (Фідлер)
+                    [0, 0, 0.707, -0.707, 0, 0],                // λ=2.0
+                    [0.5, -0.5, 0, 0, -0.5, 0.5],               // λ=3.0 (Інший вектор, ніж G1!)
+                    [-0.5, -0.5, -0.5, -0.5, 0.5, 0.5],         // λ=3.414
+                    [0.288, -0.288, 0.577, -0.577, -0.288, 0.288] // λ=5.0
+                ],
+                vertices: []
+            }
+        },
+        "non-cospectral": {
+            title1: "Граф 1 (2 Трикутники)",
+            desc1: "Два окремі трикутники. <b>$\lambda_2 = 0$</b> (2 компоненти). Посл. степенів: (2,2,2,2,2,2).",
+            g1: {
+                originalPositions: [ { x: 120, y: 150 }, { x: 220, y: 150 }, { x: 170, y: 230 }, { x: 280, y: 150 }, { x: 380, y: 150 }, { x: 330, y: 230 } ],
+                edges: [ [0,1], [1,2], [2,0], [3,4], [4,5], [5,3] ],
+                eigenvalues: [0.0, 0.0, 3.0, 3.0, 3.0, 3.0], // λ₂ = 0
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // "Фейковий" тривіальний мод для візуалізації
+                    [0.577, 0.577, 0.577, -0.577, -0.577, -0.577], // λ=0 (Справжній Фідлер, розділяє компоненти)
+                    [0.816, -0.408, -0.408, 0, 0, 0],        // λ=3 (Компонента 1)
+                    [0, 0.707, -0.707, 0, 0, 0],            // λ=3 (Компонента 1)
+                    [0, 0, 0, 0.816, -0.408, -0.408],        // λ=3 (Компонента 2)
+                    [0, 0, 0, 0, 0.707, -0.707]             // λ=3 (Компонента 2)
+                ],
+                vertices: [] 
+            },
+            title2: "Граф 2 (Цикл C6)",
+            desc2: "Один 6-вершинний цикл. <b>$\lambda_2 = 1.0$</b> (зв'язний). Посл. степенів: (2,2,2,2,2,2).",
+            g2: {
+                originalPositions: [ { x: 250, y: 100 }, { x: 350, y: 170 }, { x: 350, y: 270 }, { x: 250, y: 340 }, { x: 150, y: 270 }, { x: 150, y: 170 } ],
+                edges: [ [0,1], [1,2], [2,3], [3,4], [4,5], [5,0] ],
+                eigenvalues: [0.0, 1.0, 1.0, 3.0, 3.0, 4.0], // λ₂ = 1
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // λ=0
+                    [0.5, 0.25, -0.25, -0.5, -0.25, 0.25],   // λ=1 (Фідлер)
+                    [0, 0.433, 0.433, 0, -0.433, -0.433],    // λ=1
+                    [0.5, -0.25, -0.25, 0.5, -0.25, -0.25],  // λ=3
+                    [0, 0.433, -0.433, 0, 0.433, -0.433],    // λ=3
+                    [0.408, -0.408, 0.408, -0.408, 0.408, -0.408] // λ=4
+                ],
+                vertices: []
+            }
+        },
+        // === ДОДАНО: Новий пресет (Запит 2) ===
+        "connected-non-cospectral": {
+            title1: "Граф 1 (Призма)",
+            desc1: "Граф 'Призма' ($C_3 \\times K_2$). <b>Зв'язний</b>. Посл. степенів: (3,3,3,3,3,3). <b>$\lambda_2 = 2.0$</b>",
+            g1: {
+                originalPositions: [ {x:250,y:100}, {x:150,y:250}, {x:350,y:250}, {x:300,y:150}, {x:200,y:300}, {x:400,y:300} ],
+                edges: [ [0,1], [1,2], [2,0], [3,4], [4,5], [5,3], [0,3], [1,4], [2,5] ],
+                eigenvalues: [0.0, 2.0, 2.0, 3.0, 5.0, 6.0],
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // λ=0
+                    [0.577, 0, -0.577, 0.577, 0, -0.577],       // λ=2 (Fiedler 1)
+                    [0, 0.577, -0.577, 0, 0.577, -0.577],       // λ=2 (Fiedler 2)
+                    [0.408, -0.816, 0.408, 0.408, -0.816, 0.408], // λ=3
+                    [0.408, 0.408, 0.408, -0.408, -0.408, -0.408], // λ=5 (Front vs Back)
+                    [0.408, -0.408, 0.408, -0.408, 0.408, -0.408] // λ=6
+                ],
+                vertices: [] 
+            },
+            title2: "Граф 2 ($K_{3,3}$)",
+            desc2: "Повний двочастковий граф $K_{3,3}$. <b>Зв'язний</b>. Посл. степенів: (3,3,3,3,3,3). <b>$\lambda_2 = 3.0$</b>",
+            g2: {
+                originalPositions: [ {x:150,y:100}, {x:150,y:200}, {x:150,y:300}, {x:350,y:100}, {x:350,y:200}, {x:350,y:300} ],
+                edges: [ [0,3], [0,4], [0,5], [1,3], [1,4], [1,5], [2,3], [2,4], [2,5] ],
+                eigenvalues: [0.0, 3.0, 3.0, 3.0, 3.0, 6.0], // λ₂ = 3.0
+                eigenvectors: [
+                    [0.408, 0.408, 0.408, 0.408, 0.408, 0.408], // λ=0
+                    [0.577, 0.577, 0.577, -0.577, -0.577, -0.577], // λ=3 (Fiedler, Part A vs B)
+                    [0.707, -0.707, 0, 0, 0, 0],            // λ=3 (Degenerate)
+                    [0.408, 0.408, -0.816, 0, 0, 0],        // λ=3 (Degenerate)
+                    [0, 0, 0, 0.707, -0.707, 0],            // λ=3 (Degenerate)
+                    [0.408, 0.408, 0.408, -0.408, -0.408, -0.408] // λ=6
+                ],
+                vertices: []
+            }
+        }
+    };
+
+    // --- DRAWING LOGIC ---
+    function drawGraph(ctx, vertices, edges) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 3;
+        edges.forEach(edge => {
+            const start = vertices[edge[0]], end = vertices[edge[1]];
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.stroke();
+        });
+        vertices.forEach((vertex, i) => {
+            ctx.beginPath();
+            ctx.arc(vertex.x, vertex.y, 18, 0, 2 * Math.PI);
+            // Динамічне забарвлення для Прикладу 1
+            let color = '#c0c0c0';
+            if (presetSelect.value === 'cospectral' && (i === 0 || i === 1)) {
+                color = '#f0a0a0'; // d=3 червоні
+            }
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'black';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(i, vertex.x, vertex.y); 
+        });
+    }
+
+    // --- ANIMATION LOGIC ---
+    function stopAnimation() {
+        if (isAnimating) {
+            isAnimating = false;
+            cancelAnimationFrame(animationFrameId);
+            // Скидання позицій на основі ПОТОЧНИХ даних
+            currentGraphData1.vertices = JSON.parse(JSON.stringify(currentGraphData1.originalPositions));
+            currentGraphData2.vertices = JSON.parse(JSON.stringify(currentGraphData2.originalPositions));
+            toggleAnimationButton.textContent = 'Запустити анімацію';
+            drawAllGraphs();
+        }
+    }
+
+    function animate(currentTime) {
+        if (!isAnimating) return;
+        
+        speedFactor = speedSlider.value / 100.0;
+        speedValue.textContent = speedFactor.toFixed(1) + 'x';
+        
+        const elapsed = currentTime - animationStartTime;
+        const modeIdx = parseInt(animationModeSelect.value, 10);
+
+        const dx1 = new Array(6).fill(0), dy1 = new Array(6).fill(0);
+        const dx2 = new Array(6).fill(0), dy2 = new Array(6).fill(0);
+        
+        const MAX_AMP = 60; 
+        const modesToAnim = (modeIdx === 6) ? [0, 1, 2, 3, 4, 5] : [modeIdx];
+
+        modesToAnim.forEach(m => {
+            if (m < 0) return;
+            
+            // Отримуємо власні значення (частоти) для КОЖНОГО графа
+            const lambda1 = currentGraphData1.eigenvalues[m];
+            const lambda2 = currentGraphData2.eigenvalues[m];
+            
+            // Розраховуємо кутову швидкість на основі lambda.
+            // freq = sqrt(lambda). Додаємо 0.5, щоб мод λ=0 теж рухався (але повільно)
+            const omega1 = (Math.sqrt(lambda1) + 0.5) * 1.5;
+            const omega2 = (Math.sqrt(lambda2) + 0.5) * 1.5;
+            
+            let amp1 = MAX_AMP, amp2 = MAX_AMP;
+            if (modeIdx === 6) {
+                const ampSliderVal = document.getElementById(`amp-slider-${m}`).value / 100;
+                amp1 = MAX_AMP * ampSliderVal;
+                amp2 = MAX_AMP * ampSliderVal;
+            }
+
+            const timeWithSpeed = elapsed * speedFactor;
+            
+            // Розраховуємо зміщення окремо, оскільки частоти (omega) можуть бути різними
+            const disp1_cos = amp1 * Math.cos(timeWithSpeed * omega1 / 100);
+            const disp1_sin = amp1 * Math.sin(timeWithSpeed * omega1 / 100);
+            const disp2_cos = amp2 * Math.cos(timeWithSpeed * omega2 / 100);
+            const disp2_sin = amp2 * Math.sin(timeWithSpeed * omega2 / 100);
+
+            for (let i = 0; i < 6; i++) {
+                const comp1 = currentGraphData1.eigenvectors[m][i];
+                const comp2 = currentGraphData2.eigenvectors[m][i];
+                
+                // Застосовуємо окремі зміщення
+                if (m === 0) { // Тривіальний мод (рух вгору-вниз)
+                    dy1[i] += disp1_sin; 
+                    dy2[i] += disp2_sin;
+                }
+                else if (m % 2 === 1) { // Непарні моди (рух вліво-вправо)
+                    dx1[i] += comp1 * disp1_cos; 
+                    dx2[i] += comp2 * disp2_cos;
+                }
+                else { // Парні моди (рух вгору-вниз)
+                    dy1[i] += comp1 * disp1_cos; 
+                    dy2[i] += comp2 * disp2_cos;
+                }
+            }
+        });
+
+        // Застосовуємо зміщення до вершин
+        for (let i = 0; i < 6; i++) {
+            currentGraphData1.vertices[i].x = currentGraphData1.originalPositions[i].x + dx1[i];
+            currentGraphData1.vertices[i].y = currentGraphData1.originalPositions[i].y + dy1[i];
+            currentGraphData2.vertices[i].x = currentGraphData2.originalPositions[i].x + dx2[i];
+            currentGraphData2.vertices[i].y = currentGraphData2.originalPositions[i].y + dy2[i];
+        }
+
+        drawAllGraphs();
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // --- EVENT LISTENERS ---
+    toggleAnimationButton.addEventListener('click', () => {
+        if (isAnimating) {
+            stopAnimation();
+        } else {
+            isAnimating = true;
+            // Зберігаємо поточні позиції як "оригінальні" для анімації
+            currentGraphData1.originalPositions = JSON.parse(JSON.stringify(currentGraphData1.vertices));
+            currentGraphData2.originalPositions = JSON.parse(JSON.stringify(currentGraphData2.vertices));
+            animationStartTime = performance.now();
+            toggleAnimationButton.textContent = 'Зупинити';
+            animate(performance.now());
+        }
+    });
+
+    animationModeSelect.addEventListener('change', () => {
+        stopAnimation();
+        const modeIndex = parseInt(animationModeSelect.value, 10);
+        toggleAnimationButton.disabled = (modeIndex < 0);
+        equalizerContainer.style.display = (modeIndex === 6) ? 'flex' : 'none';
+        drawAllGraphs();
+    });
+    
+    speedSlider.addEventListener('input', () => {
+        speedFactor = speedSlider.value / 100.0;
+        speedValue.textContent = speedFactor.toFixed(1) + 'x';
+    });
+    
+    // Новий слухач для пресетів
+    presetSelect.addEventListener('change', (e) => {
+        loadPreset(e.target.value);
+    });
+    
+    // --- INITIALIZATION ---
+    function drawAllGraphs() {
+        drawGraph(ctx1, currentGraphData1.vertices, currentGraphData1.edges);
+        drawGraph(ctx2, currentGraphData2.vertices, currentGraphData2.edges);
+    }
+    
+    function init() {
+        stopAnimation(); // Зупиняємо, якщо щось працювало
+        // Скидаємо позиції на основі даних поточного пресету
+        currentGraphData1.vertices = JSON.parse(JSON.stringify(currentGraphData1.originalPositions));
+        currentGraphData2.vertices = JSON.parse(JSON.stringify(currentGraphData2.originalPositions));
+        
+        animationModeSelect.value = "-1"; 
+        toggleAnimationButton.disabled = true;
+        equalizerContainer.style.display = 'none';
+        speedValue.textContent = (speedSlider.value / 100.0).toFixed(1) + 'x';
+        drawAllGraphs();
+    }
+    
+    // Нова функція для завантаження даних пресету
+    function loadPreset(presetId) {
+        const data = presetData[presetId];
+        
+        // Завантажуємо дані у глобальні змінні
+        currentGraphData1 = data.g1;
+        currentGraphData2 = data.g2;
+        
+        // Оновлюємо HTML-описи
+        graph1Title.innerHTML = data.title1;
+        graph1Desc.innerHTML = data.desc1;
+        graph2Title.innerHTML = data.title2;
+        graph2Desc.innerHTML = data.desc2;
+        if (window.MathJax) {
+            MathJax.typeset();
+        }
+        // Переініціалізуємо стан симулятора
+        init();
+    }
+
+    // Завантажуємо перший пресет за замовчуванням
+    loadPreset('cospectral');
+});
+</script>
+
+</body>
+</html>
