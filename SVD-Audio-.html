@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVD vs DCT</title>
+    
+    <script>
+        window.MathJax = {
+            tex: { 
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg: #0f172a; --panel: #1e293b; --text: #e2e8f0;
+            --accent: #38bdf8; --highlight: #facc15;
+            --kept: #10b981; --lost: #f43f5e; 
+            --dct: #f97316;
+            --border: #334155;
+        }
+        body { font-family: 'Segoe UI', monospace; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .main-grid { display: grid; grid-template-columns: 450px 1fr; gap: 20px; max-width: 1600px; width: 100%; margin-top: 20px; }
+        @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .panel { background: var(--panel); padding: 20px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Guide & Theory */
+        .step-guide { background: #172554; border-left: 4px solid var(--highlight); padding: 15px; margin-bottom: 5px; font-size: 0.9rem; line-height: 1.6; color: #cbd5e1; }
+        .step-title { color: var(--highlight); font-weight: bold; text-transform: uppercase; margin-bottom: 5px; display: block;}
+        
+        .theory-block { 
+            background: #020617; border: 1px solid #475569; border-radius: 6px; 
+            padding: 15px; font-size: 0.85rem; color: #94a3b8; line-height: 1.7;
+            max-height: 300px; overflow-y: auto;
+        }
+        .theory-header { color: var(--accent); font-weight: bold; border-bottom: 1px solid #334155; padding-bottom: 3px; margin: 12px 0 5px 0; }
+        .theory-header:first-child { margin-top: 0; }
+        
+        /* Buttons */
+        .btn-row { display: flex; gap: 10px; }
+        .file-label, button {
+            background: #334155; color: #fff; border: 1px solid #475569; padding: 12px; border-radius: 4px;
+            cursor: pointer; flex: 1; text-align: center; font-weight: 600; font-size: 0.9rem; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .file-label:hover, button:hover:not(:disabled) { background: #475569; border-color: var(--accent); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .recording { background: #ef4444 !important; animation: pulse 1s infinite; }
+        
+        #btnAction { background: var(--accent); color: #0f172a; border: none; font-weight: bold; margin-top: 10px; padding: 15px; width: 100%;}
+        #btnDCT { background: var(--dct); color: #fff; border: none; }
+        #btnDCT:hover:not(:disabled) { background: #ea580c; }
+
+        /* Sliders */
+        .control-group { opacity: 0.5; pointer-events: none; transition: 0.3s; }
+        .control-group.active { opacity: 1; pointer-events: all; }
+        
+        .slider-label { display: flex; justify-content: space-between; margin-top: 12px; font-size: 0.9rem;}
+        input[type=range] { width: 100%; accent-color: var(--accent); margin: 8px 0; cursor: pointer; }
+        
+        /* Stats */
+        .stat-box { background: #0f172a; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.85rem; border: 1px solid #334155; display: flex; flex-direction: column; gap: 4px;}
+        .val-highlight { color: var(--kept); font-weight: bold; }
+        .warning-text { color: #facc15; font-size: 0.8em; margin-top: 5px; font-style: italic; }
+
+        /* Canvas */
+        canvas { background: #000; width: 100%; border-radius: 2px; image-rendering: pixelated; display: block; }
+        .canvas-container { position: relative; margin-bottom: 15px; border: 1px solid #334155; padding-left: 35px; padding-bottom: 20px; background: #000; }
+        .overlay-label { position: absolute; top: 0; left: 35px; background: rgba(15, 23, 42, 0.9); color: var(--accent); padding: 2px 6px; font-size: 0.75rem; pointer-events: none; border-bottom-right-radius: 4px;}
+
+        @keyframes pulse { 0% {opacity:1;} 50% {opacity:0.6;} 100% {opacity:1;} }
+    </style>
+</head>
+<body>
+
+    <h1 style="color:var(--accent); margin:0;">Сингулярний розклад для стиснення звуку</h1>
+  
+    <div class="main-grid">
+        <div class="panel">
+            <div id="guide" class="step-guide"></div>
+
+            <div id="theoryPanel" class="theory-block"></div>
+
+            <div class="btn-row">
+                <label class="file-label">
+                    📂 Файл
+                    <input type="file" id="fileIn" accept="audio/*" style="display:none" onchange="handleFile(this)">
+                </label>
+                <button id="btnMic" onclick="recordMic()">🎤 Mic</button>
+            </div>
+            
+            <button id="btnAction" onclick="nextStep()" disabled>Далі...</button>
+            <div id="status" style="text-align:center; color:#64748b; font-size:0.8rem; height:1.2em; margin-top:5px;"></div>
+
+            <hr style="border:0; border-top:1px solid #334155; width:100%; margin:15px 0;">
+
+            <div id="controls" class="control-group">
+                
+                <div style="font-weight:bold; color:var(--accent); border-bottom:1px solid #334155; padding-bottom:5px;">Метод SVD:</div>
+                
+                <div class="slider-label">
+                    <span>Ранг наближення (k)</span>
+                    <span id="lblK" style="color:var(--accent); font-weight:bold; font-size: 1.1rem;">2</span>
+                </div>
+                <input type="range" id="sliderK" min="1" max="32" value="2" oninput="onKChange()">
+
+                <div class="slider-label">
+                    <span>Розмір блоку (кадрів)</span>
+                    <span id="lblBlock" style="color:#cbd5e1;">32</span>
+                </div>
+                <input type="range" id="sliderBlock" min="16" max="64" step="4" value="32" onchange="onBlockChange()" oninput="document.getElementById('lblBlock').innerText=this.value">
+                
+                <div class="stat-box">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Зменшення параметрів:</span> <span id="valComp" class="val-highlight">0%</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Математична похибка:</span> <span id="valErr" style="color: var(--lost)">0%</span>
+                    </div>
+                </div>
+
+                <div class="btn-row" style="margin-top: 10px;">
+                    <button id="btnPlayOrig" onclick="play('orig')" disabled>▶ Вхід (11kHz)</button>
+                    <button id="btnPlayRec" onclick="play('rec')" disabled>▶ SVD Результат</button>
+                </div>
+
+                <div style="font-weight:bold; color:var(--dct); border-bottom:1px solid #334155; padding-bottom:5px; margin-top:20px;">Метод DCT (Кодек Opus):</div>
+                
+                <div class="slider-label">
+                    <span>Бітрейт (kbps)</span>
+                    <span id="lblBitrate" style="color:var(--dct); font-weight:bold;">8</span>
+                </div>
+                <input type="range" id="sliderBitrate" min="6" max="64" step="2" value="8" oninput="document.getElementById('lblBitrate').innerText=this.value; resetDCT();">
+
+                <button id="btnDCT" onclick="playDCT()" disabled style="margin-top:10px;">
+                    ▶ Кодувати DCT та Слухати
+                </button>
+                <div id="dctStat" style="font-size: 0.8rem; color: var(--dct); text-align: center; display: none; margin-top:5px;">
+                    Розмір: <span id="dctSize">-</span> | Стиснення файлу: <span id="dctRatio">-</span>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="canvas-container">
+                <div class="overlay-label">Вхідна Спектрограма (Log-Scale)</div>
+                <canvas id="cvOrig" height="150"></canvas>
+            </div>
+            
+            <div class="canvas-container">
+                <div class="overlay-label">Відновлення SVD</div>
+                <canvas id="cvRec" height="150"></canvas>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <strong>Спектр сингулярних чисел ($\sigma_i$)</strong>
+                    <span style="font-size: 0.8rem; color: #64748b;">Усереднено по блокам</span>
+                </div>
+                <div style="position: relative; height: 120px; background: #000; border: 1px solid #334155; border-radius: 2px;">
+                    <canvas id="cvScree" height="120"></canvas>
+                </div>
+                <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px; display: flex; justify-content: space-between;">
+                    <span><span style="color: var(--kept)">◼</span> Інформація (Сигнал)</span>
+                    <span><span style="color: var(--lost)">◼</span> Відкинуто (Шум)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CONFIG ---
+    const CFG = {
+        rate: 11025,       // Voice optimized
+        fft: 512,          
+        hop: 128,          
+        dur: 5.0           
+    };
+
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let rawSig = null;   
+    let audioBufferFull = null; // For DCT
+    let stft = null;     
+    let step = 0;
+    
+    let globalAvgS = []; 
+    let currentBlockSize = 32;
+    let dctBlob = null; 
+
+    // --- THEORY & STEPS ---
+    const STEPS = [
+        {
+            t: "1. Вхідні дані",
+            d: "Завантажте файл. Ми використовуємо частоту 11 кГц.",
+            b: "Очікування...",
+            theory: `
+                <div class="theory-header">Дискретизація</div>
+                Сигнал x[n] дискретизується з частотою 11025 Гц (телефонна якість).
+                Це масив дійсних чисел (float32).
+            `
+        },
+        {
+            t: "2. Спектральний аналіз",
+            d: "Будуємо STFT матрицю. SVD працює саме з нею.",
+            b: "🚀 Аналіз (STFT)",
+            f: doAnalysis,
+            theory: `
+                <div class="theory-header">Вікно Хеммінга</div>
+                $$ w[n] = 0.54 - 0.46 \\cos\\left(\\frac{2\\pi n}{N-1}\\right) $$
+                
+                <div class="theory-header">Короткочасне перетворення Фур'є</div>
+                $$ X[k, m] = \\sum_{n=0}^{N-1} x[n+mH] \\cdot w[n] \cdot e^{-j\\frac{2\\pi}{N}kn} $$
+                Матриця $A$ складається з логарифмів магнітуд $|X|$.
+            `
+        },
+        {
+            t: "3. Порівняння SVD та DCT",
+            d: "Порівняйте два підходи. Зверніть увагу, що SVD дає 'металевий' звук, а DCT (Opus) — 'розмитий'.",
+            b: "🔄 Почати знову",
+            f: reset,
+            theory: `
+                <div class="theory-header"> SVD (Low-Rank)</div>
+                Ми наближаємо кожен блок матриці сумою $k$ матриць рангу 1:
+                $$ A_{block} \\approx \\sum_{i=1}^{k} \\sigma_i \\mathbf{u}_i \\mathbf{v}_i^T $$
+                
+                <div class="theory-header">Ступінь стиснення SVD</div>
+             	$$ C = \\left( 1 - \\frac{N_{bl} \\cdot k \\cdot (1 + M + N_{w})}{M \\cdot N_{tot}} \\right) \\times 100\% $$	
+			   Рахуємо саме <b>зменшення кількості чисел (параметрів)</b>. 
+				<div class="math-row">
+    <span class="symbol">$N_{bl}$</span>
+    <span><b>Кількість блоків</b> (Number of Blocks). На скільки шматків ми "порізали" аудіо.</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$k$</span>
+    <span><b>Ранг</b> (Rank). Кількість "шарів" (векторів), які ми залишили. Це наш слайдер якості.</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$M$</span>
+    <span><b>Кількість частот</b> (Frequency Bins). Висота спектрограми (залежить від налаштувань FFT, тут 257).</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$N_{w}$</span>
+    <span><b>Ширина блоку</b> (Block Width). Скільки кадрів часу в одному блоці (слайдер 16..64).</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$N_{tot}$</span>
+    <span><b>Загальна довжина</b> (Total Frames). Повна кількість кадрів часу у всьому файлі.</span>
+</div>
+				
+                <br><br>
+                <div class="theory-header">Чому SVD програє DCT/Opus?</div>
+                1. <b>Критерій якості:</b> SVD мінімізує середньоквадратичну помилку (L2), яка погано корелює зі слухом. DCT в Opus використовує психоакустичну модель (ховає помилки там, де вухо не чує).<br>
+                2. <b>Тип даних:</b> Наш SVD зберігає 32-бітні float. Opus квантує коефіцієнти DCT до кількох біт і стискає їх ентропійним кодером.
+            `
+        }
+    ];
+
+    function uiUpdate() {
+        const s = STEPS[step];
+        document.getElementById('guide').innerHTML = `<span class="step-title">${s.t}</span>${s.d}`;
+        document.getElementById('theoryPanel').innerHTML = s.theory;
+        
+        if(window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('theoryPanel')]);
+        }
+
+        const ctrls = document.getElementById('controls');
+        if(step===2) ctrls.classList.add('active'); else ctrls.classList.remove('active');
+        
+        const btn = document.getElementById('btnAction');
+        btn.innerHTML = s.b;
+        btn.disabled = (step === 0);
+        if(step === 2) btn.onclick = reset; else btn.onclick = nextStep;
+    }
+    function nextStep() { if(STEPS[step].f) STEPS[step].f(); }
+
+    // --- AUDIO IO ---
+    async function handleFile(el) { if(el.files[0]) loadAudio(await el.files[0].arrayBuffer()); }
+    
+    async function recordMic() {
+        if(audioCtx.state === 'suspended') await audioCtx.resume();
+        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        const rec = new MediaRecorder(stream);
+        const chunks = [];
+        rec.ondataavailable = e => chunks.push(e.data);
+        rec.onstop = async () => loadAudio(await new Blob(chunks).arrayBuffer());
+        rec.start();
+        document.getElementById('btnMic').classList.add('recording');
+        document.getElementById('btnMic').innerText = "Запис (4с)...";
+        setTimeout(() => { if(rec.state==='recording') rec.stop(); }, 4000);
+    }
+
+    async function loadAudio(buf) {
+        try {
+            const decoded = await audioCtx.decodeAudioData(buf);
+            const len = Math.floor(decoded.duration * CFG.rate);
+            const offline = new OfflineAudioContext(1, len, CFG.rate);
+            const src = offline.createBufferSource();
+            src.buffer = decoded;
+            src.connect(offline.destination);
+            src.start();
+            const rendered = await offline.startRendering();
+            
+            audioBufferFull = rendered; 
+            let data = rendered.getChannelData(0);
+            
+            if(data.length > CFG.rate * CFG.dur) data = data.slice(0, Math.floor(CFG.rate*CFG.dur));
+            
+            rawSig = data;
+            document.getElementById('btnMic').classList.remove('recording');
+            document.getElementById('btnMic').innerText = "🎤 Mic";
+            document.getElementById('status').innerText = `Сигнал: ${(data.length/CFG.rate).toFixed(1)}с @ 11кГц`;
+            
+            dctBlob = null;
+            document.getElementById('dctStat').style.display = 'none';
+            step = 1; uiUpdate();
+        } catch(e) { alert("Помилка аудіо: " + e); }
+    }
+
+    // --- STFT ---
+    function doAnalysis() {
+        document.getElementById('status').innerText = "Обчислення STFT...";
+        setTimeout(() => {
+            const nFft = CFG.fft, hop = CFG.hop;
+            const nFrames = Math.floor((rawSig.length - nFft) / hop);
+            const nBins = nFft/2 + 1;
+            
+            const magLog = []; 
+            const phase = [];
+            
+            const win = new Float32Array(nFft);
+            for(let i=0; i<nFft; i++) win[i] = 0.54 - 0.46 * Math.cos(2*Math.PI*i/(nFft-1));
+
+            for(let i=0; i<nBins; i++) {
+                magLog[i] = new Float32Array(nFrames);
+                phase[i] = new Float32Array(nFrames);
+            }
+
+            const re = new Float32Array(nFft), im = new Float32Array(nFft);
+            for(let f=0; f<nFrames; f++) {
+                const start = f*hop;
+                for(let i=0; i<nFft; i++) { re[i] = rawSig[start+i]*win[i]; im[i]=0; }
+                simpleFFT(re, im);
+                for(let i=0; i<nBins; i++) {
+                    const m = Math.sqrt(re[i]**2 + im[i]**2);
+                    magLog[i][f] = Math.log(1 + 100 * m); 
+                    phase[i][f] = Math.atan2(im[i], re[i]);
+                }
+            }
+            
+            stft = { magLog, phase, nFrames, nBins };
+            drawSpectrogram('cvOrig', magLog);
+            
+            document.getElementById('btnPlayOrig').disabled = false;
+            document.getElementById('btnPlayRec').disabled = false;
+            document.getElementById('btnDCT').disabled = false;
+            document.getElementById('sliderK').max = currentBlockSize;
+
+            step = 2; uiUpdate();
+            onBlockChange(); 
+            document.getElementById('status').innerText = "Готово.";
+        }, 50);
+    }
+
+    // --- SVD LOGIC ---
+    function onKChange() { updateReconstruction(false); }
+    function onBlockChange() {
+        currentBlockSize = parseInt(document.getElementById('sliderBlock').value);
+        document.getElementById('sliderK').max = currentBlockSize; 
+        updateReconstruction(true);
+    }
+
+    function updateReconstruction(recompute) {
+        if(!stft) return;
+        const k = parseInt(document.getElementById('sliderK').value);
+        document.getElementById('lblK').innerText = k;
+
+        const { magLog, nFrames, nBins } = stft;
+        const blockSize = currentBlockSize;
+        const nBlocks = Math.ceil(nFrames / blockSize);
+        const recLog = new Array(nBins).fill(0).map(() => new Float32Array(nFrames));
+        
+        let totalEnergy = 0, errorEnergy = 0;
+        let sumS = new Float32Array(blockSize).fill(0); 
+
+        // SVD Compression: Number of floats kept
+        const sizeRaw = nBins * nFrames;
+        const sizeComp = nBlocks * k * (1 + nBins + blockSize); 
+
+        for(let b=0; b<nBlocks; b++) {
+            const fStart = b * blockSize;
+            const w = Math.min(blockSize, nFrames - fStart);
+            if(w < 2) continue;
+
+            const blockA = new Array(nBins).fill(0).map(()=>new Float32Array(w));
+            for(let i=0; i<nBins; i++) for(let j=0; j<w; j++) blockA[i][j] = magLog[i][fStart + j];
+
+            const { U, S, V } = simpleSVD(blockA); 
+            
+            for(let sIdx=0; sIdx<S.length; sIdx++) {
+                if(sIdx < sumS.length) sumS[sIdx] += S[sIdx];
+                totalEnergy += S[sIdx]*S[sIdx];
+                if(sIdx >= k) errorEnergy += S[sIdx]*S[sIdx];
+            }
+
+            const effectiveK = Math.min(k, S.length);
+            for(let i=0; i<nBins; i++) {
+                for(let j=0; j<w; j++) {
+                    let sum = 0;
+                    for(let r=0; r<effectiveK; r++) sum += U[i][r] * S[r] * V[j][r];
+                    recLog[i][fStart + j] = sum;
+                }
+            }
+        }
+        
+        globalAvgS = sumS.map(val => val / nBlocks);
+        const ratio = (1 - sizeComp/sizeRaw) * 100;
+        document.getElementById('valComp').innerText = Math.max(0, ratio).toFixed(1) + "%";
+        
+        const rmse = Math.sqrt(errorEnergy / totalEnergy) * 100;
+        document.getElementById('valErr').innerText = rmse.toFixed(1) + "%";
+
+        stft.recLog = recLog;
+        drawSpectrogram('cvRec', recLog);
+        drawScree(k);
+    }
+
+    // --- DCT/OPUS (FIXED FOR BROWSER SUPPORT) ---
+    function resetDCT() { dctBlob = null; document.getElementById('dctStat').style.display='none'; }
+
+    function playDCT() {
+        if (!audioBufferFull) return;
+        if (dctBlob) { playBlob(dctBlob); return; }
+
+        const btn = document.getElementById('btnDCT');
+        const bitrate = document.getElementById('sliderBitrate').value * 1000;
+        
+        btn.innerText = "⏳ Кодування...";
+        btn.disabled = true;
+
+        // FIXED: Use MediaStreamDestination to avoid capturing <audio> element issues
+        const dest = audioCtx.createMediaStreamDestination();
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBufferFull;
+        src.connect(dest);
+
+        const options = { mimeType: 'audio/webm;codecs=opus', bitsPerSecond: bitrate };
+        let recorder;
+        try {
+            recorder = new MediaRecorder(dest.stream, options);
+        } catch (e) {
+            alert("Opus не підтримується цим браузером. Спробуйте Chrome.");
+            btn.disabled = false;
+            return;
+        }
+
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            dctBlob = new Blob(chunks, { type: 'audio/webm' });
+            
+            // Calculate size ratio
+            // Raw PCM size (bytes) = samples * 2 (16bit) or 4 (float32). Let's use 16-bit reference for fair audio file comparison.
+            const pcmBytes = rawSig.length * 2; 
+            const compBytes = dctBlob.size;
+            const ratio = (1 - compBytes/pcmBytes) * 100;
+            
+            document.getElementById('dctSize').innerText = (compBytes/1024).toFixed(1) + " KB";
+            document.getElementById('dctRatio').innerText = ratio.toFixed(1) + "%";
+            document.getElementById('dctStat').style.display = 'block';
+            
+            btn.innerText = "▶ Грати DCT (Opus)";
+            btn.disabled = false;
+            playBlob(dctBlob);
+        };
+
+        recorder.start();
+        src.start(0);
+        src.onended = () => recorder.stop();
+    }
+
+    function playBlob(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        a.play();
+    }
+
+    // --- VISUALIZATION ---
+    function drawSpectrogram(id, mat) {
+        const cv = document.getElementById(id);
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth;
+        const h = cv.height = cv.clientHeight;
+        const padL = 35, padB = 20, plotW = w - padL, plotH = h - padB;
+
+        const rows = mat.length;     
+        const cols = mat[0].length;  
+        const img = ctx.createImageData(plotW, plotH);
+        
+        let maxVal = 0;
+        for(let i=0; i<rows; i+=2) for(let j=0; j<cols; j+=4) if(mat[i][j]>maxVal) maxVal=mat[i][j];
+        if(maxVal<0.1) maxVal=1;
+
+        for(let y=0; y<plotH; y++) {
+            const r = Math.floor(rows * (1 - y/plotH)); 
+            if(r<0 || r>=rows) continue;
+            for(let x=0; x<plotW; x++) {
+                const c = Math.floor(cols * (x/plotW));
+                if(c>=cols) continue;
+                let val = Math.max(0, mat[r][c]);
+                let n = Math.pow(val/maxVal, 0.7); 
+                const idx = (y*plotW + x)*4;
+                img.data[idx] = n*255; img.data[idx+1] = n*n*200; img.data[idx+2] = n*n*n*150; img.data[idx+3] = 255;
+            }
+        }
+        ctx.fillStyle = "#000"; ctx.fillRect(0,0,w,h);
+        ctx.putImageData(img, padL, 0);
+
+        ctx.fillStyle = "#94a3b8"; ctx.font = "10px monospace"; ctx.textAlign="right"; ctx.textBaseline="middle";
+        const nyquist = CFG.rate/2; 
+        for(let i=0; i<=4; i++) {
+            const y = plotH * (1 - i/4);
+            const f = (i/4 * nyquist / 1000).toFixed(1) + "k";
+            ctx.fillText(f, padL-4, y); ctx.fillRect(padL-3, y, 3, 1);
+        }
+    }
+
+    function drawScree(k) {
+        const cv = document.getElementById('cvScree');
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth, h = cv.height = cv.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        const data = globalAvgS;
+        if(!data || data.length === 0) return;
+
+        const len = data.length;
+        const maxVal = data[0];
+        const barW = w / len;
+
+        for(let i=0; i<len; i++) {
+            const barH = (data[i] / maxVal) * (h - 10);
+            ctx.fillStyle = (i < k) ? '#10b981' : '#ef4444';
+            ctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
+        }
+        const splitX = k * barW;
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(splitX, 0); ctx.lineTo(splitX, h); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // --- PLAYBACK ---
+    function play(type) {
+        if(!stft) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const mat = (type==='orig') ? stft.magLog : stft.recLog;
+        const { phase, nFrames, nBins } = stft;
+        const nFft = CFG.fft, hop = CFG.hop;
+        const out = new Float32Array(nFrames*hop + nFft);
+        const re = new Float32Array(nFft), im = new Float32Array(nFft);
+        
+        for(let f=0; f<nFrames; f++) {
+            for(let i=0; i<nBins; i++) {
+                const mLog = mat[i][f];
+                const mLin = (Math.exp(mLog) - 1)/100; 
+                const p = phase[i][f];
+                re[i] = mLin*Math.cos(p); im[i] = mLin*Math.sin(p);
+                if(i>0 && i<nBins-1) { re[nFft-i]=re[i]; im[nFft-i]=-im[i]; }
+            }
+            for(let i=0;i<nFft;i++) im[i]=-im[i];
+            simpleFFT(re, im);
+            for(let i=0;i<nFft;i++) re[i]/=nFft;
+            const pos = f*hop;
+            for(let i=0; i<nFft; i++) out[pos+i] += re[i]; 
+        }
+        
+        const b = audioCtx.createBuffer(1, out.length, CFG.rate);
+        b.getChannelData(0).set(out);
+        const s = audioCtx.createBufferSource(); s.buffer=b; s.connect(audioCtx.destination); s.start();
+    }
+
+    function reset() {
+        step=0; stft=null; rawSig=null; dctBlob=null;
+        document.getElementById('fileIn').value = "";
+        ['cvOrig','cvRec','cvScree'].forEach(id=> {
+             const cv=document.getElementById(id); cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+        });
+        document.getElementById('dctStat').style.display='none';
+        uiUpdate();
+    }
+
+    // --- MATH ---
+    function simpleFFT(re, im) {
+        const n = re.length;
+        let j=0;
+        for(let i=0; i<n-1; i++){
+            if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; }
+            let k=n>>1; while(k<=j){j-=k;k>>=1;} j+=k;
+        }
+        let step=1;
+        while(step<n){
+            const jump=step<<1, delta=-Math.PI/step, s=Math.sin(delta), c=Math.cos(delta);
+            let wr=1, wi=0;
+            for(let k=0; k<step; k++){
+                for(let i=k; i<n; i+=jump){
+                    const oi=i+step;
+                    const tr=wr*re[oi]-wi*im[oi], ti=wr*im[oi]+wi*re[oi];
+                    re[oi]=re[i]-tr; im[oi]=im[i]-ti; re[i]+=tr; im[i]+=ti;
+                }
+                let t=wr; wr=t*c-wi*s; wi=t*s+wi*c;
+            }
+            step=jump;
+        }
+    }
+    function simpleSVD(A) {
+        const m = A.length, n = A[0].length; 
+        const dim = n; 
+        const C = new Array(dim).fill(0).map(()=>new Float32Array(dim));
+        for(let i=0; i<n; i++) for(let j=i; j<n; j++) {
+            let s=0; for(let k=0; k<m; k++) s+=A[k][i]*A[k][j];
+            C[i][j]=s; C[j][i]=s;
+        }
+        let V = new Array(dim).fill(0).map((_,i)=>{let r=new Float32Array(dim);r[i]=1;return r});
+        for(let it=0; it<20; it++) { 
+            let max=0, p=0, q=0;
+            for(let i=0; i<dim-1; i++) for(let j=i+1; j<dim; j++) 
+                if(Math.abs(C[i][j])>max){max=Math.abs(C[i][j]);p=i;q=j;}
+            if(max<1e-5) break;
+            let th = 0.5*Math.atan2(2*C[p][q], C[q][q]-C[p][p]);
+            let c=Math.cos(th), s=Math.sin(th);
+            let cpp=C[p][p], cqq=C[q][q], cpq=C[p][q];
+            C[p][p]=c*c*cpp-2*s*c*cpq+s*s*cqq;
+            C[q][q]=s*s*cpp+2*s*c*cpq+c*c*cqq;
+            C[p][q]=0;C[q][p]=0;
+            for(let i=0; i<dim; i++) if(i!==p && i!==q){
+                let cip=C[i][p], ciq=C[i][q];
+                C[i][p]=c*cip-s*ciq; C[p][i]=C[i][p];
+                C[i][q]=s*cip+c*ciq; C[q][i]=C[q][i];
+            }
+            for(let i=0; i<dim; i++){
+                let vip=V[i][p], viq=V[i][q];
+                V[i][p]=c*vip-s*viq; V[i][q]=s*vip+c*viq;
+            }
+        }
+        let S = new Float32Array(dim);
+        for(let i=0; i<dim; i++) S[i] = Math.sqrt(Math.max(0, C[i][i]));
+        let idx = Array.from(S.keys()).sort((a,b)=>S[b]-S[a]);
+        let S_srt = new Float32Array(dim);
+        let V_srt = new Array(dim).fill(0).map(()=>new Float32Array(dim));
+        for(let i=0; i<dim; i++) { S_srt[i]=S[idx[i]]; for(let r=0; r<dim; r++) V_srt[r][i]=V[r][idx[i]]; }
+        let U_srt = new Array(m).fill(0).map(()=>new Float32Array(dim));
+        for(let i=0; i<m; i++) for(let j=0; j<dim; j++) {
+            if(S_srt[j]<1e-6) continue;
+            let sum=0; for(let k=0; k<n; k++) sum+=A[i][k]*V_srt[k][j];
+            U_srt[i][j] = sum/S_srt[j];
+        }
+        return { U: U_srt, S: S_srt, V: V_srt };
+    }
+    uiUpdate();
+</script>
+</body>
+</html>
