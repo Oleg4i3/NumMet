@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACELP Vocoder</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      startup: {
+        typeset: false // Ми будемо викликати рендер вручну після оновлення DOM
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --panel: #ffffff; --text: #334155; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 1100px; width: 100%; display: grid; grid-template-columns: 1fr; gap: 20px; }
+        
+        /* Panel Styles */
+        .control-panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; transition: 0.2s; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+        button:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+        button.reset { background: #dc2626; }
+        
+        /* Theory Box Styles */
+        .theory-box { background: #fff; border-left: 6px solid var(--primary); padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 250px; line-height: 1.7; font-size: 1.05em; }
+        h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; color: #0f172a; }
+        h3 { color: #1e40af; margin-top: 20px; margin-bottom: 5px; font-size: 1.1em; }
+        
+        /* LaTeX Container */
+        .math-block { 
+            background: #f1f5f9; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            overflow-x: auto; /* Важливо для довгих формул */
+            border: 1px solid #e2e8f0;
+            font-size: 1.1em;
+        }
+        
+        /* Highlight concept */
+        .concept { background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #1e40af; }
+
+        /* Sliders & Visuals */
+        .slider-section { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; display: none; margin-top: 15px; }
+        .chart-wrapper { background: white; padding: 15px; border-radius: 12px; height: 350px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align: center;">Вокодер та Лінійне Передбачення</h1>
+    
+    <div class="control-panel">
+        <div class="btn-group">
+            <button id="btnRecord" onclick="startRecording()">🎤 Записати (Скажіть слово)</button>
+            <button id="btnStep" onclick="nextStep()" disabled>▶ Крок Вперед</button>
+            <button id="btnReset" onclick="location.reload()" class="reset" style="display:none;">↺ Скинути</button>
+            <span id="status" style="align-self:center; font-weight:bold; color:#64748b; margin-left:10px;">Очікування запису...</span>
+        </div>
+
+        <div id="vocoderControls" class="slider-section">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <strong>Ступінь стиснення (Якість залишку)</strong>
+                <span id="compLabel">100% (Lossless)</span>
+            </div>
+            <input type="range" id="compSlider" min="0" max="100" value="100" style="width:100%" oninput="updateSlider(this.value)">
+            <p style="font-size:0.9em; color:#475569; margin-top:10px;">
+                <strong>100%:</strong> Передаємо оригінальний сигнал помилки (як FLAC/WAV). <br>
+                <strong>0% (Pure Vocoder):</strong> Сигнал помилки викидається. Замість нього синтезується ідеальний "гул" (Buzz) на частоті тону. Це максимальне стиснення (як у військових раціях).
+            </p>
+            <button onclick="playAudioResult()" style="background:#16a34a; width:100%;">▶ Слухати Результат</button>
+        </div>
+    </div>
+
+    <div class="theory-box" id="theoryContent">
+        <h2>Вступ: Як стиснути голос у 100+ разів?</h2>
+        <p>Існує два підходи до передачі аудіо:</p>
+        <ol>
+            <li><strong>Хвильове кодування (Waveform Coding):</strong> Ми намагаємось зберегти форму хвилі (MP3, AAC). Це як зробити фотографію тексту. Вимагає багато пам'яті.</li>
+            <li><strong>Параметричне кодування (Vocoder/LPC):</strong> Ми не передаємо звук. Ми передаємо <em>інструкцію</em>, як його синтезувати. Це як надіслати сам текст (ASCII) замість його фотографії.</li>
+        </ol>
+        <p>Кодек <span class="concept">ACELP</span> (основа мобільного зв'язку) використовує <strong>Лінійне Передбачення (LPC)</strong>. Ми знаходимо математичну модель вашого голосового тракту (фільтр) і передаємо тільки її параметри.</p>
+        
+	
+
+		<details class="theory-box" style="margin-top: 15px; min-height: auto; padding: 15px; border-left-color: #8b5cf6;">
+    <summary style="cursor: pointer; font-weight: bold; color: #7c3aed; font-size: 1.1em;">
+        🎓 Довідка: Що таке Z-перетворення?
+    </summary>
+    
+    <div style="margin-top: 15px; line-height: 1.6;">
+        <p>Сигнал - це масив чисел <code>x[0], x[1], x[2]...</code>. <strong>Z-перетворення</strong> — це спосіб записати цей масив як один довгий поліном:</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>X</i>(<i>z</i>) = <i>x</i>[0] + <i>x</i>[1]<i>z</i><sup>-1</sup> + <i>x</i>[2]<i>z</i><sup>-2</sup> + ...
+        </div>
+        
+        <h3>1. Навіщо це потрібно? </h3>
+        <p>У DSP найголовніша операція — це взяти "минуле значення" (<code>x[n-1]</code>). У Z-області <strong>затримка на 1 такт — це просто множення на <i>z</i><sup>-1</sup></strong>.</p>
+        <p>Це перетворює складні цикли на просту алгебру.</p>
+
+        <h3>2. Приклад: Звідки береться H(z)?</h3>
+        <p>Уявіть простий рекурсивний фільтр: <br>
+        <em>"Поточне = Вхід + 0.5 * Минуле"</em></p>
+        <p>У коді: <code>y[n] = x[n] + 0.5 * y[n-1]</code></p>
+        
+        <p>Застосуємо Z-перетворення (замінимо <code>y[n-1]</code> на <i>z</i><sup>-1</sup><i>Y</i>(<i>z</i>)):</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>Y</i>(<i>z</i>) = <i>X</i>(<i>z</i>) + 0.5 · <i>z</i><sup>-1</sup> · <i>Y</i>(<i>z</i>)
+        </div>
+        
+        <p>Перенесемо <i>Y</i>(<i>z</i>) вліво:</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>Y</i>(<i>z</i>) · (1 - 0.5<i>z</i><sup>-1</sup>) = <i>X</i>(<i>z</i>)
+        </div>
+        
+        <p>Знайдемо <strong>Передатну Функцію</strong> (Вихід / Вхід):</p>
+        
+        <div style="background: #f5f3ff; padding: 10px; border-radius: 4px; border: 1px solid #ddd6fe; font-family: 'Times New Roman', serif; font-size: 1.2em; text-align: center;">
+            <i>H</i>(<i>z</i>) = 
+            <span style="display: inline-block; vertical-align: middle; text-align: center;">
+                <div style="border-bottom: 1px solid black; padding-bottom: 2px;">1</div>
+                <div style="padding-top: 2px;">1 - 0.5<i>z</i><sup>-1</sup></div>
+            </span>
+        </div>
+        
+        <h3>3. Полюси та Резонанс</h3>
+        <p>Подивіться на знаменник дробу. Коли (1 - 0.5<i>z</i><sup>-1</sup>) наближається до нуля, значення <i>H</i>(<i>z</i>) стрімко зростає.</p>
+        <p>
+            <span style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #1e40af;">Висновок:</span> 
+            Фільтр <i>A</i>(<i>z</i>) — це сума, він стабільний. 
+            Фільтр 1/<i>A</i>(<i>z</i>) — це дріб, його знаменник створює резонанси (форманти), імітуючи голос.
+        </p>
+    </div>
+</details>
+		
+		
+		<p><em>Натисніть "Записати", щоб побачити математику цього процесу.</em></p>
+    </div>
+
+    <div class="chart-wrapper">
+        <canvas id="mainChart"></canvas>
+    </div>
+    <div class="chart-wrapper" id="chart2Container" style="display:none;">
+        <canvas id="secChart"></canvas>
+    </div>
+</div>
+
+<script>
+    // --- КОНФІГУРАЦІЯ ---
+    const FRAME_SIZE = 512; // ~11ms
+    const LPC_ORDER = 10;   // Порядок фільтра (p)
+    const MAX_LAG = 150;    // Для пошуку Pitch
+    
+    let audioCtx;
+    let fullBuffer = null;
+    let displayFrame = null;
+    let r_coeffs = [];
+    let lpc_coeffs = [];
+    let currentStep = 0;
+    
+    let chart1 = null;
+    let chart2 = null;
+
+    // --- КРОКИ СИМУЛЯЦІЇ ---
+    const steps = [
+        {
+            title: "Крок 1: Фреймінг та Вікно",
+            html: `
+                <p>Ми розбили сигнал на короткі відрізки (фрейми) по $N=${FRAME_SIZE}$ семплів. Щоб уникнути артефактів на краях ("клацання" математики), ми множимо сигнал на <strong>вікно Хеммінга</strong> $w[n]$:</p>
+                <div class="math-block">
+                $$ x_w[n] = x[n] \\cdot \\left( 0.54 - 0.46 \\cos\\left(\\frac{2\\pi n}{N-1}\\right) \\right) $$
+                </div>
+                <p>Тепер сигнал плавно затухає до нуля на краях, що дозволяє коректно аналізувати його спектр.</p>
+            `,
+            action: () => {
+                const wData = applyHamming(displayFrame);
+                drawWaveform(wData, "Сигнал після вікна");
+                displayFrame = wData;
+            }
+        },
+        {
+            title: "Крок 2: Автокореляція (Pitch Detection)",
+            html: `
+                <p>Щоб передбачити майбутнє сигналу, треба знати його минуле. Автокореляція $R(k)$ показує залежність між сигналом та його копією, зсунутою на $k$ кроків:</p>
+                <div class="math-block">
+                $$ R(k) = \\sum_{n=k}^{N-1} x_w[n] \\cdot x_w[n-k] $$
+                </div>
+                <p>Графік показує два важливі факти:</p>
+                <ul>
+                    <li><strong>Максимум при $k=0$:</strong> Це повна енергія сигналу.</li>
+                    <li><strong>Другий пік:</strong> Це період основного тону (Pitch). Відстань до нього показує, як швидко вібрують ваші голосові зв'язки.</li>
+                </ul>
+            `,
+            action: () => {
+                r_coeffs = autocorrelate(displayFrame, MAX_LAG);
+                drawAutocorr(r_coeffs);
+            }
+        },
+        {
+            title: "Крок 3: Рівняння Юла-Уокера (Матриця)",
+            html: `
+                <p><strong>Головна ідея LPC:</strong> Поточний семпл $x[n]$ можна передбачити як суму $p$ попередніх семплів, помножених на коефіцієнти $a_k$:</p>
+                <div class="math-block">
+                $$ x[n] \\approx - \\sum_{k=1}^{p} a_k x[n-k] $$
+                </div>
+                <p>Ми шукаємо такі $a_k$, щоб помилка передбачення (Mean Squared Error) була мінімальною. Якщо взяти похідну по помилці та прирівняти до нуля, ми отримаємо систему лінійних рівнянь $\\mathbf{R}\\mathbf{a} = -\\mathbf{r}$:</p>
+                <div class="math-block">
+                $$ 
+                \\begin{bmatrix} 
+                R(0) & R(1) & \\cdots & R(p-1) \\\\ 
+                R(1) & R(0) & \\cdots & R(p-2) \\\\ 
+                \\vdots & \\vdots & \\ddots & \\vdots \\\\ 
+                R(p-1) & R(p-2) & \\cdots & R(0) 
+                \\end{bmatrix} 
+                \\begin{bmatrix} a_1 \\\\ a_2 \\\\ \\vdots \\\\ a_p \\end{bmatrix} = 
+                -\\begin{bmatrix} R(1) \\\\ R(2) \\\\ \\vdots \\\\ R(p) \\end{bmatrix} 
+                $$
+                </div>
+                <h3>Чому ця матриця особлива?</h3>
+                <p>Це так звана<strong>матриця Тепліца</strong>. Вона симетрична, і всі елементи на діагоналях однакові (залежать тільки від різниці $|i-j|$). Це означає, що нам не потрібен метод Гауса ($O(p^3)$). Ми використовуємо рекурсивний <strong>алгоритм Левінсона-Дурбіна</strong> ($O(p^2)$), що критично важливо для роботи в реальному часі на мобільному телефоні.</p>
+            `,
+            action: () => {
+                // Візуально нічого не міняємо, це теоретичний крок перед розрахунком
+            }
+        },
+        {
+            title: "Крок 4: LPC Спектр (Розв'язок)",
+            html: `
+                <p>Ми розв'язали систему і знайшли коефіцієнти $a_k$. Вони формують фільтр $A(z) = 1 + \\sum a_k z^{-k}$.</p>
+                <p>Якщо побудувати частотну характеристику $H(z) = \\frac{1}{A(z)}$ (червона лінія), ми побачимо, що вона огинає спектр реального голосу.</p>
+					
+                <p>Ці "горби" називаються <strong>формантами</strong>. Це резонансні частоти вашого голосового тракту (горла, ротової порожнини). Ми стиснули складну форму спектра всього у ${LPC_ORDER}$ чисел!</p>
+         
+				<div class="concept-block">
+    <h3>Аналіз vs Синтез:</h3>
+    <p>Математика LPC працює у два боки</p>
+    <ul>
+        <li><strong>Аналіз (Кодування):</strong> Ми беремо складний голос і "відфільтровуємо" з нього форманти фільтром $A(z)$. На виході — простий шум (залишок). Це як <em>видалення надлишковості</em>.</li>
+        <li><strong>Синтез (Декодування):</strong> Ми беремо простий шум і пропускаємо через обернений фільтр $H(z) = 1/A(z)$. Він діє як резонатор, повертаючи форманти на місце. Це <em>відновлення звуку</em>.</li>
+    </ul>
+</div>
+				
+			   `,
+            action: () => {
+                const sol = levinsonDurbin(r_coeffs, LPC_ORDER);
+                lpc_coeffs = sol.a;
+                drawLPCSpectrum(displayFrame, lpc_coeffs);
+            }
+        },
+        {
+            title: "Крок 5: Залишок та ACELP (Excitation)",
+            html: `
+                <p>Якщо пропустити голос через "зворотний фільтр" $A(z)$, ми видалимо форманти (вплив ротової порожнини і горла). Те, що залишиться — це <strong>сигнал помилки</strong> або "залишок" (зелений графік).</p>
+                <div class="math-block">$$ e[n] = x[n] + \\sum_{k=1}^{p} a_k x[n-k] $$</div>
+                <p>Це звук "голих" голосових зв'язок (дзижчання). Він схожий на шум.</p>
+                <h3>Звідки береться "розрідженість" (Sparse)?</h3>
+                <p>У кодеку <strong>ACELP</strong> (Algebraic Code-Excited Linear Prediction) ми не передаємо цей складний шум. Ми замінюємо його на <strong>алгебраїчний код</strong> — вектор, де майже всі нулі, і є лише кілька (+1/-1) імпульсів у ключових місцях. Саме це дозволяє досягти неймовірного стиснення.</p>
+            `,
+            action: () => {
+                const res = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                drawDualChart(displayFrame, res, "Оригінал", "Залишок (Residual)");
+            }
+        },
+        {
+            title: "Фінал: Синтез і Вокодер",
+            html: `
+                <p>Тепер ми маємо все для відновлення голосу:</p>
+                <ol>
+                    <li>Фільтр $1/A(z)$ (форма ротової порожнини і горла).</li>
+                    <li>Джерело збудження (голосові зв'язки).</li>
+                </ol>
+                <p>Спробуйте слайдер внизу. <strong>0% (Pure Vocoder)</strong> викидає реальний залишок і замінює його штучним імпульсом. Ви почуєте "голос робота" — це чиста математична модель вашого голосу без людських "дефектів" та шумів.</p>
+            `,
+            action: () => {
+                document.getElementById('vocoderControls').style.display = 'block';
+                // Demo
+                const res = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                const synth = filterIIR(res, [1, ...lpc_coeffs]);
+                drawDualChart(displayFrame, synth, "Оригінал", "Синтез");
+            }
+        }
+    ];
+
+    // --- ЛОГІКА ІНТЕРФЕЙСУ ---
+
+    async function startRecording() {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            await audioCtx.resume();
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+            
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                const blob = new Blob(chunks);
+                const buf = await blob.arrayBuffer();
+                const decoded = await audioCtx.decodeAudioData(buf);
+                fullBuffer = decoded.getChannelData(0);
+                
+                // Pre-emphasis (High-pass filter)
+                for(let i=fullBuffer.length-1; i>0; i--) fullBuffer[i] -= 0.95 * fullBuffer[i-1];
+
+                // Знайти гучний фрагмент
+                let maxE = 0, idx = 0;
+                for(let i=1000; i<fullBuffer.length-FRAME_SIZE-1000; i+=200) {
+                    let e = 0; 
+                    for(let j=0; j<FRAME_SIZE; j++) e += Math.abs(fullBuffer[i+j]);
+                    if(e > maxE) { maxE = e; idx = i; }
+                }
+                displayFrame = fullBuffer.slice(idx, idx+FRAME_SIZE);
+
+                document.getElementById('status').innerText = "Записано!";
+                document.getElementById('btnRecord').disabled = true;
+                document.getElementById('btnStep').disabled = false;
+                document.getElementById('btnReset').style.display = 'inline-block';
+                nextStep();
+            };
+            
+            recorder.start();
+            document.getElementById('status').innerText = "Скажіть слово";
+            setTimeout(() => recorder.stop(), 1500);
+            
+        } catch (e) { alert("Помилка мікрофона: " + e); }
+    }
+
+    function nextStep() {
+        if(currentStep < steps.length) {
+            const s = steps[currentStep];
+            const container = document.getElementById('theoryContent');
+            
+            // 1. Оновлюємо HTML
+            container.innerHTML = `<h2>${s.title}</h2>` + s.html;
+            
+            // 2. Викликаємо MathJax рендер (Promise-based)
+            MathJax.typesetPromise([container]).then(() => {
+                // 3. Виконуємо графічні дії після рендеру
+                s.action();
+            });
+
+            currentStep++;
+            if(currentStep >= steps.length) document.getElementById('btnStep').disabled = true;
+        }
+    }
+
+    // --- АУДІО ДВИГУН (PIPELINE) ---
+
+    function processAudio(ratio) {
+        // ratio: 0 (Buzz) -> 1 (Original Residual)
+        const blockSize = 512;
+        const out = new Float32Array(fullBuffer.length);
+        const synthesisMem = new Float32Array(LPC_ORDER).fill(0);
+        
+        for(let i=0; i < fullBuffer.length - blockSize; i+=blockSize) {
+            let frame = fullBuffer.slice(i, i+blockSize);
+            
+            // Analysis
+            let wFrame = applyHamming(frame);
+            let r = autocorrelate(wFrame, LPC_ORDER);
+            if (r[0] < 0.00001) continue; 
+            
+            let lpc = levinsonDurbin(r, LPC_ORDER).a;
+            
+            // Pitch Detection (Simplified)
+            let r_pitch = autocorrelate(wFrame, 150);
+            let lag = 50; let maxV = -Infinity;
+            for(let k=20; k<145; k++) {
+                 if(r_pitch[k]>maxV && r_pitch[k]>r_pitch[k-1] && r_pitch[k]>r_pitch[k+1]) { maxV=r_pitch[k]; lag=k; }
+            }
+            
+            // Residual
+            let res = filterFIR(frame, [1, ...lpc]);
+            
+            // Modification (Vocoder)
+            let modRes = new Float32Array(res.length);
+            
+            // Generate Synthetic Buzz
+            let buzz = new Float32Array(res.length);
+            let energy = 0; for(let v of res) energy += v*v;
+            let rms = Math.sqrt(energy/res.length);
+            
+            for(let n=0; n<res.length; n++) {
+                if(n % lag === 0) buzz[n] = rms * Math.sqrt(lag); // Pulse
+            }
+            
+            // Mix
+            for(let n=0; n<res.length; n++) {
+                modRes[n] = (ratio * res[n]) + ((1-ratio) * buzz[n]);
+            }
+            
+            // Synthesis
+            let synth = filterIIR(modRes, [1, ...lpc], synthesisMem);
+            out.set(synth, i);
+        }
+        
+        // De-emphasis
+        for(let i=0; i<out.length-1; i++) out[i+1] += 0.95 * out[i];
+        
+        // Normalize
+        let maxVal = 0; for(let v of out) if(Math.abs(v)>maxVal) maxVal = Math.abs(v);
+        if(maxVal>0) for(let i=0; i<out.length; i++) out[i] = (out[i]/maxVal)*0.8;
+        
+        return out;
+    }
+
+    function playAudioResult() {
+        if(!audioCtx) return;
+        const val = document.getElementById('compSlider').value / 100;
+        document.getElementById('status').innerText = "Обробка...";
+        
+        setTimeout(() => {
+            const data = processAudio(val);
+            const buf = audioCtx.createBuffer(1, data.length, audioCtx.sampleRate);
+            buf.getChannelData(0).set(data);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.connect(audioCtx.destination);
+            src.start();
+            document.getElementById('status').innerText = "Відтворення...";
+        }, 50);
+    }
+
+    function updateSlider(v) {
+        let txt = v + "%";
+        if(v==100) txt += " (Оригінал)";
+        else if(v==0) txt += " (Робот/Buzz)";
+        document.getElementById('compLabel').innerText = txt;
+    }
+
+    // --- МАТЕМАТИКА ---
+
+    function applyHamming(d) {
+        return d.map((v,i) => v * (0.54 - 0.46 * Math.cos(2*Math.PI*i/(d.length-1))));
+    }
+    
+    function autocorrelate(x, maxLag) {
+        let res = [];
+        for(let k=0; k<=maxLag; k++) {
+            let s = 0;
+            for(let n=0; n<x.length-k; n++) s += x[n]*x[n+k];
+            res.push(s);
+        }
+        return res;
+    }
+    
+    function levinsonDurbin(r, p) {
+        let a = []; let e = r[0];
+        for(let i=1; i<=p; i++) {
+            let acc = 0; for(let j=1; j<i; j++) acc += a[j-1]*r[i-j];
+            let k = -(r[i] + acc)/e;
+            let new_a = new Array(i);
+            new_a[i-1] = k;
+            for(let j=1; j<i; j++) new_a[j-1] = a[j-1] + k*a[i-1-j];
+            a = new_a;
+            e *= (1 - k*k);
+        }
+        return {a};
+    }
+    
+    function filterFIR(x, a) {
+        let y = new Float32Array(x.length);
+        for(let n=0; n<x.length; n++) {
+            let s = x[n];
+            for(let k=1; k<a.length; k++) if(n>=k) s += a[k]*x[n-k];
+            y[n] = s;
+        }
+        return y;
+    }
+    
+    function filterIIR(x, a, mem) {
+        let y = new Float32Array(x.length);
+        let ord = a.length-1;
+        for(let n=0; n<x.length; n++) {
+            let s = x[n];
+            for(let k=1; k<=ord; k++) {
+                let val = (n>=k) ? y[n-k] : mem[ord-k];
+                s -= a[k]*val;
+            }
+            // Clamp for stability
+            if(s>4) s=4; if(s<-4) s=-4;
+            y[n] = s;
+        }
+        for(let i=0; i<ord; i++) mem[i] = y[y.length-1-i];
+        return y;
+    }
+
+    // --- ГРАФІКИ ---
+    
+    function drawWaveform(d, lbl) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d.length).keys()], datasets: [{label: lbl, data: [...d], borderColor:'#2563eb', borderWidth:1, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false, animation:false }
+        });
+    }
+    
+    function drawAutocorr(d) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        const max = Math.max(...d);
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d.length).keys()], datasets: [{label: "Autocorrelation", data: d.map(v=>v/max), borderColor:'#0f172a', borderWidth:2, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false }
+        });
+    }
+
+    function drawLPCSpectrum(sig, lpc) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chart1) chart1.destroy();
+        
+        // FFT (Naive)
+        let fft = []; let N = sig.length;
+        for(let k=0; k<N/2; k+=2) {
+            let re=0, im=0;
+            for(let n=0; n<N; n++) { let phi=-2*Math.PI*k*n/N; re+=sig[n]*Math.cos(phi); im+=sig[n]*Math.sin(phi); }
+            fft.push(20*Math.log10(Math.sqrt(re*re+im*im)+1e-6));
+        }
+        
+        // LPC Response
+        let lresp = [];
+        for(let k=0; k<N/2; k+=2) {
+            let w = Math.PI*k/(N/2);
+            let re=1, im=0;
+            for(let m=0; m<lpc.length; m++) { let phi=-(m+1)*w; re+=lpc[m]*Math.cos(phi); im+=lpc[m]*Math.sin(phi); }
+            lresp.push(20*Math.log10(1/(Math.sqrt(re*re+im*im)+1e-6)));
+        }
+        
+        let off = Math.max(...fft) - Math.max(...lresp);
+        
+        chart1 = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [...Array(fft.length).keys()], 
+                datasets: [
+                    {label: "FFT (Реальний)", data: fft, borderColor:'#cbd5e1', borderWidth:1},
+                    {label: "LPC (Модель)", data: lresp.map(v=>v+off), borderColor:'#dc2626', borderWidth:2}
+                ] 
+            },
+            options: { responsive:true, maintainAspectRatio:false }
+        });
+    }
+    
+    function drawDualChart(d1, d2, l1, l2) {
+        drawWaveform(d1, l1);
+        document.getElementById('chart2Container').style.display = 'block';
+        const ctx = document.getElementById('secChart').getContext('2d');
+        if(chart2) chart2.destroy();
+        chart2 = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [...Array(d2.length).keys()], datasets: [{label: l2, data: [...d2], borderColor:'#16a34a', borderWidth:1, pointRadius:0}] },
+            options: { responsive:true, maintainAspectRatio:false, animation:false }
+        });
+    }
+
+</script>
+</body>
+</html>
