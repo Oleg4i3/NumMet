@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стиснення аудіо</title>
+    
+    <script>
+        window.MathJax = {
+            tex: { 
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --text: #e2e8f0;
+            --accent: #38bdf8;
+            --highlight: #facc15;
+            --kept: #10b981;
+            --lost: #f43f5e;
+            --dct: #f97316;
+            --border: #334155;
+            --lossy-accent: #ff9800;
+            --lossy-kept: #4caf50;
+            --threshold: #00bcd4;
+        }
+        
+        body {
+            font-family: 'Segoe UI', monospace;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+        }
+        
+        h1 { color: var(--accent); margin-bottom: 5px; font-weight: 300; }
+        .subtitle { color: #aaa; margin-bottom: 30px; text-align: center; max-width: 800px; }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--panel);
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: #2d3748;
+            color: #cbd5e1;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .tab-btn:hover {
+            background: #4a5568;
+            border-color: var(--accent);
+        }
+        
+        .tab-btn.active {
+            background: var(--accent);
+            color: #0f172a;
+            border-color: var(--accent);
+        }
+        
+        .tab-content {
+            display: none;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Shared Audio Controls */
+        .audio-controls {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid var(--border);
+        }
+        
+        .audio-controls .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button, .file-label {
+            background: #334155;
+            color: #fff;
+            border: 1px solid #475569;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+        
+        button:hover:not(:disabled), .file-label:hover {
+            background: #475569;
+            border-color: var(--accent);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .recording {
+            background: #ef4444 !important;
+            animation: pulse 1s infinite;
+        }
+        
+        /* Lossy Tab Styles */
+        #lossy-tab .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        #lossy-tab .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        #lossy-tab canvas {
+            width: 100%;
+            background: #000;
+            border-radius: 4px;
+            display: block;
+        }
+        
+        #lossy-tab .slider-container {
+            position: relative;
+            height: 40px;
+            background: #222;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        #lossy-tab input[type=range] {
+            width: 100%;
+            accent-color: var(--threshold);
+            cursor: pointer;
+        }
+        
+        #lossy-tab .options-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            padding: 10px;
+            background: #252525;
+            border-radius: 4px;
+        }
+        
+        #lossy-tab .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        #lossy-tab .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        #lossy-tab .stat-box {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        #lossy-tab .stat-val {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: block;
+            margin-top: 5px;
+        }
+        
+        /* SVD Tab Styles */
+        #svd-tab .main-grid {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1100px) {
+            #svd-tab .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        #svd-tab .panel {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        #svd-tab .step-guide {
+            background: #172554;
+            border-left: 4px solid var(--highlight);
+            padding: 15px;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+        
+        #svd-tab .step-title {
+            color: var(--highlight);
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        #svd-tab .theory-block {
+            background: #020617;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 15px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            line-height: 1.7;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #svd-tab .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+        
+        #svd-tab .canvas-container {
+            position: relative;
+            margin-bottom: 15px;
+            border: 1px solid #334155;
+            padding-left: 35px;
+            padding-bottom: 20px;
+            background: #000;
+        }
+        
+        #svd-tab .overlay-label {
+            position: absolute;
+            top: 0;
+            left: 35px;
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--accent);
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            border-bottom-right-radius: 4px;
+        }
+        
+        /* Common */
+        .status-text {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+            margin-top: 5px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .file-label {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Стиснення аудіо: SVD i DCT</h1>
+    <p class="subtitle">
+        Порівняйте два методи стиснення аудіо: психоакустичне (на основі порогу чутності) 
+        та матричне (на основі сингулярного розкладу). Завантажте аудіо один раз та досліджуйте обидва підходи.
+    </p>
+	
+	
+	
+	<details>
+    <summary style="padding: 20px; font-size: 1.2rem; font-weight: bold; background: linear-gradient(90deg, #1e293b, #0f172a); color: #38bdf8; cursor: pointer; border-radius: 8px; border: 1px solid #334155;">
+        📚 Теоретичний довідник: Два підходи до стиснення аудіо
+    </summary>
+    <div style="background: #0f172a; padding: 25px; margin-top: 10px; border-radius: 8px; border: 1px solid #334155; color: #e2e8f0; line-height: 1.6;">
+
+        <!-- Вступ -->
+        <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #334155;">
+            <h3 style="color: #38bdf8; margin-top: 0;">Загальні принципи стиснення аудіо</h3>
+            <p>Стиснення аудіо — це процес зменшення обсягу даних, необхідних для представлення звукового сигналу, шляхом видалення надмірної інформації. Існує два основних підходи:</p>
+            <ul>
+                <li><strong style="color: #ff9800;">Психоакустичне стиснення (Lossy)</strong> — видаляє інформацію, яку людське вухо не сприймає, ґрунтуючись на фізіології слуху</li>
+                <li><strong style="color: #38bdf8;">Матричне стиснення (SVD)</strong> — використовує математичні перетворення для виявлення та відкидання маловажливих компонентів сигналу</li>
+            </ul>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <!-- Ліва колонка: Lossy -->
+            <div style="background: #1e293b; padding: 20px; border-radius: 8px; border-left: 4px solid #ff9800;">
+                <h3 style="color: #ff9800; margin-top: 0;">🎵 Психоакустичне стиснення</h3>
+                
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #00bcd4; margin-top: 0;">1. Спектральне перетворення (MDCT)</h4>
+                    <p>Сучасні аудіокодеки (MP3, AAC, Opus) використовують <strong>Модифіковане Дискретне Косинусне Перетворення</strong>:</p>
+                    <div style="background: #172554; padding: 15px; border-left:3px solid #ff9800; font-family: 'Times New Roman', serif; font-size: 1.1rem; margin: 15px 0; text-align: center;">
+                        X<sub>k</sub> = &sum;<sub>n=0</sub><sup>N-1</sup> x<sub>n</sub> &cdot; cos [&pi;/N (n + 0.5 + N/2)(k + 0.5)]
+                    </div>
+                    <p>де <strong>x<sub>n</sub></strong> — вхідні амплітуди, а <strong>cos[...]</strong> — базисні функції. Якщо сигнал схожий на косинусоїду певної частоти, відповідний коефіцієнт <strong>X<sub>k</sub></strong> буде великим.</p>
+                </div>
+
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #00bcd4; margin-top: 0;">2. Психоакустична модель</h4>
+                    <p><strong>Закон Вебера-Фехнера:</strong> сприйняття гучності пропорційне логарифму інтенсивності звуку:</p>
+                    <div style="background: #172554; padding: 15px; border-left:3px solid #ff9800; font-family: 'Times New Roman', serif; font-size: 1.1rem; margin: 10px 0; text-align: center;">
+                        S = k &middot; ln(I/I<sub>0</sub>)
+                    </div>
+                    <p>Де <strong>S</strong> — відчуття гучності, <strong>I</strong> — інтенсивність звуку, <strong>I<sub>0</sub></strong> — поріг чутності. Через це спектрограми відображаються в логарифмічній шкалі.</p>
+                </div>
+
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #00bcd4; margin-top: 0;">3. Ефект маскування</h4>
+                    <p>Сильні звуки (маскери) приховують слабші звуки близьких частот:</p>
+                    <ul>
+                        <li><strong>Частотне маскування:</strong> звук однієї частоти маскує звуки близьких частот</li>
+                        <li><strong>Тимчасове маскування:</strong> гучний звук тимчасово підвищує поріг чутності</li>
+                    </ul>
+                    <p>Математично це моделюється функцією розтікання (Spreading Function), яка підвищує поріг чутності навколо маскера.</p>
+                </div>
+
+                <div style="background: rgba(255, 152, 0, 0.1); padding: 15px; border-radius: 6px; border-left: 3px solid #ff9800;">
+                    <h4 style="color: #ff9800; margin-top: 0;">💡 Практичне застосування</h4>
+                    <p><strong>Формати:</strong> MP3, AAC, Ogg Vorbis, Opus</p>
+                    <p><strong>Ступінь стиснення:</strong> 10:1 - 12:1 без помітної втрати якості</p>
+                    <p><strong>Переваги:</strong> висока ефективність, підтримка реального часу, широке поширення</p>
+                </div>
+            </div>
+
+            <!-- Права колонка: SVD -->
+            <div style="background: #1e293b; padding: 20px; border-radius: 8px; border-left: 4px solid #38bdf8;">
+                <h3 style="color: #38bdf8; margin-top: 0;">📊 Матричне стиснення (SVD)</h3>
+                
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #facc15; margin-top: 0;">1. Сингулярний розклад матриці</h4>
+                    <p>Будь-яку матрицю <strong>A</strong> розміром <strong>m × n</strong> можна представити як:</p>
+                    <div style="background: #172554; padding: 15px; border-left:3px solid #38bdf8; font-family: 'Times New Roman', serif; font-size: 1.1rem; margin: 10px 0; text-align: center;">
+                        A = UΣV<sup>T</sup> = &sum;<sub>i=1</sub><sup>r</sup> σ<sub>i</sub> u<sub>i</sub> v<sub>i</sub><sup>T</sup>
+                    </div>
+                    <p>де <strong>U</strong> і <strong>V</strong> — ортогональні матриці, а <strong>Σ</strong> — діагональна матриця сингулярних чисел <strong>σ₁ ≥ σ₂ ≥ ... ≥ σ<sub>r</sub> > 0</strong>.</p>
+                </div>
+
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #facc15; margin-top: 0;">2. Наближення низького рангу</h4>
+                    <p>Відкидаючи малі сингулярні числа, отримуємо стиснене представлення:</p>
+                    <div style="background: #172554; padding: 15px; border-left:3px solid #38bdf8; font-family: 'Times New Roman', serif; font-size: 1.1rem; margin: 10px 0; text-align: center;">
+                        A<sub>k</sub> = &sum;<sub>i=1</sub><sup>k</sup> σ<sub>i</sub> u<sub>i</sub> v<sub>i</sub><sup>T</sup>, k < r
+                    </div>
+                    <p>Похибка наближення: <strong>‖A - A<sub>k</sub>‖² = Σ<sub>i=k+1</sub><sup>r</sup> σ<sub>i</sub>²</strong>. Чим швидше спадають σ<sub>i</sub>, тим ефективніше стиснення.</p>
+                </div>
+
+                <div style="background: #0f172a; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #facc15; margin-top: 0;">3. Застосування для аудіо</h4>
+                    <p>Аудіосигнал перетворюється в спектрограму (матрицю частота-час), потім застосовується SVD:</p>
+                    <ol>
+                        <li>Обчислюємо STFT (Short-Time Fourier Transform)</li>
+                        <li>Отримуємо матрицю логарифмічних амплітуд</li>
+                        <li>Застосовуємо SVD та залишаємо <strong>k</strong> найбільших сингулярних чисел</li>
+                        <li>Відновлюємо сигнал зі зменшеною матрицею</li>
+                    </ol>
+                </div>
+
+                <div style="background: rgba(56, 189, 248, 0.1); padding: 15px; border-radius: 6px; border-left: 3px solid #38bdf8;">
+                    <h4 style="color: #38bdf8; margin-top: 0;">💡 Практичне застосування</h4>
+                    <p><strong>Галузі:</strong> обробка сигналів, шумоподавлення, виділення голосу, машинне навчання</p>
+                    <p><strong>Ступінь стиснення:</strong> залежить від характеру сигналу (2:1 - 20:1)</p>
+                    <p><strong>Переваги:</strong> математична строгість, зберігає структуру даних, придатне для подальшого аналізу</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Порівняльна таблиця -->
+        <div style="background: #1e293b; padding: 25px; border-radius: 8px; margin-top: 20px;">
+            <h3 style="color: #facc15; text-align: center; margin-top: 0;">⚖️ Порівняння методів</h3>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background: #0f172a;">
+                            <th style="padding: 12px; border: 1px solid #334155; text-align: center; color: #38bdf8;">Критерій</th>
+                            <th style="padding: 12px; border: 1px solid #334155; text-align: center; color: #ff9800;">Психоакустичний метод</th>
+                            <th style="padding: 12px; border: 1px solid #334155; text-align: center; color: #38bdf8;">SVD метод</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Основний принцип</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Видалення непомітної для вуха інформації</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Апроксимація матриці низького рангу</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Математична основа</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">MDCT/DCT, психоакустичні моделі</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Лінійна алгебра (SVD, PCA)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Критерій якості</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Суб'єктивна якість (слухова)</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Об'єктивна похибка (MSE, RMSE)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Тип артефактів</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Пре-ехо, квантувальний шум</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">"Металевий" звук, втрата деталей</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Ефективність</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Висока для музики/мови (10-12:1)</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Змінна, залежить від сигналу</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Обчислювальна складність</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Середня (реалізована в апараті)</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Висока (O(n³) для точного SVD)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #334155; background: #0f172a;"><strong>Типове застосування</strong></td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Аудіокодеки (MP3, AAC), стримінг</td>
+                            <td style="padding: 12px; border: 1px solid #334155;">Дослідження, обробка сигналів, ML</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Висновки -->
+        <div style="background: linear-gradient(90deg, #172554, #0f172a); padding: 25px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #facc15;">
+            <h3 style="color: #facc15; margin-top: 0;">🎯 Ключові висновки</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                <div>
+                    <h4 style="color: #ff9800;">Коли використовувати психоакустичне стиснення?</h4>
+                    <ul>
+                        <li>Для музики та мови з високими вимогами до суб'єктивної якості</li>
+                        <li>Коли важлива сумісність з існуючими пристроями (плеєри, телефони)</li>
+                        <li>Для потокової передачі аудіо (інтернет-радіо, стримінгові сервіси)</li>
+                        <li>Коли потрібна підтримка реального часу з низькою затримкою</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 style="color: #38bdf8;">Коли використовувати SVD стиснення?</h4>
+                    <ul>
+                        <li>Для наукових досліджень та аналізу сигналів</li>
+                        <li>Коли потрібно зберігати математичну структуру даних</li>
+                        <li>Для шумоподавлення та виділення корисних компонентів</li>
+                        <li>В системах машинного навчання для зменшення розмірності</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="background: rgba(250, 204, 21, 0.1); padding: 15px; border-radius: 6px; margin-top: 20px; border-left: 3px solid #facc15;">
+                <p style="margin: 0; font-style: italic; color: #cbd5e1;">
+                    <strong>Важливо:</strong> Обидва підходи мають свою нішу. Психоакустичні методи домінують у побутовій електроніці та медіа, 
+                    тоді як матричні методи знаходять застосування в наукових дослідженнях та спеціалізованих задачах обробки сигналів. 
+                    Сучасні гібридні підходи часто поєднують елементи обох методів для досягнення оптимальних результатів.
+                </p>
+            </div>
+        </div>
+
+
+
+    </div>
+</details>
+	
+	
+
+    <!-- Shared Audio Controls -->
+    <div class="audio-controls">
+        <div class="btn-row">
+            <label class="file-label">
+                📂 Завантажити аудіофайл
+                <input type="file" id="fileInput" accept="audio/*">
+            </label>
+            <button id="btnMic">🎤 Записати з мікрофона (4 сек)</button>
+            <button id="btnPreset" style="background: var(--lossy-accent); color: #000;">🎹 Генерувати тестовий сигнал</button>
+        </div>
+        <div id="audioStatus" class="status-text">Очікування аудіо...</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="lossy">🎵 Психоакустичне стиснення (Lossy)</button>
+        <button class="tab-btn" data-tab="svd">📊 Матричне стиснення (SVD)</button>
+    </div>
+
+    <!-- Lossy Tab Content -->
+    <div id="lossy-tab" class="tab-content active">
+        <div class="container">
+            <div class="panel">
+                <div style="display:flex; justify-content:space-between; align-items: center;">
+                    <h3>Частотний Спектр (FFT)</h3>
+                    <div style="font-size: 0.8rem; color:#aaa">X: Частота (Hz) | Y: Гучність (dB)</div>
+                </div>
+                
+                <canvas id="cvSpectrum" height="250"></canvas>
+                
+                <div class="slider-container">
+                    <span style="min-width: 80px; font-size: 0.9rem;">✂️ Поріг:</span>
+                    <input type="range" id="slThreshold" min="0" max="100" value="10">
+                    <span id="lblThreshold" style="min-width: 50px; text-align: right; font-weight: bold; color: var(--threshold);">10%</span>
+                </div>
+
+                <div class="options-container">
+                    <label class="checkbox-label" title="Якщо увімкнено, тихі звуки плавно приглушуються, а не різко обрізаються">
+                        <input type="checkbox" id="chkSoft"> М'який поріг (Soft)
+                    </label>
+                    <label class="checkbox-label" title="Якщо увімкнено, поріг піднімається навколо гучних звуків (психоакустика)">
+                        <input type="checkbox" id="chkMasking"> Маскування (Masking)
+                    </label>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-box">
+                        <div style="color:#aaa; font-size:0.8rem">Всього гармонік</div>
+                        <span class="stat-val" id="valTotal">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <div style="color:var(--lossy-kept); font-size:0.8rem">Збережено (в середньому)</div>
+                        <span class="stat-val" id="valKept">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <div style="color:var(--lossy-accent); font-size:0.8rem">Ступінь стиснення</div>
+                        <span class="stat-val" id="valRatio">1.0x</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Результат</h3>
+                <div style="display: flex; gap: 20px; justify-content: center; margin: 20px 0;">
+                    <button class="btn-play" id="btnPlayOrig" style="background: var(--lossy-kept);">▶ Оригінал</button>
+                    <button class="btn-play-compressed" id="btnPlayComp" style="background: var(--lossy-accent); color: #000;">▶ Стиснене</button>
+                </div>
+                <canvas id="cvWave" height="100"></canvas>
+                <p style="text-align: center; font-size: 0.85rem; color: #777; margin-top: 10px;">
+                    Зелена лінія — оригінал. Помаранчева — після видалення частот.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SVD Tab Content -->
+    <div id="svd-tab" class="tab-content">
+        <div class="main-grid">
+            <div class="panel">
+                <div id="guide" class="step-guide"></div>
+
+                <div id="theoryPanel" class="theory-block"></div>
+                
+                <button id="btnAction" style="background: var(--accent); color: #0f172a; border: none; font-weight: bold; margin-top: 10px; padding: 15px; width: 100%;">Далі...</button>
+                <div id="status" class="status-text"></div>
+
+                <hr style="border:0; border-top:1px solid #334155; width:100%; margin:15px 0;">
+
+                <div id="controls">
+                    <div style="font-weight:bold; color:var(--accent); border-bottom:1px solid #334155; padding-bottom:5px;">Метод SVD:</div>
+                    
+                    <div class="slider-label">
+                        <span>Ранг наближення (k)</span>
+                        <span id="lblK" style="color:var(--accent); font-weight:bold; font-size: 1.1rem;">2</span>
+                    </div>
+                    <input type="range" id="sliderK" min="1" max="32" value="2">
+
+                    <div class="slider-label">
+                        <span>Розмір блоку (кадрів)</span>
+                        <span id="lblBlock" style="color:#cbd5e1;">32</span>
+                    </div>
+                    <input type="range" id="sliderBlock" min="16" max="64" step="4" value="32">
+                    
+                    <div class="stat-box" style="background: #0f172a; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.85rem; border: 1px solid #334155; display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Зменшення параметрів:</span> <span id="valComp" style="color: var(--kept); font-weight: bold;">0%</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Математична похибка:</span> <span id="valErr" style="color: var(--lost)">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="btn-row" style="margin-top: 10px;">
+                        <button id="btnPlayOrigSvd" onclick="playSvd('orig')" style="background: var(--kept);">▶ Вхід (11kHz)</button>
+                        <button id="btnPlayRecSvd" onclick="playSvd('rec')" style="background: var(--accent);">▶ SVD Результат</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="canvas-container">
+                    <div class="overlay-label">Вхідна Спектрограма (Log-Scale)</div>
+                    <canvas id="cvOrig" height="150"></canvas>
+                </div>
+                
+                <div class="canvas-container">
+                    <div class="overlay-label">Відновлення SVD</div>
+                    <canvas id="cvRec" height="150"></canvas>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <strong>Спектр сингулярних чисел ($\sigma_i$)</strong>
+                        <span style="font-size: 0.8rem; color: #64748b;">Усереднено по блокам</span>
+                    </div>
+                    <div style="position: relative; height: 120px; background: #000; border: 1px solid #334155; border-radius: 2px;">
+                        <canvas id="cvScree" height="120"></canvas>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 5px; display: flex; justify-content: space-between;">
+                        <span><span style="color: var(--kept)">◼</span> Інформація (Сигнал)</span>
+                        <span><span style="color: var(--lost)">◼</span> Відкинуто (Шум)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+		
+    </div>
+
+<script>
+    // ==================== GLOBAL STATE ====================
+    let sharedAudio = {
+        buffer: null,
+        sampleRate: 44100,
+        data: null,
+        duration: 0
+    };
+    
+    let audioContext = null;
+    let currentTab = 'lossy';
+    
+    // ==================== TAB MANAGEMENT ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            btn.classList.add('active');
+            currentTab = btn.dataset.tab;
+            document.getElementById(`${currentTab}-tab`).classList.add('active');
+            
+            // Update SVD UI if needed
+            if (currentTab === 'svd' && window.svdStep === 0 && sharedAudio.data) {
+                setTimeout(() => svdLoadAudioFromShared(), 100);
+            }
+        });
+    });
+    
+    // ==================== SHARED AUDIO HANDLING ====================
+    async function initAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+        return audioContext;
+    }
+    
+    document.getElementById('fileInput').addEventListener('change', async function(e) {
+        if (!e.target.files[0]) return;
+        
+        await initAudioContext();
+        const file = e.target.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        
+        try {
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            processSharedAudio(audioBuffer);
+        } catch (err) {
+            document.getElementById('audioStatus').textContent = 'Помилка завантаження аудіо';
+            console.error(err);
+        }
+    });
+    
+    document.getElementById('btnMic').addEventListener('click', async function() {
+        await initAudioContext();
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            const chunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                processSharedAudio(audioBuffer);
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.start();
+            this.classList.add('recording');
+            this.textContent = '⏺ Запис...';
+            
+            setTimeout(() => {
+                if (mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    this.classList.remove('recording');
+                    this.innerHTML = '🎤 Записати з мікрофона (4 сек)';
+                }
+            }, 4000);
+            
+        } catch (err) {
+            alert('Доступ до мікрофона заблоковано');
+            console.error(err);
+        }
+    });
+    
+    document.getElementById('btnPreset').addEventListener('click', async function() {
+        await initAudioContext();
+        
+        // Generate test signal (similar to Lossy preset)
+        const duration = 1.5;
+        const sampleRate = 44100;
+        const length = sampleRate * duration;
+        const data = new Float32Array(length);
+        
+        for (let i = 0; i < length; i++) {
+            let t = i / sampleRate;
+            let env = 1 - (t / duration);
+            let mod = Math.sin(2 * Math.PI * 110 * t) * 5;
+            let carrier = Math.sin(2 * Math.PI * 220 * t + mod);
+            let noise = (Math.random() - 0.5) * 0.05;
+            data[i] = (carrier * 0.8 + noise) * env;
+        }
+        
+        // Create AudioBuffer
+        const buffer = audioContext.createBuffer(1, length, sampleRate);
+        buffer.copyToChannel(data, 0);
+        processSharedAudio(buffer);
+    });
+    
+    function processSharedAudio(audioBuffer) {
+        sharedAudio.buffer = audioBuffer;
+        sharedAudio.sampleRate = audioBuffer.sampleRate;
+        sharedAudio.duration = audioBuffer.duration;
+        
+        // Get mono channel data
+        const channelData = audioBuffer.getChannelData(0);
+        sharedAudio.data = channelData;
+        
+        document.getElementById('audioStatus').textContent = 
+            `Завантажено: ${audioBuffer.duration.toFixed(2)} сек, ${audioBuffer.sampleRate} Гц`;
+        
+        // Process for current tab
+        if (currentTab === 'lossy') {
+            lossyProcessInput(channelData);
+        } else {
+            svdLoadAudioFromShared();
+        }
+    }
+    
+    // ==================== LOSSY COMPRESSION SIMULATOR ====================
+    const LOSSY = {
+        fftSize: 4096,
+        sampleRate: 44100,
+        duration: 1.5,
+        
+        audioCtx: null,
+        originalBuffer: null,
+        recordedData: null,
+        windowStart: 0,
+        
+        spectrumReal: [],
+        spectrumImag: [],
+        spectrumMag: [],
+        maxMag: 0,
+        
+        compressedSignal: null
+    };
+    
+    // FFT Library (from Lossy.html)
+    const FFT = {
+        reverseBits: function(x, n) {
+            let result = 0;
+            for (let i = 0; i < n; i++, x >>= 1) result = (result << 1) | (x & 1);
+            return result;
+        },
+        transform: function(real, imag) {
+            const n = real.length;
+            const levels = Math.log2(n);
+            for (let i = 0; i < n; i++) {
+                const rev = this.reverseBits(i, levels);
+                if (rev > i) {
+                    [real[i], real[rev]] = [real[rev], real[i]];
+                    [imag[i], imag[rev]] = [imag[rev], imag[i]];
+                }
+            }
+            for (let size = 2; size <= n; size *= 2) {
+                const half = size / 2;
+                const step = 2 * Math.PI / size;
+                for (let i = 0; i < n; i += size) {
+                    for (let j = 0; j < half; j++) {
+                        const k = i + j;
+                        const t = k + half;
+                        const angle = -j * step;
+                        const cos = Math.cos(angle);
+                        const sin = Math.sin(angle);
+                        const tr = real[t] * cos - imag[t] * sin;
+                        const ti = real[t] * sin + imag[t] * cos;
+                        real[t] = real[k] - tr;
+                        imag[t] = imag[k] - ti;
+                        real[k] += tr;
+                        imag[k] += ti;
+                    }
+                }
+            }
+        },
+        inverse: function(real, imag) {
+            const n = real.length;
+            for(let i=0; i<n; i++) imag[i] = -imag[i];
+            this.transform(real, imag);
+            for(let i=0; i<n; i++) {
+                imag[i] = -imag[i];
+                real[i] /= n;
+                imag[i] /= n;
+            }
+        }
+    };
+    
+    function lossyProcessInput(rawData) {
+        LOSSY.recordedData = rawData;
+        
+        const center = Math.floor(rawData.length / 2);
+        LOSSY.windowStart = Math.max(0, center - LOSSY.fftSize/2);
+        
+        const slice = rawData.slice(LOSSY.windowStart, LOSSY.windowStart + LOSSY.fftSize);
+        const windowed = new Float32Array(LOSSY.fftSize);
+        
+        for(let i=0; i<LOSSY.fftSize; i++) {
+            let val = (i < slice.length) ? slice[i] : 0;
+            let win = 0.5 * (1 - Math.cos(2 * Math.PI * i / (LOSSY.fftSize - 1)));
+            windowed[i] = val * win;
+        }
+        
+        LOSSY.spectrumReal = new Float32Array(windowed);
+        LOSSY.spectrumImag = new Float32Array(LOSSY.fftSize).fill(0);
+        FFT.transform(LOSSY.spectrumReal, LOSSY.spectrumImag);
+        
+        LOSSY.spectrumMag = new Float32Array(LOSSY.fftSize / 2);
+        LOSSY.maxMag = 0;
+        
+        for(let i=0; i<LOSSY.spectrumMag.length; i++) {
+            let mag = Math.sqrt(LOSSY.spectrumReal[i]**2 + LOSSY.spectrumImag[i]**2);
+            LOSSY.spectrumMag[i] = mag;
+            if(mag > LOSSY.maxMag) LOSSY.maxMag = mag;
+        }
+        
+        document.getElementById('btnPlayOrig').disabled = false;
+        document.getElementById('btnPlayComp').disabled = false;
+        lossyUpdateCompression();
+    }
+    
+    function lossyCalculateMaskingThresholds(magnitudes, baseThreshold) {
+        const thresholds = new Float32Array(magnitudes.length).fill(baseThreshold);
+        const len = magnitudes.length;
+        
+        for (let i = 0; i < len; i++) {
+            const mag = magnitudes[i];
+            if (mag > baseThreshold) {
+                const spread = Math.max(10, Math.floor(i * 0.15));
+                for (let j = Math.max(0, i - spread); j <= Math.min(len - 1, i + spread); j++) {
+                    if (i === j) continue;
+                    const dist = Math.abs(i - j);
+                    const normalizedDist = dist / spread;
+                    const decay = Math.pow(0.1, normalizedDist);
+                    const maskLevel = mag * decay * 0.8;
+                    if (maskLevel > thresholds[j]) {
+                        thresholds[j] = maskLevel;
+                    }
+                }
+            }
+        }
+        return thresholds;
+    }
+    
+    function lossyUpdateCompression() {
+        if (!LOSSY.recordedData || !LOSSY.recordedData.length) return;
+        
+        const thresholdPercent = parseInt(document.getElementById('slThreshold').value);
+        document.getElementById('lblThreshold').textContent = thresholdPercent + "%";
+        
+        const useSoft = document.getElementById('chkSoft').checked;
+        const useMasking = document.getElementById('chkMasking').checked;
+        
+        const fullLength = LOSSY.recordedData.length;
+        const processedData = new Float32Array(fullLength);
+        const hopSize = LOSSY.fftSize / 2;
+        
+        const winFunc = new Float32Array(LOSSY.fftSize);
+        for(let i=0; i<LOSSY.fftSize; i++) {
+            winFunc[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (LOSSY.fftSize - 1)));
+        }
+        
+        let totalBinsProcessed = 0;
+        let keptBinsProcessed = 0;
+        
+        for (let offset = 0; offset <= fullLength - LOSSY.fftSize; offset += hopSize) {
+            const chunkReal = new Float32Array(LOSSY.fftSize);
+            const chunkImag = new Float32Array(LOSSY.fftSize);
+            
+            for (let i = 0; i < LOSSY.fftSize; i++) {
+                chunkReal[i] = LOSSY.recordedData[offset + i] * winFunc[i];
+            }
+            
+            FFT.transform(chunkReal, chunkImag);
+            
+            let localMax = 0;
+            const mags = new Float32Array(LOSSY.fftSize);
+            for (let i = 0; i < LOSSY.fftSize; i++) {
+                let m = Math.sqrt(chunkReal[i]**2 + chunkImag[i]**2);
+                mags[i] = m;
+                if (m > localMax) localMax = m;
+            }
+            
+            let currentThresholds = null;
+            let scalarThreshold = 0;
+            
+            if (useMasking) {
+                const base = localMax * (thresholdPercent / 400);
+                currentThresholds = lossyCalculateMaskingThresholds(mags, base);
+            } else {
+                scalarThreshold = localMax * (thresholdPercent / 100);
+            }
+            
+            for (let i = 0; i < LOSSY.fftSize; i++) {
+                const mag = mags[i];
+                const thresh = useMasking ? currentThresholds[i] : scalarThreshold;
+                
+                if (mag < thresh) {
+                    chunkReal[i] = 0;
+                    chunkImag[i] = 0;
+                } else {
+                    if (useSoft) {
+                        const scale = (mag - thresh) / mag;
+                        chunkReal[i] *= scale;
+                        chunkImag[i] *= scale;
+                    }
+                    if (i < LOSSY.fftSize / 2 && mags[i] > 1e-5) keptBinsProcessed++;
+                }
+            }
+            totalBinsProcessed += (LOSSY.fftSize / 2);
+            
+            FFT.inverse(chunkReal, chunkImag);
+            
+            for (let i = 0; i < LOSSY.fftSize; i++) {
+                processedData[offset + i] += chunkReal[i];
+            }
+        }
+        
+        LOSSY.compressedSignal = processedData;
+        
+        document.getElementById('valTotal').textContent = Math.floor(totalBinsProcessed / (fullLength/hopSize));
+        document.getElementById('valKept').textContent = Math.floor(keptBinsProcessed / (fullLength/hopSize))+1;
+        
+        let ratio = (keptBinsProcessed > 0) ? (totalBinsProcessed / keptBinsProcessed).toFixed(1) : "MAX";
+        document.getElementById('valRatio').textContent = ratio + ":1";
+        document.getElementById('valRatio').style.color = (parseFloat(ratio) > 10 || ratio === "MAX") ? '#ff9800' : '#4caf50';
+        
+        let visThresholdData = null;
+        if (useMasking) {
+            const base = LOSSY.maxMag * (thresholdPercent / 400);
+            visThresholdData = lossyCalculateMaskingThresholds(LOSSY.spectrumMag, base);
+        } else {
+            visThresholdData = (thresholdPercent / 100) * LOSSY.maxMag;
+        }
+        
+        lossyDrawVisuals(visThresholdData);
+    }
+    
+    function lossyDrawVisuals(thresholdData) {
+        lossyDrawSpectrum(thresholdData);
+        lossyDrawWaveforms();
+    }
+    
+    function lossyDrawSpectrum(thresholdData) {
+        const cv = document.getElementById('cvSpectrum');
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth;
+        const h = cv.height = cv.clientHeight;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        const minFreq = 20;
+        const maxFreq = LOSSY.sampleRate / 2;
+        const freqPerBin = LOSSY.sampleRate / LOSSY.fftSize;
+        
+        const getFreqAtX = (x) => {
+            const t = x / w;
+            return minFreq * Math.pow(maxFreq / minFreq, t);
+        };
+        
+        const getXAtFreq = (f) => {
+            return (Math.log(f / minFreq) / Math.log(maxFreq / minFreq)) * w;
+        };
+        
+        ctx.strokeStyle = '#333';
+        ctx.fillStyle = '#555';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 1;
+        
+        [100, 1000, 10000].forEach(f => {
+            const x = getXAtFreq(f);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+            ctx.fillText(f >= 1000 ? (f/1000)+'k' : f, x, h - 5);
+        });
+        
+        ctx.strokeStyle = '#00bcd4';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        
+        const isArrayThreshold = (thresholdData instanceof Float32Array || Array.isArray(thresholdData));
+        
+        if (isArrayThreshold) {
+            let started = false;
+            for (let x = 0; x < w; x++) {
+                const f = getFreqAtX(x);
+                const binIndex = Math.floor(f / freqPerBin);
+                if(binIndex < thresholdData.length) {
+                    const thVal = thresholdData[binIndex];
+                    let thY = h - (thVal / LOSSY.maxMag * h * 0.9);
+                    if(thY < 0) thY = 0;
+                    
+                    if(!started) { ctx.moveTo(x, thY); started = true; }
+                    else { ctx.lineTo(x, thY); }
+                }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#00bcd4';
+            ctx.textAlign = 'left';
+            ctx.fillText("Поріг (Маскування)", 5, 15);
+        } else {
+            const threshold = thresholdData;
+            const thY = h - (threshold / LOSSY.maxMag * h * 0.9);
+            if(threshold > 0) {
+                ctx.moveTo(0, thY);
+                ctx.lineTo(w, thY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#00bcd4';
+                ctx.textAlign = 'left';
+                ctx.fillText("Поріг", 5, thY - 5);
+            }
+        }
+        
+        for (let x = 0; x < w; x++) {
+            const fStart = getFreqAtX(x);
+            const fEnd = getFreqAtX(x + 1);
+            let iStart = Math.floor(fStart / freqPerBin);
+            let iEnd = Math.ceil(fEnd / freqPerBin);
+            
+            if (iStart < 0) iStart = 0;
+            if (iEnd >= LOSSY.spectrumMag.length) iEnd = LOSSY.spectrumMag.length - 1;
+            if (iEnd < iStart) iEnd = iStart;
+            
+            let val = 0;
+            let binIndexForThreshold = iStart;
+            
+            for (let i = iStart; i <= iEnd; i++) {
+                if (LOSSY.spectrumMag[i] > val) {
+                    val = LOSSY.spectrumMag[i];
+                    binIndexForThreshold = i;
+                }
+            }
+            
+            let currentThreshVal = 0;
+            if(isArrayThreshold) {
+                if(binIndexForThreshold < thresholdData.length) currentThreshVal = thresholdData[binIndexForThreshold];
+            } else {
+                currentThreshVal = thresholdData;
+            }
+            
+            const heightNorm = Math.min(1, val / (LOSSY.maxMag || 1));
+            const barH = heightNorm * h * 0.9;
+            const y = h - barH;
+            
+            if (val >= currentThreshVal) {
+                ctx.fillStyle = '#4caf50';
+            } else {
+                ctx.fillStyle = '#222';
+            }
+            
+            ctx.fillRect(x, y, 1, barH);
+        }
+    }
+    
+    function lossyDrawWaveforms() {
+        if (!LOSSY.recordedData || !LOSSY.compressedSignal) return;
+        
+        const cv = document.getElementById('cvWave');
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth;
+        const h = cv.height = cv.clientHeight;
+        const cy = h/2;
+        
+        ctx.clearRect(0, 0, w, h);
+        ctx.lineWidth = 2;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+        for(let i=0; i<w; i++) {
+            let idxInWindow = Math.floor((i/w) * LOSSY.fftSize);
+            let globalIdx = LOSSY.windowStart + idxInWindow;
+            
+            if (globalIdx < LOSSY.recordedData.length) {
+                let val = LOSSY.recordedData[globalIdx] * 2;
+                if(i===0) ctx.moveTo(i, cy - val*50);
+                else ctx.lineTo(i, cy - val*50);
+            }
+        }
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.strokeStyle = '#ff9800';
+        for(let i=0; i<w; i++) {
+            let idxInWindow = Math.floor((i/w) * LOSSY.fftSize);
+            let globalIdx = LOSSY.windowStart + idxInWindow;
+            
+            if (globalIdx < LOSSY.compressedSignal.length) {
+                let val = LOSSY.compressedSignal[globalIdx] * 2;
+                if(i===0) ctx.moveTo(i, cy - val*50);
+                else ctx.lineTo(i, cy - val*50);
+            }
+        }
+        ctx.stroke();
+    }
+    
+    function lossyPlayBuffer(bufferData) {
+        if(!audioContext) return;
+        if(audioContext.state === 'suspended') audioContext.resume();
+        
+        const src = audioContext.createBufferSource();
+        const buf = audioContext.createBuffer(1, bufferData.length, LOSSY.sampleRate);
+        buf.getChannelData(0).set(bufferData);
+        src.buffer = buf;
+        
+        const gain = audioContext.createGain();
+        gain.gain.value = 0.5;
+        
+        src.connect(gain);
+        gain.connect(audioContext.destination);
+        src.start();
+    }
+    
+    document.getElementById('btnPlayOrig').addEventListener('click', () => {
+        if (LOSSY.recordedData) lossyPlayBuffer(LOSSY.recordedData);
+    });
+    
+    document.getElementById('btnPlayComp').addEventListener('click', () => {
+        if (LOSSY.compressedSignal) lossyPlayBuffer(LOSSY.compressedSignal);
+    });
+    
+    document.getElementById('slThreshold').addEventListener('input', lossyUpdateCompression);
+    document.getElementById('chkSoft').addEventListener('change', lossyUpdateCompression);
+    document.getElementById('chkMasking').addEventListener('change', lossyUpdateCompression);
+    
+    // ==================== SVD SIMULATOR ====================
+    const SVD = {
+        rate: 11025,
+        fft: 512,
+        hop: 128,
+        dur: 5.0,
+        
+        rawSig: null,
+        stft: null,
+        step: 0,
+        globalAvgS: [],
+        currentBlockSize: 32
+    };
+    
+    const STEPS = [
+        {
+            t: "1. Вхідні дані",
+            d: "Завантажте файл. Ми використовуємо частоту 11 кГц.",
+            b: "Очікування...",
+            theory: `
+                <div class="theory-header">Дискретизація</div>
+                Сигнал x[n] дискретизується з частотою 11025 Гц (телефонна якість).
+                Це масив дійсних чисел (float32).
+            `
+        },
+        {
+            t: "2. Спектральний аналіз",
+            d: "Будуємо STFT матрицю. SVD працює саме з нею.",
+            b: "🚀 Аналіз (STFT)",
+            f: svdDoAnalysis,
+            theory: `
+                <div class="theory-header">Вікно Хеммінга</div>
+                $$ w[n] = 0.54 - 0.46 \\cos\\left(\\frac{2\\pi n}{N-1}\\right) $$
+                
+                <div class="theory-header">Короткочасне перетворення Фур'є</div>
+                $$ X[k, m] = \\sum_{n=0}^{N-1} x[n+mH] \\cdot w[n] \cdot e^{-j\\frac{2\\pi}{N}kn} $$
+                Матриця $A$ складається з логарифмів магнітуд $|X|$.
+            `
+        },
+        {
+            t: "3. Порівняння методів",
+            d: "Порівняйте два підходи. SVD дає 'металевий' звук через низький ранг.",
+            b: "🔄 Почати знову",
+            f: svdReset,
+            theory: `
+                <div class="theory-header"> SVD (Low-Rank)</div>
+                Ми наближаємо кожен блок матриці сумою $k$ матриць рангу 1:
+                $$ A_{block} \\approx \\sum_{i=1}^{k} \\sigma_i \\mathbf{u}_i \\mathbf{v}_i^T $$
+                
+                <div class="theory-header">Ступінь стиснення SVD</div>
+                $$ C = \\left( 1 - \\frac{N_{bl} \\cdot k \\cdot (1 + M + N_{w})}{M \\cdot N_{tot}} \\right) \\times 100\% $$
+				
+				    <span class="symbol">$N_{bl}$</span>
+    <span><b>Кількість блоків</b> (Number of Blocks). На скільки шматків ми "порізали" аудіо.</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$k$</span>
+    <span><b>Ранг</b> (Rank). Кількість "шарів" (векторів), які ми залишили. Це наш слайдер якості.</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$M$</span>
+    <span><b>Кількість частот</b> (Frequency Bins). Висота спектрограми (залежить від налаштувань FFT, тут 257).</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$N_{w}$</span>
+    <span><b>Ширина блоку</b> (Block Width). Скільки кадрів часу в одному блоці (слайдер 16..64).</span>
+</div>
+
+<div class="math-row">
+    <span class="symbol">$N_{tot}$</span>
+    <span><b>Загальна довжина</b> (Total Frames). Повна кількість кадрів часу у всьому файлі.</span>
+</div>
+				
+				
+				
+				
+            `
+        }
+    ];
+    
+    function svdUpdateUI() {
+        const s = STEPS[SVD.step];
+        document.getElementById('guide').innerHTML = `<span class="step-title">${s.t}</span>${s.d}`;
+        document.getElementById('theoryPanel').innerHTML = s.theory;
+        
+        if(window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('theoryPanel')]);
+        }
+        
+        const ctrls = document.getElementById('controls');
+        if(SVD.step===2) ctrls.style.opacity = '1';
+        else ctrls.style.opacity = '0.5';
+        
+        const btn = document.getElementById('btnAction');
+        btn.textContent = s.b;
+        btn.disabled = (SVD.step === 0);
+        btn.onclick = s.f ? s.f : svdNextStep;
+    }
+    
+    function svdNextStep() { 
+        if(STEPS[SVD.step].f) STEPS[SVD.step].f(); 
+        else SVD.step++; 
+        svdUpdateUI();
+    }
+    
+    async function svdLoadAudioFromShared() {
+        if (!sharedAudio.data || !audioContext) return;
+        
+        try {
+            const len = Math.floor(sharedAudio.duration * SVD.rate);
+            const offline = new OfflineAudioContext(1, len, SVD.rate);
+            const src = offline.createBufferSource();
+            
+            const resampledBuffer = await resampleAudio(sharedAudio.buffer, SVD.rate);
+            src.buffer = resampledBuffer;
+            
+            src.connect(offline.destination);
+            src.start();
+            const rendered = await offline.startRendering();
+            
+            let data = rendered.getChannelData(0);
+            if(data.length > SVD.rate * SVD.dur) {
+                data = data.slice(0, Math.floor(SVD.rate * SVD.dur));
+            }
+            
+            SVD.rawSig = data;
+            document.getElementById('status').textContent = `Сигнал: ${(data.length/SVD.rate).toFixed(1)}с @ 11кГц`;
+            
+            SVD.step = 1;
+            svdUpdateUI();
+        } catch(e) {
+            alert("Помилка аудіо: " + e);
+        }
+    }
+    
+    async function resampleAudio(audioBuffer, targetRate) {
+        const sourceRate = audioBuffer.sampleRate;
+        const length = audioBuffer.length * targetRate / sourceRate;
+        const offlineCtx = new OfflineAudioContext(1, length, targetRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        return await offlineCtx.startRendering();
+    }
+    
+    function svdDoAnalysis() {
+        document.getElementById('status').textContent = "Обчислення STFT...";
+        
+        setTimeout(() => {
+            const nFft = SVD.fft, hop = SVD.hop;
+            const nFrames = Math.floor((SVD.rawSig.length - nFft) / hop);
+            const nBins = nFft/2 + 1;
+            
+            const magLog = [];
+            const phase = [];
+            
+            const win = new Float32Array(nFft);
+            for(let i=0; i<nFft; i++) {
+                win[i] = 0.54 - 0.46 * Math.cos(2*Math.PI*i/(nFft-1));
+            }
+            
+            for(let i=0; i<nBins; i++) {
+                magLog[i] = new Float32Array(nFrames);
+                phase[i] = new Float32Array(nFrames);
+            }
+            
+            const re = new Float32Array(nFft), im = new Float32Array(nFft);
+            for(let f=0; f<nFrames; f++) {
+                const start = f*hop;
+                for(let i=0; i<nFft; i++) {
+                    re[i] = SVD.rawSig[start+i]*win[i];
+                    im[i] = 0;
+                }
+                svdSimpleFFT(re, im);
+                
+                for(let i=0; i<nBins; i++) {
+                    const m = Math.sqrt(re[i]**2 + im[i]**2);
+                    magLog[i][f] = Math.log(1 + 100 * m);
+                    phase[i][f] = Math.atan2(im[i], re[i]);
+                }
+            }
+            
+            SVD.stft = { magLog, phase, nFrames, nBins };
+            svdDrawSpectrogram('cvOrig', magLog);
+            
+            document.getElementById('btnPlayOrigSvd').disabled = false;
+            document.getElementById('btnPlayRecSvd').disabled = false;
+            document.getElementById('sliderK').max = SVD.currentBlockSize;
+            
+            SVD.step = 2;
+            svdUpdateUI();
+            svdOnBlockChange();
+            document.getElementById('status').textContent = "Готово.";
+        }, 50);
+    }
+    
+    function svdOnKChange() {
+        svdUpdateReconstruction(false);
+    }
+    
+    function svdOnBlockChange() {
+        SVD.currentBlockSize = parseInt(document.getElementById('sliderBlock').value);
+        document.getElementById('lblBlock').textContent = SVD.currentBlockSize;
+        document.getElementById('sliderK').max = SVD.currentBlockSize;
+        svdUpdateReconstruction(true);
+    }
+    
+    function svdUpdateReconstruction(recompute) {
+        if(!SVD.stft) return;
+        
+        const k = parseInt(document.getElementById('sliderK').value);
+        document.getElementById('lblK').textContent = k;
+        
+        const { magLog, nFrames, nBins } = SVD.stft;
+        const blockSize = SVD.currentBlockSize;
+        const nBlocks = Math.ceil(nFrames / blockSize);
+        const recLog = new Array(nBins).fill(0).map(() => new Float32Array(nFrames));
+        
+        let totalEnergy = 0, errorEnergy = 0;
+        let sumS = new Float32Array(blockSize).fill(0);
+        
+        const sizeRaw = nBins * nFrames;
+        const sizeComp = nBlocks * k * (1 + nBins + blockSize);
+        
+        for(let b=0; b<nBlocks; b++) {
+            const fStart = b * blockSize;
+            const w = Math.min(blockSize, nFrames - fStart);
+            if(w < 2) continue;
+            
+            const blockA = new Array(nBins).fill(0).map(() => new Float32Array(w));
+            for(let i=0; i<nBins; i++) {
+                for(let j=0; j<w; j++) {
+                    blockA[i][j] = magLog[i][fStart + j];
+                }
+            }
+            
+            const { U, S, V } = svdSimpleSVD(blockA);
+            
+            for(let sIdx=0; sIdx<S.length; sIdx++) {
+                if(sIdx < sumS.length) sumS[sIdx] += S[sIdx];
+                totalEnergy += S[sIdx]*S[sIdx];
+                if(sIdx >= k) errorEnergy += S[sIdx]*S[sIdx];
+            }
+            
+            const effectiveK = Math.min(k, S.length);
+            for(let i=0; i<nBins; i++) {
+                for(let j=0; j<w; j++) {
+                    let sum = 0;
+                    for(let r=0; r<effectiveK; r++) {
+                        sum += U[i][r] * S[r] * V[j][r];
+                    }
+                    recLog[i][fStart + j] = sum;
+                }
+            }
+        }
+        
+        SVD.globalAvgS = sumS.map(val => val / nBlocks);
+        const ratio = (1 - sizeComp/sizeRaw) * 100;
+        document.getElementById('valComp').textContent = Math.max(0, ratio).toFixed(1) + "%";
+        
+        const rmse = Math.sqrt(errorEnergy / totalEnergy) * 100;
+        document.getElementById('valErr').textContent = rmse.toFixed(1) + "%";
+        
+        SVD.stft.recLog = recLog;
+        svdDrawSpectrogram('cvRec', recLog);
+        svdDrawScree(k);
+    }
+    
+    function svdDrawSpectrogram(id, mat) {
+        const cv = document.getElementById(id);
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth;
+        const h = cv.height = cv.clientHeight;
+        const padL = 35, padB = 20, plotW = w - padL, plotH = h - padB;
+        
+        const rows = mat.length;
+        const cols = mat[0].length;
+        const img = ctx.createImageData(plotW, plotH);
+        
+        let maxVal = 0;
+        for(let i=0; i<rows; i+=2) {
+            for(let j=0; j<cols; j+=4) {
+                if(mat[i][j] > maxVal) maxVal = mat[i][j];
+            }
+        }
+        if(maxVal < 0.1) maxVal = 1;
+        
+        for(let y=0; y<plotH; y++) {
+            const r = Math.floor(rows * (1 - y/plotH));
+            if(r<0 || r>=rows) continue;
+            
+            for(let x=0; x<plotW; x++) {
+                const c = Math.floor(cols * (x/plotW));
+                if(c>=cols) continue;
+                
+                let val = Math.max(0, mat[r][c]);
+                let n = Math.pow(val/maxVal, 0.7);
+                const idx = (y*plotW + x)*4;
+                img.data[idx] = n*255;
+                img.data[idx+1] = n*n*200;
+                img.data[idx+2] = n*n*n*150;
+                img.data[idx+3] = 255;
+            }
+        }
+        
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0,0,w,h);
+        ctx.putImageData(img, padL, 0);
+        
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "10px monospace";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        
+        const nyquist = SVD.rate/2;
+        for(let i=0; i<=4; i++) {
+            const y = plotH * (1 - i/4);
+            const f = (i/4 * nyquist / 1000).toFixed(1) + "k";
+            ctx.fillText(f, padL-4, y);
+            ctx.fillRect(padL-3, y, 3, 1);
+        }
+    }
+    
+    function svdDrawScree(k) {
+        const cv = document.getElementById('cvScree');
+        const ctx = cv.getContext('2d');
+        const w = cv.width = cv.clientWidth;
+        const h = cv.height = cv.clientHeight;
+        
+        ctx.clearRect(0,0,w,h);
+        const data = SVD.globalAvgS;
+        if(!data || data.length === 0) return;
+        
+        const len = data.length;
+        const maxVal = data[0];
+        const barW = w / len;
+        
+        for(let i=0; i<len; i++) {
+            const barH = (data[i] / maxVal) * (h - 10);
+            ctx.fillStyle = (i < k) ? '#10b981' : '#ef4444';
+            ctx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
+        }
+        
+        const splitX = k * barW;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(splitX, 0);
+        ctx.lineTo(splitX, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    
+    function playSvd(type) {
+        if(!SVD.stft || !audioContext) return;
+        if(audioContext.state === 'suspended') audioContext.resume();
+        
+        const mat = (type==='orig') ? SVD.stft.magLog : SVD.stft.recLog;
+        const { phase, nFrames, nBins } = SVD.stft;
+        const nFft = SVD.fft, hop = SVD.hop;
+        const out = new Float32Array(nFrames*hop + nFft);
+        const re = new Float32Array(nFft), im = new Float32Array(nFft);
+        
+        for(let f=0; f<nFrames; f++) {
+            for(let i=0; i<nBins; i++) {
+                const mLog = mat[i][f];
+                const mLin = (Math.exp(mLog) - 1)/100;
+                const p = phase[i][f];
+                re[i] = mLin*Math.cos(p);
+                im[i] = mLin*Math.sin(p);
+                if(i>0 && i<nBins-1) {
+                    re[nFft-i] = re[i];
+                    im[nFft-i] = -im[i];
+                }
+            }
+            
+            for(let i=0;i<nFft;i++) im[i] = -im[i];
+            svdSimpleFFT(re, im);
+            
+            for(let i=0;i<nFft;i++) re[i] /= nFft;
+            
+            const pos = f*hop;
+            for(let i=0; i<nFft; i++) {
+                out[pos+i] += re[i];
+            }
+        }
+        
+        const b = audioContext.createBuffer(1, out.length, SVD.rate);
+        b.getChannelData(0).set(out);
+        const s = audioContext.createBufferSource();
+        s.buffer = b;
+        s.connect(audioContext.destination);
+        s.start();
+    }
+    
+    function svdReset() {
+        SVD.step = 0;
+        SVD.stft = null;
+        SVD.rawSig = null;
+        
+        ['cvOrig','cvRec','cvScree'].forEach(id => {
+            const cv = document.getElementById(id);
+            cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+        });
+        
+        svdUpdateUI();
+    }
+    
+    function svdSimpleFFT(re, im) {
+        const n = re.length;
+        let j = 0;
+        for(let i=0; i<n-1; i++) {
+            if(i < j) {
+                [re[i], re[j]] = [re[j], re[i]];
+                [im[i], im[j]] = [im[j], im[i]];
+            }
+            let k = n >> 1;
+            while(k <= j) {
+                j -= k;
+                k >>= 1;
+            }
+            j += k;
+        }
+        
+        let step = 1;
+        while(step < n) {
+            const jump = step << 1;
+            const delta = -Math.PI/step;
+            const s = Math.sin(delta);
+            const c = Math.cos(delta);
+            let wr = 1, wi = 0;
+            
+            for(let k=0; k<step; k++) {
+                for(let i=k; i<n; i+=jump) {
+                    const oi = i + step;
+                    const tr = wr*re[oi] - wi*im[oi];
+                    const ti = wr*im[oi] + wi*re[oi];
+                    re[oi] = re[i] - tr;
+                    im[oi] = im[i] - ti;
+                    re[i] += tr;
+                    im[i] += ti;
+                }
+                let t = wr;
+                wr = t*c - wi*s;
+                wi = t*s + wi*c;
+            }
+            step = jump;
+        }
+    }
+    
+    function svdSimpleSVD(A) {
+        const m = A.length, n = A[0].length;
+        const dim = n;
+        const C = new Array(dim).fill(0).map(() => new Float32Array(dim));
+        
+        for(let i=0; i<n; i++) {
+            for(let j=i; j<n; j++) {
+                let s = 0;
+                for(let k=0; k<m; k++) s += A[k][i] * A[k][j];
+                C[i][j] = s;
+                C[j][i] = s;
+            }
+        }
+        
+        let V = new Array(dim).fill(0).map((_,i) => {
+            let r = new Float32Array(dim);
+            r[i] = 1;
+            return r;
+        });
+        
+        for(let it=0; it<20; it++) {
+            let max = 0, p = 0, q = 0;
+            for(let i=0; i<dim-1; i++) {
+                for(let j=i+1; j<dim; j++) {
+                    if(Math.abs(C[i][j]) > max) {
+                        max = Math.abs(C[i][j]);
+                        p = i;
+                        q = j;
+                    }
+                }
+            }
+            
+            if(max < 1e-5) break;
+            
+            let th = 0.5 * Math.atan2(2*C[p][q], C[q][q] - C[p][p]);
+            let c = Math.cos(th), s = Math.sin(th);
+            let cpp = C[p][p], cqq = C[q][q], cpq = C[p][q];
+            
+            C[p][p] = c*c*cpp - 2*s*c*cpq + s*s*cqq;
+            C[q][q] = s*s*cpp + 2*s*c*cpq + c*c*cqq;
+            C[p][q] = 0;
+            C[q][p] = 0;
+            
+            for(let i=0; i<dim; i++) {
+                if(i !== p && i !== q) {
+                    let cip = C[i][p], ciq = C[i][q];
+                    C[i][p] = c*cip - s*ciq;
+                    C[p][i] = C[i][p];
+                    C[i][q] = s*cip + c*ciq;
+                    C[q][i] = C[i][q];
+                }
+            }
+            
+            for(let i=0; i<dim; i++) {
+                let vip = V[i][p], viq = V[i][q];
+                V[i][p] = c*vip - s*viq;
+                V[i][q] = s*vip + c*viq;
+            }
+        }
+        
+        let S = new Float32Array(dim);
+        for(let i=0; i<dim; i++) {
+            S[i] = Math.sqrt(Math.max(0, C[i][i]));
+        }
+        
+        let idx = Array.from(S.keys()).sort((a,b) => S[b] - S[a]);
+        let S_srt = new Float32Array(dim);
+        let V_srt = new Array(dim).fill(0).map(() => new Float32Array(dim));
+        
+        for(let i=0; i<dim; i++) {
+            S_srt[i] = S[idx[i]];
+            for(let r=0; r<dim; r++) {
+                V_srt[r][i] = V[r][idx[i]];
+            }
+        }
+        
+        let U_srt = new Array(m).fill(0).map(() => new Float32Array(dim));
+        for(let i=0; i<m; i++) {
+            for(let j=0; j<dim; j++) {
+                if(S_srt[j] < 1e-6) continue;
+                let sum = 0;
+                for(let k=0; k<n; k++) {
+                    sum += A[i][k] * V_srt[k][j];
+                }
+                U_srt[i][j] = sum / S_srt[j];
+            }
+        }
+        
+        return { U: U_srt, S: S_srt, V: V_srt };
+    }
+    
+    // Initialize SVD UI
+    document.getElementById('sliderK').addEventListener('input', svdOnKChange);
+    document.getElementById('sliderBlock').addEventListener('input', svdOnBlockChange);
+    document.getElementById('btnAction').addEventListener('click', svdNextStep);
+    
+    svdUpdateUI();
+    
+    // Initialize
+    window.addEventListener('resize', () => {
+        if(currentTab === 'lossy' && LOSSY.spectrumReal.length) {
+            lossyUpdateCompression();
+        }
+    });
+    
+    // Auto-load audio when switching to SVD tab if available
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if(currentTab === 'svd' && sharedAudio.data && SVD.step === 0) {
+                setTimeout(() => svdLoadAudioFromShared(), 100);
+            }
+        });
+    });
+</script>
+</body>
+</html>
