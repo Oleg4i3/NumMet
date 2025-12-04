@@ -700,26 +700,14 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
 
             ctxOverlay.clearRect(0, 0, CANVAS_DISPLAY, CANVAS_DISPLAY);
             
-           // Search Box
+            // Search Box
             const sRad = p_search;
-            
-            ctxOverlay.strokeStyle = 'rgba(56, 250, 248, 0.8)';
-            ctxOverlay.lineWidth = 1; 
-            ctxOverlay.setLineDash([4, 4]);
+            const sMinX = Math.max(0, px - sRad), sMaxX = Math.min(SIZE-1, px + sRad);
+            const sMinY = Math.max(0, py - sRad), sMaxY = Math.min(SIZE-1, py + sRad);
 
-            if (p_metric === 'euclidean') {
-                // --- МАЛЮЄМО КОЛО ---
-                ctxOverlay.beginPath();
-                // (px + 0.5) * SCALE — це точний центр пікселя під курсором
-                ctxOverlay.arc((px + 0.5) * SCALE, (py + 0.5) * SCALE, sRad * SCALE, 0, Math.PI * 2);
-                ctxOverlay.stroke();
-            } else {
-                // --- МАЛЮЄМО КВАДРАТ (Старий код) ---
-                const sMinX = Math.max(0, px - sRad), sMaxX = Math.min(SIZE-1, px + sRad);
-                const sMinY = Math.max(0, py - sRad), sMaxY = Math.min(SIZE-1, py + sRad);
-                ctxOverlay.strokeRect(sMinX * SCALE, sMinY * SCALE, (sMaxX - sMinX + 1) * SCALE, (sMaxY - sMinY + 1) * SCALE);
-            }
-            
+            ctxOverlay.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+            ctxOverlay.lineWidth = 1; ctxOverlay.setLineDash([4, 4]);
+            ctxOverlay.strokeRect(sMinX * SCALE, sMinY * SCALE, (sMaxX - sMinX + 1) * SCALE, (sMaxY - sMinY + 1) * SCALE);
             ctxOverlay.setLineDash([]);
 
             // Patch Box
