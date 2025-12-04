@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLM Denoising Simulator v7 (Pro)</title>
+    
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --text: #e2e8f0;
+            --accent: #38bdf8;
+            --border: #334155;
+            --highlight: #facc15;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --conv: #f472b6;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1500px;
+        }
+
+        /* Theory Spoiler */
+        .theory-spoiler {
+            width: 100%;
+            max-width: 1500px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            overflow: hidden;
+        }
+        
+        .theory-spoiler summary {
+            padding: 15px;
+            background: #28364a;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            list-style: none; /* Hide default triangle */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .theory-spoiler summary::after { content: "▼"; font-size: 0.8em; transition: transform 0.2s; }
+        .theory-spoiler[open] summary::after { transform: rotate(180deg); }
+
+        .theory-content {
+            padding: 20px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-top: 1px solid var(--border);
+        }
+
+        .theory-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        h4 { color: var(--highlight); margin: 0 0 10px 0; }
+        ul { padding-left: 20px; margin: 0; }
+        li { margin-bottom: 5px; }
+
+        /* Controls Panel */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        
+        label { display: block; margin-bottom: 8px; font-size: 0.9em; color: #cbd5e1; }
+        
+        input[type="range"] {
+            width: 100%;
+            background: var(--bg);
+            height: 6px;
+            border-radius: 3px;
+            appearance: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        #convBlur::-webkit-slider-thumb { background: var(--conv); }
+        #convSharpen::-webkit-slider-thumb { background: var(--conv); }
+
+        .val-display { float: right; color: var(--accent); font-family: monospace; }
+        .val-conv { float: right; color: var(--conv); font-family: monospace; }
+
+        /* Buttons & Selects */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+
+        button, select {
+            width: 100%;
+            padding: 10px;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            font-family: inherit;
+        }
+        button:hover, select:hover { background: #334155; }
+        button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: bold;}
+        
+        select { background-color: #0f172a; margin-bottom: 10px; }
+        
+        input[type="file"] { display: none; }
+        .upload-btn { background: #475569; }
+
+        /* Visualization Area */
+        .viz-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .canvas-grid {
+            display: grid;
+            grid-template-columns: repeat(2, auto);
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .canvas-container {
+            background: #000;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .canvas-label {
+            background: var(--panel);
+            width: 100%;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 0.85em;
+            border-bottom: 1px solid var(--border);
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        canvas { image-rendering: pixelated; }
+
+        /* Inspector */
+        .inspector {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: auto auto 1fr;
+            gap: 25px;
+            align-items: center;
+        }
+
+        .mini-view {
+            width: 90px;
+            height: 90px;
+            border: 2px solid var(--border);
+            background: #000;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .legend-container {
+            width: 100%;
+            padding: 5px 15px;
+            box-sizing: border-box;
+            background: var(--panel);
+            border-top: 1px solid var(--border);
+        }
+        .legend-bar {
+            height: 10px;
+            width: 100%;
+            background: linear-gradient(to right, #000080, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000);
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .legend-labels { display: flex; justify-content: space-between; font-size: 0.75em; color: #94a3b8; }
+
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px;
+            font-size: 0.8em; font-weight: bold; width: 100%; text-align: center;
+            box-sizing: border-box; margin-top: 5px;
+        }
+        .status-idle { background: #064e3b; color: #34d399; }
+        .status-busy { background: #78350f; color: #fbbf24; }
+
+        .warning-text { font-size: 0.8em; color: var(--danger); margin-top: 5px; display: none; }
+
+        #overlayCanvas { position: absolute; top: 33px; left: 0; cursor: crosshair; }
+    </style>
+</head>
+<body>
+
+    <div style="text-align:center; max-width: 800px; margin-bottom: 20px;">
+        <h1 style="margin-bottom:5px">Нелокальне усереднення (NLM) для денойзінга</h1>
+       
+    </div>
+
+    <details class="theory-spoiler">
+        <summary>📚 Теоретична довідка: Non-Local Means (Натисніть, щоб розгорнути)</summary>
+        <div class="theory-content">
+            <div class="theory-grid">
+                <div>
+                    <h4>💡 Основна Ідея</h4>
+                    <p>На відміну від локальних фільтрів (які усереднюють лише фізичних сусідів), <b>Non-Local Means (NLM)</b> використовує <i>надлишковість</i> інформації у зображенні. Будь-яка текстура або край має "двійників" в інших частинах зображення.</p>
+                    <p><b>Алгоритм:</b> Щоб очистити піксель $p$, ми шукаємо схожі на його окіл (патч) інші патчі $q$ в межах зони пошуку і обчислюємо зважене середнє.</p>
+                    
+                    <h4>📐 Математична Модель</h4>
+                    <p>Значення відновленого пікселя $NL(p)$:</p>
+                    $$ NL(p) = \frac{1}{Z(p)} \sum_{q \in \Omega} w(p,q) \cdot v(q) $$
+                    <p>Де вага $w(p,q)$ залежить від схожості патчів $P_p$ та $P_q$:</p>
+                    $$ w(p,q) = e^{-\frac{||P_p - P_q||^2_2}{h^2}} $$
+                    <ul>
+                        <li>$||P_p - P_q||^2_2$ — евклідова відстань між кольорами пікселів у патчах.</li>
+                        <li>$h$ — параметр згладжування (сила фільтрації).</li>
+                        <li>$Z(p)$ — нормалізаційний коефіцієнт (сума всіх ваг).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>🔑 Термінологія</h4>
+                    <ul>
+                        <li><b>Патч (Patch):</b> Квадратна область (наприклад, $5 \times 5$), що оточує піксель. Схожість перевіряється саме за вмістом патчів, а не окремих пікселів.</li>
+                        <li><b>Зона пошуку (Search Window):</b> Область навколо пікселя, де ми шукаємо "двійників".</li>
+                        <li><b>Манхеттенська метрика ($L_1$ vs $L_\infty$):</b> У комп'ютерному зорі "радіус $R$" часто означає квадрат зі стороною $2R+1$ (метрика Чебишова), що ми і використовуємо в симуляторі.</li>
+                        <li><b>Self-similarity:</b> Властивість зображення містити повторювані структури.</li>
+                    </ul>
+
+                    <h4>🚀 Застосування</h4>
+                    <ul>
+                        <li><b>Медична візуалізація (MRI/CT):</b> Видалення шуму Райса без розмиття дрібних деталей тканин.</li>
+                        <li><b>Астрофотографія:</b> Підвищення співвідношення сигнал/шум.</li>
+                        <li><b>Препроцесинг:</b> Покращення якості перед стисненням або розпізнаванням образів.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <div class="container">
+        <div class="panel">
+            <h3>1. Вхідні дані</h3>
+            <div class="control-group">
+                <label>Роздільна здатність:</label>
+                <select id="resSelect" onchange="changeResolution()">
+                    <option value="128">128 x 128 (Середнє)</option>
+					 <option value="64">64 x 64 (Швидко)</option>
+                    <option value="256">256 x 256 (Повільно!)</option>
+                </select>
+                <div id="resWarning" class="warning-text">⚠️ Увага: 256x256 вимагає значних обчислень. Браузер може підвисати.</div>
+<div class="btn-grid">
+    <button onclick="setPreset('shapes', this)">Геометрія</button>
+    
+    <button onclick="setPreset('texture', this)">Текстура</button>
+    
+    <button class="active" onclick="setPreset('mri', this)">МРТ</button>
+    
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Завантажити</button>
+</div>
+                <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(this)">
+                
+                <div style="margin-top:15px;">
+                    <label>Шум ($\sigma$): <span id="val-noise" class="val-display">15</span></label>
+                    <input type="range" id="noise" min="0" max="80" value="15">
+                </div>
+            </div>
+
+            <h3>2. Налаштування NLM</h3>
+            <div class="control-group">
+                <label>Радіус Патча ($r$): <span id="val-patch" class="val-display">1 px</span></label>
+                <input type="range" id="patchSize" min="1" max="5" step="1" value="1">
+                <div style="font-size:0.75em; color:#64748b; margin-top:-5px; margin-bottom: 10px">Вікно: <span id="lbl-patch-dim" style="color:var(--highlight)">5x5</span></div>
+                
+                <label>Радіус Пошуку ($R$): <span id="val-search" class="val-display">10 px</span></label>
+                <input type="range" id="searchRadius" min="5" max="25" step="1" value="10">
+				
+				<label>Фільтрація ($h$): <span id="val-h" class="val-display">0.2</span></label>
+				<input type="range" id="paramH" min="0.1" max="10" step="0.1" value="0.2">
+				
+                <div id="status" class="status-badge status-idle">NLM Готово</div>
+            </div>
+
+            <h3 style="color:var(--conv)">3. Порівняння (Згортковий фільтр)</h3>
+            <div class="control-group">
+                <label>Blur (Розмиття): <span id="val-blur" class="val-conv">1</span></label>
+                <input type="range" id="convBlur" min="0" max="5" step="1" value="1">
+                
+                <label>Sharpen (Різкість): <span id="val-sharpen" class="val-conv">1</span></label>
+                <input type="range" id="convSharpen" min="0" max="10" step="1" value="1">
+            </div>
+        </div>
+
+        <div class="viz-area">
+            
+            <div class="canvas-grid">
+                <div class="canvas-container">
+                    <div class="canvas-label">A. Вхідне + Шум (ЛКМ - зафіксувати область)</div>
+                    <canvas id="noisyCanvas" width="256" height="256"></canvas>
+                    <canvas id="overlayCanvas" width="256" height="256"></canvas>
+                </div>
+
+                <div class="canvas-container">
+                    <div class="canvas-label">B. Карта Схожесті NLM</div>
+                    <canvas id="weightCanvas" width="256" height="256"></canvas>
+                    <div class="legend-container">
+                        <div class="legend-bar"></div>
+                        <div class="legend-labels">
+                            <span>0 (Різне)</span>
+                            <span>Вага</span>
+                            <span>1 (Схоже)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="canvas-container" style="border-color: var(--accent);">
+                    <div class="canvas-label" style="color:var(--accent)">C. Результат NLM</div>
+                    <canvas id="outputCanvas" width="256" height="256"></canvas>
+                </div>
+
+                <div class="canvas-container" style="border-color: var(--conv);">
+                    <div class="canvas-label" style="color:var(--conv)">D. Звичайний фільтр</div>
+                    <canvas id="convCanvas" width="256" height="256"></canvas>
+                </div>
+            </div>
+
+            <div class="panel inspector">
+                <div style="text-align:center">
+                    <label style="margin-bottom:5px; color:var(--highlight)">Цільовий Патч</label>
+                    <canvas id="patchRef" class="mini-view" width="64" height="64"></canvas>
+                </div>
+                <div style="text-align:center">
+                    <label style="margin-bottom:5px">NLM Відновлення</label>
+                    <canvas id="patchAvg" class="mini-view" width="64" height="64"></canvas>
+                </div>
+                <div>
+                    <h3 style="margin-top:0; color:#fff">Інспектор</h3>
+                    <div id="inspectorText" style="font-family: monospace; color: #cbd5e1; font-size: 0.95em; line-height: 1.6;">
+                        Наведіть на зображення А...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- Constants & Configuration ---
+        // Dynamic Resolution Variables
+       // Dynamic Resolution Variables
+let SIZE = 128;           // Було 64, ставимо 128
+const CANVAS_DISPLAY = 256; 
+let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
+        // Data Arrays
+        let originalData = null;
+        let noisyData = null;
+        let denoisedData = null; 
+        
+        // Params
+        let p_sigma = 20;
+        let p_patch = 2;   
+        let p_search = 10; 
+        let p_h = 2;
+        let p_blur = 1;
+        let p_sharpen = 1;
+
+        // UI State
+        let lastMouseX = -1; 
+        let lastMouseY = -1;
+        let isFrozen = false; 
+        let debounceTimer;
+        let currentPresetType = 'shapes'; // Track current preset to reload on res change
+
+        // --- Initialization ---
+        window.addEventListener('load', () => {
+            initBuffers();
+            init();
+        });
+
+        function initBuffers() {
+            originalData = new Float32Array(SIZE * SIZE);
+            noisyData = new Float32Array(SIZE * SIZE);
+            denoisedData = new Float32Array(SIZE * SIZE);
+            // Default center mouse
+            lastMouseX = Math.floor(SIZE/2);
+            lastMouseY = Math.floor(SIZE/2);
+        }
+
+      function init() {
+    // 1. Вмикаємо слайдери та мишку (ЦЬОГО РЯДКА НЕ ВИСТАЧАЛО)
+    setupControls();
+
+    // 2. Знаходимо кнопку MRI (вона третя за рахунком, індекс 2)
+    const mriBtn = document.querySelectorAll('.btn-grid button')[2];
+    
+    // 3. Встановлюємо пресет MRI
+    setPreset('mri', mriBtn);
+}
+
+        function setupControls() {
+            // Noise Slider
+            document.getElementById('noise').addEventListener('input', (e) => {
+                p_sigma = parseFloat(e.target.value);
+                document.getElementById('val-noise').innerText = p_sigma;
+                regenerateNoise();
+            });
+
+            // NLM Params
+            ['patchSize', 'searchRadius', 'paramH'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateParamsFromDOM);
+            });
+
+            // Convolution Params
+            document.getElementById('convBlur').addEventListener('input', (e) => {
+                p_blur = parseInt(e.target.value);
+                document.getElementById('val-blur').innerText = p_blur;
+                runStandardFilter();
+            });
+            document.getElementById('convSharpen').addEventListener('input', (e) => {
+                p_sharpen = parseInt(e.target.value);
+                document.getElementById('val-sharpen').innerText = p_sharpen;
+                runStandardFilter();
+            });
+
+            // Mouse Interaction
+            const overlay = document.getElementById('overlayCanvas');
+            overlay.addEventListener('mousemove', (e) => {
+                if (isFrozen) return;
+                const rect = overlay.getBoundingClientRect();
+                const mx = Math.floor((e.clientX - rect.left) / SCALE);
+                const my = Math.floor((e.clientY - rect.top) / SCALE);
+                if (mx >= 0 && mx < SIZE && my >= 0 && my < SIZE) {
+                    lastMouseX = mx; lastMouseY = my;
+                    visualizeLive();
+                }
+            });
+            overlay.addEventListener('click', () => {
+                isFrozen = !isFrozen; 
+                const txt = document.getElementById('inspectorText');
+                txt.style.borderLeft = isFrozen ? "3px solid #f43f5e" : "none";
+            });
+        }
+
+        function changeResolution() {
+            const sel = document.getElementById('resSelect');
+            SIZE = parseInt(sel.value);
+            SCALE = CANVAS_DISPLAY / SIZE;
+            
+            // Warning for 256
+            const warning = document.getElementById('resWarning');
+            warning.style.display = (SIZE === 256) ? 'block' : 'none';
+
+            initBuffers();
+            
+            // Reload current content
+            if (currentPresetType === 'file' || currentPresetType === 'mri') {
+                // If it was a file, we might need to re-crop/re-load. 
+                // For simplicity, let's revert to procedural if it was file, 
+                // OR try to reload if element exists.
+                // Re-triggering the click is safest if we want to keep flow.
+                const activeBtn = document.querySelector('.btn-grid button.active');
+                if (activeBtn.innerText.includes('MRI')) setPreset('mri', activeBtn);
+                else setPreset('shapes', document.querySelectorAll('.btn-grid button')[0]);
+            } else {
+                setPreset(currentPresetType);
+            }
+        }
+
+        function updateParamsFromDOM() {
+            p_patch = parseInt(document.getElementById('patchSize').value);
+            p_search = parseInt(document.getElementById('searchRadius').value);
+            p_h = parseFloat(document.getElementById('paramH').value);
+
+            document.getElementById('val-patch').innerText = p_patch + " px";
+            document.getElementById('lbl-patch-dim').innerText = `${2*p_patch+1}x${2*p_patch+1}`;
+            document.getElementById('val-search').innerText = p_search + " px";
+            document.getElementById('val-h').innerText = p_h.toFixed(1);
+
+            visualizeLive(); 
+            scheduleFullDenoise();
+        }
+
+        // --- Image Loading Logic ---
+
+        function setPreset(type, btn) {
+            currentPresetType = type;
+            if(btn) setActiveBtn(btn);
+
+            if (type === 'mri') {
+              const mriBase64 = "data:image/png;base64,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"; 
+                
+                loadImageFromFile(mriBase64);
+                return;
+            }
+
+            // Procedural Generation
+            generateProcedural(type);
+        }
+
+        function setActiveBtn(btn) {
+            document.querySelectorAll('.btn-grid button').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+
+        function handleFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentPresetType = 'file';
+                    loadImageFromFile(e.target.result);
+                    setActiveBtn(document.querySelector('.upload-btn')); 
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function loadImageFromFile(src) {
+            const img = new Image();
+            img.onload = () => {
+                // CROP Logic
+                const tempCv = document.createElement('canvas');
+                tempCv.width = SIZE; tempCv.height = SIZE;
+                const tempCtx = tempCv.getContext('2d');
+                
+                // Calculate crop (cover/center)
+                const minDim = Math.min(img.width, img.height);
+                const sx = (img.width - minDim) / 2;
+                const sy = (img.height - minDim) / 2;
+
+                // Draw clipped portion to fit SIZE x SIZE
+                tempCtx.drawImage(img, sx, sy, minDim, minDim, 0, 0, SIZE, SIZE);
+                
+                const pData = tempCtx.getImageData(0, 0, SIZE, SIZE).data;
+
+                // Grayscale conversion
+                for(let i=0; i<SIZE*SIZE; i++) {
+                    const r = pData[i*4];
+                    const g = pData[i*4+1];
+                    const b = pData[i*4+2];
+                    originalData[i] = 0.299*r + 0.587*g + 0.114*b;
+                }
+                regenerateNoise();
+            };
+            img.onerror = () => {
+                alert("Не вдалося завантажити зображення.");
+            }
+            img.src = src;
+        }
+
+        function generateProcedural(type) {
+            // Scale factor for shapes to look consistent across resolutions
+            const ratio = SIZE / 64; 
+
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    let val = 0;
+                    if (type === 'shapes') {
+                        // Scale coordinates
+                        if (x > 15*ratio && x < 45*ratio && y > 15*ratio && y < 45*ratio) val = 200; else val = 50;
+                        if ((x-48*ratio)**2 + (y-48*ratio)**2 < 60*(ratio**2)) val = 150;
+                    } else if (type === 'texture') {
+                        // Texture frequency remains constant or scales? 
+                        // Let's keep frequency constant (more texture on larger canvas)
+                        val = ((x + y) % 8 < 4) ? 180 : 40;
+                    }
+                    originalData[y * SIZE + x] = val;
+                }
+            }
+            regenerateNoise();
+        }
+
+        function regenerateNoise() {
+            const ctx = document.getElementById('noisyCanvas').getContext('2d');
+            for (let i = 0; i < SIZE * SIZE; i++) {
+                let noise = (Math.random() + Math.random() + Math.random() + Math.random() - 2) * p_sigma;
+                noisyData[i] = Math.max(0, Math.min(255, originalData[i] + noise));
+            }
+            drawDataToCanvas(ctx, noisyData);
+            scheduleFullDenoise();
+            runStandardFilter();
+            visualizeLive();
+        }
+
+        // --- Standard Filter Logic ---
+        function runStandardFilter() {
+            const cvs = document.getElementById('convCanvas');
+            const ctx = cvs.getContext('2d');
+            
+            let tempData = new Float32Array(noisyData);
+            
+            // Blur
+            if (p_blur > 0) {
+                const blurRes = new Float32Array(SIZE * SIZE);
+                const r = p_blur;
+                for(let y=0; y<SIZE; y++) {
+                    for(let x=0; x<SIZE; x++) {
+                        let sum = 0, count = 0;
+                        for(let dy=-r; dy<=r; dy++) {
+                            for(let dx=-r; dx<=r; dx++) {
+                                let nx = x+dx, ny = y+dy;
+                                if(nx>=0 && nx<SIZE && ny>=0 && ny<SIZE) {
+                                    sum += tempData[ny*SIZE+nx];
+                                    count++;
+                                }
+                            }
+                        }
+                        blurRes[y*SIZE+x] = sum/count;
+                    }
+                }
+                tempData = blurRes;
+            }
+
+            // Sharpen
+            if (p_sharpen > 0) {
+                const sharpRes = new Float32Array(SIZE * SIZE);
+                const s = p_sharpen * 0.5;
+                for(let y=0; y<SIZE; y++) {
+                    for(let x=0; x<SIZE; x++) {
+                        let center = tempData[y*SIZE+x];
+                        let neighbors = 0;
+                        const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+                        dirs.forEach(d => {
+                            let nx = x+d[0], ny = y+d[1];
+                            if(nx>=0 && nx<SIZE && ny>=0 && ny<SIZE) neighbors += tempData[ny*SIZE+nx];
+                            else neighbors += center;
+                        });
+                        let val = (1 + 4*s) * center - s * neighbors;
+                        sharpRes[y*SIZE+x] = Math.max(0, Math.min(255, val));
+                    }
+                }
+                tempData = sharpRes;
+            }
+
+            drawDataToCanvas(ctx, tempData);
+        }
+
+        // --- NLM Core & Viz ---
+        function visualizeLive() {
+            if(lastMouseX < 0) return;
+            const px = lastMouseX, py = lastMouseY;
+            
+            const ctxOverlay = document.getElementById('overlayCanvas').getContext('2d');
+            const ctxWeights = document.getElementById('weightCanvas').getContext('2d');
+
+            ctxOverlay.clearRect(0, 0, CANVAS_DISPLAY, CANVAS_DISPLAY);
+            
+            // Search Box
+            const sRad = p_search;
+            const sMinX = Math.max(0, px - sRad), sMaxX = Math.min(SIZE-1, px + sRad);
+            const sMinY = Math.max(0, py - sRad), sMaxY = Math.min(SIZE-1, py + sRad);
+
+            ctxOverlay.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+            ctxOverlay.lineWidth = 1; ctxOverlay.setLineDash([4, 4]);
+            ctxOverlay.strokeRect(sMinX * SCALE, sMinY * SCALE, (sMaxX - sMinX + 1) * SCALE, (sMaxY - sMinY + 1) * SCALE);
+            ctxOverlay.setLineDash([]);
+
+            // Patch Box
+            const pRad = p_patch;
+            ctxOverlay.strokeStyle = '#facc15'; ctxOverlay.lineWidth = 2;
+            const pSize = (pRad*2+1);
+            ctxOverlay.strokeRect((px - pRad) * SCALE, (py - pRad) * SCALE, pSize * SCALE, pSize * SCALE);
+
+            // Weights Heatmap
+            ctxWeights.fillStyle = '#000020'; ctxWeights.fillRect(0,0,CANVAS_DISPLAY, CANVAS_DISPLAY);
+            let totalWeight = 0, weightedSum = 0, maxW = 0;
+            const tempWeights = []; 
+
+            for (let y = sMinY; y <= sMaxY; y++) {
+                for (let x = sMinX; x <= sMaxX; x++) {
+                    const dist2 = calculatePatchDistance(px, py, x, y);
+                    const w = Math.exp( -Math.max(dist2 - 2*p_sigma*p_sigma, 0) / (p_h * p_h) );
+                    if (w > maxW) maxW = w;
+                    totalWeight += w; weightedSum += w * noisyData[y * SIZE + x];
+                    if(w > 0.0001) tempWeights.push({x, y, w});
+                }
+            }
+
+            if (maxW < 1e-6) maxW = 1;
+            for (let item of tempWeights) {
+                const val = item.w / maxW; 
+                const hue = (1.0 - val) * 240; 
+                ctxWeights.fillStyle = `hsla(${hue}, 100%, 50%, 1.0)`;
+                ctxWeights.fillRect(item.x * SCALE, item.y * SCALE, SCALE, SCALE);
+            }
+
+            const resultVal = totalWeight > 0 ? weightedSum / totalWeight : noisyData[py*SIZE+px];
+            document.getElementById('inspectorText').innerHTML = 
+                `Коорд: <b>(${px}, ${py})</b> ${isFrozen ? '<span style="color:#f43f5e">[FIXED]</span>' : ''}<br>` +
+                `NLM: <span style="color:#facc15">${resultVal.toFixed(1)}</span> (Orig: ${noisyData[py*SIZE+px].toFixed(0)})<br>` +
+                `Max Вага: ${maxW.toFixed(4)}`;
+
+            // Перший патч показує оригінальний шум (noisyData за замовчуванням)
+    drawPatchView('patchRef', px, py);
+    
+    // Другий патч тепер бере дані з denoisedData
+    // resultVal залишаємо для підсвітки центрального пікселя, який ми щойно розрахували "на льоту"
+    drawPatchView('patchAvg', px, py, resultVal, denoisedData);
+        }
+
+        function scheduleFullDenoise() {
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = "Обробка..."; statusEl.className = "status-badge status-busy";
+            clearTimeout(debounceTimer);
+            // Longer debounce for larger images
+            const delay = (SIZE > 100) ? 200 : 50; 
+            debounceTimer = setTimeout(runFullDenoiseProcess, delay);
+        }
+
+        function runFullDenoiseProcess() {
+            const start = performance.now();
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    let totalWeight = 0, weightedSum = 0;
+                    const sMinX = Math.max(0, x - p_search), sMaxX = Math.min(SIZE-1, x + p_search);
+                    const sMinY = Math.max(0, y - p_search), sMaxY = Math.min(SIZE-1, y + p_search);
+
+                    for (let sy = sMinY; sy <= sMaxY; sy++) {
+                        for (let sx = sMinX; sx <= sMaxX; sx++) {
+                            const dist2 = calculatePatchDistance(x, y, sx, sy);
+                            const w = Math.exp( -Math.max(dist2 - 2*p_sigma*p_sigma, 0) / (p_h * p_h) );
+                            totalWeight += w; weightedSum += w * noisyData[sy * SIZE + sx];
+                        }
+                    }
+                    denoisedData[y*SIZE+x] = totalWeight > 0 ? weightedSum/totalWeight : noisyData[y*SIZE+x];
+                }
+            }
+            drawDataToCanvas(document.getElementById('outputCanvas').getContext('2d'), denoisedData);
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = `NLM Готово (${(performance.now() - start).toFixed(0)} ms)`;
+            statusEl.className = "status-badge status-idle";
+        }
+
+        // --- Helpers ---
+        function calculatePatchDistance(x1, y1, x2, y2) {
+            let dist = 0; const dim = p_patch;
+            for (let dy = -dim; dy <= dim; dy++) {
+                for (let dx = -dim; dx <= dim; dx++) {
+                    const val1 = getSafePixel(x1 + dx, y1 + dy);
+                    const val2 = getSafePixel(x2 + dx, y2 + dy);
+                    dist += (val1 - val2) ** 2;
+                }
+            }
+            return dist / ((2*dim+1)**2);
+        }
+
+ 
+
+	function getSafePixel(x, y, sourceData = noisyData) {
+    if (x < 0) x = -x; if (y < 0) y = -y;
+    if (x >= SIZE) x = 2*SIZE - x - 2; if (y >= SIZE) y = 2*SIZE - y - 2;
+    if (x < 0) x = 0; if (x >= SIZE) x = SIZE-1;
+    if (y < 0) y = 0; if (y >= SIZE) y = SIZE-1;
+    
+    // Використовуємо переданий масив або noisyData за замовчуванням
+    return sourceData[y * SIZE + x];
+			}
+
+        function drawDataToCanvas(ctx, data) {
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,CANVAS_DISPLAY, CANVAS_DISPLAY);
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    const val = Math.floor(data[y * SIZE + x]);
+                    ctx.fillStyle = `rgb(${val},${val},${val})`;
+                    ctx.fillRect(x*SCALE, y*SCALE, SCALE, SCALE);
+                }
+            }
+        }
+
+    
+function drawPatchView(canvasId, cx, cy, overrideCenter = null, dataSrc = noisyData) {
+    const cvs = document.getElementById(canvasId);
+    const ctx = cvs.getContext('2d');
+    const w = cvs.width; 
+    const dim = p_patch * 2 + 1;
+    const blockSize = w / dim; 
+
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,w);
+
+    for (let dy = 0; dy < dim; dy++) {
+        for (let dx = 0; dx < dim; dx++) {
+            const lx = cx + (dx - p_patch);
+            const ly = cy + (dy - p_patch);
+            
+            // ТУТ ЗМІНА: Передаємо dataSrc у getSafePixel
+            let val = getSafePixel(lx, ly, dataSrc);
+            
+            const isCenter = (dx === p_patch && dy === p_patch);
+            if (overrideCenter !== null && isCenter) val = overrideCenter;
+
+            val = Math.floor(val);
+            ctx.fillStyle = `rgb(${val},${val},${val})`;
+            const drawX = Math.floor(dx * blockSize);
+            const drawY = Math.floor(dy * blockSize);
+            const drawSize = Math.ceil(blockSize);
+            ctx.fillRect(drawX, drawY, drawSize, drawSize);
+
+            if (isCenter) {
+                ctx.strokeStyle = overrideCenter !== null ? '#10b981' : '#facc15';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(drawX+1, drawY+1, drawSize-2, drawSize-2);
+            }
+        }
+    }
+}
+    </script>
+</body>
+</html>
