@@ -387,7 +387,7 @@
                     <canvas id="patchAvg" class="mini-view" width="64" height="64"></canvas>
                 </div>
                 <div>
-                    <h3 style="margin-top:0; color:#fff">Інспектор</h3>
+                    <h3 style="margin-top:0; color:#fff">піксель</h3>
                     <div id="inspectorText" style="font-family: monospace; color: #cbd5e1; font-size: 0.95em; line-height: 1.6;">
                         Наведіть на зображення А...
                     </div>
@@ -780,7 +780,7 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
             document.getElementById('inspectorText').innerHTML = 
                 `Коорд: <b>(${px}, ${py})</b> ${isFrozen ? '<span style="color:#f43f5e">[FIXED]</span>' : ''}<br>` +
                 `NLM: <span style="color:#facc15">${resultVal.toFixed(1)}</span> (Orig: ${noisyData[py*SIZE+px].toFixed(0)})<br>` +
-                `Max Вага: ${maxW.toFixed(4)}`;
+                ``;
 
             // Перший патч показує оригінальний шум (noisyData за замовчуванням)
     drawPatchView('patchRef', px, py);
