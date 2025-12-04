@@ -267,7 +267,7 @@
                     <ul>
                         <li><b>Патч (Patch):</b> Квадратна область (наприклад, $5 \times 5$), що оточує піксель. Схожість перевіряється саме за вмістом патчів, а не окремих пікселів.</li>
                         <li><b>Зона пошуку (Search Window):</b> Область навколо пікселя, де ми шукаємо "двійників".</li>
-                        <li><b>Манхеттенська метрика ($L_1$ vs $L_\infty$):</b> У комп'ютерному зорі "радіус $R$" часто означає квадрат зі стороною $2R+1$ (метрика Чебишова), що ми і використовуємо в симуляторі.</li>
+                        <li><b>Чебишевська метрика ($L_1$ vs $L_\infty$):</b> У комп'ютерному зорі "радіус $R$" часто означає квадрат зі стороною $2R+1$ (метрика Чебишова), що ми і використовуємо в симуляторі.</li>
                         <li><b>Self-similarity:</b> Властивість зображення містити повторювані структури.</li>
                     </ul>
 
@@ -311,6 +311,14 @@
             </div>
 
             <h3>2. Налаштування NLM</h3>
+			
+			<div style="margin-bottom: 10px;">
+    <label>Форма області:</label>
+    <select id="metricSelect" onchange="updateParamsFromDOM()">
+        <option value="chebyshev">Квадрат (Чебишев)</option>
+        <option value="euclidean">Коло (Евклід)</option>
+    </select>
+</div>
             <div class="control-group">
                 <label>Радіус Патча ($r$): <span id="val-patch" class="val-display">1 px</span></label>
                 <input type="range" id="patchSize" min="1" max="5" step="1" value="1">
@@ -407,6 +415,9 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
         let p_h = 2;
         let p_blur = 1;
         let p_sharpen = 1;
+		
+
+		let p_metric = 'chebyshev';
 
         // UI State
         let lastMouseX = -1; 
@@ -515,6 +526,7 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
             p_search = parseInt(document.getElementById('searchRadius').value);
             p_h = parseFloat(document.getElementById('paramH').value);
 
+			p_metric = document.getElementById('metricSelect').value;
             document.getElementById('val-patch').innerText = p_patch + " px";
             document.getElementById('lbl-patch-dim').innerText = `${2*p_patch+1}x${2*p_patch+1}`;
             document.getElementById('val-search').innerText = p_search + " px";
@@ -688,14 +700,26 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
 
             ctxOverlay.clearRect(0, 0, CANVAS_DISPLAY, CANVAS_DISPLAY);
             
-            // Search Box
+           // Search Box
             const sRad = p_search;
-            const sMinX = Math.max(0, px - sRad), sMaxX = Math.min(SIZE-1, px + sRad);
-            const sMinY = Math.max(0, py - sRad), sMaxY = Math.min(SIZE-1, py + sRad);
+            
+            ctxOverlay.strokeStyle = 'rgba(56, 250, 248, 0.8)';
+            ctxOverlay.lineWidth = 1; 
+            ctxOverlay.setLineDash([4, 4]);
 
-            ctxOverlay.strokeStyle = 'rgba(56, 189, 248, 0.8)';
-            ctxOverlay.lineWidth = 1; ctxOverlay.setLineDash([4, 4]);
-            ctxOverlay.strokeRect(sMinX * SCALE, sMinY * SCALE, (sMaxX - sMinX + 1) * SCALE, (sMaxY - sMinY + 1) * SCALE);
+            if (p_metric === 'euclidean') {
+                // --- МАЛЮЄМО КОЛО ---
+                ctxOverlay.beginPath();
+                // (px + 0.5) * SCALE — це точний центр пікселя під курсором
+                ctxOverlay.arc((px + 0.5) * SCALE, (py + 0.5) * SCALE, sRad * SCALE, 0, Math.PI * 2);
+                ctxOverlay.stroke();
+            } else {
+                // --- МАЛЮЄМО КВАДРАТ (Старий код) ---
+                const sMinX = Math.max(0, px - sRad), sMaxX = Math.min(SIZE-1, px + sRad);
+                const sMinY = Math.max(0, py - sRad), sMaxY = Math.min(SIZE-1, py + sRad);
+                ctxOverlay.strokeRect(sMinX * SCALE, sMinY * SCALE, (sMaxX - sMinX + 1) * SCALE, (sMaxY - sMinY + 1) * SCALE);
+            }
+            
             ctxOverlay.setLineDash([]);
 
             // Patch Box
@@ -711,6 +735,13 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
 
             for (let y = sMinY; y <= sMaxY; y++) {
                 for (let x = sMinX; x <= sMaxX; x++) {
+				
+				// Тут (px, py) - центр, а (x, y) - поточний піксель вікна
+        if (p_metric === 'euclidean') {
+            const dx = x - px;
+            const dy = y - py;
+            if (dx*dx + dy*dy > p_search*p_search) continue;
+        }
                     const dist2 = calculatePatchDistance(px, py, x, y);
                     const w = Math.exp( -Math.max(dist2 - 2*p_sigma*p_sigma, 0) / (p_h * p_h) );
                     if (w > maxW) maxW = w;
@@ -760,6 +791,13 @@ let SCALE = 2;            // Було 4. (Розрахунок: 256 / 128 = 2)
 
                     for (let sy = sMinY; sy <= sMaxY; sy++) {
                         for (let sx = sMinX; sx <= sMaxX; sx++) {
+						
+					// Перевіряємо відстань від центру (x, y) до поточного пікселя (sx, sy)
+						if (p_metric === 'euclidean') {
+							const dx = sx - x;
+							const dy = sy - y;
+							if (dx*dx + dy*dy > p_search*p_search) continue;
+							}
                             const dist2 = calculatePatchDistance(x, y, sx, sy);
                             const w = Math.exp( -Math.max(dist2 - 2*p_sigma*p_sigma, 0) / (p_h * p_h) );
                             totalWeight += w; weightedSum += w * noisyData[sy * SIZE + sx];
