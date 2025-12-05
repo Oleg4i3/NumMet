@@ -213,14 +213,27 @@
                 drawAutocorr(r_coeffs);
             }
         },
-        {
-            title: "Крок 3: Рівняння Юла-Уокера (Матриця)",
+       {
+            title: "Крок 3: Рівняння Юла-Уокера",
             html: `
-                <p><strong>Головна ідея LPC:</strong> Поточний семпл $x[n]$ можна передбачити як суму $p$ попередніх семплів, помножених на коефіцієнти $a_k$:</p>
+                <p>Як ми знаходимо ідеальні коефіцієнти $a_k$? Ми використовуємо <strong>Метод найменших квадратів</strong>.</p>
+                
+                <p>1. Визначимо енергію помилки передбачення $\\mathcal{E}$ як суму квадратів різниць між реальним сигналом та передбаченим:</p>
                 <div class="math-block">
-                $$ x[n] \\approx - \\sum_{k=1}^{p} a_k x[n-k] $$
+                $$ \\mathcal{E} = \\sum_{n} (e[n])^2 = \\sum_{n} \\left( x[n] + \\sum_{k=1}^{p} a_k x[n-k] \\right)^2 $$
                 </div>
-                <p>Ми шукаємо такі $a_k$, щоб помилка передбачення (Mean Squared Error) була мінімальною. Якщо взяти похідну по помилці та прирівняти до нуля, ми отримаємо систему лінійних рівнянь $\\mathbf{R}\\mathbf{a} = -\\mathbf{r}$:</p>
+
+                <p>2. Щоб помилка була мінімальною, ми беремо частинну похідну по кожному коефіцієнту $a_i$ (де $1 \\le i \\le p$) і прирівнюємо її до нуля:</p>
+                <div class="math-block">
+                $$ \\frac{\\partial \\mathcal{E}}{\\partial a_i} = 2 \\sum_{n} \\underbrace{\\left( x[n] + \\sum_{k=1}^{p} a_k x[n-k] \\right)}_{e[n]} \\cdot (x[n-i]) = 0 $$
+                </div>
+                
+                <p>3. Це рівняння означає, що <em>помилка має бути ортогональною до минулих значень сигналу</em>. Якщо розкрити дужки і згадати, що $\\sum x[n]x[n-i]$ — це автокореляція $R(i)$, ми отримуємо:</p>
+                <div class="math-block">
+                $$ R(i) + \\sum_{k=1}^{p} a_k R(i-k) = 0 $$
+                </div>
+                
+                <p>Це і є система <strong>Юла-Уокера</strong>. У матричному вигляді вона виглядає так (для $p=${LPC_ORDER}):</p>
                 <div class="math-block">
                 $$ 
                 \\begin{bmatrix} 
@@ -233,11 +246,10 @@
                 -\\begin{bmatrix} R(1) \\\\ R(2) \\\\ \\vdots \\\\ R(p) \\end{bmatrix} 
                 $$
                 </div>
-                <h3>Чому ця матриця особлива?</h3>
-                <p>Це так звана<strong>матриця Тепліца</strong>. Вона симетрична, і всі елементи на діагоналях однакові (залежать тільки від різниці $|i-j|$). Це означає, що нам не потрібен метод Гауса ($O(p^3)$). Ми використовуємо рекурсивний <strong>алгоритм Левінсона-Дурбіна</strong> ($O(p^2)$), що критично важливо для роботи в реальному часі на мобільному телефоні.</p>
+                <p>Розв'язавши цю систему, ми отримуємо "зліпок" форми вашого голосового тракту.</p>
             `,
             action: () => {
-                // Візуально нічого не міняємо, це теоретичний крок перед розрахунком
+                // Візуально нічого не міняємо
             }
         },
         {
@@ -264,18 +276,159 @@
                 drawLPCSpectrum(displayFrame, lpc_coeffs);
             }
         },
-        {
-            title: "Крок 5: Залишок та ACELP (Excitation)",
+   {
+            title: "Крок 5: ACELP",
             html: `
-                <p>Якщо пропустити голос через "зворотний фільтр" $A(z)$, ми видалимо форманти (вплив ротової порожнини і горла). Те, що залишиться — це <strong>сигнал помилки</strong> або "залишок" (зелений графік).</p>
-                <div class="math-block">$$ e[n] = x[n] + \\sum_{k=1}^{p} a_k x[n-k] $$</div>
-                <p>Це звук "голих" голосових зв'язок (дзижчання). Він схожий на шум.</p>
-                <h3>Звідки береться "розрідженість" (Sparse)?</h3>
-                <p>У кодеку <strong>ACELP</strong> (Algebraic Code-Excited Linear Prediction) ми не передаємо цей складний шум. Ми замінюємо його на <strong>алгебраїчний код</strong> — вектор, де майже всі нулі, і є лише кілька (+1/-1) імпульсів у ключових місцях. Саме це дозволяє досягти неймовірного стиснення.</p>
+                <p>Формула $u[n] = g_p v[n] + g_c c[n]$ — це інструкція "зборки" звуку з двох компонентів. Відтворюємо у два етапи:</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div style="background:#eff6ff; padding:15px; border-radius:8px; border:1px solid #bfdbfe;">
+                        <h4 style="margin-top:0; color:#1e40af;">1. Шар "Пам'ять" ($g_p v[n]$)</h4>
+                        <p><strong>v[n] (Вектор адаптивної книги):</strong> Це "луна" з минулого. Беремо шматок звуку, який був $T$ семплів тому. Це відповідає за <em>основний тон (Pitch)</em>.</p>
+                        <p><strong>g_p (Gain Pitch):</strong> Гучність цієї "луни".</p>
+                    </div>
+                    <div style="background:#fef2f2; padding:15px; border-radius:8px; border:1px solid #fecaca;">
+                        <h4 style="margin-top:0; color:#991b1b;">2. Шар "Інновація" ($g_c c[n]$)</h4>
+                        <p><strong>c[n] (Вектор фіксованої книги):</strong> Це те, чого не було в минулому. Це набір з лише 4-х імпульсів (+1 або -1) на 40 семплів. Це додає чіткість і деталі.</p>
+                        <p><strong>g_c (Gain Code):</strong> Гучність цих імпульсів.</p>
+                    </div>
+                </div>
+
+                <p>ACELP алгоритм:</p>
+                <ol>
+                    <li><strong>Крок 1:</strong> Знаходимо найкращий шматок з минулого ($v[n]$), щоб повторити форму хвилі. Віднімаємо його.</li>
+                    <li><strong>Крок 2:</strong> Те, що залишилось (помилка), ми намагаємося заповнити кількома імпульсами ($c[n]$).</li>
+                </ol>
+                <div class="math-block">
+                $$ \\text{Загальне збудження } u[n] = \\underbrace{g_p v[n]}_{\\text{Минуле}} + \\underbrace{g_c c[n]}_{\\text{Нові імпульси}} $$
+                </div>
+                <p>На графіку нижче: <br>
+                <span style="color:#2563eb; font-weight:bold;">Синя лінія</span> — це внесок минулого (Pitch).<br>
+                <span style="color:#dc2626; font-weight:bold;">Червоні стовпчики</span> — це алгебраїчний код (Code).<br>
+                <span style="color:#16a34a; font-weight:bold;">Зелена лінія</span> — сума ($u[n]$), яка йде на синтез.</p>
             `,
             action: () => {
-                const res = filterFIR(displayFrame, [1, ...lpc_coeffs]);
-                drawDualChart(displayFrame, res, "Оригінал", "Залишок (Residual)");
+                // 1. Отримуємо ідеальний залишок (Target)
+                const targetRes = filterFIR(displayFrame, [1, ...lpc_coeffs]);
+                
+                // 2. СИМУЛЯЦІЯ ACELP ПОШУКУ (Спрощена)
+                
+                // А) Знаходимо Pitch (v[n])
+                // Шукаємо затримку (Lag), яка дає кращу кореляцію
+                let bestLag = 20;
+                let maxCorr = -Infinity;
+                // Простий пошук пітча в межах 20..140
+                for(let L=20; L<140; L++) {
+                    let corr = 0;
+                    // Порівнюємо поточний залишок з його ж версією, зсунутою на L (імітація буфера)
+                    // (Тут для спрощення беремо автокореляцію вікони)
+                    for(let i=0; i<targetRes.length-L; i++) corr += targetRes[i] * targetRes[i+L];
+                    if(corr > maxCorr) { maxCorr = corr; bestLag = L; }
+                }
+
+                // Створюємо вектор v[n] (Pitch contribution)
+                // У реальному кодеку це береться з "adaptive codebook" (минулого синтезу)
+                // Тут ми зімітуємо це, взявши сигнал зсунутий на bestLag
+                let v_n = new Float32Array(targetRes.length);
+                // Заповнюємо "з минулого" (циклічно, якщо lag короткий)
+                for(let i=0; i<targetRes.length; i++) {
+                    let pastIdx = i - bestLag;
+                    if (pastIdx < 0) pastIdx += bestLag; // груба імітація кільцевого буфера
+                    // Або просто візьмемо синусоїду на частоті пітча для краси картинки, 
+                    // бо справжній буфер у нас тут не збережений
+                     v_n[i] = targetRes[ Math.abs(i - bestLag) % targetRes.length ] * 0.8; 
+                }
+                
+                // Знаходимо g_p (Gain) - наскільки "сильний" пітч
+                // Просто припустимо 0.8 для демо або порахуємо проекцію
+                let g_p = 0.8; 
+
+                // Б) Знаходимо Code (c[n]) - Matching Pursuit
+                // Віднімаємо пітч від оригіналу, отримуємо помилку, яку треба закрити кодом
+                let error = new Float32Array(targetRes.length);
+                for(let i=0; i<targetRes.length; i++) error[i] = targetRes[i] - (g_p * v_n[i]);
+
+                // Знаходимо піки (Pulse Search) -
+                let c_n = new Float32Array(targetRes.length).fill(0);
+                
+                // Знайдемо 5 найсильніших піків (MP iteration)
+                let tempErr = [...error];
+                for(let k=0; k<8; k++) {
+                    let maxVal = 0; let maxIdx = 0;
+                    for(let i=0; i<tempErr.length; i++) {
+                        if(Math.abs(tempErr[i]) > maxVal) { maxVal = Math.abs(tempErr[i]); maxIdx = i; }
+                    }
+                    // Ставимо імпульс
+                    let sign = tempErr[maxIdx] > 0 ? 1 : -1;
+                    c_n[maxIdx] = sign; 
+                    
+                    // "Віднімаємо" цей пік (Matching Pursuit)
+                    tempErr[maxIdx] = 0; // Спрощено занулюємо
+                }
+                
+                // g_c - амплітуда піків
+                let g_c = 0;
+                // Оцінимо середню амплітуду помилки в місцях піків
+                let peaksCount = 0;
+                for(let i=0; i<c_n.length; i++) {
+                    if(c_n[i] !== 0) { g_c += Math.abs(error[i]); peaksCount++; }
+                }
+                g_c = (g_c / (peaksCount || 1));
+
+                // В) Фінальна сума
+                let u_n = new Float32Array(targetRes.length);
+                for(let i=0; i<u_n.length; i++) {
+                    u_n[i] = (g_p * v_n[i]) + (g_c * c_n[i]);
+                }
+
+                // ГРАФІК
+                // Малюємо три складові
+                document.getElementById('chart2Container').style.display = 'block';
+                const ctx = document.getElementById('secChart').getContext('2d');
+                if(chart2) chart2.destroy();
+                
+                chart2 = new Chart(ctx, {
+                    type: 'line',
+                    data: { 
+                        labels: [...Array(targetRes.length).keys()], 
+                        datasets: [
+                            {
+                                label: "1. Pitch (Минуле) g_p*v[n]", 
+                                data: [...v_n].map(x => x * g_p), 
+                                borderColor: '#2563eb', 
+                                borderWidth: 2, 
+                                pointRadius: 0,
+                                borderDash: [5, 5], // Пунктир
+                                order: 2
+                            },
+                            {
+                                label: "2. Code (Імпульси) g_c*c[n]", 
+                                data: [...c_n].map(x => x * g_c), 
+                                type: 'bar', // Стовпчики для імпульсів
+                                backgroundColor: '#dc2626',
+                                barThickness: 3,
+                                order: 1
+                            },
+                            {
+                                label: "3. Сума (u[n])", 
+                                data: [...u_n], 
+                                borderColor: '#16a34a', 
+                                borderWidth: 2, 
+                                pointRadius: 0,
+                                order: 0
+                            }
+                        ] 
+                    },
+                    options: { 
+                        responsive:true, 
+                        maintainAspectRatio:false, 
+                        animation: { duration: 2000 }, // Анімація щоб було видно як будується
+                        interaction: { mode: 'index', intersect: false }
+                    }
+                });
+                
+                // Верхній графік - оригінал для порівняння
+                drawWaveform(targetRes, "Оригінальний Залишок (Ціль)");
             }
         },
         {
