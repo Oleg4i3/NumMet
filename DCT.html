@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCT Visualizer + Audio</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --accent: #00bcd4; /* Cyan for Frequency */
+            --signal: #ffffff;
+            --product-pos: #4caf50; /* Green */
+            --product-neg: #f44336; /* Red */
+            --text: #e0e0e0;
+            --grid: #333;
+            --active-play: #ffeb3b; /* Yellow for play state */
+        }
+
+        body {
+            font-family: 'Segoe UI', Consolas, monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2, h3 { margin: 0 0 10px 0; font-weight: 300; }
+        h1 { color: var(--accent); text-align: center; }
+        p { color: #aaa; max-width: 900px; text-align: center; margin-bottom: 20px; }
+
+        /* Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .full-width { grid-column: span 2; }
+
+        /* Canvas */
+        canvas {
+            background: #000;
+            border-radius: 4px;
+            width: 100%;
+            cursor: crosshair;
+            display: block;
+        }
+        
+        .spectrum-canvas { cursor: pointer; } 
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 15px;
+            background: #252525;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        button, select {
+            background: #37474f;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #455a64; border-color: var(--accent); }
+        button.active { background: var(--accent); color: black; font-weight: bold; }
+        
+        /* Audio Button Specifics */
+        button.audio-on {
+            background: var(--active-play);
+            color: black;
+            font-weight: bold;
+            border-color: #fff;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 235, 59, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0); }
+        }
+
+        /* Legend & Info */
+        .legend {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: #bbb;
+        }
+        .dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; margin-right: 5px; }
+
+        .math-block {
+            background: #000;
+            padding: 10px;
+            border-left: 4px solid var(--accent);
+            font-family: 'Courier New', monospace;
+            margin-top: 10px;
+            color: #81d4fa;
+            font-size: 0.9rem;
+        }
+
+        /* Analysis Grid inside the bottom panel */
+        .analysis-layout {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 10px;
+        }
+        .sum-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #2a2a2a;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .big-number { font-size: 1.8rem; font-weight: bold; margin: 10px 0; }
+        .pos-val { color: var(--product-pos); }
+        .neg-val { color: var(--product-neg); }
+
+        @media (max-width: 800px) {
+            .container { grid-template-columns: 1fr; }
+            .full-width { grid-column: span 1; }
+            .analysis-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Дискретне косинусне перетворення (DCT)</h1>
+    <p>
+        Міняйте графік і <b>слухайте</b> спектр! 1-ша гармоніка = 110Гц (Бас).<br>
+        Дискретне перетворення — це розкладання звуку на чисті тони.
+    </p>
+
+</details>
+   <details style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; margin: 20px 0; width: 100%; max-width: 800px; overflow: hidden;">
+    <summary style="padding: 15px; cursor: pointer; background: #222; font-weight: bold; color: #00E5FF; user-select: none;">
+        Теоретична довідка
+    </summary>
+    
+    <div style="padding: 20px; line-height: 1.6; color: #ddd; font-family: 'Segoe UI', sans-serif;">
+        <style>
+            /* Стилізація під MathJax/LaTeX */
+            .math-font { font-family: 'Times New Roman', Times, serif; font-size: 1.1em; }
+            .math-var { font-style: italic; }
+            .math-vec { font-weight: bold; font-style: italic; }
+            .math-block { 
+                display: block; 
+                background: #111; 
+                padding: 15px; 
+                border-radius: 4px; 
+                text-align: center; 
+                margin: 10px 0; 
+                border-left: 3px solid #4CAF50;
+                font-family: 'Times New Roman', serif;
+                font-size: 1.2em;
+            }
+            .sum-symbol { font-size: 1.2em; position: relative; top: 2px; }
+            .sub { font-size: 0.7em; vertical-align: sub; margin-left: 1px; }
+            .sup { font-size: 0.7em; vertical-align: super; margin-left: 1px; }
+            .fraction { display: inline-block; text-align: center; vertical-align: middle; margin: 0 5px; font-size: 0.9em; }
+            .fraction > span { display: block; padding: 0 2px; }
+            .fraction span.bottom { border-top: 1px solid #ddd; }
+            
+            .comparison-box {
+                background: #2a2a2a;
+                padding: 15px;
+                border-left: 4px solid #FFC107;
+                margin-top: 20px;
+            }
+            .comparison-title { color: #FFC107; font-weight: bold; margin-bottom: 10px; display: block; }
+        </style>
+
+        <h3 style="margin-top: 0; color: #fff; font-weight: 300;">1. Пряме перетворення (Analysis)</h3>
+        <p>
+            Перетворення масиву <span class="math-font"><span class="math-vec">x</span></span> (часовий домен) у масив коефіцієнтів <span class="math-font"><span class="math-vec">X</span></span> (частотний домен).<br>
+            Це операція <b>скалярного добутку</b> вхідного сигналу на базисні функції косинуса.
+        </p>
+        
+        <div class="math-block">
+            <span class="math-var">X</span>[<span class="math-var">k</span>] = 
+            <span class="math-var">c</span>[<span class="math-var">k</span>]
+            <span class="sum-symbol">∑</span><span class="sub" style="margin-right:5px">n=0</span><span class="sup" style="margin-left:-15px">N-1</span>
+            <span class="math-var">x</span>[<span class="math-var">n</span>] ⋅ 
+            cos<span style="font-size:1.2em">(</span>
+            <div class="fraction">
+                <span>π</span>
+                <span class="bottom"><span class="math-var">N</span></span>
+            </div>
+            (<span class="math-var">n</span> + <span class="fraction"><span>1</span><span class="bottom">2</span></span>) <span class="math-var">k</span>
+            <span style="font-size:1.2em">)</span>
+        </div>
+        
+        <div style="font-size: 0.9em; color: #aaa; margin-bottom: 20px;">
+            Де <span class="math-font"><span class="math-var">N</span></span> — кількість відліків, а <span class="math-font"><span class="math-var">c</span>[<span class="math-var">k</span>]</span> — нормувальний множник (щоб зберегти енергію сигналу).
+        </div>
+
+        <h3 style="margin-top: 20px; color: #fff; font-weight: 300;">2. Зворотне перетворення (Synthesis)</h3>
+        <p>
+            Відновлення сигналу шляхом <b>зваженої суми</b> базисних хвиль. Кожен коефіцієнт <span class="math-font"><span class="math-var">X</span>[<span class="math-var">k</span>]</span> виступає "вагою" для відповідної частоти.
+        </p>
+
+        <div class="math-block">
+            <span class="math-var">x</span>[<span class="math-var">n</span>] = 
+            <span class="sum-symbol">∑</span><span class="sub" style="margin-right:5px">k=0</span><span class="sup" style="margin-left:-15px">N-1</span>
+            <span class="math-var">c</span>[<span class="math-var">k</span>]
+            <span class="math-var">X</span>[<span class="math-var">k</span>] ⋅ 
+            cos<span style="font-size:1.2em">(</span>...<span style="font-size:1.2em">)</span>
+        </div>
+			<p>
+            Спектр — це відображення сигналу в іншій системі координат (в частотному домені). Те, як він виглядає, залежить від "Ядра" (функції, на яку ми множимо сигнал):
+        </p>
+        <ul style="padding-left: 20px;">
+            <li style="margin-bottom:10px;"><b>Ядро DFT (Обертання):</b> Базис — спіралі в комплексній площині. Ідеально для аналізу періодичних процесів (фізика хвиль). Але на краях блоків виникають розриви ("сходинки"), що породжує паразитні частоти.</li>
+            <li style="margin-bottom:10px;"><b>Ядро DCT (Стоячі хвилі):</b> Базис — косинуси. Завдяки "дзеркальному" ефекту, DCT забезпечує <b>плавний перехід</b> на краях блоків. Це дозволяє сконцентрувати всю енергію фотографії у лівому куті спектру (низькі частоти).</li>
+            <li><b>Ядро Wavelet (Сплески):</b> Базис — короткі імпульси. На відміну від синусів, які нескінченні у часі, вейвлети локалізовані. Вони показують <i>де саме</i> стався стрибок сигналу. (JPEG 2000).</li>
+        </ul>
+        <div class="comparison-box">
+            <span class="comparison-title">Ввідмінність DCTі  DFT?</span>
+            <p>
+                Коли ви почнете вивчати <b>DFT (Дискретне Перетворення Фур'є)</b>, ви побачите комплексні числа (<span class="math-font">e<sup style="font-size:0.7em">-iωt</sup></span>). Ось як підготувати свою інтуїцію:
+            </p>
+            <ul style="padding-left: 20px; margin: 0;">
+                <li style="margin-bottom: 10px;">
+                    <b></b> DCT працює лише з <i>дійсними</i> числами (тільки косинуси). DFT працює з <i>комплексними</i> (синус + косинус).
+                    <br><small style="color:#aaa">У DCT ми можемо змінювати лише амплітуду хвилі. У DFT ми використовуємо пару чисел (Re, Im), щоб крутити "фазу" (зсувати хвилю вліво-вправо).</small>
+                </li>
+                <li style="margin-bottom: 10px;">
+                    <b>Парність:</b> 
+                    Математично DCT передбачає, що сигнал <b>парно віддзеркалений</b> за межами свого вікна (mirroring). Це дозволяє уникнути різких стрибків на краях.
+                    <br>
+                    DFT ж вважає, що сигнал просто <b>повторюється</b> (periodic wrapping), через що виникають розриви (відомі як spectral leakage), які потребують віконних функцій.
+                </li>
+                <li>
+                    <b>Мета в IT:</b> DCT краще "пакує" енергію реальних сигналів (фото, звук) у меншу кількість коефіцієнтів, тому воно є стандартом для JPEG та MP3. DFT використовується там, де важлива фаза та фізика процесів.
+                </li>
+				 <span class="warning-title">Артефакти стиснення з втратами (Lossy Compression)</span>
+            <p style="margin:0">
+                Коли ми видаляємо частину спектру (гармоніки низької амплітуди) для економії місця, виникають:
+                <br>
+                1. <b>Ringing (Дзвін):</b> Різкі межі об'єктів "обростають" хвилями (ефект Гіббса), бо ми прибрали гармоніки, які відповідали за гостроту кута.
+                <br>
+                2. <b>Blocking (Квадратики):</b> Оскільки ми обробляємо зображення шматками по 8 точок незалежно, помилки квантування призводять до того, що яскравість на стику сусідніх блоків не співпадає. Ми бачимо це як "сітку" на перетиснених JPEG.
+            </p>
+            </ul>
+        </div>
+    </div>
+</details>
+
+    <div class="controls">
+        <div style="display:flex; align-items:center; gap:10px; margin-right:20px; border-right:1px solid #555; padding-right:20px;">
+            <label>Розмір (N):</label>
+            <select id="nSelect" onchange="changeN()">
+                <option value="4">4 (Lo-Fi)</option>
+                <option value="8" >8 (JPEG)</option>
+                <option value="16"selected>16 (Rich)</option>
+                <option value="32">32 (Smooth)</option>
+            </select>
+        </div>
+        
+        <button id="btnAudio" onclick="toggleAudio()" style="min-width: 140px;">🔈 Play (110Hz)</button>
+        <div style="border-right:1px solid #555; height: 30px; margin: 0 10px;"></div>
+
+        <button onclick="setPreset('zero')">Імпульс</button>
+        <button onclick="setPreset('cosine1')">Чистий тон</button>
+        <button onclick="setPreset('cosineMix')">Акорд</button>
+        <button onclick="setPreset('square')">Меандр</button>
+        <button onclick="setPreset('saw')">Пилка (Saw)</button>
+        <button onclick="setPreset('random')">Шум</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>1. Дискретизована хвиля</h3>
+                <button onclick="animateSynthesis()" id="animBtn" style="font-size:0.8rem; padding:4px 10px;">▶ Анімація (IDCT)</button>
+            </div>
+            <div class="legend">
+                <span><span class="dot" style="background:white"></span>Вхідний сигнал x[n]</span>
+                <span><span class="dot" style="background:#FFC107"></span>Синтезована хвиля</span>
+            </div>
+            <canvas id="canvasInput" height="220"></canvas>
+            <div style="font-size:0.8rem; color:#777; margin-top:5px;">Малюйте мишкою, щоб змінити тембр звуку в реальному часі!</div>
+        </div>
+
+        <div class="panel">
+            <h3>2. Спектр (Амплітуди косинусів - гармоніки)</h3>
+            <div class="legend">
+                <span><span class="dot" style="background:var(--accent)"></span>Гучність частоти X[k]</span>
+            </div>
+            <canvas id="canvasFreq" class="spectrum-canvas" height="220"></canvas>
+            <div style="font-size:0.8rem; color:#777; margin-top:5px;">Кожен стовпчик — це окремий генератор звуку (Oscillator).</div>
+        </div>
+
+        <div class="panel full-width" id="analysisPanel">
+            <h3>3. Декомпозиція: Як знайдено X[<span id="lblK">0</span>]? (клікайте на гармоніки в спектрі)</h3>
+            <div class="analysis-layout">
+                <div>
+                    <canvas id="canvasAnal" height="300"></canvas>
+                </div>
+                <div class="sum-box">
+                    <div style="font-size:0.9rem; color:#bbb">Скалярний добуток</div>
+                    <div class="math-block" style="width:90%; box-sizing:border-box; background:#111; text-align:center;">
+                        sum += x[n] * cos[n]
+                    </div>
+                    <div style="margin-top:15px; color:#888; font-size:0.8rem;">Результат:</div>
+                    <div class="big-number" id="lblSum">0.00</div>
+                    <div id="lblSumDesc" style="font-size:0.8rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Config & State ---
+    let N = 16;
+    let signal = [];
+    let dctCoeffs = [];
+    let selectedK = 1; // Те, що вибрав користувач для аналізу
+    
+    // Canvas Contexts
+    const cvIn = document.getElementById('canvasInput');
+    const ctxIn = cvIn.getContext('2d');
+    const cvFreq = document.getElementById('canvasFreq');
+    const ctxFreq = cvFreq.getContext('2d');
+    const cvAnal = document.getElementById('canvasAnal');
+    const ctxAnal = cvAnal.getContext('2d');
+
+    // UI Elements
+    const lblK = document.getElementById('lblK');
+    const lblSum = document.getElementById('lblSum');
+    const lblSumDesc = document.getElementById('lblSumDesc');
+
+    // Animation State
+    let isAnimating = false;
+    let animStep = -1; 
+
+    // --- AUDIO ENGINE STATE ---
+    let audioCtx = null;
+    let oscillators = [];
+    let isAudioPlaying = false;
+    const BASE_FREQ = 110;
+    const MASTER_VOL = 0.005; 
+
+    // --- Initialization ---
+    function init() {
+        [cvIn, cvFreq, cvAnal].forEach(c => {
+            c.width = c.clientWidth;
+        });
+        
+        if (signal.length !== N) {
+            signal = new Array(N).fill(0).map((_, i) => Math.cos((Math.PI/N)*(i+0.5)*1) * 80); 
+        }
+        updateAll();
+    }
+
+    function changeN() {
+        stopAudio();
+        N = parseInt(document.getElementById('nSelect').value);
+        signal = [];
+        selectedK = 1;
+        if(selectedK >= N) selectedK = N-1;
+        init();
+    }
+
+    function setPreset(type) {
+        signal = new Array(N).fill(0);
+        for(let i=0; i<N; i++) {
+            let val = 0;
+            if(type === 'zero') val = (i === Math.floor(N/3)) ? 150 : 0;
+            else if(type === 'cosine1') val = Math.cos((Math.PI/N)*(i+0.5)*3) * 100;
+            else if(type === 'cosineMix') val = (Math.cos((Math.PI/N)*(i+0.5)*1) * 40)*0.6 + (Math.cos((Math.PI/N)*(i+0.5)*3) * 40)*0.2 +(Math.cos((Math.PI/N)*(i+0.5)*4) * 40)*0.3 +(Math.cos((Math.PI/N)*(i+0.5)*5) * 40)*0.5 ;
+            else if(type === 'square') val = (i < N/2) ? 80 : -80;
+            else if(type === 'saw') val = (i<(N/2)) ? -80 + (160 * i/N):-160 + (160 * i/N);
+            else if(type === 'random') val = (Math.random()-0.5)*200;
+            signal[i] = val;
+        }
+        updateAll();
+    }
+
+    // --- Math Core (DCT-II) ---
+    function computeDCT() {
+        let X = new Array(N).fill(0);
+        for(let k=0; k<N; k++) {
+            let sum = 0;
+            let alpha = (k===0) ? 1/Math.sqrt(N) : Math.sqrt(2/N);
+            for(let n=0; n<N; n++) {
+                let basis = Math.cos((Math.PI/N)*(n+0.5)*k);
+                sum += signal[n] * basis;
+            }
+            X[k] = sum * alpha;
+        }
+        return X;
+    }
+
+    // --- AUDIO FUNCTIONS ---
+    function toggleAudio() {
+        if (isAudioPlaying) stopAudio(); else startAudio();
+    }
+
+    function startAudio() {
+        if (!window.AudioContext && !window.webkitAudioContext) {
+            alert("Web Audio API не підтримується"); return;
+        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const btn = document.getElementById('btnAudio');
+        btn.classList.add('audio-on');
+        btn.innerText = "🔊 Stop Audio";
+        isAudioPlaying = true;
+        oscillators = [];
+
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.value = -10;
+        compressor.connect(audioCtx.destination);
+
+        const real = new Float32Array([0, 1]); 
+        const imag = new Float32Array([0, 0]); 
+        const cosineWave = audioCtx.createPeriodicWave(real, imag);
+
+        for(let k=1; k<N; k++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            gain.gain.value = 0; 
+            osc.setPeriodicWave(cosineWave);
+            osc.frequency.value = k * BASE_FREQ;
+            
+            osc.connect(gain);
+            gain.connect(compressor);
+            osc.start();
+            
+            oscillators.push({ osc: osc, gain: gain, k: k });
+        }
+        updateAudioEngine();
+    }
+
+    function stopAudio() {
+        isAudioPlaying = false;
+        oscillators.forEach(o => {
+            try {
+                o.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+                o.osc.stop(audioCtx.currentTime + 0.1);
+            } catch(e) {}
+        });
+        oscillators = [];
+        const btn = document.getElementById('btnAudio');
+        btn.classList.remove('audio-on');
+        btn.innerText = "🔈 Play (110Hz)";
+    }
+
+    function updateAudioEngine() {
+        if (!isAudioPlaying) return;
+        oscillators.forEach(item => {
+            let val = dctCoeffs[item.k];
+            let targetGain = val * MASTER_VOL;
+            item.gain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.1);
+        });
+    }
+
+    // --- Drawing Functions ---
+
+    function drawGrid(ctx, w, h) {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+        let step = w / N;
+        for(let i=1; i<N; i++) {
+            ctx.moveTo(i*step, 0); ctx.lineTo(i*step, h);
+        }
+        ctx.stroke();
+    }
+
+    function drawInput() {
+        const w = cvIn.width;
+        const h = cvIn.height;
+        ctxIn.clearRect(0,0,w,h);
+        drawGrid(ctxIn, w, h);
+        let step = w / N;
+
+        // 1. Анімація поточної гармоніки (Пунктир)
+        if (isAnimating && animStep >= 0 && animStep < N) {
+            ctxIn.beginPath();
+            ctxIn.strokeStyle = '#00E5FF';
+            ctxIn.lineWidth = 2;
+            ctxIn.setLineDash([5, 5]); 
+            
+            for(let px=0; px<=w; px+=2) {
+                let n_continuous = (px/w)*N - 0.5;
+                let k = animStep; 
+                let alpha = (k===0) ? 1/Math.sqrt(N) : Math.sqrt(2/N);
+                let component = alpha * dctCoeffs[k] * Math.cos((Math.PI/N)*(n_continuous+0.5)*k);
+                
+                let py = h/2 - component;
+                if(px===0) ctxIn.moveTo(px, py); else ctxIn.lineTo(px, py);
+            }
+            ctxIn.stroke();
+            ctxIn.setLineDash([]); 
+
+            ctxIn.fillStyle = '#00E5FF';
+            ctxIn.font = '12px monospace';
+            ctxIn.fillText(`+ Add Harmonic k=${animStep}`, 10, 20);
+        }
+
+        // 2. Сума (Жовта)
+        let limit = isAnimating ? animStep : N-1; 
+        ctxIn.beginPath();
+        ctxIn.strokeStyle = '#FFC107';
+        ctxIn.lineWidth = 3;
+        for(let px=0; px<=w; px+=2) {
+            let n_continuous = (px/w)*N - 0.5;
+            let y_val = 0;
+            for(let k=0; k <= limit; k++) {
+                let alpha = (k===0) ? 1/Math.sqrt(N) : Math.sqrt(2/N);
+                let basis = Math.cos((Math.PI/N)*(n_continuous+0.5)*k);
+                y_val += alpha * dctCoeffs[k] * basis;
+            }
+            let py = h/2 - y_val; 
+            if(px===0) ctxIn.moveTo(px, py); else ctxIn.lineTo(px, py);
+        }
+        ctxIn.stroke();
+
+        // 3. Вхідний сигнал (Білі точки)
+        for(let i=0; i<N; i++) {
+            let x = i*step + step/2;
+            let y = h/2 - signal[i];
+            
+            ctxIn.beginPath(); ctxIn.moveTo(x, h/2); ctxIn.lineTo(x, y);
+            ctxIn.strokeStyle = 'rgba(255,255,255,0.3)'; ctxIn.lineWidth = 2; ctxIn.stroke();
+
+            ctxIn.beginPath(); ctxIn.arc(x, y, 4, 0, Math.PI*2);
+            ctxIn.fillStyle = 'white'; ctxIn.fill();
+        }
+    }
+
+    function drawSpectrum() {
+        const w = cvFreq.width;
+        const h = cvFreq.height;
+        ctxFreq.clearRect(0,0,w,h);
+        ctxFreq.strokeStyle = '#444';
+        ctxFreq.setLineDash([]);
+        ctxFreq.beginPath(); ctxFreq.moveTo(0, h/2); ctxFreq.lineTo(w, h/2); ctxFreq.stroke();
+
+        let step = w / N;
+        let barW = step * 0.7;
+
+        for(let k=0; k<N; k++) {
+            let val = dctCoeffs[k];
+            let x = k*step + (step - barW)/2;
+            let y = h/2 - val;
+            
+            // Логіка підсвічування
+            let isSelected = (k === selectedK); // Те, що вибрав юзер (для нижнього графіка)
+            let isPlaying = isAnimating && (k === animStep); // Те, що зараз грає (для верхнього графіка)
+
+            ctxFreq.fillStyle = (val >= 0) ? 'rgba(0, 188, 212, 0.5)' : 'rgba(244, 67, 54, 0.5)'; // Cyan / Red
+
+            // Якщо це вибір користувача - малюємо яскравим
+            if (isSelected) {
+                ctxFreq.fillStyle = '#FF4081'; 
+                // Біла рамка вибору
+                ctxFreq.strokeStyle = 'white';
+                ctxFreq.lineWidth = 2;
+                ctxFreq.strokeRect(x-2, Math.min(y, h/2)-2, barW+4, Math.abs(val)+4);
+            }
+
+            // Якщо це зараз анімується - жовтий маркер
+            if (isPlaying) {
+                ctxFreq.fillStyle = '#FFEB3B'; // Yellow
+            }
+
+            // Малюємо сам стовпчик
+            if(val >= 0) ctxFreq.fillRect(x, y, barW, val);
+            else ctxFreq.fillRect(x, h/2, barW, -val);
+
+            // Текст
+            ctxFreq.fillStyle = '#888';
+            ctxFreq.font = '10px sans-serif';
+            ctxFreq.textAlign = 'center';
+            let freqLabel = (k===0) ? "DC" : (k*110)+"Hz";
+            ctxFreq.fillText(k, x + barW/2, h - 15);
+            if(N <= 16) ctxFreq.fillText(freqLabel, x + barW/2, h - 3);
+        }
+    }
+
+    function drawAnalysis() {
+        // ВАЖЛИВО: Тут ми завжди використовуємо selectedK.
+        // Анімація верхнього графіка не повинна збивати аналіз нижнього.
+        let kToShow = selectedK;
+        
+        const w = cvAnal.width;
+        const hTotal = cvAnal.height;
+        const hRow = hTotal / 3;
+        const step = w / N;
+        
+        ctxAnal.clearRect(0,0,w,hTotal);
+        ctxAnal.font = "12px sans-serif"; ctxAnal.textBaseline = "top"; ctxAnal.fillStyle = "#aaa";
+        ctxAnal.fillText("1. Signal[n]", 5, 5);
+        ctxAnal.fillText(`2. Basis k=${kToShow} (Correlation)`, 5, hRow + 5);
+        ctxAnal.fillText("3. Product", 5, hRow*2 + 5);
+
+        let alpha = (kToShow===0) ? 1/Math.sqrt(N) : Math.sqrt(2/N);
+
+        for(let i=0; i<N; i++) {
+            let basisVal = Math.cos((Math.PI/N)*(i+0.5)*kToShow);
+            let prodVal = signal[i] * basisVal; 
+            let cx = i*step + step/2;
+
+            // Row 1: Signal
+            let y1 = hRow/2 - signal[i]*0.4;
+            ctxAnal.beginPath(); ctxAnal.arc(cx, y1, 3, 0, Math.PI*2); ctxAnal.fillStyle='white'; ctxAnal.fill();
+            ctxAnal.strokeStyle='#333'; ctxAnal.beginPath(); ctxAnal.moveTo(0, hRow/2); ctxAnal.lineTo(w, hRow/2); ctxAnal.stroke();
+			ctxAnal.beginPath(); 
+            ctxAnal.moveTo(cx, hRow/2); // Починаємо від центру (нуля)
+            ctxAnal.lineTo(cx, y1);     // Ведемо лінію до точки
+            ctxAnal.strokeStyle = 'rgba(255,255,255,0.9)'; // Напівпрозорий білий
+            ctxAnal.stroke()
+            // Row 2: Basis Function (Хвиля)
+            let y2Base = hRow + hRow/2;
+            ctxAnal.strokeStyle='#333'; ctxAnal.beginPath(); ctxAnal.moveTo(0, y2Base); ctxAnal.lineTo(w, y2Base); ctxAnal.stroke();
+            ctxAnal.beginPath(); ctxAnal.strokeStyle = '#00bcd4'; ctxAnal.lineWidth = 1;
+            for(let px=0; px<=w; px++) {
+                let n_c = (px/w)*N - 0.5;
+                let b = Math.cos((Math.PI/N)*(n_c+0.5)*kToShow);
+                ctxAnal.lineTo(px, y2Base - b*40);
+            }
+            ctxAnal.stroke();
+            
+            // Точка на хвилі
+            let y2 = y2Base - basisVal*40;
+            ctxAnal.beginPath(); ctxAnal.arc(cx, y2, 3, 0, Math.PI*2); ctxAnal.fillStyle='#00bcd4'; ctxAnal.fill();
+
+            // Row 3: Добуток
+            let y3Base = hRow*2 + hRow/2;
+            ctxAnal.strokeStyle='#333'; ctxAnal.beginPath(); ctxAnal.moveTo(0, y3Base); ctxAnal.lineTo(w, y3Base); ctxAnal.stroke();
+            let pH = prodVal * 0.5; 
+            let pY = y3Base - pH;
+            ctxAnal.fillStyle = prodVal >= 0 ? '#4caf50' : '#f44336'; 
+            let bw = step * 0.6;
+            if(prodVal >= 0) ctxAnal.fillRect(cx - bw/2, pY, bw, pH);
+            else ctxAnal.fillRect(cx - bw/2, y3Base, bw, -pH);
+        }
+
+        lblK.innerText = kToShow;
+        let finalVal = dctCoeffs[kToShow];
+        lblSum.innerText = finalVal ? finalVal.toFixed(2) : "0.00";
+        lblSumDesc.innerText = (Math.abs(finalVal) < 5) ? "Мала енергія" : "Значний вклад!";
+    }
+
+    function updateAll() {
+        dctCoeffs = computeDCT();
+        drawInput();
+        drawSpectrum();
+        drawAnalysis();
+        updateAudioEngine();
+    }
+
+    // --- Interactive Handlers ---
+    let isDragging = false;
+    cvIn.addEventListener('mousedown', (e) => { isDragging = true; handleInput(e); });
+    window.addEventListener('mouseup', () => isDragging = false);
+    cvIn.addEventListener('mousemove', (e) => { if(isDragging) handleInput(e); });
+
+    function handleInput(e) {
+        if(isAnimating) return;
+        const rect = cvIn.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const idx = Math.floor((x / cvIn.width) * N);
+        if(idx >= 0 && idx < N) {
+            let val = (cvIn.height/2 - y); 
+            if(val > 100) val = 100; if(val < -100) val = -100;
+            signal[idx] = val;
+            updateAll();
+            // Ми НЕ змінюємо selectedK тут, щоб нижній графік не стрибав під час малювання
+        }
+    }
+
+    cvFreq.addEventListener('mousedown', (e) => {
+        const rect = cvFreq.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const idx = Math.floor((x / cvFreq.width) * N);
+        if(idx >= 0 && idx < N) {
+            selectedK = idx;
+            updateAll();
+            // Тут ми явно оновлюємо нижній графік, бо юзер клікнув на спектр
+        }
+    });
+
+    window.animateSynthesis = () => {
+        if(isAnimating) return;
+        isAnimating = true;
+        animStep = 0;
+        
+        const btn = document.getElementById('animBtn');
+        btn.disabled = true;
+        
+        updateAll();
+
+        let interval = setInterval(() => {
+            animStep++;
+            if(animStep >= N) {
+                clearInterval(interval);
+                isAnimating = false;
+                animStep = -1; 
+                btn.disabled = false;
+            }
+            updateAll(); 
+        }, 1000); 
+    }
+
+    setTimeout(init, 100);
+    window.addEventListener('resize', init);
+</script>
+
+</body>
+</html>
