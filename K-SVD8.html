@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-SVD Lab v8.0: Stable Layout</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root { --bg: #000000; --panel: #111; --accent: #00bcd4; --text: #eee; --border: #333; }
+    body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    /* HEADER */
+    header { background: #1a1a1a; padding: 0 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; height: 40px; flex-shrink: 0; }
+    h1 { margin: 0; font-size: 1rem; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+    .tabs { display: flex; gap: 2px; height: 100%; align-items: flex-end; }
+    .tab { padding: 0 20px; background: #222; cursor: pointer; color: #888; font-size: 0.8rem; height: 100%; display: flex; align-items: center; transition: 0.2s; border-top: 2px solid transparent; }
+    .tab.active { background: var(--panel); color: var(--accent); font-weight: bold; border-top-color: var(--accent); }
+
+    /* LAYOUT */
+    .workspace { display: grid; grid-template-columns: 320px 1fr; flex: 1; overflow: hidden; }
+    
+    /* SIDEBAR */
+    .sidebar { background: var(--panel); padding: 10px; border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .control-box { background: #222; padding: 10px; border-radius: 4px; border: 1px solid #333; }
+    .control-title { font-size: 0.75rem; text-transform: uppercase; color: #666; margin-bottom: 8px; font-weight: bold; }
+    
+    /* Inputs Compact */
+    label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 2px; align-items: center; }
+    input[type="range"] { width: 100%; margin: 6px 0; height: 3px; accent-color: var(--accent); cursor: pointer; }
+    select { width: 100%; padding: 4px; background: #000; border: 1px solid #444; color: #ccc; border-radius: 3px; margin-bottom: 5px; font-size: 0.8rem;}
+    button { width: 100%; padding: 8px; border: none; border-radius: 3px; cursor: pointer; font-weight: 600; margin-bottom: 4px; font-size: 0.85rem; display: flex; justify-content: center; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--accent); color: #000; } .btn-primary:hover { background: #00acc1; }
+    .btn-step { background: #333; color: #ccc; border-left: 2px solid var(--accent); justify-content: space-between; text-align: left; } .btn-step:hover { background: #444; }
+    .btn-danger { background: #b71c1c; color: white; margin-top: 5px; }
+    .btn-ghost { background: transparent; border: 1px solid #444; color: #888; }
+    
+    details { background: #151515; border: 1px solid #333; border-radius: 3px; margin-top: 4px; }
+    summary { padding: 6px; cursor: pointer; font-size: 0.75rem; color: #888; background: #1a1a1a; }
+    .math-content { padding: 8px; font-size: 0.75rem; line-height: 1.4; color: #bbb; border-top: 1px solid #333; }
+
+    .right-column { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100%; 
+    overflow-y: auto; /* Вертикальний скрол для всієї колонки */
+    background: #000;
+    padding: 0;
+}
+
+/* РЯДОК 1: Зображення */
+.viz-row-images {
+    display: flex;
+    width: 100%;
+    /* Магія: ширина 100%, висота = половина ширини (щоб було два квадрати) */
+    aspect-ratio: 2 / 1; 
+    border-bottom: 1px solid #333;
+    flex-shrink: 0; /* Не стискати */
+}
+
+/* РЯДОК 2 і 4: Широкі смуги */
+.viz-row-wide {
+    width: 100%;
+    height: 160px; /* Фіксована висота для словника */
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+    /* 2x2 GRID FOR PLOTS */
+    .viz-container { 
+        flex: 1; 
+        display: grid; 
+        grid-template-columns: 1fr 1fr; 
+        grid-template-rows: 1fr 1fr; 
+        gap: 2px;  /* Мінімальний зазор */
+        padding: 2px;
+        min-height: 0; 
+    }
+
+.plot-card { 
+    width: 100%; 
+    height: 100%; 
+    background: var(--panel); 
+    display: flex; 
+    flex-direction: column; 
+    position: relative;
+    /* Прибираємо border-radius, щоб не було дірок на стиках */
+    border-radius: 0; 
+    border: none; /* Прибираємо рамки, щоб злилося */
+}
+
+/* Додатковий клас для розділення двох квадратів зверху */
+.viz-row-images .plot-card:first-child {
+    border-right: 1px solid #333;
+}
+
+.card-header {
+    position: absolute;
+    top: 0; left: 0;
+    background: rgba(0,0,0,0.5); /* Напівпрозорий заголовок поверх */
+    color: #aaa;
+    font-size: 0.75rem;
+    padding: 2px 5px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.plot-div {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+}
+
+    /* INSPECTOR (BOTTOM) */
+    .inspector-panel {
+        height: 140px; /* Compact */
+        flex-shrink: 0;
+        background: #111;
+        border-top: 1px solid var(--border);
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+    }
+    .inspector-header { display: flex; justify-content: space-between; color: var(--accent); font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; }
+    .inspector-body { flex: 1; overflow-x: auto; display: flex; align-items: center; gap: 10px; }
+    
+    .patch-box { text-align: center; }
+    .patch-canvas { width: 48px; height: 48px; border: 1px solid #444; image-rendering: pixelated; background: black; }
+    .math-symbol { font-size: 1.2rem; color: #555; }
+    
+    .atom-component { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
+    .atom-val { font-size: 0.75rem; font-weight: bold; color: #ddd; }
+    .atom-id { font-size: 0.65rem; color: #666; }
+    
+    .badge { background: #333; color: white; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; background: #2a1c1a; padding: 6px; border-radius: 3px; margin-bottom: 5px; border: 1px solid #4e342e; }
+</style>
+</head>
+<body>
+
+<header>
+     <h1> <span style="font-weight:normal; font-size:0.9em; opacity:0.7; margin-left:10px">Одношарова нейромережа Dictionary Learning K-SVD</span></h1>   <div class="tabs">
+        <div class="tab active" onclick="app.setMode('train')" id="tab-train">1. Навчання</div>
+        <div class="tab" onclick="app.setMode('test')" id="tab-test">2. Відтворення</div>
+    </div>
+</header>
+
+<div class="workspace">
+    <div class="sidebar">
+        <div id="train-group">
+            <div class="control-box">
+                <div class="control-title">1. Дані (Матриця $Y$)</div>
+                <select id="data-preset" onchange="app.changePreset()">
+                    <option value="geom">Фігури</option>
+                    <option value="digits"> Цифри</option>
+                    <option value="letters">Літери</option>
+                </select>
+                <label>Шум у навчанні: <span class="badge" id="val-train-noise">5</span>%</label>
+                <input type="range" id="param-train-noise" min="0" max="60" value="5" step="5" oninput="app.updateTrainNoise(this.value)">
+            </div>
+
+            <div class="control-box">
+                <div class="control-title">2. Параметри Словника</div>
+                <label>Розрідженість $L_0$ <span class="badge" id="val-train-sparsity">3</span></label>
+                <input type="range" id="param-train-sparsity" min="1" max="6" value="3" step="1" oninput="document.getElementById('val-train-sparsity').innerText=this.value">
+                <div style="font-size:0.7rem; color:#888; margin-bottom:10px">Кількість атомів на патч (Train).</div>
+
+                <label>Розмір словника $K$ <span class="badge" id="val-k">64</span></label>
+                <input type="range" id="param-k" min="32" max="100" value="64" step="4" oninput="document.getElementById('val-k').innerText=this.value; app.config.dictSize=parseInt(this.value);">
+            </div>
+
+            <div class="control-box">
+                <div class="control-title">3. Алгоритм K-SVD</div>
+                
+                <button class="btn-step" onclick="app.stepSparseCoding()">
+                    <span><b>Крок 1:</b> Sparse Coding</span>
+                    <span style="opacity:0.6">Find $\alpha$</span>
+                </button>
+                
+				
+				 <details>
+                    <summary>📘 Що таке Sparse Coding?</summary>
+					<div class="math-content">
+                        Алгоритм  розкладає кожен "патч" (шматок картинки) $y$ на суму "атомів" словника.<br>
+                        $y \approx \alpha_1 d_{k1} + \alpha_2 d_{k2} + \dots$<br>
+                         </div>
+                    <div class="math-content">
+                        <b>У матричній формі:</b> Для кожного "патчу" (вектора <span class="math-var">y</span>) знайти такі коефіцієнти <span class="math-var">$\alpha$</span>, щоб <span class="math-var">$y \approx D\alpha$</span>.<br><br>
+                        <b>Термінологія:</b><br>
+                        • <span class="math-term">Патч ($y$)</span>: Шматочок картинки 8x8, витягнутий у вектор 64x1.<br>
+                        • <span class="math-term">Словник ($D$)</span>: Матриця 64xK. Кожен стовпець — це базисний "атом".<br>
+                        • <span class="math-term">Розрідженість ($L_0$)</span>: Кількість ненульових елементів у векторі $\alpha$. Ми обмежуємо її числом $T$ (наприклад, 3).<br><br>
+                        <b>Алгоритм:</b> Оскільки матриця не квадратна, ми не можемо взяти обернену. Замість цього алгоритм Orthogonal Matching pursuit (OMP) шукає стовпець в $D$, який має найбільший скалярний добуток з $y$ (найбільш схожий), віднімаємо його і повторюємо $T$ разів.
+                    </div>
+                </details>
+
+                <button class="btn-step" style="margin-top:10px" onclick="app.stepDictUpdate()">
+                    <span><b>Крок 2:</b> Оновити словник</span>
+                    <span style="opacity:0.6">Update $D$</span>
+                </button>
+               <details>
+                    <summary>📘 Як SVD оновлює словник?</summary>
+                    <div class="math-content">
+                        <b>Задача:</b> Покращити атоми словника <span class="math-var">$D$</span>, знаючи помилки відновлення.<br><br>
+                        <b>Метод (SVD похибки):</b><br>
+                        1. Беремо один атом <span class="math-var">$d_k$</span>.<br>
+                        2. Знаходимо всі патчі, які його використовують.<br>
+                        3. Рахуємо <span class="math-term">Матрицю Похибок ($E_k$)</span> — це різниця між оригіналами патчів і тим, що може відновити словник <i>без</i> цього атома.<br>
+                        4. Робимо <span class="math-term">SVD розклад</span> матриці $E_k = U \Sigma V^T$.<br>
+                        5. <b>Ключовий момент:</b> Перший стовпець матриці $U$ — це вектор, який найкраще описує цю похибку. Ми замінюємо старий атом $d_k$ на цей вектор $u_1$.<br>
+                        <i>Це "повертає" атом у напрямку найбільшої дисперсії помилки.</i>
+                    </div>
+                </details>
+
+                <hr style="border:0; border-top:1px solid #444; margin:15px 0">
+                <button class="btn-primary" onclick="app.runAutoTrain()">🚀 Авто-Навчання (10 епох)</button>
+                <button class="btn-danger" onclick="app.resetModel()">⏮ Скинути модель</button>
+            </div>
+        </div>
+
+        <div id="test-group" style="display:none">
+            <div class="control-box" style="border-color: var(--accent);">
+                <div class="control-title" style="color:var(--accent)">Тестові Дані</div>
+                <label>Шум тесту: <span class="badge" id="val-test-noise">30</span>%</label>
+                <input type="range" id="param-test-noise" min="0" max="80" value="30" step="5" oninput="app.updateTestNoise(this.value)">
+
+                <div class="checkbox-row">
+                    <input type="checkbox" id="check-anomaly" style="width:auto; margin:0">
+                    <div>
+                        <div style="font-size:0.85rem; color:#ffccbc; font-weight:bold">Аномалії</div>
+                        <div style="font-size:0.7rem; color:#aaa">Додати невідомі символи</div>
+                    </div>
+                </div>
+                <button onclick="app.generateTestImage()" class="btn-ghost">🎲 Генерувати Зображення</button>
+            </div>
+
+            <div class="control-box">
+                <div class="control-title">Денойзінг (Фільтрація)</div>
+                <label style="color:var(--accent)">Цільова розрідженість: <span class="badge" id="val-test-sparsity">3</span></label>
+                <input type="range" id="param-test-sparsity" min="1" max="10" value="3" step="1" oninput="document.getElementById('val-test-sparsity').innerText=this.value">
+                <div style="font-size:0.7rem; color:#aaa; margin-bottom:15px">Менше = сильніша фільтрація.</div>
+
+                <button class="btn-primary" onclick="app.stepSparseCoding(true)">✨ Очистити (Sparse Code)</button>
+                <button class="btn-step" onclick="app.showBlurComparison()" style="background:#444; margin-top:10px">
+                    <span>🆚 Порівняти з Blur</span>
+                </button>
+            </div>
+        </div>
+        
+        <div style="margin-top:auto; font-size:0.75rem; color:#666; text-align:center">
+            Status: <span id="status-text">Ready</span>
+        </div>
+    </div>
+
+
+<div class="right-column">
+    
+    <div class="viz-row-images">
+        <div class="plot-card no-border">
+            <div class="card-header">Вхідна матриця $Y$</div>
+            <div id="plot-input" class="plot-div"></div>
+        </div>
+        <div class="plot-card no-border">
+            <div class="card-header">Відновлення $\hat{Y}$</div>
+            <div id="plot-output" class="plot-div"></div>
+        </div>
+    </div>
+
+  
+
+    <div class="inspector-panel">
+        <div class="inspector-header">
+            <span>🔍 Інспектор Патчу</span>
+            <span id="insp-coords" style="font-weight:normal; color:#888;">[X, Y]: -</span>
+        </div>
+        
+        <div id="inspector-placeholder" style="flex:1; display:flex; align-items:center; justify-content:center; color:#555; font-style:italic;">
+            Клікніть на точку зображення "Відновлення"
+        </div>
+
+        <div id="inspector-content" class="inspector-body" style="display:none;">
+            <div class="patch-box">
+                <canvas id="insp-target" class="patch-canvas" width="8" height="8"></canvas>
+                <span class="patch-label">$\hat{y}$</span>
+            </div>
+            <div class="math-symbol">≈</div>
+            <div class="patch-box">
+                <canvas id="insp-mean" class="patch-canvas" width="8" height="8"></canvas>
+                <span class="patch-label">Mean</span>
+            </div>
+            <div class="math-symbol">+</div>
+            <div id="insp-components" style="display:flex; gap:10px; align-items:center;"></div>
+        </div>
+    </div>
+	
+	<div class="viz-row-wide">
+        <div class="plot-card">
+            <div class="card-header">Словник $D$</div>
+            <div id="plot-dict" class="plot-div"></div>
+        </div>
+    </div>
+
+    <div class="viz-row-wide" style="flex: 1; min-height: 150px;">
+        <div class="plot-card">
+            <div class="card-header">Еволюція помилки (MSE)</div>
+            <div id="plot-error" class="plot-div"></div>
+        </div>
+    </div>
+
+</div>
+   
+		
+</div>
+
+<details class="theory-block" style="margin: 10px 20px 0 20px;">
+    <summary>Теорія</summary>
+    <div class="theory-content">
+        <div style="display: flex; gap: 20px;">
+            <div style="flex:1">
+                <h4>1. Ідея (Dictionary Learning)</h4>
+                <p>
+                    Ми намагаємося представити сигнал $y$ (зображення) як лінійну комбінацію елементів словника $D$.
+					<br> $y \approx \alpha_1 d_{k1} + \alpha_2 d_{k2} + \dots$<br>
+                    На відміну від JPEG (де базис фіксований — косинуси), тут ми <b>вчимо</b> базис $D$ під конкретні дані.
+                </p>
+                <div class="math-highlight">
+                    $$ \min_{D, \alpha} || y - D\alpha ||_2^2 \quad \text{за умови} \quad ||\alpha||_0 \le T $$
+                </div>
+            </div>
+            <div style="flex:1">
+                <h4>2. Термінологія </h4>
+                <ul>
+                    <li><b>Словник ($D$):</b> Матриця $N \times K$, де часто $K > N$ (перевизначена/overcomplete). Це набір базисних векторів (атомів).</li>
+                    <li><b>Коди ($\alpha$):</b> Розріджений вектор. Більшість елементів — нулі (Sparsity).</li>
+                    <li><b>$L_0$-норма:</b> Кількість ненульових елементів. Ми кажемо: "Використай максимум 3 атоми".</li>
+                </ul>
+            </div>
+            <div style="flex:1">
+                <h4>3. Прототип одношарової нейромережі</h4>
+                <ul>
+                    <li><b>$D \approx$ Ваги (Weights):</b> Атоми словника — це те саме, що фільтри в згортковій нейромережі (CNN filters).</li>
+                    <li><b>Sparse Coding $\approx$ Activation:</b> Пошук ненульових $\alpha$ виконує роль функції активації (ReLU), відсікаючи слабкі сигнали.</li>
+                    <li><b>K-SVD $\approx$ Autoencoder:</b> Це одношаровий лінійний автоенкодер з жорстким обмеженням на розрідженість.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</details>
+
+
+
+
+<script>
+// --- DATASETS ---
+const SPRITES = {
+    geom: [
+        [1,1,1,1,1,1,1,1, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,1],
+        [1,1,1,1,0,0,0,0, 1,0,0,0,0,0,0,0, 1,0,0,0,0,0,0,0, 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,0, 0,0,0,0,0,1,0,0, 0,0,0,0,1,0,0,0, 0,0,0,1,0,0,0,0, 0,0,1,0,0,0,0,0, 0,1,0,0,0,0,0,0, 1,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0, 0,0,1,1,1,1,0,0, 0,0,1,1,1,1,0,0, 0,0,1,1,1,1,0,0, 0,0,1,1,1,1,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0]
+    ],
+    digits: [
+        [0,0,0,1,1,0,0,0, 0,0,1,0,0,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,0,1,0,0,1,0,0, 0,0,0,1,1,0,0,0],
+        [0,0,0,1,1,0,0,0, 0,0,1,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,1,1,1,1,0,0],
+        [0,0,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,0,0,0,0,0,1,0, 0,0,0,0,0,1,0,0, 0,0,0,0,1,0,0,0, 0,0,0,1,0,0,0,0, 0,0,1,0,0,0,0,0, 0,1,1,1,1,1,1,0]
+    ],
+    letters: [
+        [0,0,0,1,1,0,0,0, 0,0,1,0,0,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,1,1,1,1,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0],
+        [0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,0,1,1,1,1,0,0]
+    ]
+};
+
+class KSVD_App {
+    constructor() {
+        this.config = { imgSize: 64, dictSize: 64, preset: 'geom', trainNoise: 0.05, testNoise: 0.3 };
+        this.state = { mode: 'train', dictionary: [], imgInput: [], imgRecon: [], patches: [], errorLog: [], isTrained: false };
+        this.init();
+    }
+    init() { this.resetModel(); document.getElementById('data-preset').value = 'geom'; this.updateTrainNoise(5); this.updateTestNoise(30); }
+
+    generateData(noiseLevel, useAnomaly=false) {
+        let grid = Array(64).fill(0).map(()=>Array(64).fill(0));
+        let blocks = [];
+        for(let r=0; r<4; r++) for(let c=0; c<4; c++) blocks.push({r: r*16, c: c*16});
+        for (let i = blocks.length-1; i > 0; i--) { const j=Math.floor(Math.random()*(i+1)); [blocks[i],blocks[j]]=[blocks[j],blocks[i]]; }
+
+        const mainSet = SPRITES[this.config.preset];
+        const anomSet = SPRITES[Object.keys(SPRITES).find(k=>k!==this.config.preset)||'letters'];
+        
+        for(let i=0; i<Math.min(16,blocks.length); i++) {
+            let sprite = (useAnomaly && Math.random()<0.3) ? anomSet[Math.floor(Math.random()*anomSet.length)] : mainSet[Math.floor(Math.random()*mainSet.length)];
+            let r0 = blocks[i].r+2+Math.floor(Math.random()*6);
+            let c0 = blocks[i].c+2+Math.floor(Math.random()*6);
+            for(let k=0; k<64; k++) if(sprite[k]) grid[r0+Math.floor(k/8)][c0+k%8]=1;
+        }
+        return grid.map(row => row.map(v => Math.max(0, Math.min(1, v + (Math.random()-0.5)*noiseLevel*2))));
+    }
+
+    resetModel() {
+        this.state.dictionary = [];
+        for(let k=0; k<this.config.dictSize; k++) {
+            let vec = Array(64).fill(0).map(()=>Math.random()-0.5);
+            let norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0));
+            this.state.dictionary.push(vec.map(v=>v/norm));
+        }
+        this.state.errorLog=[]; this.state.isTrained=false;
+        this.generateTrainData(); this.updatePlots();
+    }
+
+    generateTrainData() {
+        this.state.imgInput = this.generateData(this.config.trainNoise, false);
+        this.state.imgRecon = JSON.parse(JSON.stringify(this.state.imgInput));
+        this.extractPatches();
+    }
+    generateTestImage() {
+        this.state.imgInput = this.generateData(this.config.testNoise, document.getElementById('check-anomaly').checked);
+        this.state.imgRecon = Array(64).fill(0).map(()=>Array(64).fill(0));
+        this.extractPatches();
+        this.updatePlots();
+    }
+
+    extractPatches() {
+        this.state.patches = [];
+        for(let y=0; y<=56; y+=4) for(let x=0; x<=56; x+=4) {
+            let vec = [];
+            for(let dy=0; dy<8; dy++) for(let dx=0; dx<8; dx++) vec.push(this.state.imgInput[y+dy][x+dx]);
+            let mean = vec.reduce((a,b)=>a+b,0)/64;
+            this.state.patches.push({r:y, c:x, vec: vec, mean: mean});
+        }
+    }
+
+    sparseCode(vec, dict, T) {
+        let residual = [...vec];
+        let coeffs = Array(dict.length).fill(0);
+        let indices = [];
+        for(let t=0; t<T; t++) {
+            let bestIdx=-1, maxDot=-Infinity;
+            for(let k=0; k<dict.length; k++) {
+                if(indices.includes(k)) continue;
+                let dot=0; for(let i=0; i<64; i++) dot+=residual[i]*dict[k][i];
+                if(Math.abs(dot)>maxDot) { maxDot=Math.abs(dot); bestIdx=k; }
+            }
+            if(bestIdx===-1) break;
+            indices.push(bestIdx);
+            let dot=0; for(let i=0; i<64; i++) dot+=residual[i]*dict[bestIdx][i];
+            coeffs[bestIdx]=dot;
+            for(let i=0; i<64; i++) residual[i]-=dot*dict[bestIdx][i];
+        }
+        return {coeffs, indices};
+    }
+
+    stepSparseCoding(isTest=false) {
+        let sparsity = parseInt(document.getElementById(isTest?'param-test-sparsity':'param-train-sparsity').value);
+        let reconAccum = Array(64).fill(0).map(()=>Array(64).fill(0));
+        let weightAccum = Array(64).fill(0).map(()=>Array(64).fill(0));
+        let totalErr = 0;
+
+        this.dictAcc = this.state.dictionary.map(()=>Array(64).fill(0));
+        this.dictCounts = Array(this.state.dictionary.length).fill(0);
+
+        this.state.patches.forEach(p => {
+            let centered = p.vec.map(v => v-p.mean);
+            const {coeffs} = this.sparseCode(centered, this.state.dictionary, sparsity);
+            p.coeffs = coeffs; // STORE FOR INSPECTOR
+
+            let pReconC = Array(64).fill(0);
+            coeffs.forEach((c,k) => {
+                if(c===0) return;
+                for(let i=0; i<64; i++) {
+                    pReconC[i] += c*this.state.dictionary[k][i];
+                    if(!isTest) this.dictAcc[k][i] += centered[i]*c;
+                }
+                if(!isTest) this.dictCounts[k] += Math.abs(c);
+            });
+
+            let pReconFinal = pReconC.map(v => v+p.mean);
+            for(let i=0; i<64; i++) totalErr += (p.vec[i]-pReconFinal[i])**2;
+
+            let idx=0;
+            for(let dy=0; dy<8; dy++) for(let dx=0; dx<8; dx++) {
+                reconAccum[p.r+dy][p.c+dx] += pReconFinal[idx];
+                weightAccum[p.r+dy][p.c+dx] += 1;
+                idx++;
+            }
+        });
+
+        for(let y=0; y<64; y++) for(let x=0; x<64; x++) 
+            if(weightAccum[y][x]) this.state.imgRecon[y][x] = Math.max(0, Math.min(1, reconAccum[y][x]/weightAccum[y][x]));
+
+        const mse = totalErr/this.state.patches.length;
+        if(!isTest) this.state.errorLog.push(mse);
+        this.updatePlots();
+        document.getElementById('status-text').innerText = `Sparse Coding Done. MSE: ${mse.toFixed(3)}`;
+    }
+
+    stepDictUpdate() {
+        if(this.state.mode!=='train') return;
+        let changed=0;
+        for(let k=0; k<this.config.dictSize; k++) {
+            if(this.dictCounts[k]>0.001) {
+                let vec = this.dictAcc[k];
+                let norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0));
+                if(norm>0) { this.state.dictionary[k] = vec.map(v=>v/norm); changed++; }
+            }
+        }
+        this.state.isTrained=true; this.updatePlots();
+        document.getElementById('status-text').innerText = `Updated ${changed} atoms.`;
+    }
+
+    async runAutoTrain() { for(let i=0;i<10;i++){ this.stepSparseCoding(false); await new Promise(r=>setTimeout(r,40)); this.stepDictUpdate(); await new Promise(r=>setTimeout(r,40)); } }
+
+    showBlurComparison() {
+        let img = this.state.imgInput, blur = Array(64).fill(0).map(()=>Array(64).fill(0));
+        for(let y=1; y<63; y++) for(let x=1; x<63; x++) {
+            let s=0; for(let dy=-1; dy<=1; dy++) for(let dx=-1; dx<=1; dx++) s+=img[y+dy][x+dx];
+            blur[y][x]=s/9;
+        }
+        Plotly.newPlot('plot-output', [{z:blur, type:'heatmap', hoverinfo:'none', colorscale:[[0,'black'],[1,'white']], zmin:0, zmax:1, showscale:false}], {margin:{t:0,b:0,l:0,r:0}, xaxis:{visible:false}, yaxis:{visible:false, scaleanchor:"x", autorange:"reversed"}}, {staticPlot:true});
+    }
+
+    // --- INSPECTOR ---
+    inspectPatch(x, y) {
+        const ps = 8;
+        let bestP = null, minDist = Infinity;
+        for(let p of this.state.patches) {
+            let cx = p.c + 4, cy = p.r + 4;
+            let d = (cx-x)**2 + (cy-y)**2;
+            if(d < minDist) { minDist = d; bestP = p; }
+        }
+        if(!bestP || !bestP.coeffs) return; 
+
+        document.getElementById('inspector-placeholder').style.display='none';
+        document.getElementById('inspector-content').style.display='flex';
+        document.getElementById('insp-coords').innerText = `[${Math.floor(x)}, ${Math.floor(y)}]`;
+
+        // Draw Target & Mean
+        this.drawPatchToCanvas(bestP.vec, 'insp-target', false);
+        this.drawPatchToCanvas(Array(64).fill(bestP.mean), 'insp-mean', false);
+
+        const container = document.getElementById('insp-components');
+        container.innerHTML = '';
+        
+        let components = bestP.coeffs.map((v,i)=>({v,i})).filter(x=>Math.abs(x.v)>0.01).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+        
+        components.slice(0,10).forEach((comp, idx) => {
+            if(idx > 0) {
+                const plus = document.createElement('div');
+                plus.className='math-symbol'; plus.innerText='+';
+                container.appendChild(plus);
+            }
+            
+            const wrap = document.createElement('div');
+            wrap.className = 'atom-component';
+            
+            const valDiv = document.createElement('div');
+            valDiv.className = 'atom-val';
+            valDiv.innerText = comp.v.toFixed(2);
+            valDiv.style.color = comp.v > 0 ? '#4caf50' : '#f44336';
+            
+            const cvs = document.createElement('canvas');
+            cvs.width=8; cvs.height=8; cvs.className='patch-canvas';
+            this.drawPatchToCtx(this.state.dictionary[comp.i], cvs.getContext('2d'), true);
+            
+            const idDiv = document.createElement('div');
+            idDiv.className = 'atom-id';
+            idDiv.innerText = `Atom #${comp.i}`;
+            
+            wrap.appendChild(valDiv);
+            wrap.appendChild(cvs);
+            wrap.appendChild(idDiv);
+            container.appendChild(wrap);
+        });
+    }
+
+    drawPatchToCanvas(vec, elemId, normalize) {
+        const cvs = document.getElementById(elemId);
+        this.drawPatchToCtx(vec, cvs.getContext('2d'), normalize);
+    }
+    
+    drawPatchToCtx(vec, ctx, normalize) {
+        const idata = ctx.createImageData(8,8);
+        for(let i=0; i<64; i++) {
+            let val = vec[i];
+            if(normalize) val = val*5 + 0.5; 
+            let v = Math.max(0, Math.min(255, val*255));
+            idata.data[i*4]=v; idata.data[i*4+1]=v; idata.data[i*4+2]=v; idata.data[i*4+3]=255;
+        }
+        ctx.putImageData(idata, 0, 0);
+    }
+
+    // --- UI ---
+    setMode(m) {
+        this.state.mode=m;
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.getElementById('tab-'+m).classList.add('active');
+        document.getElementById('train-group').style.display = m==='train'?'block':'none';
+        document.getElementById('test-group').style.display = m==='test'?'block':'none';
+        if(m==='train') { if(!this.state.isTrained) this.generateTrainData(); } 
+        else { 
+            this.generateTestImage(); 
+            document.getElementById('param-test-sparsity').value = document.getElementById('param-train-sparsity').value;
+            document.getElementById('val-test-sparsity').innerText = document.getElementById('param-train-sparsity').value;
+        }
+        this.updatePlots();
+    }
+    changePreset() { this.config.preset=document.getElementById('data-preset').value; this.resetModel(); }
+    updateTrainNoise(v) { document.getElementById('val-train-noise').innerText=v; this.config.trainNoise=v/100; if(this.state.mode==='train') this.generateTrainData(); this.updatePlots(); }
+    updateTestNoise(v) { document.getElementById('val-test-noise').innerText=v; this.config.testNoise=v/100; }
+
+   /* updatePlots() {//old
+        const layout = { margin:{t:0,b:0,l:0,r:0}, xaxis:{visible:false}, yaxis:{visible:false, scaleanchor:"x", autorange:"reversed"}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)" };
+        const bw = [[0, 'black'], [1, 'white']];
+        // FIX: hoverinfo='none' disables built-in tooltips
+        Plotly.newPlot('plot-input', [{z:this.state.imgInput, type:'heatmap', hoverinfo:'none', colorscale:bw, zmin:0, zmax:1, showscale:false}], layout, {staticPlot:true});
+        
+        Plotly.newPlot('plot-output', [{z:this.state.imgRecon, type:'heatmap', hoverinfo:'none', colorscale:bw, zmin:0, zmax:1, showscale:false}], layout, {displayModeBar:false});
+        // Re-bind click event
+        document.getElementById('plot-output').on('plotly_click', (d) => this.inspectPatch(d.points[0].x, d.points[0].y));
+
+       // const K=this.state.dictionary.length, W=8, H=Math.ceil(K/W);
+	   // замінити W=8 на W=16 (буде 4 рядки по 16) або W=32 (2 рядки по 32):
+		const K=this.state.dictionary.length, W=16, H=Math.ceil(K/W);
+        let dImg=[]; for(let r=0;r<H*9;r++) dImg.push(Array(W*9).fill(null));
+        this.state.dictionary.forEach((atom,k)=>{
+            const r0=Math.floor(k/W)*9, c0=(k%W)*9;
+            for(let i=0;i<64;i++) dImg[r0+Math.floor(i/8)][c0+i%8] = atom[i]*5+0.5;
+        });
+        Plotly.newPlot('plot-dict', [{z:dImg, type:'heatmap', hoverinfo:'none', colorscale:'Viridis', showscale:false}], layout, {staticPlot:true});
+        Plotly.newPlot('plot-error', [{y:this.state.errorLog, type:'scatter', hoverinfo:'none', mode:'lines+markers', line:{color:'#00bcd4'}}], {margin:{t:10,b:20,l:30,r:10}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)", xaxis:{color:'#666'}, yaxis:{color:'#666'}}, {staticPlot:true});
+    }*/
+	
+	updatePlots() {
+    // FIX: Нульові відступи, щоб графік займав весь div
+    const layout = { 
+        margin: { t: 0, b: 0, l: 0, r: 0 }, 
+        xaxis: { visible: false, fixedrange: true }, // fixedrange забороняє зум (щоб не збивати вигляд)
+        yaxis: { visible: false, scaleanchor: "x", autorange: "reversed", fixedrange: true },
+        paper_bgcolor: "rgba(0,0,0,0)", 
+        plot_bgcolor: "rgba(0,0,0,0)"
+    };
+    
+    const bw = [[0, 'black'], [1, 'white']];
+    
+    // config: {responsive: true} обов'язково, щоб реагував на CSS
+    const config = { responsive: true, displayModeBar: false };
+
+    Plotly.newPlot('plot-input', [{
+        z: this.state.imgInput, type: 'heatmap', hoverinfo: 'none', colorscale: bw, zmin: 0, zmax: 1, showscale: false
+    }], layout, config);
+    
+    Plotly.newPlot('plot-output', [{
+        z: this.state.imgRecon, type: 'heatmap', hoverinfo: 'none', colorscale: bw, zmin: 0, zmax: 1, showscale: false
+    }], layout, config);
+    
+    document.getElementById('plot-output').on('plotly_click', (d) => this.inspectPatch(d.points[0].x, d.points[0].y));
+
+    // Для словника і помилки те ж саме
+    const K=this.state.dictionary.length, W=32, H=Math.ceil(K/W);
+    let dImg=[]; for(let r=0;r<H*9;r++) dImg.push(Array(W*9).fill(null));
+    this.state.dictionary.forEach((atom,k)=>{
+        const r0=Math.floor(k/W)*9, c0=(k%W)*9;
+        for(let i=0;i<64;i++) dImg[r0+Math.floor(i/8)][c0+i%8] = atom[i]*5+0.5;
+    });
+    
+    Plotly.newPlot('plot-dict', [{
+        z: dImg, type: 'heatmap', hoverinfo: 'none', colorscale: 'Viridis', showscale: false
+    }], layout, config);
+    
+    // Для графіку помилки треба трохи відступу, інакше лінії обріжуться
+    const layoutErr = { 
+        margin: { t: 10, b: 20, l: 30, r: 10 }, // Тут лишаємо трохи місця для осей
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", 
+        xaxis: { color: '#666', fixedrange: true }, yaxis: { color: '#666', fixedrange: true }
+    };
+    Plotly.newPlot('plot-error', [{
+        y: this.state.errorLog, type: 'scatter', hoverinfo: 'none', mode: 'lines+markers', line: { color: '#00bcd4' }
+    }], layoutErr, config);
+}
+}
+const app = new KSVD_App();
+</script>
+</body>
+</html>
