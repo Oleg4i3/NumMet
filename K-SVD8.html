@@ -62,7 +62,7 @@
 /* РЯДОК 2 і 4: Широкі смуги */
 .viz-row-wide {
     width: 100%;
-    height: 160px; /* Фіксована висота для словника */
+    height: 85px; /* Фіксована висота для словника */
     border-bottom: 1px solid #333;
     flex-shrink: 0;
 }
@@ -114,7 +114,7 @@
 
     /* INSPECTOR (BOTTOM) */
     .inspector-panel {
-        height: 140px; /* Compact */
+        height: 100px; /* Compact */
         flex-shrink: 0;
         background: #111;
         border-top: 1px solid var(--border);
@@ -157,8 +157,8 @@
                     <option value="digits"> Цифри</option>
                     <option value="letters">Літери</option>
                 </select>
-                <label>Шум у навчанні: <span class="badge" id="val-train-noise">5</span>%</label>
-                <input type="range" id="param-train-noise" min="0" max="60" value="5" step="5" oninput="app.updateTrainNoise(this.value)">
+                <label>Шум у навчанні: <span class="badge" id="val-train-noise">0</span>%</label>
+                <input type="range" id="param-train-noise" min="0" max="60" value="0" step="5" oninput="app.updateTrainNoise(this.value)">
             </div>
 
             <div class="control-box">
@@ -223,8 +223,8 @@
         <div id="test-group" style="display:none">
             <div class="control-box" style="border-color: var(--accent);">
                 <div class="control-title" style="color:var(--accent)">Тестові Дані</div>
-                <label>Шум тесту: <span class="badge" id="val-test-noise">30</span>%</label>
-                <input type="range" id="param-test-noise" min="0" max="80" value="30" step="5" oninput="app.updateTestNoise(this.value)">
+                <label>Шум тесту: <span class="badge" id="val-test-noise">60</span>%</label>
+                <input type="range" id="param-test-noise" min="0" max="80" value="60" step="5" oninput="app.updateTestNoise(this.value)">
 
                 <div class="checkbox-row">
                     <input type="checkbox" id="check-anomaly" style="width:auto; margin:0">
@@ -244,10 +244,31 @@
 
                 <button class="btn-primary" onclick="app.stepSparseCoding(true)">✨ Очистити (Sparse Code)</button>
                 <button class="btn-step" onclick="app.showBlurComparison()" style="background:#444; margin-top:10px">
-                    <span>🆚 Порівняти з Blur</span>
+                    <span>Порівняти з фільтром (Blur)</span>
                 </button>
             </div>
+			
+		
         </div>
+		
+		
+		
+		<details>
+		<summary> 📘 Як працює Denoising (перйдіть на вкладку 2 - відновлення після етапу навчання)</summary>
+		<div class="math-content">
+        <b>Ідея:</b> Шум — це хаотична інформація, яка не має структури. Словник $D$ вивчив "правильні" структури (лінії, кути).<br><br>
+        <b>Алгоритм для кожного патчу $y$:</b><br>
+        1. Ми намагаємося описати зашумлений патч $y$ комбінацією атомів словника.<br>
+        2. <b>Обмеження ($L_0$):</b> Ми дозволяємо взяти лише $T$ атомів (наприклад, 3).<br>
+        <div style="text-align:center; margin:5px 0; background:#222; padding:5px; border-radius:3px;">
+            $\hat{\alpha} = \arg\min_{\alpha} || y - D\alpha ||_2^2 \quad \text{, } \quad ||\alpha||_0 \le T$
+        </div>
+        3. <b>Фільтрація:</b> Оскільки шум випадковий, він "не лягає" на атоми добре. Алгоритм OMP обирає 3 атоми, що описують <i>сигнал</i>, а решту (шум) ігнорує як похибку.<br>
+        4. <b>Відновлення:</b> $\hat{y} = D\hat{\alpha}$. Ми збираємо патч заново, але вже без шуму.<br><br>
+        <b>Фінал:</b> Оскільки патчі перекриваються, ми усереднюємо всі відновлені варіанти для кожного пікселя (Image Averaging).
+		</div>
+		</details>
+		
         
         <div style="margin-top:auto; font-size:0.75rem; color:#666; text-align:center">
             Status: <span id="status-text">Ready</span>
@@ -369,17 +390,19 @@ const SPRITES = {
     ],
     letters: [
         [0,0,0,1,1,0,0,0, 0,0,1,0,0,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,1,1,1,1,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0],
-        [0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,0,1,1,1,1,0,0]
-    ]
+        [0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,0,1,1,1,1,0,0],
+		[0,1,1,1,1,1,0,0, 0,1,0,0,0,0,0,0, 0,1,0,0,0,0,0,0, 0,1,1,1,1,1,0,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,1,0,0,0,0,1,0, 0,0,1,1,1,1,0,0]
+		
+	]
 };
 
 class KSVD_App {
     constructor() {
-        this.config = { imgSize: 64, dictSize: 64, preset: 'geom', trainNoise: 0.05, testNoise: 0.3 };
+        this.config = { imgSize: 64, dictSize: 64, preset: 'letters', trainNoise: 0.0, testNoise: 0.6 };
         this.state = { mode: 'train', dictionary: [], imgInput: [], imgRecon: [], patches: [], errorLog: [], isTrained: false };
         this.init();
     }
-    init() { this.resetModel(); document.getElementById('data-preset').value = 'geom'; this.updateTrainNoise(5); this.updateTestNoise(30); }
+    init() { this.resetModel(); document.getElementById('data-preset').value = 'letters'; this.updateTrainNoise(0); this.updateTestNoise(60); }
 
     generateData(noiseLevel, useAnomaly=false) {
         let grid = Array(64).fill(0).map(()=>Array(64).fill(0));
@@ -424,7 +447,7 @@ class KSVD_App {
 
     extractPatches() {
         this.state.patches = [];
-        for(let y=0; y<=56; y+=4) for(let x=0; x<=56; x+=4) {
+        for(let y=0; y<=56; y+=1) for(let x=0; x<=56; x+=1) {//May be +=2, 
             let vec = [];
             for(let dy=0; dy<8; dy++) for(let dx=0; dx<8; dx++) vec.push(this.state.imgInput[y+dy][x+dx]);
             let mean = vec.reduce((a,b)=>a+b,0)/64;
@@ -515,8 +538,8 @@ class KSVD_App {
     showBlurComparison() {
         let img = this.state.imgInput, blur = Array(64).fill(0).map(()=>Array(64).fill(0));
         for(let y=1; y<63; y++) for(let x=1; x<63; x++) {
-            let s=0; for(let dy=-1; dy<=1; dy++) for(let dx=-1; dx<=1; dx++) s+=img[y+dy][x+dx];
-            blur[y][x]=s/9;
+            let s=0; for(let dy=0; dy<=1; dy++) for(let dx=0; dx<=1; dx++) s+=img[y+dy][x+dx];//let dx=-1
+            blur[y][x]=s/4;//  was /9
         }
         Plotly.newPlot('plot-output', [{z:blur, type:'heatmap', hoverinfo:'none', colorscale:[[0,'black'],[1,'white']], zmin:0, zmax:1, showscale:false}], {margin:{t:0,b:0,l:0,r:0}, xaxis:{visible:false}, yaxis:{visible:false, scaleanchor:"x", autorange:"reversed"}}, {staticPlot:true});
     }
