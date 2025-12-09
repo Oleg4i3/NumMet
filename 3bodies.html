@@ -161,7 +161,7 @@
 
         <h3 style="color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px;">3. Чисельний метод (Рунге-Кутта 4)</h3>
         <p>
-            Для розв'язання на ЕОМ ми зводимо систему диференціальних рівнянь 2-го порядку до системи 1-го порядку, вводячи вектор швидкості $\vec{v}$. Стан системи описується вектором $Y = \{\vec{r}, \vec{v}\}$:
+            Для розв'язання чисельними методами зводимо систему диференціальних рівнянь 2-го порядку до системи 1-го порядку, вводячи вектор швидкості $\vec{v}$. Стан системи описується вектором $Y = \{\vec{r}, \vec{v}\}$:
             $$ \frac{d\vec{r}}{dt} = \vec{v}, \quad \frac{d\vec{v}}{dt} = \vec{a}(\vec{r}) $$
             У цьому симуляторі використовується класичний метод <strong>Рунге-Кутти 4-го порядку (RK4)</strong>. На відміну від методу Ейлера (який має похибку $O(h^2)$), RK4 забезпечує локальну похибку порядку $O(h^5)$, де $h$ — крок часу ($dt$).
         </p>
@@ -215,7 +215,7 @@
         
         <div class="param-row">
             <span class="param-label">Sim Speed</span>
-            <input type="range" id="time-scale" min="0.1" max="10" step="0.1" value="8">
+            <input type="range" id="time-scale" min="0.5" max="20" step="0.5" value="8">
             <span id="ts-val" style="width:30px; text-align:right; font-size:0.8em">8.0x</span>
         </div>
         <div class="param-row">
@@ -259,24 +259,29 @@ let followCoM = true;
 function init() {
     const container = document.getElementById('canvas-container');
 
+
+
+
     // 1. Scene setup
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
     
-    // Більше світла для яскравості
-    const ambi = new THREE.AmbientLight(0xffffff, 2.0); 
-    scene.add(ambi);
+  
+// Додаємо фонове освітлення (щоб тіні не були абсолютно чорними)
+const ambLight = new THREE.AmbientLight(0x404040, 2); // Колір, Інтенсивність
+scene.add(ambLight);
+
+// Додаємо спрямоване світло (імітація сонця десь далеко)
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(10, 20, 10); // Вказуємо, звідки світить
+scene.add(dirLight);
     
-    const sun = new THREE.PointLight(0xffffff, 3, 100);
-    sun.position.set(0, 20, 10);
-    scene.add(sun);
-    
-    const grid = new THREE.GridHelper(100, 100, 0x222222, 0x111111);
-    scene.add(grid);
+  //  const grid = new THREE.GridHelper(100, 100, 0x222222, 0x111111);
+    //scene.add(grid);
 
     // 2. Camera
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 3000);
-    camera.position.set(0, 30, 50);
+    camera.position.set(10, 30, 50);
     camera.lookAt(0,0,0);
 
     // 3. Renderer
