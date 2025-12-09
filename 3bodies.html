@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-Body Problem Simulator (Final)</title>
+    
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --panel-bg: #1f2833;
+            --text-main: #c5c6c7;
+            --accent: #66fcf1;
+            --accent-dark: #45a29e;
+            --danger: #ef476f;
+        }
+
+        body { 
+            margin: 0; overflow: hidden; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            background: var(--bg-color); color: var(--text-main);
+            height: 100vh; display: flex; 
+        }
+
+        /* SIDEBAR */
+        #sidebar {
+            width: 360px;
+            background: var(--panel-bg);
+            padding: 15px;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        h1 { 
+            font-size: 1.1rem; margin: 0; color: var(--accent); 
+            border-bottom: 2px solid var(--accent-dark); padding-bottom: 8px; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .timer-display { font-family: monospace; color: #fff; font-size: 0.9em; }
+
+        /* Controls */
+        .control-group {
+            background: rgba(255,255,255,0.05);
+            padding: 10px; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 5px;
+        }
+
+        .body-header {
+            font-weight: bold; font-size: 0.95rem; margin-bottom: 8px;
+            display: flex; align-items: center; color: #fff;
+        }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; display: inline-block; }
+
+        .param-row { 
+            display: flex; align-items: center; margin-bottom: 4px; font-size: 0.85rem; 
+        }
+        .param-label { width: 25px; color: #aaa; flex-shrink: 0; }
+        
+        /* Inputs */
+        input[type=range] { flex-grow: 1; margin: 0 8px; cursor: pointer; accent-color: var(--accent); height: 4px; }
+        
+        input[type=number] { 
+            background: #222; border: 1px solid #444; 
+            color: white; border-radius: 3px; text-align: right; 
+            padding: 2px 4px; font-size: 0.85rem;
+        }
+        input[type=number]:focus { border-color: var(--accent); outline: none; }
+
+        .coord-inputs input[type=number] { width: 30%; margin-left: 2px; }
+        .vel-inputs { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+        .vel-row { display: flex; align-items: center; justify-content: space-between; }
+        .vel-row input[type=number] { width: 50px; }
+
+        select { 
+            width: 100%; padding: 6px; background: #222; color: white; 
+            border: 1px solid #444; border-radius: 4px; 
+        }
+
+        /* Checkbox */
+        .checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin: 5px 0;}
+        .checkbox-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 5px; margin-top: 5px; }
+        button { 
+            flex: 1; padding: 10px; border: none; border-radius: 4px; 
+            font-weight: bold; cursor: pointer; transition: 0.2s; 
+            font-size: 0.85rem; text-transform: uppercase;
+        }
+        .btn-start { background: var(--accent-dark); color: white; }
+        .btn-start:hover { background: var(--accent); color: #000; }
+        .btn-reset { background: #333; color: #ccc; }
+        .btn-reset:hover { background: #444; color: white; }
+        
+        .btn-io { background: #2c3e50; color: white; font-size: 0.8rem; padding: 8px; }
+        .btn-io:hover { background: #34495e; }
+
+        /* Alerts */
+        #canvas-container { flex-grow: 1; position: relative; }
+        #crash-alert {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239, 71, 111, 0.9); color: white;
+            padding: 20px 40px; border-radius: 8px;
+            font-size: 1.2rem; font-weight: bold;
+            display: none; border: 2px solid white; z-index: 100;
+            text-align: center; pointer-events: none;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2833; }
+        ::-webkit-scrollbar-thumb { background: #45a29e; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h1>
+        <span>🌌 3-Body ODE</span> 
+        <span class="timer-display">t: <span id="sim-time">0.00</span></span>
+    </h1>
+    
+    <div class="btn-row">
+	<details style="background: #1f2833; color: #c5c6c7; padding: 15px; margin: 10px; border-left: 4px solid #66fcf1; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+    <summary style="cursor: pointer; font-weight: bold; color: #66fcf1; font-size: 1.1em;">📘 Теоретична довідка</summary>
+    <div style="margin-top: 15px; line-height: 1.6;">
+        
+        <h3 style="color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px;">1. Модель</h3>
+        <p>
+            Рух тіл описується класичною механікою Ньютона. Для системи з $N$ тіл сила, що діє на $i$-те тіло з боку $j$-го, визначається законом всесвітнього тяжіння:
+            $$ \vec{F}_{ij} = G \frac{m_i m_j}{|\vec{r}_j - \vec{r}_i|^3} (\vec{r}_j - \vec{r}_i) $$
+            Згідно з Другим законом Ньютона ($\vec{F} = m\vec{a}$), прискорення $i$-го тіла є сумою гравітаційних впливів усіх інших тіл:
+            $$ \frac{d^2\vec{r}_i}{dt^2} = G \sum_{j \neq i} \frac{m_j (\vec{r}_j - \vec{r}_i)}{|\vec{r}_j - \vec{r}_i|^3} $$
+            Це система диференціальних рівнянь другого порядку.
+        </p>
+
+        <h3 style="color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px;">2. Математична проблема</h3>
+        <p>
+            Для двох тіл ($N=2$) ця система має аналітичний розв'язок (закони Кеплера). Однак для $N \ge 3$ загального аналітичного розв'язку в елементарних функціях <strong>не існує</strong> (теорема Пуанкаре).
+            Більше того, система є <em>хаотичною</em>: мізерна зміна початкових умов ($\delta \approx 10^{-10}$) призводить до експоненціального розходження траєкторій з часом (ефект метелика).
+            Тому єдиний шлях моделювання — <strong>чисельне інтегрування</strong>.
+        </p>
+
+        <h3 style="color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px;">3. Чисельний метод (Рунге-Кутта 4)</h3>
+        <p>
+            Для розв'язання на ЕОМ ми зводимо систему диференціальних рівнянь 2-го порядку до системи 1-го порядку, вводячи вектор швидкості $\vec{v}$. Стан системи описується вектором $Y = \{\vec{r}, \vec{v}\}$:
+            $$ \frac{d\vec{r}}{dt} = \vec{v}, \quad \frac{d\vec{v}}{dt} = \vec{a}(\vec{r}) $$
+            У цьому симуляторі використовується класичний метод <strong>Рунге-Кутти 4-го порядку (RK4)</strong>. На відміну від методу Ейлера (який має похибку $O(h^2)$), RK4 забезпечує локальну похибку порядку $O(h^5)$, де $h$ — крок часу ($dt$).
+        </p>
+        <p>
+            Алгоритм кроку для знаходження нового стану $Y_{n+1}$:
+        </p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li>$k_1 = f(t_n, Y_n)$ — нахил на початку інтервалу.</li>
+            <li>$k_2 = f(t_n + \frac{h}{2}, Y_n + \frac{h}{2}k_1)$ — нахил у середній точці (прогноз за $k_1$).</li>
+            <li>$k_3 = f(t_n + \frac{h}{2}, Y_n + \frac{h}{2}k_2)$ — уточнений нахил у середній точці.</li>
+            <li>$k_4 = f(t_n + h, Y_n + h k_3)$ — нахил у кінці інтервалу.</li>
+            <li><strong>Фінал:</strong> $Y_{n+1} = Y_n + \frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)$.</li>
+        </ul>
+
+        <h3 style="color: #fff; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 15px;">4. Збіжність та помилки дискретизації</h3>
+        <p>
+            Вибір кроку інтегрування $dt$ є критичним:
+        </p>
+        <ul style="list-style-type: circle; margin-left: 20px;">
+            <li><strong>Завеликий $dt$:</strong> Метод перестає "вловлювати" кривизну траєкторії, особливо коли тіла зближуються і сили стрімко зростають. Це порушує закон збереження енергії. Система отримує "фіктивну енергію", що призводить до викидання тіл з системи або помилкової фіксації зіткнень.</li>
+            <li><strong>Замалий $dt$:</strong> Збільшує час розрахунку та накопичує похибки округлення (floating point error), хоча для цієї задачі це менш критично, ніж похибка методу.</li>
+        </ul>
+        
+    </div>
+</details>
+	
+	
+	
+        <button id="btn-save" class="btn-io">💾 Зберегти JSON</button>
+        <button id="btn-load-trigger" class="btn-io">📂 Відкрити JSON</button>
+        <input type="file" id="file-input" accept=".json" style="display: none;">
+    </div>
+
+    <div style="margin-top: 10px;">
+        <label style="color:#aaa; font-size:0.8rem;">Пресет:</label>
+        <select id="preset-selector">
+    <option value="sps" selected>Зоря-Планета-Супутник</option>
+    <option value="figure8">Вісімка (Стабільна)</option>
+    <option value="butterfly">Точка Лагранжа L4 (трикутник)</option>
+    <option value="burrau">Праща</option>
+    <option value="binary">Подвійна зоря</option>
+    <option value="random">Випадкова</option>
+</select>
+    </div>
+
+    <div class="control-group">
+        <label class="checkbox-row">
+            <input type="checkbox" id="check-com" checked>
+            <span>📷 Стежити за центром мас</span>
+        </label>
+        
+        <div class="param-row">
+            <span class="param-label">Sim Speed</span>
+            <input type="range" id="time-scale" min="0.1" max="10" step="0.1" value="8">
+            <span id="ts-val" style="width:30px; text-align:right; font-size:0.8em">8.0x</span>
+        </div>
+        <div class="param-row">
+            <span class="param-label">dt</span>
+            <input type="number" id="dt-inp" value="0.01" step="0.001" style="width:60px">
+        </div>
+    </div>
+
+    <div id="bodies-controls"></div>
+
+    <div class="btn-row">
+        <button id="btn-run" class="btn-start">▶ Старт / Пауза</button>
+        <button id="btn-reset" class="btn-reset">↺ Скинути</button>
+    </div>
+</div>
+
+<div id="canvas-container">
+    <div id="crash-alert">💥 ЗІТКНЕННЯ!</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- CONSTANTS ---
+const G = 1;
+const COLORS = [0xff4d4d, 0x2ecc71, 0xffca28]; 
+const TRAIL_LEN = 3000;
+const RADIUS_SCALE = 0.2; 
+
+// --- STATE ---
+let scene, camera, renderer, controls;
+let bodies = []; 
+let isRunning = false;
+let time = 0;
+let dt = 0.01;
+let timeScale = 8.0;
+let followCoM = true;
+
+// --- INIT ---
+function init() {
+    const container = document.getElementById('canvas-container');
+
+    // 1. Scene setup
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050505);
+    
+    // Більше світла для яскравості
+    const ambi = new THREE.AmbientLight(0xffffff, 2.0); 
+    scene.add(ambi);
+    
+    const sun = new THREE.PointLight(0xffffff, 3, 100);
+    sun.position.set(0, 20, 10);
+    scene.add(sun);
+    
+    const grid = new THREE.GridHelper(100, 100, 0x222222, 0x111111);
+    scene.add(grid);
+
+    // 2. Camera
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 3000);
+    camera.position.set(0, 30, 50);
+    camera.lookAt(0,0,0);
+
+    // 3. Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    // 4. Controls
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // 5. UI Setup
+    generateControlsUI();
+    bindEvents();
+    
+    loadPreset('sps');
+    animate();
+}
+
+function generateControlsUI() {
+    const parent = document.getElementById('bodies-controls');
+    parent.innerHTML = '';
+
+    for (let i = 0; i < 3; i++) {
+        const div = document.createElement('div');
+        div.className = 'control-group';
+        div.innerHTML = `
+            <div class="body-header">
+                <span class="color-dot" style="background:#${COLORS[i].toString(16)}"></span>Тіло ${i+1}
+            </div>
+            
+            <div class="param-row">
+                <span class="param-label">M</span>
+                <input type="range" id="sl-m-${i}" min="0.1" max="50" step="0.1" value="1">
+                <input type="number" id="in-m-${i}" value="1" step="0.1" style="width:45px">
+            </div>
+
+            <div style="margin: 5px 0;">
+                <label style="color:#aaa; font-size:0.8em">Position (x, y, z):</label>
+                <div class="param-row coord-inputs">
+                    <input type="number" id="px-${i}" placeholder="x">
+                    <input type="number" id="py-${i}" placeholder="y">
+                    <input type="number" id="pz-${i}" placeholder="z">
+                </div>
+            </div>
+
+            <div style="margin-top: 5px;">
+                <label style="color:#aaa; font-size:0.8em">Velocity:</label>
+                <div class="vel-inputs">
+                    <div class="vel-row">
+                        <span style="font-size:0.8em; color:#777">Vx</span>
+                        <input type="range" id="sl-vx-${i}" min="-3" max="3" step="0.01">
+                        <input type="number" id="vx-${i}" step="0.01">
+                    </div>
+                    <div class="vel-row">
+                        <span style="font-size:0.8em; color:#777">Vy</span>
+                        <input type="range" id="sl-vy-${i}" min="-3" max="3" step="0.01">
+                        <input type="number" id="vy-${i}" step="0.01">
+                    </div>
+                    <div class="vel-row">
+                        <span style="font-size:0.8em; color:#777">Vz</span>
+                        <input type="range" id="sl-vz-${i}" min="-3" max="3" step="0.01">
+                        <input type="number" id="vz-${i}" step="0.01">
+                    </div>
+                </div>
+            </div>
+        `;
+        parent.appendChild(div);
+    }
+}
+
+function bindEvents() {
+    document.getElementById('btn-run').addEventListener('click', toggleSim);
+    document.getElementById('btn-reset').addEventListener('click', resetToInputs);
+    document.getElementById('preset-selector').addEventListener('change', (e) => loadPreset(e.target.value));
+    
+    // CoM Checkbox
+    document.getElementById('check-com').addEventListener('change', (e) => {
+        followCoM = e.target.checked;
+        if(!followCoM) {
+            controls.target.set(0,0,0);
+        }
+    });
+
+    // Time Scale
+    document.getElementById('time-scale').addEventListener('input', (e) => {
+        timeScale = parseFloat(e.target.value);
+        document.getElementById('ts-val').innerText = timeScale.toFixed(1) + 'x';
+    });
+    document.getElementById('dt-inp').addEventListener('change', (e) => dt = parseFloat(e.target.value));
+
+    // UI Sync Logic
+    const parent = document.getElementById('bodies-controls');
+    parent.addEventListener('input', (e) => {
+        const id = e.target.id;
+        if (!id) return;
+        
+        // Mass
+        if (id.includes('-m-')) {
+            const idx = id.split('-')[2];
+            const val = e.target.value;
+            if(id.startsWith('sl')) document.getElementById(`in-m-${idx}`).value = val;
+            else document.getElementById(`sl-m-${idx}`).value = val;
+        }
+        // Velocity (Slider <-> Input)
+        if (id.includes('v')) {
+            const parts = id.split('-'); 
+            const axis = parts[parts.length - 2].replace('sl-',''); 
+            const idx = parts[parts.length - 1];
+            
+            if (id.startsWith('sl')) {
+                document.getElementById(`${axis}-${idx}`).value = e.target.value;
+            } else {
+                const sl = document.getElementById(`sl-${axis}-${idx}`);
+                if(sl) sl.value = e.target.value;
+            }
+        }
+
+        if (!isRunning) updateBodiesFromInputs();
+    });
+
+    // JSON IO
+    document.getElementById('btn-save').addEventListener('click', saveConfig);
+    document.getElementById('btn-load-trigger').addEventListener('click', () => document.getElementById('file-input').click());
+    document.getElementById('file-input').addEventListener('change', loadConfig);
+
+    window.addEventListener('resize', onResize);
+}
+
+// --- JSON CONFIG LOGIC ---
+
+function saveConfig() {
+    const data = [];
+    for(let i=0; i<3; i++) {
+        data.push({
+            m: parseFloat(document.getElementById(`in-m-${i}`).value),
+            p: [
+                parseFloat(document.getElementById(`px-${i}`).value),
+                parseFloat(document.getElementById(`py-${i}`).value),
+                parseFloat(document.getElementById(`pz-${i}`).value)
+            ],
+            v: [
+                parseFloat(document.getElementById(`vx-${i}`).value),
+                parseFloat(document.getElementById(`vy-${i}`).value),
+                parseFloat(document.getElementById(`vz-${i}`).value)
+            ]
+        });
+    }
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type : 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '3body_config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function loadConfig(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data) || data.length !== 3) {
+                alert("Невірний формат файлу (потрібен масив з 3 об'єктів)");
+                return;
+            }
+            fillInputs(data);
+            resetToInputs();
+        } catch (err) {
+            alert("Помилка читання JSON: " + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; 
+}
+
+// --- SIMULATION LOGIC ---
+////////////////////
+
+
+function loadPreset(name) {
+    stopSim();
+    document.getElementById('crash-alert').style.display = 'none';
+    let d = [];
+    
+    // Дефолтний крок
+    let defaultDt = 0.01;
+
+    if (name === 'sps') {
+        // Зоря-Планета-Супутник
+        d.push({ m:20, p:[0,0,0], v:[0,0,0] });
+        d.push({ m:1, p:[12,0,0], v:[0,0,1.29] });
+        d.push({ m:0.1, p:[13.5,0,0], v:[0,0,2.1] });
+    } 
+    else if (name === 'binary') {
+        // Подвійна зірка
+        const vStar = 0.5; const dist = 5;
+        d.push({ m:5, p:[-dist,0,0], v:[0,0,vStar] });
+        d.push({ m:5, p:[dist,0,0], v:[0,0,-vStar] });
+        d.push({ m:0.1, p:[0,0,20], v:[Math.sqrt(G*10/20),0,0] });
+    }
+    else if (name === 'figure8') {
+        // "Справжня Вісімка" (Moore's Figure-8)
+        // Дуже чутлива до початкових умов, тому числа мають бути точними.
+        // Це ідеально стабільна орбіта (хореографія).
+        defaultDt = 0.005; // Потрібен малий крок для точності
+        
+        // Константи Chenciner & Montgomery
+        const p1 = 0.97000436; 
+        const p2 = -0.24308753;
+        const v3 = -0.93240737;
+        const v4 = -0.86473146;
+
+        // Всі маси = 1
+        // Тіло 1
+        d.push({ m:1, p:[p1, p2, 0], v:[v3/2, v4/2, 0] });
+        // Тіло 2 (симетричне)
+        d.push({ m:1, p:[-p1, -p2, 0], v:[v3/2, v4/2, 0] });
+        // Тіло 3 (центр, подвійна швидкість у зворотний бік)
+        d.push({ m:1, p:[0, 0, 0], v:[-v3, -v4, 0] });
+    }
+    else if (name === 'burrau') {
+        // Піфагорова проблема (Burrau) - МАСШТАБОВАНА
+        // Ми збільшуємо координати в 5 разів. 
+        // Це дає час "побачити" падіння до того, як станеться хаос.
+        // Маси: 3, 4, 5. Трикутник зі сторонами 15, 20, 25.
+        defaultDt = 0.01;
+        
+        const scale = 5; 
+        
+        d.push({ m:21.6, p:[1*scale, 3*scale, 0],   v:[0.1,0,0] });
+        d.push({ m:4, p:[-2*scale, -1*scale, 0], v:[0,0.1,0] });
+        d.push({ m:5, p:[1*scale, -1*scale, 0],  v:[0,0,-0.2] });
+    }
+    else if (name === 'butterfly') {
+        // Точка Лагранжа L4 (Троянець) - Стабільна
+        const M1 = 30; 
+        const M2 = 1;  
+        const M3 = 0.01; 
+        const R = 15;
+        
+        const v_orb = Math.sqrt(G * (M1 + M2) / R);
+        const r1 = -R * M2 / (M1 + M2);
+        const r2 = R * M1 / (M1 + M2);
+        const v1 = -v_orb * M2 / (M1 + M2);
+        const v2 = v_orb * M1 / (M1 + M2);
+
+        d.push({ m: M1, p: [r1, 0, 0], v: [0, 0, v1] });
+        d.push({ m: M2, p: [r2, 0, 0], v: [0, 0, v2] });
+        
+        const angle = Math.PI / 3; 
+        const px = r1 + R * Math.cos(angle);
+        const pz = R * Math.sin(angle);
+        const vx = -v_orb * Math.sin(angle);
+        const vz = v_orb * Math.cos(angle);
+
+        d.push({ m: M3, p: [px, 0, pz], v: [vx, 0, vz] });
+    }
+    else {
+        // Random
+        for(let i=0; i<3; i++) d.push({
+            m: Math.random()*2+0.5,
+            p: [(Math.random()-0.5)*10, (Math.random()-0.5)*10, 0],
+            v: [(Math.random()-0.5)*2, (Math.random()-0.5)*2, 0]
+        });
+    }
+
+    document.getElementById('dt-inp').value = defaultDt;
+    dt = defaultDt;
+    fillInputs(d);
+    resetToInputs();
+}
+
+
+/* ///old
+function loadPreset(name) {
+    stopSim();
+    document.getElementById('crash-alert').style.display = 'none';
+    let d = [];
+    let defaultDt = 0.01;
+
+    if (name === 'sps') {
+        d.push({ m:20, p:[0,0,0], v:[0,0,0] });
+        d.push({ m:1, p:[12,0,0], v:[0,0,1.29] });
+        d.push({ m:0.1, p:[13.5,0,0], v:[0,0,2.1] });
+    } 
+    else if (name === 'binary') {
+        const vStar = 0.5; const dist = 5;
+        d.push({ m:5, p:[-dist,0,0], v:[0,0,vStar] });
+        d.push({ m:5, p:[dist,0,0], v:[0,0,-vStar] });
+        d.push({ m:0.1, p:[0,0,20], v:[Math.sqrt(G*10/20),0,0] });
+    }
+    else if (name === 'figure8') {
+        defaultDt = 0.005;
+        const p1=0.97000436, p2=-0.24308753;
+        const v1=0.466203685, v2=0.43236573;
+        d.push({ m:1, p:[p1,p2,0], v:[-v1/2,-v2/2,0] });
+        d.push({ m:1, p:[-p1,-p2,0], v:[-v1/2,-v2/2,0] });
+        d.push({ m:1, p:[0,0,0], v:[v1,v2,0] });
+    }
+    else if (name === 'butterfly') {
+        defaultDt = 0.002;
+        const vx=0.306893, vy=0.125507; 
+        d.push({ m:1, p:[-1,0,0], v:[vx, vy, 0] });
+        d.push({ m:1, p:[1,0,0], v:[vx, vy, 0] });
+        d.push({ m:1, p:[0,0,0], v:[-2*vx, -2*vy, 0] });
+    }
+    else {
+        for(let i=0; i<3; i++) d.push({
+            m: Math.random()*2+0.5,
+            p: [(Math.random()-0.5)*10, (Math.random()-0.5)*10, 0],
+            v: [(Math.random()-0.5)*2, (Math.random()-0.5)*2, 0]
+        });
+    }
+
+    document.getElementById('dt-inp').value = defaultDt;
+    dt = defaultDt;
+    fillInputs(d);
+    resetToInputs();
+}
+*/
+
+
+
+
+
+function fillInputs(data) {
+    data.forEach((obj, i) => {
+        // Mass
+        document.getElementById(`sl-m-${i}`).value = obj.m;
+        document.getElementById(`in-m-${i}`).value = obj.m;
+        // Pos
+        document.getElementById(`px-${i}`).value = obj.p[0];
+        document.getElementById(`py-${i}`).value = obj.p[1];
+        document.getElementById(`pz-${i}`).value = obj.p[2];
+        // Vel (Inputs)
+        document.getElementById(`vx-${i}`).value = obj.v[0];
+        document.getElementById(`vy-${i}`).value = obj.v[1];
+        document.getElementById(`vz-${i}`).value = obj.v[2];
+        // Vel (Sliders)
+        const clamp = (v) => Math.max(-3, Math.min(3, v));
+        document.getElementById(`sl-vx-${i}`).value = clamp(obj.v[0]);
+        document.getElementById(`sl-vy-${i}`).value = clamp(obj.v[1]);
+        document.getElementById(`sl-vz-${i}`).value = clamp(obj.v[2]);
+    });
+}
+
+function resetToInputs() {
+    stopSim();
+    document.getElementById('crash-alert').style.display = 'none';
+    time = 0;
+    document.getElementById('sim-time').innerText = "0.00";
+    if(followCoM) controls.target.set(0,0,0);
+    createBodiesFromDOM();
+}
+
+function updateBodiesFromInputs() {
+    for(let i=0; i<3; i++) {
+        if(!bodies[i]) continue;
+        const m = parseFloat(document.getElementById(`in-m-${i}`).value)||1;
+        bodies[i].mass = m;
+        
+        bodies[i].pos.set(
+            parseFloat(document.getElementById(`px-${i}`).value)||0,
+            parseFloat(document.getElementById(`py-${i}`).value)||0,
+            parseFloat(document.getElementById(`pz-${i}`).value)||0
+        );
+        bodies[i].vel.set(
+            parseFloat(document.getElementById(`vx-${i}`).value)||0,
+            parseFloat(document.getElementById(`vy-${i}`).value)||0,
+            parseFloat(document.getElementById(`vz-${i}`).value)||0
+        );
+
+        bodies[i].mesh.position.copy(bodies[i].pos);
+        bodies[i].mesh.scale.setScalar(Math.pow(m, 1/3) * RADIUS_SCALE);
+        
+        // Оновлюємо стрілки миттєво при перетягуванні слайдерів
+        updateArrow(bodies[i]);
+    }
+}
+
+function createBodiesFromDOM() {
+    bodies.forEach(b => { scene.remove(b.mesh); scene.remove(b.trail); scene.remove(b.arrow); });
+    bodies = [];
+
+    for(let i=0; i<3; i++) {
+        const m = parseFloat(document.getElementById(`in-m-${i}`).value)||1;
+        const pos = new THREE.Vector3(
+            parseFloat(document.getElementById(`px-${i}`).value)||0,
+            parseFloat(document.getElementById(`py-${i}`).value)||0,
+            parseFloat(document.getElementById(`pz-${i}`).value)||0
+        );
+        const vel = new THREE.Vector3(
+            parseFloat(document.getElementById(`vx-${i}`).value)||0,
+            parseFloat(document.getElementById(`vy-${i}`).value)||0,
+            parseFloat(document.getElementById(`vz-${i}`).value)||0
+        );
+
+        const radius = Math.pow(m, 1/3) * RADIUS_SCALE;
+
+        // Mesh (Більш яскравий)
+        const geo = new THREE.SphereGeometry(1, 32, 32);
+        const mat = new THREE.MeshStandardMaterial({ 
+            color: COLORS[i], 
+            roughness: 0.2, 
+            metalness: 0.1,
+            emissive: COLORS[i], // Світиться власним кольором
+            emissiveIntensity: 0.5 
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.scale.setScalar(radius);
+        mesh.position.copy(pos);
+        scene.add(mesh);
+
+        // Trail
+        const trailGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(TRAIL_LEN * 3);
+        for(let k=0; k<TRAIL_LEN; k++) {
+            positions[k*3] = pos.x; positions[k*3+1] = pos.y; positions[k*3+2] = pos.z;
+        }
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const trailMat = new THREE.LineBasicMaterial({ color: COLORS[i], opacity: 0.5, transparent: true });
+        const trail = new THREE.Line(trailGeo, trailMat);
+		// --- ВАЖЛИВО: Вимикаємо Frustum Culling, щоб хвіст не зникав ---
+        trail.frustumCulled = false;
+        scene.add(trail);
+        
+        // Arrow Helper
+        // Створюємо стрілку, напрямок нормалізуємо, довжину поставимо потім
+        const arrow = new THREE.ArrowHelper(vel.clone().normalize(), pos, 1, COLORS[i]);
+        scene.add(arrow);
+
+        bodies.push({ mesh, trail, arrow, mass: m, pos, vel, radius });
+        
+        // Одразу оновлюємо стан стрілки
+        updateArrow(bodies[bodies.length-1]);
+    }
+}
+
+function updateArrow(b) {
+    if (isRunning) {
+        b.arrow.visible = false;
+    } else {
+        const len = b.vel.length();
+        // Показуємо стрілку якщо швидкість не нульова (або дуже мала)
+        if (len > 0.001) {
+            b.arrow.visible = true;
+            b.arrow.position.copy(b.pos);
+            b.arrow.setDirection(b.vel.clone().normalize());
+            // Довжина стрілки пропорційна швидкості + радіус тіла
+            b.arrow.setLength(len * 1.5 + b.radius, b.radius * 1.5, b.radius * 0.5);
+        } else {
+            b.arrow.visible = false;
+        }
+    }
+}
+
+
+// --- PHYSICS (RK4) ---
+
+function getAcc(p, m) {
+    let acc = p.map(() => new THREE.Vector3());
+    for(let i=0; i<3; i++) {
+        for(let j=0; j<3; j++) {
+            if(i===j) continue;
+            let r = new THREE.Vector3().subVectors(p[j], p[i]);
+            let d = r.length();
+            if (d < (bodies[i].radius + bodies[j].radius)*0.8) throw "COLLISION";
+            let f = (G * m[j]) / (d*d*d);
+            acc[i].add(r.multiplyScalar(f));
+        }
+    }
+    return acc;
+}
+
+function stepRK4(stepDt) {
+    try {
+        let p = bodies.map(b => b.pos.clone());
+        let v = bodies.map(b => b.vel.clone());
+        let m = bodies.map(b => b.mass);
+
+        let a0 = getAcc(p, m);
+        
+        let p1 = p.map((val, i) => val.clone().add(v[i].clone().multiplyScalar(stepDt*0.5)));
+        let v1 = v.map((val, i) => val.clone().add(a0[i].clone().multiplyScalar(stepDt*0.5)));
+        let a1 = getAcc(p1, m);
+
+        let p2 = p.map((val, i) => val.clone().add(v1[i].clone().multiplyScalar(stepDt*0.5)));
+        let v2 = v.map((val, i) => val.clone().add(a1[i].clone().multiplyScalar(stepDt*0.5)));
+        let a2 = getAcc(p2, m);
+
+        let p3 = p.map((val, i) => val.clone().add(v2[i].clone().multiplyScalar(stepDt)));
+        let v3 = v.map((val, i) => val.clone().add(a2[i].clone().multiplyScalar(stepDt)));
+        let a3 = getAcc(p3, m);
+
+        for(let i=0; i<3; i++) {
+            let dv = a0[i].add(a1[i].multiplyScalar(2)).add(a2[i].multiplyScalar(2)).add(a3[i]);
+            bodies[i].vel.add(dv.multiplyScalar(stepDt/6));
+            
+            let dp = v[i].add(v1[i].multiplyScalar(2)).add(v2[i].multiplyScalar(2)).add(v3[i]);
+            bodies[i].pos.add(dp.multiplyScalar(stepDt/6));
+
+            bodies[i].mesh.position.copy(bodies[i].pos);
+            updateTrail(bodies[i]);
+        }
+        time += stepDt;
+        return true;
+    } catch(e) {
+        if(e === "COLLISION") {
+            stopSim();
+            document.getElementById('crash-alert').style.display = 'block';
+        }
+        return false;
+    }
+}
+
+function updateTrail(b) {
+    const posAttr = b.trail.geometry.attributes.position;
+    const arr = posAttr.array;
+    for(let i=0; i < (TRAIL_LEN-1)*3; i++) arr[i] = arr[i+3];
+    const idx = (TRAIL_LEN-1)*3;
+    arr[idx] = b.pos.x; arr[idx+1] = b.pos.y; arr[idx+2] = b.pos.z;
+    posAttr.needsUpdate = true;
+}
+
+// --- LOOP ---
+
+function toggleSim() {
+    if (isRunning) stopSim();
+    else {
+        try { getAcc(bodies.map(b=>b.pos), bodies.map(b=>b.mass)); isRunning=true; document.getElementById('btn-run').innerText="⏸ Пауза"; }
+        catch(e) { alert("Старт неможливий: тіла перетинаються"); }
+        
+        // Ховаємо стрілки при старті
+        bodies.forEach(b => updateArrow(b));
+    }
+}
+function stopSim() {
+    isRunning = false;
+    document.getElementById('btn-run').innerText = "▶ Старт";
+    // Показуємо стрілки при стопі
+    bodies.forEach(b => updateArrow(b));
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (isRunning) {
+        let steps = Math.ceil(timeScale); 
+        let subDt = (dt * timeScale) / steps;
+        for(let k=0; k<steps; k++) {
+            if(!stepRK4(subDt)) break;
+        }
+        document.getElementById('sim-time').innerText = time.toFixed(2);
+    }
+
+    // CoM Logic
+    if(followCoM && bodies.length > 0) {
+        let com = new THREE.Vector3(0,0,0);
+        let totalM = 0;
+        bodies.forEach(b => {
+            com.add(b.pos.clone().multiplyScalar(b.mass));
+            totalM += b.mass;
+        });
+        com.divideScalar(totalM);
+        controls.target.lerp(com, 0.1); 
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+function onResize() {
+    const c = document.getElementById('canvas-container');
+    camera.aspect = c.clientWidth / c.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(c.clientWidth, c.clientHeight);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
