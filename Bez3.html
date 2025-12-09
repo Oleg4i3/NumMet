@@ -501,13 +501,13 @@ const SplineEditor = {
                 {x: 743, y: 152},  // P3 Anchor (Ніс)
 
                 // 2. Капот -> Бампер
-                {x: 752, y: 200},  // Handle Out (approx)
+                {x: 752, y: 270},  // Handle Out (approx)
                 {x: 752, y: 220},  // Handle In
                 {x: 680, y: 267},  // Anchor (Перед колісною аркою)
 
                 // 3. Арка переднього колеса (виріз)
-                {x: 645, y: 200},  // Handle Out (вгору)
-                {x: 570, y: 200},  // Handle In
+                {x: 680, y: 200},  // Handle Out (вгору)
+                {x: 535, y: 200},  // Handle In
                 {x: 535, y: 267},  // Anchor (За аркою)
 
                 // 4. Днище (Пряма лінія -> робимо важелі на тій же Y)
@@ -516,13 +516,13 @@ const SplineEditor = {
                 {x: 176, y: 267},  // Anchor (Перед задньою аркою)
 
                 // 5. Арка заднього колеса
-                {x: 146, y: 200},  // Handle Out
+                {x: 176, y: 200},  // Handle Out
                 {x: 70, y: 200},   // Handle In
                 {x: 40, y: 262},   // Anchor (Задній бампер низ)
 
                 // 6. Багажник -> Дах (Замикаємо)
-                {x: 30, y: 200},   // Handle Out
-                {x: 100, y: 73},   // Handle In
+                {x: 40, y: 150},   // Handle Out
+                {x: 30, y: 200},   // Handle In
                 {x: 310, y: 73}    // Anchor (Повернення на дах)
             ];
             
@@ -664,8 +664,7 @@ function switchTab(id) {
         SingleCurve.resize();
     } else {
         SplineEditor.resize();
-        // ДОДАНО: Примусово завантажуємо машину, щоб вона перерахувала 
-        // свої координати під реальну ширину відкритої вкладки
+        
         SplineEditor.loadPreset('heart'); 
     }
 }
