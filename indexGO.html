@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Симуляція орбіт супутників</title>
+  
+  <!-- Підключення MathJax для рендерингу LaTeX-формул, включаючи матриці -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+ 
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h3> Оптимізація зони покриття супутників методом імітації відпалу</h3>
+  
+  <details>
+    <summary>Теоретична довідка</summary>
+  
+  
+  <div class="section">
+    <h2>Метод оптимізації</h2>
+    <p>Оптимізація конфігурації супутників (довготи висхідного вузла, початкової фази, нахилу орбіти) є складною задачею, оскільки цільова функція (час до досягнення цільового покриття) є нелінійною, мультимодальною та має численні локальні мінімуми. Нижче розглянуто вибір методу оптимізації, альтернативи, їх переваги та недоліки.</p>
+
+    <h3>Чому не градієнтні методи?</h3>
+    <p>Градієнтні методи, такі як градієнтний спуск, ефективні для гладких, унімодальних функцій із відомими похідними. Однак у цій задачі:</p>
+    <ul>
+      <li>Цільова функція (час покриття) не має аналітичного виразу для обчислення градієнта.</li>
+      <li>Функція є мультимодальною, тобто має багато локальних мінімумів, що призводить до застрягання градієнтних методів у локальних оптимумах.</li>
+      <li>Обчислення чисельного градієнта вимагає значних обчислювальних ресурсів, оскільки потрібні численні оцінки функції в сусідніх точках.</li>
+    </ul>
+    <p>Таким чином, градієнтні методи не підходять для цієї задачі через складність цільової функції та потребу в глобальній оптимізації.</p>
+
+    <h3>Вибір глобальної оптимізації</h3>
+    <p>Для пошуку глобального оптимуму в мультимодальному просторі параметрів необхідні методи глобальної оптимізації. Основні альтернативи:</p>
+    <ul>
+      <li><strong>Генетичні алгоритми</strong>:
+        <ul>
+          <li><strong>Переваги</strong>: Ефективні для мультимодальних функцій, дозволяють паралельне дослідження простору параметрів, відносно прості в реалізації.</li>
+          <li><strong>Недоліки</strong>: Вимагають налаштування багатьох параметрів (розмір популяції, ймовірність мутації, кросовер), можуть бути повільними через велику кількість ітерацій, не завжди гарантують збіжність до глобального оптимуму.</li>
+        </ul>
+      </li>
+      <li><strong>Метод рою часток (Particle Swarm Optimization)</strong>:
+        <ul>
+          <li><strong>Переваги</strong>: Простий у реалізації, ефективний для безперервних просторів, швидше за генетичні алгоритми в деяких задачах.</li>
+          <li><strong>Недоліки</strong>: Може застрягати в локальних мінімумах, чутливий до початкових умов і параметрів (швидкість часток, інерція).</li>
+        </ul>
+      </li>
+      <li><strong>Імітація відпалу (Simulated Annealing)</strong>:
+        <ul>
+          <li><strong>Переваги</strong>: Простий у реалізації, ефективний для мультимодальних функцій, дозволяє уникати локальних мінімумів завдяки механізму "стрибків" на ранніх ітераціях, потребує менше параметрів налаштування.</li>
+          <li><strong>Недоліки</strong>: Може бути повільним для дуже великих просторів параметрів, ефективність залежить від вибору початкової температури та швидкості охолодження.</li>
+        </ul>
+      </li>
+      <li><strong>Випадковий пошук</strong>:
+        <ul>
+          <li><strong>Переваги</strong>: Дуже простий, не потребує налаштувань.</li>
+          <li><strong>Недоліки</strong>: Низька ефективність, не гарантує знаходження навіть локального оптимуму за розумний час.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>Чому обрано імітацію відпалу?</h3>
+    <p>Метод імітації відпалу було обрано з таких причин:</p>
+    <ul>
+      <li><strong>Простота реалізації</strong>: Алгоритм потребує лише трьох основних параметрів (початкова температура, швидкість охолодження, максимальна кількість ітерацій), що спрощує його налаштування порівняно з генетичними алгоритмами.</li>
+      <li><strong>Ефективність для мультимодальних функцій</strong>: Механізм випадкових стрибків на високих температурах дозволяє досліджувати різні регіони простору параметрів, уникаючи локальних мінімумів.</li>
+      <li><strong>Гнучкість</strong>: Метод легко адаптується до змін у моделі, наприклад, додавання нових параметрів оптимізації (кут нахилу, ексцентриситет).</li>
+      <li><strong>Обчислювальна ефективність</strong>: Для задачі з кількома супутниками (до 10) і відносно невеликим простором параметрів метод забезпечує розумну швидкість збіжності.</li>
+    </ul>
+    <p>Недоліки, такі як залежність від параметрів температури, мінімізуються шляхом їх інтерактивного налаштування через інтерфейс користувача.</p>
+
+    <h3>Опис методу імітації відпалу</h3>
+    <p>Імітація відпалу (Simulated Annealing) імітує процес охолодження металу, де частинки поступово втрачають енергію, досягаючи стану з мінімальною енергією. У контексті оптимізації:</p>
+    <ul>
+      <li><strong>Цільова функція</strong>: Час до досягнення цільового відсотка покриття земної поверхні.</li>
+      <li><strong>Параметри</strong>: Довгота висхідного вузла (\( \Omega \)), початкова фаза (\( \phi_0 \)) для кожного супутника та нахил орбіти (\( i \)).</li>
+      <li><strong>Алгоритм</strong>:
+        <ol>
+          <li>Ініціалізація початкового стану (випадкові \( \Omega \), \( \phi_0 \), \( i \)) та температури (\( T_0 \)).</li>
+          <li>На кожній ітерації:
+            <ul>
+              <li>Генерується новий стан шляхом випадкової зміни одного параметра (наприклад, \( \Omega_i \to \Omega_i + \Delta \), де \( \Delta \) — випадкове зміщення).</li>
+              <li>Обчислюється нова цільова функція (\( E_{\text{new}} \)) і різниця з поточною (\( \Delta E = E_{\text{new}} - E_{\text{current}} \)).</li>
+              <li>Новий стан приймається, якщо \( \Delta E \leq 0 \) або з імовірністю \( \exp(-\Delta E / T) \), що дозволяє "стрибки" до гірших рішень на високих температурах.</li>
+            </ul>
+          </li>
+          <li>Температура знижується за законом \( T \to T \cdot \alpha \), де \( \alpha \) — швидкість охолодження (наприклад, 0.95).</li>
+          <li>Процес триває, поки \( T > T_{\text{min}} \) або не досягнуто максимальної кількості ітерацій.</li>
+        </ol>
+      </li>
+      <li><strong>Результат</strong>: Найкращий знайдений стан (конфігурація супутників) із мінімальним часом покриття.</li>
+    </ul>
+    <p>У симуляторі користувач може налаштувати \( T_0 \) (початкова температура, за замовчуванням 100), \( \alpha \) (швидкість охолодження, 0.95) та максимальну кількість ітерацій (500), що забезпечує гнучкість у балансуванні між швидкістю та якістю оптимізації.</p>
+  </div>
+  
+  <div class="section">
+  
+    <h2>Математичні моделі та формули</h2>
+   
+    <h3>1. Період орбітального руху</h3>
+    <div class="math mathjax-container">
+      <p>Період обертання супутника навколо Землі розраховується за третім законом Кеплера:</p>
+      <p>\[ T = 2\pi \sqrt{\frac{r^3}{GM}} \]</p>
+      <p>де:</p>
+      <ul>
+        <li>\( T \) — період обертання (с),</li>
+        <li>\( r = R_{\text{earth}} + h \) — відстань від центру Землі до супутника (м), де \( R_{\text{earth}} = 6371 \, \text{км} \) — радіус Землі, \( h \) — висота орбіти (км),</li>
+        <li>\( G = 6.67430 \times 10^{-11} \, \text{м}^3 \text{кг}^{-1} \text{с}^{-2} \) — гравітаційна стала,</li>
+        <li>\( M = 5.972 \times 10^{24} \, \text{кг} \) — маса Землі.</li>
+      </ul>
+      <p>Ця формула дозволяє визначити, скільки часу потрібно супутнику для одного повного оберту навколо Землі.</p>
+    </div>
+
+    <h3>2. Радіус зони покриття</h3>
+    <div class="math mathjax-container">
+      <p>Радіус зони покриття на поверхні Землі залежить від висоти орбіти та мінімального кута підйому (\(\epsilon\)):</p>
+      <p>\[ \cos(\rho + \epsilon) = \frac{R_{\text{earth}}}{r} \cos(\epsilon) \]</p>
+      <p>\[ \rho = \arccos\left(\frac{R_{\text{earth}}}{r} \cos(\epsilon)\right) - \epsilon \]</p>
+      <p>\[ \gamma = \arcsin\left(\frac{r}{R_{\text{earth}}} \sin(\rho)\right) \]</p>
+      <p>\[ R_{\text{cov}} = R_{\text{earth}} \gamma \]</p>
+      <p>де:</p>
+      <ul>
+        <li>\( \epsilon \) — мінімальний кут підйому (рад),</li>
+        <li>\( \rho \) — кутовий радіус конуса видимості супутника,</li>
+        <li>\( \gamma \) — кутовий радіус зони покриття на поверхні Землі,</li>
+        <li>\( R_{\text{cov}} \) — лінійний радіус зони покриття (км),</li>
+        <li>\( r = R_{\text{earth}} + h \) — відстань від центру Землі до супутника (км).</li>
+      </ul>
+      <p>Ця модель визначає область на поверхні Землі, яку може спостерігати супутник за заданим мінімальним кутом підйому.</p>
+    </div>
+
+    <h3>3. Рівняння орбіт та їх перетворення</h3>
+    <div class="math mathjax-container">
+      <p>Положення супутника в орбітальній площині задається у двовимірних координатах як вектор:</p>
+      <p>\[ \mathbf{r}_{\text{orb}} = \begin{pmatrix} x_{\text{orb}} \\ y_{\text{orb}} \end{pmatrix} = \begin{pmatrix} r \cos(\theta) \\ r \sin(\theta) \end{pmatrix} \]</p>
+      <p>де:</p>
+      <ul>
+        <li>\( r = R_{\text{earth}} + h \) — радіус орбіти,</li>
+        <li>\( \theta = \omega t + \phi_0 \) — кутова фаза, де \( \omega = \frac{2\pi}{T} \) — кутова швидкість, \( \phi_0 \) — початкова фаза, \( t \) — час.</li>
+      </ul>
+      <p>Для переходу в тривимірну інерціальну систему (зоряну) застосовується матриця обертання, що враховує нахил орбіти (\( i \)) та довготу висхідного вузла (\( \Omega \)). Координати в зоряній системі:</p>
+      <p>\[ \mathbf{r} = \begin{pmatrix} x \\ y \\ z \end{pmatrix} = \mathbf{R}_{\Omega} \mathbf{R}_i \begin{pmatrix} x_{\text{orb}} \\ y_{\text{orb}} \\ 0 \end{pmatrix} \]</p>
+      <p>де матриці обертання:</p>
+      <p>\[ \mathbf{R}_{\Omega} = \begin{pmatrix} \cos(\Omega) & -\sin(\Omega) & 0 \\ \sin(\Omega) & \cos(\Omega) & 0 \\ 0 & 0 & 1 \end{pmatrix}, \quad \mathbf{R}_i = \begin{pmatrix} 1 & 0 & 0 \\ 0 & \cos(i) & -\sin(i) \\ 0 & \sin(i) & \cos(i) \end{pmatrix} \]</p>
+      <p>Повна матриця перетворення:</p>
+      <p>\[ \mathbf{R} = \mathbf{R}_{\Omega} \mathbf{R}_i = \begin{pmatrix} \cos(\Omega) & -\sin(\Omega) \cos(i) & \sin(\Omega) \sin(i) \\ \sin(\Omega) & \cos(\Omega) \cos(i) & -\cos(\Omega) \sin(i) \\ 0 & \sin(i) & \cos(i) \end{pmatrix} \]</p>
+      <p>Таким чином:</p>
+      <p>\[ \begin{pmatrix} x \\ y \\ z \end{pmatrix} = \begin{pmatrix} \cos(\Omega) & -\sin(\Omega) \cos(i) & \sin(\Omega) \sin(i) \\ \sin(\Omega) & \cos(\Omega) \cos(i) & -\cos(\Omega) \sin(i) \\ 0 & \sin(i) & \cos(i) \end{pmatrix} \begin{pmatrix} r \cos(\theta) \\ r \sin(\theta) \\ 0 \end{pmatrix} \]</p>
+      <p>У земній системі відліку враховується обертання Землі з кутовою швидкістю \( \omega_{\text{earth}} = \frac{2\pi}{T_{\text{earth}}} \), де \( T_{\text{earth}} = 86164.1 \, \text{с} \) (зоряна доба). Координати в земній системі:</p>
+      <p>\[ \mathbf{r}_e = \begin{pmatrix} x_e \\ y_e \\ z_e \end{pmatrix} = \mathbf{R}_{\text{earth}}(t) \begin{pmatrix} x \\ y \\ z \end{pmatrix} \]</p>
+      <p>де матриця обертання Землі:</p>
+      <p>\[ \mathbf{R}_{\text{earth}}(t) = \begin{pmatrix} \cos(\omega_{\text{earth}} t) & \sin(\omega_{\text{earth}} t) & 0 \\ -\sin(\omega_{\text{earth}} t) & \cos(\omega_{\text{earth}} t) & 0 \\ 0 & 0 & 1 \end{pmatrix} \]</p>
+      <p>Широта (\( \lambda \)) та довгота (\( \phi \)) супутника в земній системі розраховуються як:</p>
+      <p>\[ \phi = \arctan2(y_e, x_e) \]</p>
+      <p>\[ \lambda = \arctan2\left(z_e, \sqrt{x_e^2 + y_e^2}\right) \]</p>
+      <p>де \( \arctan2 \) — функція, що враховує квадрант.</p>
+      <p>Матрична форма дозволяє компактно описати перетворення координат і полегшує чисельну реалізацію в коді симулятора.</p>
+    </div>
+
+    <h3>4. Перетворення координат у проєкцію Меркатора</h3>
+    <div class="math mathjax-container">
+      <p>Для відображення положення супутника на карті використовується проєкція Меркатора. Координати (\( \lambda \), \( \phi \)) перетворюються на пікселі canvas:</p>
+      <p>\[ p_x = \frac{\phi + 180}{360} \cdot \text{width} \]</p>
+      <p>\[ p_y = \frac{\text{height}}{2} - \frac{\lambda}{180} \cdot \text{height} \]</p>
+      <p>де:</p>
+      <ul>
+        <li>\( \phi \) — довгота (градуси, від -180 до 180),</li>
+        <li>\( \lambda \) — широта (градуси, від -90 до 90),</li>
+        <li>\( \text{width}, \text{height} \) — розміри canvas (пікселі).</li>
+      </ul>
+      <p>Ця проєкція забезпечує коректне відображення траєкторій і зон покриття на плоскій карті.</p>
+    </div>
+
+    <h3>5. Зона покриття (footprint)</h3>
+    <div class="math mathjax-container">
+      <p>Зона покриття супутника на поверхні Землі апроксимується як коло з кутовим радіусом \( \alpha = \frac{R_{\text{cov}}}{R_{\text{earth}}} \). Координати точок на межі зони покриття:</p>
+      <p>\[ \lambda' = \arcsin\left(\sin(\lambda) \cos(\alpha) + \cos(\lambda) \sin(\alpha) \cos(\theta)\right) \]</p>
+      <p>\[ \phi' = \phi + \arctan2\left(\sin(\theta) \sin(\alpha) \cos(\lambda), \cos(\alpha) - \sin(\lambda) \sin(\lambda')\right) \]</p>
+      <p>де:</p>
+      <ul>
+        <li>\( (\lambda, \phi) \) — широта та довгота супутника,</li>
+        <li>\( \alpha \) — кутовий радіус зони покриття,</li>
+        <li>\( \theta \) — азимутальний кут (від 0 до \( 2\pi \)),</li>
+        <li>\( (\lambda', \phi') \) — координати точок на межі зони покриття.</li>
+      </ul>
+      <p>Ці формули дозволяють побудувати полігон зони покриття для відображення на карті.</p>
+    </div>
+
+    <h3>6. Відсоток покриття</h3>
+    <div class="math mathjax-container">
+      <p>Відсоток покриття обчислюється як відношення покритих пікселів до загальної кількості пікселів у заданій зоні (обмеженій максимальною широтою \( \lambda_{\text{max}} \)):</p>
+      <p>\[ \text{Coverage} = \frac{\sum_{\text{covered pixels}} w_i}{\sum_{\text{all pixels}} w_i} \cdot 100\% \]</p>
+      <p>де \( w_i = \cos(\lambda_i) \) — ваговий коефіцієнт, що враховує зменшення площі при наближенні до полюсів.</p>
+      <p>Це дозволяє оцінити, яка частина земної поверхні в межах \( \lambda_{\text{max}} \) покрита супутниками.</p>
+    </div>
+  </div>
+
+
+  </details>
+  
+  <div class="controls">
+    <div class="control-group">
+      <label>Кількість супутників: <input type="number" id="numSatellites" min="1" max="20" value="7"></label>
+      <label>Висота орбіти (км): <input type="range" id="altitude" min="200" max="4000" value="600"> <span id="altValue">800</span></label>
+      <label>Нахил орбіти (градуси): <input type="number" id="inclination" min="0" max="180" step="1" value="65"></label>
+      <label>Дозволити ретроградні орбіти (кути нахилу більше 90): <input type="checkbox" id="allowRetrogradeOrbits"></label>
+    </div>
+    <div class="control-group">
+      <label>Мінімальний кут видимості супутника над горизонтом (градуси): <input type="range" id="elevation" min="0" max="90" value="30"> <span id="elevValue">30</span></label>
+      <label>Цільовий відсоток покриття (%): <input type="number" id="targetCoverage" min="0" max="100" value="94"></label>
+      <label>Максимальна широта цільового покриття (градуси): <input type="number" id="maxLatitude" min="0" max="90" value="80"></label>
+    </div>
+    <div class="control-group">
+      <label>Швидкість симуляції: <input type="range" id="speed" min="1" max="300" value="70"> <span id="speedValue">70</span></label>
+      <label>Показувати зону покриття: <input type="checkbox" id="showCoverage" checked></label>
+      <label>Показувати трасу покриття: <input type="checkbox" id="showCoverageTrace" checked></label>
+      <label>Показувати траєкторії: <input type="checkbox" id="showTracks" checked></label>
+    </div>
+    <div class="control-group" style="background-color: #1d0060; color: white;">
+		<label>Параметри оптимізації</label>
+      <label>Початкова "температура": <input type="number" id="initialTemperature" min="100" max="10000" value="1000"></label>
+      <label>Швидкість "охолодження": <input type="number" id="coolingRate" min="0.9" max="0.999" step="0.001" value="0.95"></label>
+      <label>Максимальна кількість ітерацій: <input type="number" id="maxIterations" min="100" max="2000" value="200"></label>
+    </div>
+    <div class="control-group">
+      <button id="pauseButton">Пауза</button>
+      <button id="clearMapButton">Очистити мапу</button>
+      <button id="optimizeButton" style="background-color: #dd1100; color: white;">Оптимізувати</button>
+
+      <button id="saveConfigButton">Зберегти конфігурацію</button>
+      <button id="loadConfigButton">Завантажити конфігурацію</button>
+      <input type="file" id="loadConfigInput" style="display: none;" accept=".json">
+    </div>
+  </div>
+  <div>
+    <p>Період орбіти: <span id="period">0</span> (--Клік на супутник в режимі паузи виводить додаткові параметри--)</p>
+    <p>Відсоток покриття: <span id="coveragePercent">0</span>%</p>
+    <p>Час до цільового покриття: <span id="timeToTarget">Не досягнуто</span></p>
+    <div id="optimizationProgress">
+      <p>Прогрес оптимізації: <span id="currentIteration">0</span> / <span id="totalIterations">0</span></p>
+      <p>Найкращий час: <span id="bestTime">N/A</span></p>
+      <div class="progress-bar">
+        <div id="progressFill"></div>
+      </div>
+    </div>
+  </div>
+  <canvas id="mapCanvas" width="800" height="400"></canvas>
+  <div id="referenceFrameContainer">
+    <input type="checkbox" id="referenceFrame">
+    <label id="referenceFrameLabel" for="referenceFrame">Зоряна</label>
+  </div>
+  <h2 id="orbitCanvasTitle">Відсутність обертання площини орбіт в інерціальній системі відліку (зоряній)</h2>
+  <canvas id="orbitCanvas" width="800" height="400"></canvas>
+  <div id="satelliteModal">
+    <div class="modal-content">
+      <span class="close">×</span>
+      <div id="satelliteParams"></div>
+      <button id="saveParams">Зберегти</button>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

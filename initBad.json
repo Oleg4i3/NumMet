@@ -1,0 +1,27 @@
+{
+  "numSatellites": 4,
+  "altitude": 914,
+  "inclination": 71,
+  "minElevation": 19,
+  "targetCoverage": 90,
+  "maxLatitude": 56,
+  "speed": 71,
+  "satellites": [
+    {
+      "raan": 89.99090812966476,
+      "initialPhase": 38.55892219621731
+    },
+    {
+      "raan": 38.38988897667724,
+      "initialPhase": 9.873791937113019
+    },
+    {
+      "raan": 48.67399315330016,
+      "initialPhase": 337.4444585630608
+    },
+    {
+      "raan": 9.520374109267902,
+      "initialPhase": 35.35318584522748
+    }
+  ]
+}
