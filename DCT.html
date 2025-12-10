@@ -196,45 +196,102 @@
             }
             .comparison-title { color: #FFC107; font-weight: bold; margin-bottom: 10px; display: block; }
         </style>
-		<p  style="text-align:left"> Дискретне косинусне перетворення (DCT) - це приклад розкладання вектора (фрагменту звука, зображення, відео) в ортогональному базисі косинусів.
-		Косинуси різних частот (гармоніки) ортогональні на спільному періоді. Завдання: доведіть це.
-        </p>
-        <h3 style="margin-top: 0; color: #fff; font-weight: 300;">1. Пряме перетворення (Analysis)</h3>
-        <p  style="text-align:left">
-            Перетворення масиву <span class="math-font"><span class="math-vec">x</span></span> (часовий домен) у масив коефіцієнтів <span class="math-font"><span class="math-vec">X</span></span> (частотний домен).<br>
-            Це операція <b>скалярного добутку</b> вхідного сигналу на базисні функції косинуса.
-        </p>
-        
-        <div class="math-block">
-            <span class="math-var">X</span>[<span class="math-var">k</span>] = 
-            <span class="math-var">c</span>[<span class="math-var">k</span>]
-            <span class="sum-symbol">∑</span><span class="sub" style="margin-right:5px">n=0</span><span class="sup" style="margin-left:-15px">N-1</span>
-            <span class="math-var">x</span>[<span class="math-var">n</span>] ⋅ 
-            cos<span style="font-size:1.2em">(</span>
-            <div class="fraction">
-                <span>π</span>
-                <span class="bottom"><span class="math-var">N</span></span>
-            </div>
-            (<span class="math-var">n</span> + <span class="fraction"><span>1</span><span class="bottom">2</span></span>) <span class="math-var">k</span>
-            <span style="font-size:1.2em">)</span>
-        </div>
-        
-        <div style="font-size: 0.9em; color: #aaa; margin-bottom: 20px;">
-            Де <span class="math-font"><span class="math-var">N</span></span> — кількість відліків, а <span class="math-font"><span class="math-var">c</span>[<span class="math-var">k</span>]</span> — нормувальний множник (щоб зберегти енергію сигналу).
-        </div>
-
-        <h3 style="margin-top: 20px; color: #fff; font-weight: 300;">2. Зворотне перетворення (Synthesis)</h3>
+		
+      
+	   <h3>1. Апроксимація в ортогональному базисі</h3>
         <p>
-            Відновлення сигналу шляхом <b>зваженої суми</b> базисних хвиль. Кожен коефіцієнт <span class="math-font"><span class="math-var">X</span>[<span class="math-var">k</span>]</span> виступає "вагою" для відповідної частоти.
+            З точки зору чисельного аналізу, аудіосигнал — це дискретна функція (вектор). Подібно до того, як <b>ряд Тейлора</b> наближає функцію через суму степеневих одночленів (1, <i>x</i>, <i>x</i><sup>2</sup>...), кодеки (MP3, AAC) виконують розклад за іншою системою функцій — тригонометричною.
         </p>
-
-        <div class="math-block">
-            <span class="math-var">x</span>[<span class="math-var">n</span>] = 
-            <span class="sum-symbol">∑</span><span class="sub" style="margin-right:5px">k=0</span><span class="sup" style="margin-left:-15px">N-1</span>
-            <span class="math-var">c</span>[<span class="math-var">k</span>]
-            <span class="math-var">X</span>[<span class="math-var">k</span>] ⋅ 
-            cos<span style="font-size:1.2em">(</span>...<span style="font-size:1.2em">)</span>
+        <p>
+            Замість рядів Фур'є тут використовується <b>MDCT (Модифіковане Дискретне Косинусне Перетворення)</b>. Це перехід від представлення сигналу в "часовому базисі" (амплітуди <i>x<sub>n</sub></i>) до представлення в "частотному базисі" (коефіцієнти <i>X<sub>k</sub></i>).
+        </p>
+        
+        <div style="background:#222; padding:15px; border-left:3px solid var(--accent); margin: 15px 0; overflow-x: auto;">
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" style="font-family: 'Times New Roman', serif; font-size: 1.2rem; color: #e0e0e0;">
+                <msub>
+                    <mi>X</mi>
+                    <mi>k</mi>
+                </msub>
+                <mo>=</mo>
+                <munderover>
+                    <mo>&sum;</mo>
+                    <mrow>
+                        <mi>n</mi>
+                        <mo>=</mo>
+                        <mn>0</mn>
+                    </mrow>
+                    <mrow>
+                        <mi>N</mi>
+                        <mo>-</mo>
+                        <mn>1</mn>
+                    </mrow>
+                </munderover>
+                <msub>
+                    <mi>x</mi>
+                    <mi>n</mi>
+                </msub>
+                <mo>&sdot;</mo>
+                <mi>cos</mi>
+                <mfenced open="[" close="]">
+                    <mrow>
+                        <mfrac>
+                            <mi>&pi;</mi>
+                            <mi>N</mi>
+                        </mfrac>
+                        <mfenced>
+                            <mrow>
+                                <mi>n</mi>
+                                <mo>+</mo>
+                                <mfrac>
+                                    <mn>1</mn>
+                                    <mn>2</mn>
+                                </mfrac>
+                                <mo>+</mo>
+                                <mfrac>
+                                    <mi>N</mi>
+                                    <mn>2</mn>
+                                </mfrac>
+                            </mrow>
+                        </mfenced>
+                        <mfenced>
+                            <mrow>
+                                <mi>k</mi>
+                                <mo>+</mo>
+                                <mfrac>
+                                    <mn>1</mn>
+                                    <mn>2</mn>
+                                </mfrac>
+                            </mrow>
+                        </mfenced>
+                    </mrow>
+                </mfenced>
+            </math>
         </div>
+
+        <h3>2. Ортогональність та Проекції</h3>
+        <p>
+            Чому саме косинуси? Набір функцій <i>cos(...)</i> у формулі вище утворює <b>ортогональний базис</b>. Це аналог базисних векторів 
+            <math display="inline"><mover><mi>i</mi><mo>&rarr;</mo></mover></math>, 
+            <math display="inline"><mover><mi>j</mi><mo>&rarr;</mo></mover></math>, 
+            <math display="inline"><mover><mi>k</mi><mo>&rarr;</mo></mover></math> 
+            у тривимірному просторі, але у просторі розмірності <i>N</i>.
+        </p>
+        <ul>
+            <li>
+                <b>Скалярний добуток:</b> Формула вище є фактично скалярним добутком вхідного вектора сигналу 
+                <math display="inline"><mover><mi>x</mi><mo>&rarr;</mo></mover></math> 
+                на <i>k</i>-й базисний вектор.
+            </li>
+            <li>
+                <b>Властивість ортогональності:</b> Скалярний добуток двох різних базисних косинусів дорівнює нулю. Це гарантує, що коефіцієнти <i>X<sub>k</sub></i> незалежні один від одного. Ми можемо обчислювати або змінювати один коефіцієнт, не впливаючи на інші.
+            </li>
+            <li>
+                <b>Найкраще наближення:</b> Якщо ми вирішимо відкинути частину базисних векторів (занулити частину <i>X<sub>k</sub></i>), то похибка апроксимації буде мінімальною в сенсі методу найменших квадратів.
+            </li>
+        </ul>
+	  
+	  
+	  
 		<p  style="text-align:left">
             Спектр — це відображення сигналу в іншій системі координат (представлення в новому базисі, або в так званому частотному домені). Те, як він виглядає, залежить від "Ядра" (функції, на яку ми множимо сигнал):
         </p>
