@@ -159,7 +159,7 @@
     </p>
 
 </details>
-   <details style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; margin: 20px 0; width: 100%; max-width: 800px; overflow: hidden;">
+   <details style="background: #1a1a1a; text-align: left; border: 1px solid #333; border-radius: 8px; margin: 20px 0; width: 100%; max-width: 800px; overflow: hidden;">
     <summary style="padding: 15px; cursor: pointer; background: #222; font-weight: bold; color: #00E5FF; user-select: none;">
         Теоретична довідка
     </summary>
@@ -199,77 +199,19 @@
 		
       
 	   <h3>1. Апроксимація в ортогональному базисі</h3>
-        <p>
+        <p style="text-align:left">
             З точки зору чисельного аналізу, аудіосигнал — це дискретна функція (вектор). Подібно до того, як <b>ряд Тейлора</b> наближає функцію через суму степеневих одночленів (1, <i>x</i>, <i>x</i><sup>2</sup>...), кодеки (MP3, AAC) виконують розклад за іншою системою функцій — тригонометричною.
         </p>
-        <p>
-            Замість рядів Фур'є тут використовується <b>MDCT (Модифіковане Дискретне Косинусне Перетворення)</b>. Це перехід від представлення сигналу в "часовому базисі" (амплітуди <i>x<sub>n</sub></i>) до представлення в "частотному базисі" (коефіцієнти <i>X<sub>k</sub></i>).
+        <p style="text-align:left">
+            Тут використовується <b>MDCT (Модифіковане Дискретне Косинусне Перетворення)</b>. Це перехід від представлення сигналу в "часовому базисі" (амплітуди <i>x<sub>n</sub></i>) до представлення в "частотному базисі" (коефіцієнти <i>X<sub>k</sub></i>).
         </p>
         
-        <div style="background:#222; padding:15px; border-left:3px solid var(--accent); margin: 15px 0; overflow-x: auto;">
-            <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" style="font-family: 'Times New Roman', serif; font-size: 1.2rem; color: #e0e0e0;">
-                <msub>
-                    <mi>X</mi>
-                    <mi>k</mi>
-                </msub>
-                <mo>=</mo>
-                <munderover>
-                    <mo>&sum;</mo>
-                    <mrow>
-                        <mi>n</mi>
-                        <mo>=</mo>
-                        <mn>0</mn>
-                    </mrow>
-                    <mrow>
-                        <mi>N</mi>
-                        <mo>-</mo>
-                        <mn>1</mn>
-                    </mrow>
-                </munderover>
-                <msub>
-                    <mi>x</mi>
-                    <mi>n</mi>
-                </msub>
-                <mo>&sdot;</mo>
-                <mi>cos</mi>
-                <mfenced open="[" close="]">
-                    <mrow>
-                        <mfrac>
-                            <mi>&pi;</mi>
-                            <mi>N</mi>
-                        </mfrac>
-                        <mfenced>
-                            <mrow>
-                                <mi>n</mi>
-                                <mo>+</mo>
-                                <mfrac>
-                                    <mn>1</mn>
-                                    <mn>2</mn>
-                                </mfrac>
-                                <mo>+</mo>
-                                <mfrac>
-                                    <mi>N</mi>
-                                    <mn>2</mn>
-                                </mfrac>
-                            </mrow>
-                        </mfenced>
-                        <mfenced>
-                            <mrow>
-                                <mi>k</mi>
-                                <mo>+</mo>
-                                <mfrac>
-                                    <mn>1</mn>
-                                    <mn>2</mn>
-                                </mfrac>
-                            </mrow>
-                        </mfenced>
-                    </mrow>
-                </mfenced>
-            </math>
-        </div>
+        <div style="background: #172554; padding: 15px; border-left:3px solid #ff9800; font-family: 'Times New Roman', serif; font-size: 1.1rem; margin: 15px 0; text-align: center;">
+                        X<sub>k</sub> = &sum;<sub>n=0</sub><sup>N-1</sup> x<sub>n</sub>  cos [&pi;/N (n + 0.5 + N/2)(k + 0.5)]
+                    </div>
 
         <h3>2. Ортогональність та Проекції</h3>
-        <p>
+        <p style="text-align:left">
             Чому саме косинуси? Набір функцій <i>cos(...)</i> у формулі вище утворює <b>ортогональний базис</b>. Це аналог базисних векторів 
             <math display="inline"><mover><mi>i</mi><mo>&rarr;</mo></mover></math>, 
             <math display="inline"><mover><mi>j</mi><mo>&rarr;</mo></mover></math>, 
