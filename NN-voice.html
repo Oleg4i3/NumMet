@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuro-Voice</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root { 
+            --bg: #f8fafc; --panel: #ffffff; --accent: #2563eb; 
+            --text: #1e293b; --text-light: #64748b; --border: #e2e8f0; 
+            --red: #dc2626; --blue: #2563eb; --green: #16a34a; --purple: #9333ea;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { background: #fff; padding: 0 20px; border-bottom: 1px solid var(--border); height: 50px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        h1 { font-size: 1.2rem; color: var(--accent); margin: 0; font-weight: 700; }
+
+        .workspace { display: grid; grid-template-columns: 390px 1fr; height: calc(100vh - 50px); }
+        .sidebar { background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .main-view { display: grid; grid-template-rows: 1.5fr 1fr; background: #f1f5f9; overflow: hidden; }
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--border); }
+        .chart-container { background: #fff; position: relative; width: 100%; height: 100%; }
+
+        .card { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .card-header { position: absolute; top: -10px; left: 10px; background: var(--accent); color: white; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
+        
+        button { width: 100%; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); background: #f1f5f9; color: #94a3b8; }
+        .btn-gen { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; } .btn-gen:hover { background: #cbd5e1; }
+        .btn-train { background: var(--accent); color: #fff; } .btn-train:hover { background: #1d4ed8; }
+        .btn-train.stop { background: var(--red); } .btn-train.stop:hover { background: #b91c1c; }
+        .btn-reset { background: transparent; border: 1px solid var(--red); color: var(--red); } .btn-reset:hover { background: #fef2f2; }
+        
+        .rec-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .rec-chk { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+        .btn-class { flex: 1; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; transition: 0.1s; position: relative; overflow: hidden; margin-bottom: 0;}
+        .btn-class:hover:not(:disabled) { background: #e2e8f0; }
+        .btn-class.recording { animation: pulseRed 1s infinite; border-color: var(--red); background: #fef2f2; color: var(--red); }
+        .btn-class .indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        .lab-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
+        .btn-audio { background: #0f766e; color: #fff; font-size: 0.8rem; } .btn-audio:hover { background: #115e59; }
+        .btn-denoise { background: #7c3aed; color: #fff; font-size: 0.8rem; grid-column: 2 / -1; } .btn-denoise:hover { background: #6d28d9; }
+
+        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin: 5px 0; }
+        .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.2s; }
+        
+        input[type=range] { width: 100%; accent-color: var(--red); margin: 5px 0; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-light); margin-top: 10px;}
+
+        .overlay-label { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #334155; pointer-events: none; z-index: 10; border: 1px solid #e2e8f0; font-weight: bold;}
+        .result-panel { text-align: center; margin-top: 5px; padding: 5px; background: #f1f5f9; border-radius: 6px; border: 1px solid #cbd5e1; transition: background 0.2s; }
+        
+        #net-canvas { width: 100%; height: 120px; background: #0f172a; border-radius: 6px; margin-top: 10px; border: 1px solid #334155; cursor: pointer; transition: transform 0.1s; }
+        #net-canvas:hover { transform: scale(1.02); border-color: var(--accent); }
+        
+        select { width: 100%; padding: 8px; background: #fff; color: #333; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 10px; font-size: 0.85rem; }
+        .param-group { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: var(--accent); font-weight: bold;
+            z-index: 50; backdrop-filter: blur(2px);
+            display: none;
+        }
+
+        /* MODAL */
+        .modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px);
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff; padding: 20px; border-radius: 8px; width: 80%; max-width: 800px;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .matrix-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.8rem; margin-bottom: 20px; }
+        .matrix-table td, .matrix-table th { border: 1px solid #cbd5e1; padding: 4px; text-align: center; }
+        .matrix-table th { background: #f1f5f9; }
+        .close-modal { float: right; font-size: 1.5rem; font-weight: bold; cursor: pointer; color: #64748b; }
+        .close-modal:hover { color: #000; }
+    </style>
+	
+	
+	<style>
+    /* Стилі для теоретичної довідки */
+    details.theory-spoiler {
+        background: #fff; border: 1px solid var(--border);
+        border-radius: 8px; margin: 10px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    details.theory-spoiler summary {
+        padding: 10px 15px; cursor: pointer; font-weight: bold;
+        color: var(--accent); list-style: none; outline: none;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    details.theory-spoiler summary::after { content: '+'; font-size: 1.2rem; }
+    details.theory-spoiler[open] summary::after { content: '-'; }
+    
+    .theory-content {
+        padding: 15px 20px; border-top: 1px solid var(--border);
+        font-size: 0.9rem; line-height: 1.6; color: #334155;
+        max-height: 60vh; overflow-y: auto; /* FIX SCROLLING */
+        background: #f8fafc;
+    }
+    .theory-content h3 { margin-top: 20px; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; }
+    .theory-content h4 { margin-top: 15px; color: #475569; font-weight: 700; }
+    .theory-content ul { padding-left: 20px; }
+    .theory-content li { margin-bottom: 5px; }
+    .math-block { 
+        background: #fff; padding: 10px; border-radius: 6px; 
+        border: 1px solid #e2e8f0; margin: 10px 0; overflow-x: auto; 
+        text-align: center; font-family: 'Times New Roman', serif;
+    }
+    .highlight { color: var(--accent); font-weight: bold; }
+</style>
+	
+	
+	
+	<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: {
+      fontCache: 'global'
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	
+</head>
+<body>
+
+
+<details class="theory-spoiler">
+    <summary>📚 Теоретична Довідка: Нейромережа - автоенкодер</summary>
+    <div class="theory-content">
+        
+        <h3>1. Вступ: Що таке Автоенкодер?</h3>
+        <p>
+            <strong>Автоенкодер (Autoencoder)</strong> — це нейронна мережа, яка навчається ефективно кодувати дані (стискати їх), а потім відновлювати з цього коду. Це метод навчання без вчителя (Unsupervised Learning), оскільки цільовим виходом є сам вхід.
+        </p>
+        <p>Мережа складається з двох частин:</p>
+        <ul>
+            <li><strong>Encoder (Кодувальник):</strong> стискає вхідний вектор $x$ у вектор меншої розмірності $z$ (латентний код).</li>
+            <li><strong>Decoder (Декодувальник):</strong> відновлює вхідні дані $\hat{x}$ з коду $z$.</li>
+        </ul>
+
+        <h3>2. Математична Модель</h3>
+        <p>У нашому симуляторі використовується одношаровий автоенкодер.</p>
+        
+        <h4>Пряме поширення (Forward Propagation)</h4>
+        <p>Нехай вхідний вектор $x \in \mathbb{R}^{n}$ (у нас $n=12$ спектральних смуг).</p>
+        
+        <div class="math-block">
+            $$ z = \sigma(W^{(1)} x + b^{(1)}) $$
+            $$ \hat{x} = \sigma(W^{(2)} z + b^{(2)}) $$
+        </div>
+
+        <p>Де:</p>
+        <ul>
+            <li>$W^{(1)}$ — матриця ваг енкодера розміром $m \times n$ (у нас $2 \times 12$). Ваги визначають, наскільки сильно кожен вхід впливає на кожен нейрон прихованого шару.</li>
+            <li>$b^{(1)}$ — вектор <strong>зсуву (Bias)</strong>. Він дозволяє зміщувати функцію активації вліво/вправо. Без bias мережа могла б проходити лише через початок координат $(0,0)$, що обмежує її гнучкість.</li>
+            <li>$z$ — латентний вектор (прихований стан). У нашому випадку $z \in \mathbb{R}^2$, що дозволяє зобразити його на площині.</li>
+            <li>$\sigma(\cdot)$ — <strong>функція активації</strong>.</li>
+        </ul>
+
+        <h3>3. Функція Активації та Нелінійність</h3>
+        <p>
+            У природі нейрон не просто сумує сигнали, він має поріг збудження і "насичення" (максимальну частоту імпульсів). Щоб змоделювати це, ми використовуємо нелінійну функцію. У нашому коді це <strong>Сигмоїда (Sigmoid)</strong>:
+        </p>
+        <div class="math-block">
+            $$ \sigma(u) = \frac{1}{1 + e^{-u}} $$
+        </div>
+        <p>
+            <strong>Навіщо це потрібно?</strong> Якби ми не використовували $\sigma$, вся мережа $ \hat{x} = W^{(2)}(W^{(1)}x) $ звелася б до однієї лінійної матриці $W = W^{(2)}W^{(1)}$. Нелінійність дозволяє мережі вивчати складні криволінійні структури даних, а не тільки плоскі гіперплощини.
+        </p>
+
+        <h3>4. Зменшення розмірності: PCA та SVD</h3>
+        <p>
+            Наш автоенкодер виконує задачу <strong>зменшення розмірності</strong> (Dimensionality Reduction), перетворюючи 12 параметрів звуку в 2 координати. Існує пряма аналогія з класичною лінійною алгеброю.
+        </p>
+
+        <h4>Аналогія з PCA (Метод Головних Компонентів)</h4>
+        <p>
+            Якщо прибрати функцію активації (зробити мережу лінійною) і використовувати середньоквадратичну помилку (MSE), то автоенкодер навчається виконувати перетворення, еквівалентне PCA. Він знаходить lowrank апроксимацію (тобто підпростір $m$ власних векторів коваріаційної матриці даних).
+        </p>
+
+        <h4>Зв'язок з SVD (Singular Value Decomposition)</h4>
+        <p>
+            Розглянемо матрицю даних $X$, де кожен рядок — це записаний семпл. SVD розкладає її як $X = U \Sigma V^T$.
+            Згідно з теоремою <em>Еккарта-Янга-Мірського</em>, найкраще наближення матриці $X$ рангу $k$ (Low-rank approximation) отримується шляхом усічення SVD до $k$ найбільших сингулярних чисел.
+        </p>
+        <p>
+            Автоенкодер узагальнює цю концепцію на <strong>нелінійний випадок</strong>. Замість плоскої проєкції (як в SVD/PCA), він шукає "викривлену" поверхню (manifold), яка найкраще проходить через хмару даних.
+        </p>
+
+        <h3>5. Навчання: Gradient Descent & Backpropagation</h3>
+        <p>
+            Мета навчання — мінімізувати функцію втрат (Loss Function). Ми використовуємо MSE (Mean Squared Error):
+        </p>
+        <div class="math-block">
+            $$ L = \frac{1}{2} \sum_{i=1}^{n} (x_i - \hat{x}_i)^2 $$
+        </div>
+        
+        <h4>Градієнтний спуск</h4>
+        <p>Ми оновлюємо ваги $W$ і зсуви $b$ ітеративно, рухаючись проти градієнта помилки:</p>
+        <div class="math-block">
+            $$ W_{new} = W_{old} - \eta \cdot \frac{\partial L}{\partial W} $$
+        </div>
+        <p>Де $\eta$ (learning rate) — швидкість навчання.</p>
+
+        <h4>Зворотне поширення помилки (Backpropagation)</h4>
+        <p>
+            Щоб знайти похідні $\frac{\partial L}{\partial W}$, ми використовуємо ланцюгове правило (Chain Rule). Помилка поширюється від виходу до входу:
+        </p>
+        <ol>
+            <li>Обчислюємо помилку виходу: $\delta_{out} = (\hat{x} - x) \cdot \sigma'(\hat{x})$</li>
+            <li>Оновлюємо декодер: $\frac{\partial L}{\partial W^{(2)}} = \delta_{out} \cdot z^T$</li>
+            <li>Передаємо помилку на прихований шар: $\delta_{hidden} = (W^{(2)T} \delta_{out}) \cdot \sigma'(z)$</li>
+            <li>Оновлюємо енкодер: $\frac{\partial L}{\partial W^{(1)}} = \delta_{hidden} \cdot x^T$</li>
+        </ol>
+        
+
+       <h3>6. Застосування Автоенкодерів</h3>
+        <ul>
+            <li><strong>Feature Extraction для Класифікації:</strong> 
+
+[Image of Feature extraction process]
+ Саме це ми робимо в симуляторі. Енкодер вчиться перетворювати складні дані (звук) у компактні ознаки (координати точок), які легко розділити на кластери ("А", "О", "І"). У великих системах (наприклад, розпізнавання облич) енкодер відрізають від декодера і використовують як "очищувач" даних перед класифікатором.</li>
+            <li><strong>Denoising (Прибирання шуму):</strong> Вчимо мережу на парі "Зашумлений вхід" $\to$ "Чистий вихід". У нашому симуляторі це кнопка "Старт Навчання" (ми додаємо шум до даних під час навчання, змушуючи мережу ігнорувати його).</li>
+            <li><strong>Стиснення даних:</strong> Вектор $z$ займає менше пам'яті, ніж $x$. Це основа MP3, JPEG, але тут стиснення залежить від даних (data-specific).</li>
+            <li><strong>Генеративні моделі (VAE):</strong> Створення нових даних шляхом вибору випадкової точки в латентному просторі $z$ і пропуску через декодер.</li>
+        </ul>
+
+        <h3>7. Що відбувається в Симуляторі?</h3>
+        <ol>
+            <li><strong>Input:</strong> Мікрофон захоплює звук $\to$ FFT (спектр) $\to$ Формантний фільтр $\to$ Вектор $x$ (12 чисел).</li>
+            <li><strong>Encoder:</strong> Множимо $x$ на матрицю $W^{(1)}$, додаємо $b^{(1)}$, стискаємо сигмоїдою. Отримуємо координати точки $(z_1, z_2)$.</li>
+            <li><strong>Visualization:</strong> Малюємо цю точку на графіку "Латентний простір".</li>
+            <li><strong>Training:</strong> Якщо натиснуто "Навчання", ми беремо цей вектор, трохи псуємо його шумом, і змушуємо мережу відновити оригінал. Так формуються кластери "А", "О", "І".</li>
+            <li><strong>Classification (Inference):</strong> У режимі тесту ми беремо точку з Encoder і перевіряємо, в чию "зону впливу" (за кольором фону або найближчого центру) вона потрапила.</li>
+        </ol>
+    </div>
+</details>
+</details>
+
+
+<div class="workspace">
+    <div class="sidebar">
+        <div class="card">
+            <div class="card-header">1. Параметри</div>
+            <div style="margin-top: 10px;">
+                <label style="font-size:0.75rem; color:var(--text-light)">Тип входу:</label>
+                <select id="feat-select" onchange="App.changeFeatureType()">
+                    <option value="mel">📊 Mel-Spectrogram (12 смуг)</option>
+                    <option value="formant">🏔 Formants (Dual-Band Search)</option>
+                </select>
+
+                <button class="btn-gen" id="btn-auto-gen" onclick="App.autoGenerate()">🎶 Синтетична генерація</button>
+                
+                <div style="font-size:0.75rem; color:var(--text-light); margin: 15px 0 5px 0; font-weight:bold">Дані для навчання (натисніть і скажіть букву):</div>
+                
+                <div class="rec-row">
+                    <input type="checkbox" class="rec-chk" id="chk-A" checked onchange="App.toggleBtn('A')">
+                    <button class="btn-class" id="btn-rec-A" onclick="App.toggleRec('A')"><span class="indicator" style="background:var(--red)"></span> Запис "А" <span id="cnt-A" style="float:right; opacity:0.5">0</span></button>
+                </div>
+                <div class="rec-row">
+                    <input type="checkbox" class="rec-chk" id="chk-O" checked onchange="App.toggleBtn('O')">
+                    <button class="btn-class" id="btn-rec-O" onclick="App.toggleRec('O')"><span class="indicator" style="background:var(--blue)"></span> Запис "О" <span id="cnt-O" style="float:right; opacity:0.5">0</span></button>
+                </div>
+                <div class="rec-row">
+                    <input type="checkbox" class="rec-chk" id="chk-I" checked onchange="App.toggleBtn('I')">
+                    <button class="btn-class" id="btn-rec-I" onclick="App.toggleRec('I')"><span class="indicator" style="background:var(--green)"></span> Запис "І" <span id="cnt-I" style="float:right; opacity:0.5">0</span></button>
+                </div>
+                <div class="rec-row">
+                    <input type="checkbox" class="rec-chk" id="chk-U" checked onchange="App.toggleBtn('U')">
+                    <button class="btn-class" id="btn-rec-U" onclick="App.toggleRec('U')"><span class="indicator" style="background:var(--purple)"></span> Запис "У" <span id="cnt-U" style="float:right; opacity:0.5">0</span></button>
+                </div>
+
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button onclick="App.clearData()" style="flex:1; background:transparent; border:1px solid #cbd5e1; color:#64748b; font-size:0.75rem">🗑 Видалити</button>
+                    <button class="btn-reset" onclick="App.resetModel()" style="flex:1; font-size:0.75rem">🔄 Скинути все</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">2. Навчання та Візуалізація</div>
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-light); margin-top:5px;">
+                <span>Епохи: <span id="val-epoch">0</span></span>
+                <span>Loss: <span id="val-loss" style="color:var(--accent)">-</span></span>
+            </div>
+            <button class="btn-train" id="btn-train" onclick="App.toggleTrain()">🚀 Старт Навчання</button>
+            <div class="progress-bar"><div class="progress-fill" id="train-prog"></div></div>
+            <div style="font-size:0.7rem; color:#64748b; text-align:center;">Клікніть на граф знизу, щоб побачити ваги</div>
+			
+			<canvas id="net-canvas" width="320" height="120" title="Натисніть, щоб переглянути матриці"></canvas>
+
+            <div class="param-group">
+                <label style="font-size:0.75rem; color:var(--text-light)">Модель границь кластерів:</label>
+                <select id="boundary-select" onchange="App.updateLatentPlot(true)">
+                    <option value="voronoi">📐 Діаграма Вороного (Центроїди)</option>
+                    <option value="density">🌫 Нелінійна (KNN Density)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card" style="flex:1; display:flex; flex-direction:column;">
+            <div class="card-header">3. Розпізнавання</div>
+            <button class="btn-class" id="btn-rec-test" onclick="App.toggleTestRec()" style="margin-top:10px">🎤 Записати ТЕСТ (5 сек)</button>
+            
+            <div class="slider-label"><span>Вхідний Шум</span> <span id="val-noise">0%</span></div>
+            <input type="range" id="slider-noise" min="0" max="100" value="0" oninput="App.setTestNoise(this.value)">
+
+            <div class="slider-label"><span>Згладжування (Avg)</span> <span id="val-smooth">5</span></div>
+            <input type="range" id="slider-smooth" min="1" max="20" value="5" oninput="App.setSmoothing(this.value)">
+
+            <div class="result-panel">
+                <div style="font-size:2rem; font-weight:bold; color:var(--text)" id="res-char">?</div>
+                <div style="font-size:0.75rem; color:var(--text-light)" id="res-conf">Очікування...</div>
+            </div>
+
+          
+            <div class="lab-controls">
+                <button class="btn-audio" onclick="App.playOriginal()">👂 Оригінал (+Шум)</button>
+                <button class="btn-denoise" onclick="App.playReconstructed()">✨ Синтез</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-view">
+        <div class="chart-container" style="border-bottom:1px solid var(--border)">
+            <div class="overlay-label">Латентний простір</div>
+            <div id="loading-overlay">⏳ Обрахунок...</div>
+            <div id="plot-latent" style="width:100%; height:100%"></div>
+        </div>
+        <div class="charts-row">
+            <div class="chart-container">
+                <div class="overlay-label" style="color:#eab308">Вхід (Вектор)</div>
+                <div id="plot-input" style="width:100%; height:100%"></div>
+            </div>
+            <div class="chart-container">
+                <div class="overlay-label" style="color:#16a34a">Вихід нейромережі</div>
+                <div id="plot-output" style="width:100%; height:100%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="weights-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="App.closeModal()">&times;</span>
+        <h2 style="color:var(--text)">Матриці Ваг Нейромережі</h2>
+        
+        <h3>Енкодер (Input -> Latent)</h3>
+        <p>W1 [2 x 12] (Weights) + B1 [2] (Bias)</p>
+        <div id="table-enc"></div>
+
+        <h3>Декодер (Latent -> Output)</h3>
+        <p>W2 [12 x 2] (Weights) + B2 [12] (Bias)</p>
+        <div id="table-dec"></div>
+    </div>
+</div>
+
+<script>
+/* =========================================
+   AUDIO ENGINE
+   ========================================= */
+const AudioSys = {
+    ctx: null,
+    analyser: null,
+    micStreamNode: null, 
+    masterGain: null,
+    noiseBuffer: null,
+    oscillators: [],
+    
+    featureType: 'mel', 
+    INPUT_SIZE: 12,     
+    
+    melCenters: [200, 300, 450, 600, 800, 1000, 1300, 1700, 2200, 2800, 3500, 4500],
+    
+ vowels: {
+        'A': [730, 1090, 2440],
+        'O': [570, 840, 2410],
+        'I': [270, 2290, 3010],
+        'U': [300, 870, 2240]
+    },
+	
+	
+	/*
+	// F - частоти (Гц), G - гучність (0.0 - 1.0)
+    vowels: {
+        'A': { f: [730, 1090, 2440], g: [1.0, 0.5, 0.2] },  // "А" - широка
+        'O': { f: [570, 840, 2410],  g: [1.0, 0.4, 0.15] }, // "О" - глибока
+        'U': { f: [300, 870, 2240],  g: [1.0, 0.3, 0.1] },  // "У" - глуха
+        'I': { f: [270, 2290, 3010], g: [0.9, 0.2, 0.05] }, // "І" - дзвінка (F2 дуже високо)
+        'E': { f: [530, 1840, 2480], g: [1.0, 0.4, 0.15] }  // "Е" - додаємо для комплекту
+    },
+	*/
+	
+	
+    
+    async init() {
+        if(this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.connect(this.ctx.destination);
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 2048; 
+        this.analyser.smoothingTimeConstant = 0.5;
+        this.masterGain.connect(this.analyser);
+
+        const bufSize = this.ctx.sampleRate * 2; 
+        const buffer = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        this.noiseBuffer = buffer;
+    },
+
+    async initMic() {
+        if(this.micStreamNode) return true;
+        try {
+            await this.ctx.resume();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.micStreamNode = this.ctx.createMediaStreamSource(stream);
+            this.micStreamNode.connect(this.analyser);
+            return true;
+        } catch(e) {
+            console.error(e);
+            return false;
+        }
+    },
+
+    // CHANGED: Improved Natural Synth with ADSR & Detune
+    startTone(vowel, freq = 0) {
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        this.stopTone();
+        if(!this.vowels[vowel]) return;
+
+        const basePitch = freq || 130; 
+        const freqs = this.vowels[vowel];
+        const now = this.ctx.currentTime;
+        
+        // Formants
+        freqs.forEach((f, i) => {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(f, now);
+            
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = f;
+            filter.Q.value = 4;
+            
+            const gain = this.ctx.createGain();
+            // ADSR Envelope
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime((1.0 / (i + 1)) * 0.3, now + 0.05); // Attack
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+            this.oscillators.push({osc, gain, type: 'tone'});
+        });
+        
+        // Fundamental Pitch with Detune (Chorus effect)
+        const createFund = (detuneVal) => {
+            const fund = this.ctx.createOscillator();
+            fund.type = 'sawtooth';
+            fund.frequency.value = basePitch;
+            fund.detune.value = detuneVal; 
+            
+            const filter = this.ctx.createBiquadFilter(); // Lowpass to soften buzz
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+
+            const fundGain = this.ctx.createGain();
+            fundGain.gain.setValueAtTime(0, now);
+            fundGain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+
+            fund.connect(filter);
+            filter.connect(fundGain);
+            fundGain.connect(this.masterGain);
+            fund.start();
+            this.oscillators.push({osc: fund, gain: fundGain, type: 'tone'});
+        };
+        createFund(-5);
+        createFund(5);
+    },
+
+    stopTone() {
+        const now = this.ctx.currentTime;
+        this.oscillators.forEach(o => {
+            try {
+                if(o.type === 'vocoder') {
+                     o.source.stop(now + 0.1);
+                } else {
+                     // Release envelope
+                     o.gain.gain.cancelScheduledValues(now);
+                     o.gain.gain.setValueAtTime(o.gain.gain.value, now);
+                     o.gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                     o.osc.stop(now + 0.15);
+                }
+            } catch(e){}
+        });
+        this.oscillators = [];
+    },
+
+    playVowelShot(vowel, duration, pitch) {
+        this.startTone(vowel, pitch);
+        setTimeout(() => this.stopTone(), duration * 1000);
+    },
+
+    playBuffer(buffer, noiseLevel) {
+        if(!buffer) return;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const master = this.ctx.createGain();
+        master.gain.value = 0.8;
+        master.connect(this.ctx.destination);
+        src.connect(master);
+        src.start();
+
+        if(noiseLevel > 0.01) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = this.noiseBuffer;
+            nSrc.loop = true;
+            const nGain = this.ctx.createGain();
+            nGain.gain.value = noiseLevel * 0.5; 
+            nSrc.connect(nGain);
+            nGain.connect(master);
+            nSrc.start();
+            nSrc.stop(this.ctx.currentTime + buffer.duration);
+        }
+    },
+
+    getFeatures() {
+        if(this.featureType === 'mel') return this.getMelFeatures();
+        else return this.getFormantFeatures();
+    },
+
+    getMelFeatures() {
+        const binCount = this.analyser.frequencyBinCount; 
+        const data = new Uint8Array(binCount);
+        this.analyser.getByteFrequencyData(data);
+        const bandWidths = [2, 2, 3, 3, 4, 6, 8, 12, 18, 26, 38, 50]; 
+        const features = [];
+        let currentBin = 2; 
+        for (let i = 0; i < this.INPUT_SIZE; i++) {
+            let sum = 0;
+            const width = bandWidths[i];
+            for (let j = 0; j < width; j++) if (currentBin < binCount) sum += data[currentBin++];
+            let val = (sum / width) / 255;
+            val = Math.log10(1 + 9 * val); 
+            features.push(val);
+        }
+        return features;
+    },
+
+    getFormantFeatures() {
+        const binCount = this.analyser.frequencyBinCount;
+        const data = new Uint8Array(binCount);
+        this.analyser.getByteFrequencyData(data);
+        const nyquist = this.ctx.sampleRate / 2;
+        
+        const smoothed = new Float32Array(binCount);
+        const w = 4;
+        for(let i=w; i<binCount-w; i++) {
+            let sum = 0;
+            for(let k=-w; k<=w; k++) sum += data[i+k];
+            smoothed[i] = sum / (2*w+1);
+        }
+
+        let maxVal1 = 0, maxIdx1 = 0;
+        for(let i=0; i<binCount; i++) {
+            const freq = i * nyquist / binCount;
+            if(freq > 200 && freq < 900) {
+                if(smoothed[i] > maxVal1) { maxVal1 = smoothed[i]; maxIdx1 = i; }
+            }
+        }
+        let maxVal2 = 0, maxIdx2 = 0;
+        for(let i=0; i<binCount; i++) {
+            const freq = i * nyquist / binCount;
+            if(freq > 900 && freq < 3000) {
+                if(smoothed[i] > maxVal2) { maxVal2 = smoothed[i]; maxIdx2 = i; }
+            }
+        }
+
+        const vec = new Array(this.INPUT_SIZE).fill(0);
+        if(maxVal1 > 10) {
+            vec[0] = (maxIdx1 * nyquist / binCount) / 5000;
+            vec[1] = maxVal1 / 255;
+        }
+        if(maxVal2 > 10) {
+            vec[2] = (maxIdx2 * nyquist / binCount) / 5000;
+            vec[3] = maxVal2 / 255;
+        }
+
+        return vec;
+    },
+
+    async recordClip(durationMs) {
+        await this.initMic();
+        const dest = this.ctx.createMediaStreamDestination();
+        this.micStreamNode.connect(dest);
+        const recorder = new MediaRecorder(dest.stream);
+        const chunks = [];
+        return new Promise(resolve => {
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                this.micStreamNode.disconnect(dest); 
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                resolve(audioBuffer);
+            };
+            recorder.start();
+            this.activeRecorder = recorder;
+            setTimeout(() => this.stopRecorder(), durationMs);
+        });
+    },
+    
+    stopRecorder() {
+        if(this.activeRecorder && this.activeRecorder.state === 'recording') {
+            this.activeRecorder.stop();
+        }
+    }
+};
+
+/* =========================================
+   ML ENGINE 
+   ========================================= */
+class Autoencoder {
+    constructor() { 
+        this.inputSize = 12; 
+        this.latentSize = 2;
+        this.reset(); 
+    }
+    
+    reset() {
+        const initLimit = 1.5;
+        this.W1 = this.rand(this.latentSize, this.inputSize, initLimit); 
+        this.b1 = Array(this.latentSize).fill(0);
+        this.W2 = this.rand(this.inputSize, this.latentSize, initLimit); 
+        this.b2 = Array(this.inputSize).fill(0);
+        this.centroids = null; 
+    }
+    
+    rand(r,c, lim) { return Array(r).fill(0).map(()=>Array(c).fill(0).map(()=>(Math.random()*2-1)*lim)); }
+    sigmoid(x) { return 1/(1+Math.exp(-x)); }
+    dsigmoid(y) { return y*(1-y); }
+    
+    forward(x) {
+        const scale = 0.5; 
+        const z = this.b1.map((b,i) => b + x.reduce((a,v,j)=>a+v*this.W1[i][j],0) * scale);
+        const out = this.b2.map((b,i) => this.sigmoid(b + z.reduce((a,v,j)=>a+v*this.W2[i][j],0)));
+        return { z, out };
+    }
+    
+    train(input, target, lr=0.02) { 
+        const {z, out} = this.forward(input);
+        const scale = 0.5;
+        const d_out = out.map((o,i)=>(target[i]-o)*this.dsigmoid(o)); 
+        const d_z = z.map((h,i)=> {
+            let s=0; for(let j=0; j<this.inputSize; j++) s+=d_out[j]*this.W2[j][i];
+            return s; 
+        });
+        
+        for(let i=0; i<this.inputSize; i++) {
+            this.b2[i] += lr*d_out[i];
+            for(let j=0; j<this.latentSize; j++) this.W2[i][j] += lr * d_out[i]*z[j];
+        }
+        for(let i=0; i<this.latentSize; i++) {
+            this.b1[i] += lr*d_z[i];
+            for(let j=0; j<this.inputSize; j++) this.W1[i][j] += lr * d_z[i]*input[j]*scale;
+        }
+        return target.reduce((a,v,i)=>a+(v-out[i])**2,0)/this.inputSize; 
+    }
+
+    computeCentroids(dataset) {
+        const clusters = { 'A':{z:[], spec:[]}, 'O':{z:[], spec:[]}, 'I':{z:[], spec:[]}, 'U':{z:[], spec:[]} };
+        dataset.forEach(d => {
+            if(clusters[d.label]) {
+                clusters[d.label].z.push(this.forward(d.data).z);
+                clusters[d.label].spec.push(d.data);
+            }
+        });
+        this.centroids = {};
+        for(let k in clusters) {
+            if(clusters[k].z.length === 0) continue;
+            const N = clusters[k].z.length;
+            let sx=0, sy=0;
+            clusters[k].z.forEach(p => { sx+=p[0]; sy+=p[1]; });
+            const avgSpec = new Array(this.inputSize).fill(0);
+            clusters[k].spec.forEach(s => {
+                for(let i=0; i<this.inputSize; i++) avgSpec[i] += s[i];
+            });
+            for(let i=0; i<this.inputSize; i++) avgSpec[i] /= N;
+            this.centroids[k] = { coords: [sx/N, sy/N], spectrum: avgSpec };
+        }
+    }
+    
+    predict(z) {
+        if(!this.centroids) return { label: '?', conf: 0 };
+        let minD = Infinity, label = '?';
+        let sumInv = 0;
+        for(let k in this.centroids) {
+            const c = this.centroids[k].coords;
+            const d = Math.sqrt((z[0]-c[0])**2 + (z[1]-c[1])**2);
+            if(d < minD) { minD = d; label = k; }
+            sumInv += 1/(d+0.0001);
+        }
+        const conf = (1/(minD+0.0001)) / sumInv;
+        return { label, conf };
+    }
+
+    predictKNN(z, dataset, k=5) {
+        if(dataset.length === 0) return { label: '?', conf: 0 };
+        const dists = dataset.map(d => {
+            const lat = this.forward(d.data).z;
+            return { 
+                l: d.label, 
+                d: Math.sqrt((z[0]-lat[0])**2 + (z[1]-lat[1])**2) 
+            };
+        });
+        dists.sort((a,b) => a.d - b.d);
+        const top = dists.slice(0, k);
+        const counts = { 'A':0, 'O':0, 'I':0, 'U':0 };
+        top.forEach(t => { if(counts[t.l] !== undefined) counts[t.l]++; });
+        let maxC = 0, label = '?';
+        for(let key in counts) {
+            if(counts[key] > maxC) { maxC = counts[key]; label = key; }
+        }
+        return { label, conf: maxC/k };
+    }
+}
+
+/* =========================================
+   APP LOGIC
+   ========================================= */
+const App = {
+    ae: new Autoencoder(),
+    dataset: [],
+    testSample: { audio: null, features: null, output: null, label: '?' },
+    testHistory: [], 
+    colors: { 'A': '#dc2626', 'O': '#2563eb', 'I': '#16a34a', 'U': '#9333ea' },
+    activeRecLabel: null,
+    testRecActive: false,
+    testNoiseLevel: 0,
+    smoothingFactor: 5, 
+    zBuffer: [], 
+    
+    isTraining: false, // New Training Flag
+
+    async init() {
+        await AudioSys.init();
+        this.initPlots();
+        this.drawNet(); 
+        document.getElementById('net-canvas').addEventListener('click', () => this.showWeightsModal());
+    },
+    
+    changeFeatureType() {
+        const val = document.getElementById('feat-select').value;
+        AudioSys.featureType = val;
+        this.clearData(); 
+        Plotly.relayout('plot-input', { 'xaxis.title': val === 'mel' ? 'Freq Bands' : 'Formants (F1,A1...)' });
+    },
+
+    toggleBtn(label) {
+        const chk = document.getElementById(`chk-${label}`);
+        const btn = document.getElementById(`btn-rec-${label}`);
+        btn.disabled = !chk.checked;
+    },
+
+    // CHANGED: Visualize Weights
+    drawNet() {
+        const cvs = document.getElementById('net-canvas');
+        if(!cvs) return;
+        const ctx = cvs.getContext('2d');
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        
+        const layers = [12, 2, 12]; 
+        const layerX = [30, cvs.width/2, cvs.width - 30];
+        
+        ctx.lineCap = 'round';
+        // Input -> Hidden (W1)
+        for(let i=0; i<layers[0]; i++) {
+            for(let j=0; j<layers[1]; j++) {
+                // Use absolute weight value for opacity
+                const w = Math.abs(this.ae.W1[j][i]); 
+                ctx.beginPath();
+                ctx.moveTo(layerX[0], (i+1)*(cvs.height/(layers[0]+1)));
+                ctx.lineTo(layerX[1], (j+1)*(cvs.height/(layers[1]+1)));
+                ctx.strokeStyle = `rgba(56, 189, 248, ${Math.min(1, w * 0.5 + 0.1)})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        // Hidden -> Output (W2)
+        for(let i=0; i<layers[1]; i++) {
+             for(let j=0; j<layers[2]; j++) {
+                const w = Math.abs(this.ae.W2[j][i]);
+                ctx.beginPath();
+                ctx.moveTo(layerX[1], (i+1)*(cvs.height/(layers[1]+1)));
+                ctx.lineTo(layerX[2], (j+1)*(cvs.height/(layers[2]+1)));
+                ctx.strokeStyle = `rgba(74, 222, 128, ${Math.min(1, w * 0.5 + 0.1)})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        // Nodes
+        layers.forEach((count, lIdx) => {
+            for(let i=0; i<count; i++) {
+                const x = layerX[lIdx];
+                const y = (i+1)*(cvs.height/(count+1));
+                ctx.beginPath();
+                const rad = lIdx === 1 ? 8 : 3; 
+                ctx.arc(x, y, rad, 0, Math.PI*2);
+                ctx.fillStyle = lIdx === 1 ? '#fff' : (lIdx === 0 ? '#38bdf8' : '#4ade80');
+                if(lIdx !== 1) ctx.strokeStyle = '#1e293b';
+                ctx.fill();
+                ctx.stroke();
+            }
+        });
+    },
+
+    autoGenerate() {
+        this.clearData();
+        let tick = 0;
+        const btn = document.getElementById('btn-auto-gen');
+        btn.disabled = true;
+
+        const loop = setInterval(() => {
+            const labels = ['A', 'O', 'I', 'U'];
+            const enabledLabels = labels.filter(l => document.getElementById(`chk-${l}`).checked);
+            
+            if(enabledLabels.length === 0) {
+                 clearInterval(loop);
+                 btn.disabled = false;
+                 return alert("Увімкніть хоча б одну букву!");
+            }
+
+            const l = enabledLabels[Math.floor((tick / 25) % enabledLabels.length)];
+            const pitch = 130 + Math.sin(tick * 0.1) * 10;
+            
+            AudioSys.playVowelShot(l, 0.3, pitch);//0.2
+            
+            setTimeout(() => {
+                const feats = AudioSys.getFeatures();
+                let energy = 0;
+                if(AudioSys.featureType === 'mel') energy = feats.reduce((a,b)=>a+b,0);
+                else energy = feats[1]; 
+
+                if(energy > 0.01) {
+                    this.dataset.push({ label: l, data: feats });
+                    this.updateCounts();
+                    // Just update plot occasionally, don't update net viz (static weights now)
+                    if(this.dataset.length % 10 === 0) this.updateLatentPlot();
+                }
+            }, 50);
+            
+            tick++;
+            if(tick >= enabledLabels.length * 25) {
+                clearInterval(loop);
+                btn.disabled = false;
+                this.updateLatentPlot();
+            }
+        }, 150); 
+    },
+
+    toggleRec(label) {
+        if(document.getElementById(`btn-rec-${label}`).disabled) return;
+        if(this.activeRecLabel === label) this.stopMicRec();
+        else {
+            if(this.activeRecLabel) this.stopMicRec();
+            this.startMicRec(label);
+        }
+    },
+
+    async startMicRec(label) {
+        if(!(await AudioSys.initMic())) return;
+        this.activeRecLabel = label;
+        document.getElementById(`btn-rec-${label}`).classList.add('recording');
+        
+        this.micInterval = setInterval(() => {
+            const feats = AudioSys.getFeatures();
+            let energy = 0;
+            if(AudioSys.featureType === 'mel') energy = feats.reduce((a,b)=>a+b,0);
+            else energy = feats[1]; 
+
+            if(energy > 0.1) { 
+                this.dataset.push({ label: label, data: feats });
+                this.updateCounts();
+                if(this.dataset.length % 5 === 0) this.updateLatentPlot();
+            }
+        }, 50);
+    },
+
+    stopMicRec() {
+        if(!this.activeRecLabel) return;
+        document.getElementById(`btn-rec-${this.activeRecLabel}`).classList.remove('recording');
+        this.activeRecLabel = null;
+        clearInterval(this.micInterval);
+        this.updateCounts();
+        this.updateLatentPlot();
+    },
+
+    updateCounts() {
+        ['A','O','I','U'].forEach(l => document.getElementById(`cnt-${l}`).innerText = this.dataset.filter(d=>d.label===l).length);
+    },
+    
+    clearData() {
+        this.dataset = [];
+        this.updateCounts();
+        this.resetModel();
+    },
+    
+    resetModel() {
+        this.ae.reset();
+        this.updateCounts();
+        this.drawNet();
+        Plotly.restyle('plot-latent', {x:[[],[],[],[]], y:[[],[],[],[]], z:[[]]});
+        document.getElementById('val-loss').innerText = "-";
+        document.getElementById('train-prog').style.width = "0%";
+        document.getElementById('val-epoch').innerText = "0";
+    },
+
+    // CHANGED: Toggle Training with Stagnation
+    toggleTrain() {
+        if(this.isTraining) {
+            this.isTraining = false;
+            document.getElementById('btn-train').innerText = "🚀 Старт Навчання";
+            document.getElementById('btn-train').classList.remove('stop');
+            return;
+        }
+
+        if(this.dataset.length < 5) return alert("Спочатку додайте дані!");
+        
+        this.isTraining = true;
+        const btn = document.getElementById('btn-train');
+        btn.innerText = "🛑 Стоп";
+        btn.classList.add('stop');
+        
+        let ep = 0;
+        let prevLoss = Infinity;
+        let stagnationCounter = 0;
+
+        const loop = () => {
+            if(!this.isTraining) return;
+
+            this.dataset.sort(() => Math.random() - 0.5);
+            let loss = 0;
+            this.dataset.forEach(d => {
+                const noisy = d.data.map(v => Math.max(0, v + (Math.random()-0.5)*0.02));
+                loss += this.ae.train(noisy, d.data, 0.05);
+            });
+            loss /= this.dataset.length;
+            
+            document.getElementById('val-loss').innerText = loss.toFixed(4);
+            document.getElementById('val-epoch').innerText = ep;
+            // Simply pulse the bar
+            document.getElementById('train-prog').style.width = ((ep%100)) + '%';
+            
+            if(ep % 10 === 0) this.updateLatentPlot();
+            
+            // Check Stagnation
+            if(Math.abs(prevLoss - loss) < 0.0001) {
+                stagnationCounter++;
+            } else {
+                stagnationCounter = 0;
+            }
+            prevLoss = loss;
+
+            if(stagnationCounter > 200) {
+                this.toggleTrain(); // Stop automatically
+                this.ae.computeCentroids(this.dataset);
+                this.updateLatentPlot(true);
+                this.drawNet();
+                alert("Навчання завершено (Стагнація)");
+            } else {
+                ep++;
+                requestAnimationFrame(loop);
+            }
+        };
+        loop();
+    },
+
+    toggleTestRec() {
+        if(this.testRecActive) this.stopTestRec();
+        else this.startTestRec();
+    },
+
+    async startTestRec() {
+        if(!(await AudioSys.initMic())) return;
+        this.testRecActive = true;
+        this.testHistory = []; 
+        this.zBuffer = []; 
+        document.getElementById('btn-rec-test').classList.add('recording');
+        document.getElementById('btn-rec-test').innerHTML = "🛑 СТОП";
+        
+        this.testVizInterval = setInterval(() => {
+            const rawFeats = AudioSys.getFeatures();
+            const noisyFeats = rawFeats.map(v => Math.min(1, Math.max(0, v + (Math.random()-0.5) * this.testNoiseLevel)));
+
+            const res = this.ae.forward(noisyFeats);
+            
+            this.zBuffer.push(res.z);
+            if(this.zBuffer.length > this.smoothingFactor) this.zBuffer.shift();
+            
+            let avgZ = [0,0];
+            this.zBuffer.forEach(p => { avgZ[0]+=p[0]; avgZ[1]+=p[1]; });
+            avgZ[0] /= this.zBuffer.length;
+            avgZ[1] /= this.zBuffer.length;
+
+            Plotly.restyle('plot-input', {y: [noisyFeats]});
+            Plotly.restyle('plot-output', {y: [res.out]});
+            Plotly.restyle('plot-latent', { x: [[avgZ[0]]], y: [[avgZ[1]]] }, [2]);
+
+            const pred = this.ae.predict(avgZ);
+            
+            if(pred.conf > 0.4) {
+                 this.testHistory.push(pred.label);
+            } else {
+                 this.testHistory.push('?'); 
+            }
+
+            const elRes = document.getElementById('res-char');
+            elRes.innerText = pred.label;
+            elRes.style.color = this.colors[pred.label] || '#333';
+            document.getElementById('res-conf').innerText = `Впевненість: ${(pred.conf*100).toFixed(0)}%`;
+
+        }, 80);
+
+        // CHANGED: 5 Seconds limit
+        this.testRecordingPromise = AudioSys.recordClip(5000); 
+    },
+
+    async stopTestRec() {
+        if(!this.testRecActive) return;
+        this.testRecActive = false;
+        clearInterval(this.testVizInterval);
+        AudioSys.stopRecorder(); 
+        
+        document.getElementById('btn-rec-test').classList.remove('recording');
+        document.getElementById('btn-rec-test').innerHTML = "🎤 Записати ТЕСТ (5 сек)";
+
+        const buffer = await this.testRecordingPromise;
+        this.testSample.audio = buffer;
+        this.testSample.features = AudioSys.getFeatures(); 
+    },
+
+    setTestNoise(val) {
+        this.testNoiseLevel = val / 100;
+        document.getElementById('val-noise').innerText = val + "%";
+    },
+
+    setSmoothing(val) {
+        this.smoothingFactor = parseInt(val);
+        document.getElementById('val-smooth').innerText = val;
+    },
+
+    playOriginal() { 
+        AudioSys.playBuffer(this.testSample.audio, this.testNoiseLevel); 
+    },
+    
+    async playReconstructed() { 
+        if(this.testHistory.length === 0) return;
+        
+        const segments = [];
+        let current = this.testHistory[0];
+        let count = 1;
+
+        for(let i=1; i<this.testHistory.length; i++) {
+            if(this.testHistory[i] === current) {
+                count++;
+            } else {
+                segments.push({ char: current, dur: count * 0.08 });
+                current = this.testHistory[i];
+                count = 1;
+            }
+        }
+        segments.push({ char: current, dur: count * 0.08 });
+
+        for(let seg of segments) {
+            if(seg.char !== '?' && seg.char !== undefined) {
+                 AudioSys.playVowelShot(seg.char, seg.dur);
+                 await new Promise(r => setTimeout(r, seg.dur * 1000));
+            } else {
+                 await new Promise(r => setTimeout(r, seg.dur * 1000));
+            }
+        }
+    },
+
+    initPlots() {
+        const base = { margin: {t:10,b:20,l:20,r:10}, xaxis:{title:'Features'}, yaxis:{range:[0,1]}, paper_bgcolor:'transparent', plot_bgcolor:'transparent' };
+        Plotly.newPlot('plot-input', [{y:Array(12).fill(0), type:'bar', marker:{color:'#eab308'}}], base, {staticPlot:true});
+        Plotly.newPlot('plot-output', [{y:Array(12).fill(0), type:'bar', marker:{color:'#16a34a'}}], base, {staticPlot:true});
+
+        const layoutLatent = {
+            margin: { t: 20, b: 20, l: 30, r: 10 },
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            xaxis: { gridcolor:'#e2e8f0', title:'Neuron 1' }, 
+            yaxis: { gridcolor:'#e2e8f0', title:'Neuron 2' },
+            showlegend: false
+        };
+        
+        Plotly.newPlot('plot-latent', [
+            { 
+                x: [], y: [], z: [], type: 'contour', 
+                colorscale:[
+                    [0, 'rgba(220,38,38,0.2)'], [0.25, 'rgba(220,38,38,0.2)'],     
+                    [0.25, 'rgba(37,99,235,0.2)'], [0.5, 'rgba(37,99,235,0.2)'],   
+                    [0.5, 'rgba(22,163,74,0.2)'], [0.75, 'rgba(22,163,74,0.2)'],   
+                    [0.75, 'rgba(147, 51, 234, 0.2)'], [1, 'rgba(147, 51, 234, 0.2)'] 
+                ], 
+                zmin: 0, zmax: 3,
+                showscale:false, autocontour:false, hoverinfo:'none', line:{width:0} 
+            },
+            { x: [], y: [], mode: 'markers', type: 'scatter', marker: {size: 6}, name:'Data' },
+            { x: [], y: [], mode: 'markers', type: 'scatter', marker: {symbol:'cross', color:'#0f172a', size:15, line:{width:2}}, name:'Test' },
+            { x: [], y: [], mode: 'markers+text', type: 'scatter', marker: {size: 20, symbol:'diamond', line:{width:2, color:'#fff'}}, textfont:{size:16, color:'#fff', weight:'bold'} }
+        ], layoutLatent);
+    },
+
+    updateLatentPlot(drawContours = false) {
+        if(drawContours) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+        
+        setTimeout(() => {
+            const x=[], y=[], c=[];
+            let minX=-0.5, maxX=0.5, minY=-0.5, maxY=0.5;
+            
+            this.dataset.forEach(d => {
+                const z = this.ae.forward(d.data).z;
+                x.push(z[0]); y.push(z[1]); c.push(this.colors[d.label]);
+                minX = Math.min(minX, z[0]); maxX = Math.max(maxX, z[0]);
+                minY = Math.min(minY, z[1]); maxY = Math.max(maxY, z[1]);
+            });
+            
+            Plotly.restyle('plot-latent', {x:[x], y:[y], 'marker.color':[c]}, [1]);
+
+            if(drawContours) {
+                const padX = Math.max((maxX-minX)*0.2, 0.5); 
+                const padY = Math.max((maxY-minY)*0.2, 0.5);
+                minX -= padX; maxX += padX; minY -= padY; maxY += padY;
+
+                const size = 150; 
+                const gridX = [], gridY = [], gridZ = [];
+                const stepX = (maxX-minX)/size;
+                const stepY = (maxY-minY)/size;
+                
+                for(let i=0; i<=size; i++) gridX.push(minX + i*stepX);
+                for(let j=0; j<=size; j++) gridY.push(minY + j*stepY);
+                
+                const mode = document.getElementById('boundary-select').value; 
+
+                for(let j=0; j<=size; j++) { 
+                    let row = [];
+                    for(let i=0; i<=size; i++) { 
+                        const point = [gridX[i], gridY[j]];
+                        let label = '?';
+                        
+                        if(mode === 'voronoi') {
+                            label = this.ae.predict(point).label;
+                        } else {
+                            label = this.ae.predictKNN(point, this.dataset, 5).label;
+                        }
+                        let val = -1;
+                        if(label === 'A') val = 0.125;  
+                        if(label === 'O') val = 0.375;  
+                        if(label === 'I') val = 0.625;  
+                        if(label === 'U') val = 0.875;  
+                        row.push(val);
+                    }
+                    gridZ.push(row);
+                }
+                Plotly.restyle('plot-latent', { x:[gridX], y:[gridY], z:[gridZ], contours:{start:0, end:1, size:0} }, [0]);
+                
+                const cx=[], cy=[], ct=[], cc=[];
+                if(this.ae.centroids) {
+                    for(let k in this.ae.centroids) {
+                        cx.push(this.ae.centroids[k].coords[0]); 
+                        cy.push(this.ae.centroids[k].coords[1]); 
+                        ct.push(k); cc.push(this.colors[k]);
+                    }
+                }
+                Plotly.restyle('plot-latent', { x:[cx], y:[cy], text:[ct], 'marker.color':[cc] }, [3]);
+                
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }, 50); 
+    },
+
+    // SHOW WEIGHTS MODAL
+    showWeightsModal() {
+        const modal = document.getElementById('weights-modal');
+        modal.style.display = 'flex';
+        
+        // Helper to format table
+        const formatTable = (data, rows, cols) => {
+            let html = '<table class="matrix-table"><thead><tr><th></th>';
+            for(let c=0; c<cols; c++) html += `<th>${c}</th>`;
+            html += '</tr></thead><tbody>';
+            for(let r=0; r<rows; r++) {
+                html += `<tr><th>${r}</th>`;
+                for(let c=0; c<cols; c++) {
+                    const val = data[r] && data[r][c] !== undefined ? data[r][c] : data[r];
+                    const num = typeof val === 'number' ? val.toFixed(2) : val;
+                    const bg = num > 0 ? `rgba(0,0,255,${Math.min(0.5, num)})` : `rgba(255,0,0,${Math.min(0.5, Math.abs(num))})`;
+                    html += `<td style="background:${bg}">${num}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+            return html;
+        };
+        
+        // Encoder
+        let htmlEnc = formatTable(this.ae.W1, 2, 12);
+        htmlEnc += '<h4>Bias B1</h4>' + formatTable(this.ae.b1, 1, 2);
+        document.getElementById('table-enc').innerHTML = htmlEnc;
+
+        // Decoder
+        let htmlDec = formatTable(this.ae.W2, 12, 2);
+        htmlDec += '<h4>Bias B2</h4>' + formatTable(this.ae.b2, 1, 12);
+        document.getElementById('table-dec').innerHTML = htmlDec;
+    },
+    
+    closeModal() {
+        document.getElementById('weights-modal').style.display = 'none';
+    }
+};
+
+window.onload = () => App.init();
+</script>
+</body>
+</html>
