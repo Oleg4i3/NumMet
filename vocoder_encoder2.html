@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Autoencoder</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #4f46e5; --accent: #ec4899; --bg: #f8fafc; --panel: #ffffff; --text: #1e293b; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 900px; width: 100%; display: grid; gap: 15px; }
+        
+        .panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.9em; font-weight: 600; color: #64748b; }
+        select, input[type=number] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
+        button.record { background: #ef4444; }
+        button.play-orig { background: #64748b; }
+        button.play-vocoder { background: #0ea5e9; }
+        button.play-noise { background: #f59e0b; }
+        button.play-ai { background: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+        input[type=range] { flex-grow: 1; accent-color: var(--primary); }
+        
+        canvas { width: 100%; height: 100%; }
+        .viz-box { height: 150px; background: #0f172a; border-radius: 8px; position: relative; overflow: hidden; margin-top: 10px;}
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; background: #e2e8f0; color: #475569; }
+        .active-badge { background: #dcfce7; color: #166534; }
+		
+		
+		#specIn, #specOut {
+        height: 100px !important; 
+        width: 100%;
+        background: #0f172a;      
+        border-radius: 4px;
+    }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3>Автоенкодер<span style="color:var(--accent)"> - нейромережа для денойзінгу голоса</span></h3>
+
+    <div class="panel">
+        <h2>1. Налаштування Нейромережі та Даних</h2>
+        <div class="controls-grid">
+            <div class="control-item">
+                <label>LPC Order (Input Size)</label>
+                <select id="lpcOrder">
+                    <option value="10" selected>10 (Стандарт)</option>
+                    <option value="16">16 (Висока точність)</option>
+                    <option value="8">8 (Низька точність)</option>
+                </select>
+            </div>
+            <div class="control-item">
+                <label>Latent Dimension (Bottleneck)</label>
+                <input type="number" id="latentDim" value="2" min="1" max="8">
+                <small style="color:#64748b">Стиснення даних</small>
+            </div>
+            <div class="control-item">
+                <label>Activation Function</label>
+                <select id="activationFunc">
+                    <option value="tanh" selected>Tanh (Recommended)</option>
+                    <option value="sigmoid">Sigmoid</option>
+                    <option value="relu">ReLU (Experimental)</option>
+                </select>
+            </div>
+            <div class="control-item" style="justify-content: flex-end;">
+                <button onclick="resetAll()">🔄 Застосувати / Скинути</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>2. Запис голосу <span id="recStatus" class="status-badge">Очікування</span></h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <button onclick="startRecording()" class="record">🎤 Записати фразу</button>
+            <button onclick="playBuffer(rawBuffer)" id="btnPlayRaw" class="play-orig" disabled>🔈 Оригінал</button>
+        </div>
+        <div style="height: 60px; background: #f1f5f9; border-radius: 6px;">
+            <canvas id="waveCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="panel" id="trainPanel" style="opacity:0.6; pointer-events:none;">
+        <h2>3. Навчання (Autoencoder) <span id="trainStatus" class="status-badge">Не навчено</span></h2>
+        <div class="viz-box">
+            <canvas id="nnCanvas"></canvas>
+            <div style="position:absolute; top:10px; right:10px; color:#4ade80; font-family:monospace;">Loss: <span id="lossDisp">-</span></div>
+        </div>
+        <div style="margin-top:10px;">
+            <button onclick="startTraining()" id="btnTrain">🧠 Тренувати мережу</button>
+        </div>
+    </div>
+
+    <div class="panel" id="inferPanel" style="opacity:0.6; pointer-events:none;">
+        <h2>4. Результати та Синтез</h2>
+        
+        <div class="controls-grid">
+            <div class="control-item">
+                <label>Рівень вхідного шуму: <span id="noiseVal">40%</span></label>
+                <div class="slider-container">
+                    <span>0%</span>
+                    <input type="range" id="noiseSlider" min="0" max="100" value="40" oninput="document.getElementById('noiseVal').innerText=this.value+'%'">
+                    <span>100%</span>
+                </div>
+            </div>
+            <div class="control-item">
+                <label>Роботизованість (Pulse vs Noise): <span id="synthVal">80%</span></label>
+                <div class="slider-container">
+                    <span>Шепіт</span>
+                    <input type="range" id="synthSlider" min="0" max="100" value="80" oninput="document.getElementById('synthVal').innerText=this.value+'%'">
+                    <span>Робот</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px;">
+            <button onclick="playMode('original')" class="play-orig">1. Оригінал</button>
+            <button onclick="playMode('vocoder')" class="play-vocoder">2. Вокодер (Без змін)</button>
+            <button onclick="playMode('noisy')" class="play-noise">3. З шумом (Вхід в AI)</button>
+            <button onclick="playMode('ai')" class="play-ai">4. ✨ Відновлено AI</button>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+            <div style="width:48%; text-align:center;">
+                <small>Вектор ознак (LPC) Вхід</small>
+                <canvas id="specIn" height="80" style="background:#e2e8f0; border-radius:4px;"></canvas>
+            </div>
+            <div style="width:48%; text-align:center;">
+                <small>Вектор ознак (LPC) Вихід</small>
+                <canvas id="specOut" height="80" style="background:#e2e8f0; border-radius:4px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. ГЛОБАЛЬНІ ЗМІННІ ---
+    let audioCtx;
+    let rawBuffer = null;
+    let sampleRate = 0;
+    
+    // Dataset
+    let frames = []; 
+    const FRAME_SIZE = 512; 
+    
+    // Neural Net
+    let nn = null;
+    let isTrained = false;
+    let isTraining = false;
+    
+    // --- 2. МАТЕМАТИЧНЕ ЯДРО (LPC) ---
+    
+    function autocorrelate(x, maxLag) {
+        let res = new Float32Array(maxLag + 1);
+        for(let k=0; k<=maxLag; k++) {
+            let s = 0;
+            for(let n=0; n<x.length-k; n++) s += x[n]*x[n+k];
+            res[k] = s;
+        }
+        return res;
+    }
+
+    // Головна функція аналізу.
+    // Повертає і 'a' (для фільтра), і 'k' (для нейромережі)
+    function levinsonDurbin(r, order) {
+        let a = new Float32Array(order + 1);
+        let k_arr = new Float32Array(order);
+        
+        a[0] = 1.0;
+        let e = r[0];
+        
+        // Захист від тиші/помилок
+        if (e < 1e-10) e = 1e-10;
+
+        for (let i = 1; i <= order; i++) {
+            let acc = 0;
+            for (let j = 1; j < i; j++) acc += a[j] * r[i - j];
+            
+            // Розрахунок коефіцієнта відбиття (reflection coeff)
+            let k = -(r[i] + acc) / e;
+            
+            // Hard Clamp (Критично для стабільності NN!)
+            if (k > 0.99) k = 0.99;
+            if (k < -0.99) k = -0.99;
+            
+            k_arr[i-1] = k; // Зберігаємо для dataset
+
+            let a_new = new Float32Array(i + 1);
+            a_new[0] = 1.0;
+            a_new[i] = k;
+            
+            for (let j = 1; j < i; j++) {
+                a_new[j] = a[j] + k * a[i - j];
+            }
+            
+            a = a_new;
+            e *= (1 - k * k);
+        }
+        
+        // Падінг масиву a до повного розміру, якщо треба (тут динамічно)
+        // Для filterIIR нам потрібен повний масив a
+        return { a: a, k: k_arr, error: e };
+    }
+
+    // Зворотна конвертація k -> a (для синтезу після NN)
+    function kToA(k_coeffs) {
+        let order = k_coeffs.length;
+        let a = new Float32Array(order + 1);
+        a[0] = 1.0;
+        
+        for(let i=1; i<=order; i++) {
+            let k = k_coeffs[i-1];
+            let a_new = new Float32Array(i + 1);
+            a_new[0] = 1.0;
+            a_new[i] = k;
+            for(let j=1; j<i; j++) {
+                a_new[j] = a[j] + k * a[i-j];
+            }
+            a = a_new;
+        }
+        return a;
+    }
+
+    function filterIIR(x, a, mem) {
+        let y = new Float32Array(x.length);
+        let ord = a.length - 1;
+        if(!mem) mem = new Float32Array(ord).fill(0);
+
+        for(let n=0; n<x.length; n++) {
+            let s = x[n];
+            for(let k=1; k<=ord; k++) {
+                let val = (n >= k) ? y[n-k] : mem[ord-k];
+                s -= a[k] * val;
+            }
+            // Лімітер, щоб не порвало динаміки
+            if(s > 4.0) s = 4.0; 
+            if(s < -4.0) s = -4.0;
+            y[n] = s;
+        }
+        for(let i=0; i<ord; i++) mem[i] = y[y.length-1-i];
+        return y;
+    }
+
+    function detectPitch(buffer, sr) {
+        let r = autocorrelate(buffer, 150);
+        let maxVal = -Infinity;
+        let lag = 0;
+        for(let k=20; k<r.length-1; k++) {
+            if(r[k] > maxVal && r[k] > r[k-1] && r[k] > r[k+1]) {
+                maxVal = r[k];
+                lag = k;
+            }
+        }
+        if(maxVal > r[0] * 0.25) return sr / lag;
+        return 0; 
+    }
+
+    // --- 3. НЕЙРОМЕРЕЖА (Виправлена) ---
+    class Autoencoder {
+        constructor(inputSize, hiddenSize) {
+            this.inputSize = inputSize;
+            this.hiddenSize = hiddenSize;
+            
+            // Ініціалізація Xavier (важлива для збіжності)
+            let lim1 = Math.sqrt(6 / (inputSize + hiddenSize));
+            this.W1 = new Float32Array(hiddenSize * inputSize).map(()=>(Math.random()*2-1)*lim1);
+            this.b1 = new Float32Array(hiddenSize).fill(0);
+            
+            let lim2 = Math.sqrt(6 / (hiddenSize + inputSize));
+            this.W2 = new Float32Array(inputSize * hiddenSize).map(()=>(Math.random()*2-1)*lim2);
+            this.b2 = new Float32Array(inputSize).fill(0);
+            
+            this.lr = 0.005; // Менший learning rate для стабільності
+        }
+
+        // Активація tanh (ідеально для k [-1, 1])
+        tanh(x) { return Math.tanh(x); }
+        dtanh(y) { return 1 - y*y; }
+
+        forward(input) {
+            this.h = new Float32Array(this.hiddenSize);
+            // Layer 1
+            for(let i=0; i<this.hiddenSize; i++) {
+                let s = this.b1[i];
+                for(let j=0; j<this.inputSize; j++) s += input[j] * this.W1[i*this.inputSize + j];
+                this.h[i] = this.tanh(s);
+            }
+            
+            this.out = new Float32Array(this.inputSize);
+            // Layer 2
+            for(let i=0; i<this.inputSize; i++) {
+                let s = this.b2[i];
+                for(let j=0; j<this.hiddenSize; j++) s += this.h[j] * this.W2[i*this.hiddenSize + j];
+                this.out[i] = this.tanh(s); // Вихід теж tanh, бо k [-1, 1]
+            }
+            return this.out;
+        }
+
+        train(input, target) {
+            let out = this.forward(input);
+            
+            // Output Gradients
+            let out_grad = new Float32Array(this.inputSize);
+            let loss = 0;
+            for(let i=0; i<this.inputSize; i++) {
+                let err = target[i] - out[i];
+                loss += err * err;
+                out_grad[i] = err * this.dtanh(out[i]); // Градієнт MSE * похідна tanh
+            }
+
+            // Hidden Gradients
+            let h_grad = new Float32Array(this.hiddenSize);
+            for(let i=0; i<this.hiddenSize; i++) {
+                let err = 0;
+                for(let j=0; j<this.inputSize; j++) err += out_grad[j] * this.W2[j*this.hiddenSize + i];
+                h_grad[i] = err * this.dtanh(this.h[i]);
+            }
+
+            // Update Weights (SGD)
+            for(let i=0; i<this.inputSize; i++) {
+                this.b2[i] += this.lr * out_grad[i];
+                for(let j=0; j<this.hiddenSize; j++) {
+                    this.W2[i*this.hiddenSize + j] += this.lr * out_grad[i] * this.h[j];
+                }
+            }
+            for(let i=0; i<this.hiddenSize; i++) {
+                this.b1[i] += this.lr * h_grad[i];
+                for(let j=0; j<this.inputSize; j++) {
+                    this.W1[i*this.inputSize + j] += this.lr * h_grad[i] * input[j];
+                }
+            }
+            
+            return loss;
+        }
+    }
+
+    // --- 4. ЛОГІКА ІНТЕРФЕЙСУ ---
+
+    async function startRecording() {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sampleRate = audioCtx.sampleRate;
+        
+        let status = document.getElementById('recStatus');
+        status.innerText = "Запис..."; status.className = "status-badge active-badge";
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            let chunks = [];
+            
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks);
+                const buf = await blob.arrayBuffer();
+                const decoded = await audioCtx.decodeAudioData(buf);
+                rawBuffer = decoded.getChannelData(0);
+                
+                status.innerText = "Готово"; status.className = "status-badge";
+                document.getElementById('btnPlayRaw').disabled = false;
+                
+                analyzeAudio(); 
+                document.getElementById('trainPanel').style.opacity = 1;
+                document.getElementById('trainPanel').style.pointerEvents = 'all';
+                drawWave(rawBuffer);
+            };
+            
+            mediaRecorder.start();
+            setTimeout(() => mediaRecorder.stop(), 2000); 
+        } catch(e) { alert("Mic Error: " + e); }
+    }
+
+    function analyzeAudio() {
+        if(!rawBuffer) return;
+        const order = parseInt(document.getElementById('lpcOrder').value);
+        frames = [];
+        let hopSize = Math.floor(FRAME_SIZE / 2);
+        
+        for (let i = 0; i < rawBuffer.length - FRAME_SIZE; i += hopSize) {
+            let chunk = rawBuffer.slice(i, i + FRAME_SIZE);
+            
+            // Hamming Window
+            let winChunk = new Float32Array(FRAME_SIZE);
+            let energy = 0;
+            for(let j=0; j<FRAME_SIZE; j++) {
+                let v = chunk[j] * (0.54 - 0.46 * Math.cos(2*Math.PI*j/(FRAME_SIZE-1)));
+                winChunk[j] = v;
+                energy += v*v;
+            }
+            
+            // LPC Analysis
+            let r = autocorrelate(winChunk, order);
+            let lpcRes = levinsonDurbin(r, order); // Отримуємо {a, k, error}
+            
+            // Pitch
+            let pitch = detectPitch(winChunk, sampleRate);
+            
+            // Residual Gain (Error Gain)
+            // Енергія помилки передбачення - це і є потрібна гучність збудження
+            let g = Math.sqrt(lpcRes.error); 
+
+            frames.push({
+                k: lpcRes.k,     // Вектор для NN (Reflection Coeffs)
+                gain: g,         // Гучність
+                pitch: pitch     // Тон
+            });
+        }
+        drawNN();
+    }
+
+function startTraining() {
+        const order = parseInt(document.getElementById('lpcOrder').value);
+        const latent = parseInt(document.getElementById('latentDim').value);
+        
+        // --- ВИПРАВЛЕННЯ ЛОГІКИ ---
+        // Перевіряємо: чи існує мережа? Чи змінилися налаштування розмірності?
+        // Якщо мережа є і параметри ті самі -> НЕ створюємо нову, вчимо стару.
+        if (!nn || nn.inputSize !== order || nn.hiddenSize !== latent) {
+            nn = new Autoencoder(order, latent);
+            console.log("Створено нову модель");
+        } else {
+            console.log("Продовжуємо навчання існуючої моделі");
+        }
+        
+        let btn = document.getElementById('btnTrain');
+        btn.disabled = true; 
+        btn.innerText = "Вчуся...";
+        isTraining = true;
+        
+        // Лічильник для поточного циклу "довчання"
+        let epoch = 0;
+        const EPOCHS_PER_CLICK = 300; // Скільки епох додати при натисканні
+        
+        function loop() {
+            if(!isTraining) return;
+            
+            let totalLoss = 0;
+            let count = 0;
+            
+            for(let f of frames) {
+                if(f.gain < 0.005) continue; 
+                
+                let clean = f.k; 
+                
+                // Шум додаємо динамічно, щоб мережа бачила нові приклади
+                let noisyInput = new Float32Array(clean.length);
+                for(let i=0; i<clean.length; i++) {
+                    noisyInput[i] = clean[i] + (Math.random()-0.5) * 0.2; 
+                }
+                
+                totalLoss += nn.train(noisyInput, clean);
+                count++;
+            }
+            
+            let avgLoss = count > 0 ? totalLoss / count : 0;
+            document.getElementById('lossDisp').innerText = avgLoss.toFixed(5);
+            
+            if(epoch % 5 === 0) drawNN(true);
+            
+            epoch++;
+            
+            // Крутимо цикл, поки не пройдемо визначену кількість епох
+            if(epoch < EPOCHS_PER_CLICK) {
+                requestAnimationFrame(loop);
+            } else {
+                // Фініш цього етапу
+                isTrained = true;
+                isTraining = false;
+                
+                btn.innerText = "Довчити (+300 епох)"; 
+                btn.disabled = false;
+                
+                document.getElementById('trainStatus').innerText = "Навчено";
+                document.getElementById('trainStatus').className = "status-badge active-badge";
+                document.getElementById('inferPanel').style.opacity = 1;
+                document.getElementById('inferPanel').style.pointerEvents = 'all';
+                
+                // Перемальовуємо без анімації (статичні ваги)
+                drawNN(false);
+            }
+        }
+        loop();
+    } 
+
+
+ // --- 5. СИНТЕЗ (Виправлено Logic + Slider) ---
+
+    function playMode(mode) {
+        if(!audioCtx) return;
+        
+        const noiseLvl = parseInt(document.getElementById('noiseSlider').value) / 100;
+        const sliderMix = parseInt(document.getElementById('synthSlider').value) / 100; 
+        const order = parseInt(document.getElementById('lpcOrder').value);
+        
+        const hopSize = Math.floor(FRAME_SIZE / 2);
+        const totalSamples = frames.length * hopSize + FRAME_SIZE;
+        
+        const outBuf = audioCtx.createBuffer(1, totalSamples, sampleRate);
+        const pcm = outBuf.getChannelData(0);
+        
+        let filterMem = new Float32Array(order).fill(0);
+        let phase = 0;
+        const ROBOT_PITCH = 150; // Гц
+        
+        let visInput = null, visOutput = null;
+
+        for(let i=0; i<frames.length; i++) {
+            let f = frames[i];
+            
+            // 1. Отримуємо коефіцієнти K
+            let k = Float32Array.from(f.k); // Копія
+            
+            // 2. Додаємо шум (якщо треба)
+            if(mode === 'noisy' || mode === 'ai') {
+                for(let j=0; j<k.length; j++) {
+                    k[j] += (Math.random()-0.5) * noiseLvl * 2.5; 
+                    // Clamping вхідних даних
+                    if(k[j]>0.99) k[j]=0.99; if(k[j]<-0.99) k[j]=-0.99;
+                }
+            }
+            visInput = k;
+            
+            // 3. Відновлення (Denoising)
+            if(mode === 'ai' && isTrained) {
+                k = nn.forward(k); 
+                // NN вже повертає дані в [-1, 1], але для безпеки фільтра:
+                for(let j=0; j<k.length; j++) {
+                     if(k[j]>0.99) k[j]=0.99; if(k[j]<-0.99) k[j]=-0.99;
+                }
+            }
+            visOutput = k;
+            
+            // 4. Конвертація K -> A (Фільтр)
+            let a = kToA(k); // Отримуємо [1, a1, a2...]
+
+            // 5. Генерація збудження (Excitation)
+            let exc = new Float32Array(FRAME_SIZE);
+            let gain = f.gain;
+            
+            // Pitch logic: якщо оригінал глухий, але слайдер "Робот", 
+            // вмикаємо штучний тон.
+            let hasPitch = f.pitch > 0;
+            let currentPitch = hasPitch ? f.pitch : ROBOT_PITCH;
+            let period = sampleRate / currentPitch;
+            let pulseAmp = Math.sqrt(period); // Нормалізація енергії імпульсу
+
+            for(let n=0; n<FRAME_SIZE; n++) {
+                // Noise source
+                let noiseSamp = (Math.random() * 2 - 1);
+                
+                // Pulse source
+                let pulseSamp = 0;
+                phase++;
+                if(phase >= period) {
+                    phase -= period;
+                    pulseSamp = pulseAmp;
+                }
+
+                // Mixing logic
+                // Якщо слайдер = 0 (Шепіт) -> тільки noiseSamp
+                // Якщо слайдер = 1 (Робот) -> тільки pulseSamp
+                let finalExc = 0;
+                
+                // Якщо в оригіналі був тон - міксуємо за смаком
+                // Якщо в оригіналі не було тону - все одно міксуємо за слайдером, 
+                // щоб створити ефект "роботизації шепоту".
+                finalExc = (pulseSamp * sliderMix) + (noiseSamp * (1.0 - sliderMix));
+                
+                exc[n] = finalExc * gain;
+            }
+            
+            if(mode === 'original') {
+                playBuffer(rawBuffer, false); return;
+            }
+
+            // 6. Фільтрація
+            let synth = filterIIR(exc, a, filterMem);
+            
+            // 7. Overlap-Add
+            let startPos = i * hopSize;
+            for(let n=0; n<FRAME_SIZE; n++) {
+                let w = 0.5 - 0.5 * Math.cos(2*Math.PI*n/(FRAME_SIZE-1));
+                if(startPos+n < pcm.length) pcm[startPos+n] += synth[n] * w;
+            }
+        }
+        
+        playBuffer(outBuf, true);
+        drawSpec(visInput, 'specIn');
+        drawSpec(visOutput, 'specOut');
+    }
+
+    function playBuffer(buf, isObj) {
+        if(!buf) return;
+        const src = audioCtx.createBufferSource();
+        if(isObj) src.buffer = buf;
+        else {
+            const b = audioCtx.createBuffer(1, buf.length, sampleRate);
+            b.getChannelData(0).set(buf);
+            src.buffer = b;
+        }
+        src.connect(audioCtx.destination);
+        src.start();
+    }
+    
+    // --- ГРАФІКА ---
+    function drawWave(d) {
+        const ctx = document.getElementById('waveCanvas').getContext('2d');
+        const w=ctx.canvas.width=ctx.canvas.clientWidth; 
+        const h=ctx.canvas.height=ctx.canvas.clientHeight;
+        ctx.clearRect(0,0,w,h); ctx.beginPath(); ctx.strokeStyle='#4f46e5';
+        let step = Math.ceil(d.length/w);
+        for(let i=0;i<w;i++) ctx.lineTo(i, h/2 + d[i*step]*h*0.8);
+        ctx.stroke();
+    }
+    
+    function drawSpec(d, id) {
+        if(!d) return;
+        const ctx = document.getElementById(id).getContext('2d');
+        const w=ctx.canvas.width=ctx.canvas.clientWidth; 
+        const h=ctx.canvas.height=ctx.canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        let bw = w/d.length;
+        for(let i=0;i<d.length;i++) {
+            let val = d[i];
+            ctx.fillStyle = val>0?'#10b981':'#f59e0b';
+            let bh = Math.abs(val)*h/2;
+            ctx.fillRect(i*bw, h/2, bw-1, -bh);
+            ctx.fillRect(i*bw, h/2, bw-1, bh);
+        }
+    }
+    
+    function drawNN(anim=false) {
+        const ctx = document.getElementById('nnCanvas').getContext('2d');
+        const w=ctx.canvas.width=ctx.canvas.clientWidth;
+        const h=ctx.canvas.height=ctx.canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        if(!nn) return;
+
+        const layers = [nn.inputSize, nn.hiddenSize, nn.inputSize];
+        const layerGap = w / (layers.length + 1);
+        let nodes = [];
+        
+        layers.forEach((count, lIdx) => {
+            let x = (lIdx + 1) * layerGap;
+            let yGap = h / (count + 1);
+            let ln = [];
+            for(let i=0; i<count; i++) ln.push({x: x, y: (i+1)*yGap});
+            nodes.push(ln);
+        });
+
+        // Edges
+        // 1. Малюємо лінії (Edges) з прив'язкою до ваг
+        for(let l=0; l<layers.length-1; l++) {
+            let currentNodes = nodes[l];
+            let nextNodes = nodes[l+1];
+            
+            // Визначаємо, з яким шаром ваг працюємо
+            let weights = (l === 0) ? nn.W1 : nn.W2;
+            let inputCount = (l === 0) ? nn.inputSize : nn.hiddenSize;
+
+            for(let i=0; i<currentNodes.length; i++) { // i - індекс нейрона поточного шару
+                for(let j=0; j<nextNodes.length; j++) { // j - індекс нейрона наступного шару
+                    
+                    let n1 = currentNodes[i];
+                    let n2 = nextNodes[j];
+                    
+                    // Отримуємо вагу зв'язку
+                    // Матриця ваг плоска: [target_node * input_count + source_node]
+                    let wVal = 0;
+                    if(weights) {
+                         wVal = weights[j * inputCount + i];
+                    }
+
+                    ctx.beginPath();
+                    ctx.moveTo(n1.x, n1.y);
+                    ctx.lineTo(n2.x, n2.y);
+                    
+                    // Логіка кольору:
+                    // Чим більша вага -> тим товща/яскравіша лінія.
+                    // anim=true додає "мерехтіння" під час навчання
+                    let opacity = Math.abs(wVal); 
+                    if(opacity > 1) opacity = 1; // Limit
+                    if(opacity < 0.05) opacity = 0.05; // Minimum visibility
+                    
+                    if(anim) {
+                        // Ефект активності
+                        ctx.strokeStyle = `rgba(236, 72, 153, ${opacity})`; // Рожевий
+                        ctx.lineWidth = opacity * 2;
+                    } else {
+                        // Статичний стан
+                        ctx.strokeStyle = `rgba(129, 140, 248, ${opacity * 0.8})`; // Синій
+                        ctx.lineWidth = opacity;
+                    }
+
+                    ctx.stroke();
+                }
+            }
+        }
+        // Nodes
+        layers.forEach((count, lIdx) => {
+            for(let n of nodes[lIdx]) {
+                ctx.beginPath(); ctx.arc(n.x, n.y, 4, 0, 7);
+                ctx.fillStyle = anim?'#ec4899':(lIdx==1?'#f43f5e':'#818cf8');
+                ctx.fill();
+            }
+        });
+    }
+
+    function resetAll() { location.reload(); }
+</script>
+</body>
+</html>
