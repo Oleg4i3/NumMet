@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNN</title>
+    
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #059669; 
+            --accent: #d97706;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1f2937;
+            --border: #e2e8f0;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+
+        h1, h2, h3 { margin-top: 0; color: #111827; }
+        h1 { text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #6b7280; margin-bottom: 5px; }
+
+        /* SPOILERS & TEXT */
+        .theory-block { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+        details { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        summary { padding: 10px; cursor: pointer; font-weight: 500; background: #f1f5f9; }
+        .spoiler-content { padding: 5px; font-size: 0.95rem; border-top: 1px solid var(--border); }
+        .tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 5px; }
+        .tag-math { background: #fee2e2; color: #991b1b; }
+
+        /* CARDS */
+        .card { background: var(--card); padding: 5px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid var(--border); }
+        .card-header { border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+        .row { display: flex; gap: 5px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+        
+        /* GRIDS */
+        .grid-container { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .grid { display: grid; gap: 2px; background: #94a3b8; border: 2px solid #475569; margin: 10px auto; width: fit-content; position: relative; }
+        .cell { width: 40px; height: 40px; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; transition: all 0.1s; position: relative; user-select: none; color: #333; }
+        
+        /* INTERACTIVITY */
+        .interactive .cell { cursor: pointer; }
+        .interactive .cell:hover { opacity: 0.8; }
+        .cell.active { background: #1f2937; color: white; }
+        
+        /* VISUAL FEEDBACK */
+        .cell.scanning { box-shadow: inset 0 0 0 3px var(--primary); z-index: 10; }
+        .cell.best-match-border { box-shadow: inset 0 0 0 4px #22c55e !important; z-index: 20; border-color: #22c55e; }
+
+        /* KERNEL OVERLAY IN INPUT */
+        .kernel-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; color: var(--primary); font-weight: bold;
+            background: rgba(255, 255, 255, 0.7); pointer-events: none;
+        }
+
+        /* OUTPUT MAPS */
+        .out-cell { font-size: 0.8rem; color: #555; font-weight: bold;}
+
+        /* UI CONTROLS */
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        button:hover { background: #4338ca; transform: translateY(-1px); }
+        button:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        .btn-reset { background: #64748b; font-size: 0.8rem; padding: 5px 10px; }
+        .btn-sm { font-size: 0.8rem; padding: 4px 8px; background: #e2e8f0; color: #333; }
+        .btn-sm:hover { background: #cbd5e1; }
+        
+        .arrow-box { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100px; max-width: 150px; text-align: center; font-size: 0.9rem; color: #6b7280; }
+        .big-arrow { font-size: 2rem; color: #cbd5e1; margin: 5px 0; }
+
+        /* PART 3 SPECIFIC */
+        .kernel-display { margin-bottom: 5px; border: 2px solid var(--primary); cursor: pointer; transition: 0.2s;}
+        .kernel-display:hover { border-color: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+        .kernel-display .cell { font-size: 0; width: 25px; height: 25px; }
+        .k-pos { background: #1f2937 !important; }
+
+        .toggle-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; background: #f1f5f9; padding: 10px; border-radius: 30px; border: 1px solid #e2e8f0; width: fit-content; margin: 0 auto 20px auto; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* NUMERICAL METHODS STUFF */
+        .chart-container { width: 100%; height: 150px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; }
+        .lr-control { display: flex; align-items: center; gap: 10px; background: #fefce8; padding: 10px; border: 1px solid #fde047; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; }
+        .activation-box { background: #e0e7ff; padding: 8px; border-radius: 6px; border: 1px solid #c7d2fe; margin-bottom: 10px; width: 100%; text-align: center; }
+        
+        .filter-box { border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; background: #f8fafc; display: flex; flex-direction: column; align-items: center; min-width: 120px; }
+        .status { font-weight: bold; height: 30px; margin-top: 15px; font-size: 1.1rem; text-align: center;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+   
+<div class="theory-block">
+        <details>
+            <summary><div>📚 <strong>Теоретичний довідник: згорткові нейромережі</strong></div></summary>
+            <div class="spoiler-content">
+                
+                <h3>Вступ: Архітектура моделі</h3>
+                <p>
+                    У цьому симуляторі розглядається спрощена модель <strong>Згорткової Нейронної Мережі (CNN - Convolutional Neural Network)</strong>. 
+                    Математично це структура, що виконує послідовність перетворень вхідного тензора (зображення) для вилучення ієрархічних ознак.
+                </p>
+                <p>
+                    Наша модель складається з:
+                </p>
+                <ul>
+                    <li><strong>Вхідний шар ($X$):</strong> Матриця розмірності $N \times N$, що представляє дискретне двовимірне поле (зображення).</li>
+                    <li><strong>Ядро згортки / Фільтр ($W$):</strong> Матриця ваг розмірності $K \times K$ ($K < N$), яка містить параметри, що навчаються.</li>
+                    <li><strong>Операція згортки (*):</strong> Лінійний оператор, що відображає локальні окіл пікселів у скаляр.</li>
+                    <li><strong>Функція активації ($f$):</strong> Нелінійна функція, що застосовується поелементно.</li>
+                </ul>
+
+                <hr class="divider">
+
+                <h3>Частина 1: Чисельна оптимізація та Градієнтний спуск</h3>
+                <p>
+                    Навчання нейромережі — це задача <strong>мінімізації цільової функції</strong> (функції втрат). Ми намагаємося знайти такі ваги ядра $W$, щоб вихід мережі максимально відповідав бажаному шаблону $T$.
+                </p>
+                
+                <h4>1. Функція втрат (Loss Function)</h4>
+                <p>Ми використовуємо <em>Mean Squared Error (MSE)</em> — середньоквадратичну помилку, стандартну метрику в задачах регресії та апроксимації:</p>
+                $$ J(W) = \frac{1}{n} \sum_{i,j} (T_{i,j} - W_{i,j})^2 $$
+                <p>Де $J$ — значення помилки, $T$ — цільова матриця, $W$ — поточна матриця ваг, $n$ — кількість елементів.</p>
+
+                <h4>2. Градієнтний спуск (Gradient Descent)</h4>
+                <p>
+                    Оскільки $J(W)$ є гладкою та диференційовною (параболоїд у просторі ваг), ми можемо знайти мінімум, рухаючись у напрямку антиградієнта.
+                    Градієнт $\nabla J$ — це вектор часткових похідних по кожному ваговому коефіцієнту:
+                </p>
+                $$ \frac{\partial J}{\partial W_{i,j}} = \frac{\partial}{\partial W_{i,j}} (T_{i,j} - W_{i,j})^2 = -2(T_{i,j} - W_{i,j}) $$
+
+                <h4>3. Правило оновлення ваг та Learning Rate</h4>
+                <p>Ітеративний процес уточнення ваг описується формулою:</p>
+                $$ W_{new} = W_{old} - \alpha \cdot \nabla J $$
+                <p>Або для кожного елемента (спрощено, відкидаючи константу 2, яку поглинає $\alpha$):</p>
+                $$ W_{i,j}^{(t+1)} = W_{i,j}^{(t)} + \alpha \cdot (T_{i,j} - W_{i,j}^{(t)}) $$
+                <p><strong>Параметр $\alpha$ (Learning Rate)</strong> — це крок інтегрування. У чисельних методах він визначає стійкість схеми:</p>
+                <ul>
+                    <li><strong>Малий $\alpha$ ($\ll 1$):</strong> Забезпечує стабільну збіжність, але процес дуже повільний (велика кількість ітерацій).</li>
+                    <li><strong>Великий $\alpha$ ($> 2$):</strong> Порушує умову Куранта-Фрідріхса-Леві (аналогія з розв'язком диф. рівнянь), призводить до осциляцій навколо мінімуму або розбіжності процесу ("вибух" градієнта).</li>
+                </ul>
+
+                <hr class="divider">
+
+                <h3>Частина 2: Дискретна згортка</h3>
+                <p>
+                    Операція, яку в Deep Learning називають "згорткою" (Convolution), з точки зору чистої математики та обробки сигналів є <strong>крос-кореляцією (Cross-Correlation)</strong>.
+                </p>
+                
+                <h4>Визначення</h4>
+                <p>Для вхідної матриці $I$ та ядра $K$, значення вихідного пікселя $S(i, j)$ обчислюється як скалярний добуток (сума добутків):</p>
+                $$ S(i, j) = (I * K)(i, j) = \sum_{m=0}^{k-1} \sum_{n=0}^{k-1} I(i+m, j+n) \cdot K(m, n) $$
+                
+                <p><strong>Нюанс термінології:</strong></p>
+                <ul>
+                    <li>Справжня математична <em>згортка</em> вимагає інверсії ядра (повороту на 180°) перед множенням: $K(m, n) \to K(-m, -n)$. Це необхідно для властивості комутативності ($f*g = g*f$).</li>
+                    <li>У нейромережах комутативність не важлива, нам важливе співпадіння шаблонів. Тому ми не перевертаємо ядро. Ця операція ("ковзаючий скалярний добуток") вимірює <strong>схожість</strong> ділянки зображення з фільтром.</li>
+                </ul>
+
+                <hr class="divider">
+
+                <h3>Частина 3: Нелінійність та Функції Активації</h3>
+                <p>
+                    Чому не можна просто використати лінійні перетворення, як у SVD (Singular Value Decomposition) або PCA?
+                    Якщо нейромережа складається лише з лінійних шарів (згорток, множення матриць), то суперпозиція (композиція) будь-якої кількості лінійних функцій є просто іншою лінійною функцією:
+                </p>
+                $$ W_2(W_1(x)) = (W_2 \cdot W_1)x = W_{combined} x $$
+                <p>
+                    Це обмежує модель: вона може розділяти класи лише гіперплощинами. Щоб апроксимувати складні криволінійні границі та розв'язувати нелінійні задачі (наприклад, XOR або розпізнавання образів), необхідна нелінійна функція активації $f(x)$. Тоді вихід шару: $y = f(Wx + b)$.
+                </p>
+
+                <h4>Основні функції активації:</h4>
+
+                <p><strong>1. ReLU (Rectified Linear Unit):</strong></p>
+                $$ f(x) = \max(0, x) $$
+                <ul>
+                    <li><em>Властивості:</em> Найпопулярніша функція в глибокому навчанні. Вона є кусково-лінійною.</li>
+                    <li><em>Переваги:</em> Обчислювально дешева (порівняння з нулем). Вирішує проблему "зникаючого градієнта" для $x > 0$. Робить активації розрідженими (sparse), відсікаючи шум.</li>
+                </ul>
+
+                <p><strong>2. Sigmoid (Логістична функція):</strong></p>
+                $$ f(x) = \sigma(x) = \frac{1}{1 + e^{-x}} $$
+                <ul>
+                    <li><em>Властивості:</em> Відображає $\mathbb{R} \to (0, 1)$. Має історичне значення (імітація насичення нейрона).</li>
+                    <li><em>Використання:</em> Інтерпретується як "ймовірність". Часто використовується на вихідному шарі для бінарної класифікації.</li>
+                    <li><em>Недоліки:</em> При великих $|x|$ похідна $\to 0$, що зупиняє навчання (vanishing gradients).</li>
+                </ul>
+
+                <p><strong>3. Tanh (Гіперболічний тангенс):</strong></p>
+                $$ f(x) = \tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}} $$
+                <ul>
+                    <li><em>Властивості:</em> Відображає $\mathbb{R} \to (-1, 1)$.</li>
+                    <li><em>Переваги:</em> На відміну від сигмоїди, центрована відносно нуля. Це корисно для наступних шарів мережі, оскільки середнє значення активацій залишається близьким до 0.</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+	
+	
+	
+
+    <div class="card">
+        <div class="card-header">
+            <h2>1. Градієнтний спуск (Optimization)</h2>
+            <p>Спостерігайте за збіжністю (Convergence) або розбіжністю (Divergence) процесу навчання.</p>
+        </div>
+        
+        <div class="lr-control">
+            <span><strong>Learning Rate ($\alpha$):</strong></span>
+            <input type="range" id="lrSlider" min="0.01" max="3.0" step="0.05" value="0.1" oninput="updateLrDisplay()">
+            <span id="lrValue" style="font-weight:bold; min-width:40px;">0.10</span>
+            <small style="color:#666; margin-left:10px;">(>2.0 = ризик нестабільності)</small>
+        </div>
+
+        <div class="row">
+            <div class="grid-container">
+                <h4> Цільовий патерн (Вчитель)</h4>
+                <div id="targetGrid" class="grid interactive"></div>
+                <small>Бажаний патерн $T$</small>
+            </div>
+            <div class="arrow-box">
+                <div class="big-arrow">➡</div>
+                <div>Loss = $\frac{1}{n}\sum(T-W)^2$</div>
+                <div>$\Delta W = \alpha \cdot (T-W)$</div>
+            </div>
+            <div class="grid-container">
+                <h4> Kernel (Ядро)</h4>
+                <div id="trainKernel" class="grid"></div>
+                <small>Ваги $W$</small>
+            </div>
+        </div>
+
+        <div style="width: 100%; display: flex; justify-content: center;">
+            <div class="grid-container" style="width: 80%;">
+                <h4>Графік помилки (MSE Loss)</h4>
+                <canvas id="lossChart" class="chart-container"></canvas>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="startAutoTrain()" id="btnAutoTrain">▶ Авто-навчання</button>
+            <button onclick="trainEpoch()"> 1 крок (Epoch)</button>
+            <button class="btn-reset" onclick="resetWeights()">🔄 Скинути ваги</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>2. Згортка + Активація $f(x)$</h2>
+            <p>Вплив нелінійності на результат детектування. Використовується ядро з Частини 1.</p>
+        </div>
+        
+        <div class="activation-box">
+            <label for="scanActivation"><strong>Функція активації: </strong></label>
+            <select id="scanActivation" style="width:auto; display:inline-block; font-weight:bold;">
+                <option value="none">Linear (None)</option>
+                <option value="relu" selected>ReLU (max(0, x))</option>
+                <option value="sigmoid">Sigmoid (0...1)</option>
+                <option value="tanh">Tanh (-1...1)</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <div class="grid-container">
+                <h4>Вхідне зображення</h4>
+                <div id="inputGrid" class="grid interactive"></div>
+                <button class="btn-reset" onclick="clearInput()" style="margin-top: 5px;">Очистити</button>
+            </div>
+            
+            <div class="arrow-box">
+                 <small>Поточне ядро:</small>
+                 <div id="miniKernelDisplay" class="grid" style="transform: scale(0.6); margin: 5px 0;"></div>
+                 <div class="big-arrow">➡</div>
+                 <button onclick="runScan()" id="scanBtn">▶ Запустити згортку</button>
+            </div>
+
+            <div class="grid-container">
+                <h4>Результат (Feature Map)</h4>
+                <div id="outputGrid" class="grid"></div>
+            </div>
+        </div>
+        <div id="scanLog" style="margin-top: 15px; font-family: monospace; font-size: 0.9rem; color: #4b5563; height: 1.5em; text-align: center; font-weight: bold;"></div>
+    </div>
+
+    <div class="card">
+        <header>
+            <h2>3. Deep Learning & Нелінійність</h2>
+        </header>
+
+        <div class="toggle-container">
+            <span style="font-size:0.9rem; color:#4b5563; margin-right:5px;">Бінарний</span>
+            <label class="switch">
+                <input type="checkbox" id="checkHeatmap" onchange="updateViewMode()" checked>
+                <span class="slider"></span>
+            </label>
+            <span style="font-size:0.9rem; color:var(--primary); font-weight:bold; margin-left:5px;">Heatmap</span>
+        </div>
+
+        <div class="activation-box" style="background:#fff7ed; border-color:#fed7aa;">
+            <div style="display:flex; justify-content:center; align-items:center; gap:20px; flex-wrap: wrap;">
+                <div>
+                    <label><strong>Режим обчислень:</strong></label>
+                    <select id="calcMode" onchange="runDeepCalc()" style="width:auto;">
+                        <option value="heuristic">Евристичний (+1 співпадіння, -0.5 неспівпадіння)</option>
+                        <option value="math" selected>З функцією активації</option>
+                    </select>
+                </div>
+                <div>
+                    <label><strong>Активація:</strong></label>
+                    <select id="deepActivation" onchange="runDeepCalc()" style="width:auto;">
+                        <option value="relu">ReLU</option>
+                        <option value="sigmoid">Sigmoid</option>
+                        <option value="tanh">Tanh</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-bottom:15px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+            <strong>Пресети</strong><br>
+            <div class="btn-group" style="display:flex; gap:5px; justify-content:center; margin-top:5px;">
+                <button class="btn-sm" onclick="loadInputPreset('cross')">Хрестик</button>
+                <button class="btn-sm" onclick="loadInputPreset('K_letter')">Літера "K"</button>
+                <button class="btn-sm" onclick="loadInputPreset('checker')">Шахівниця</button>
+                <button class="btn-sm" onclick="loadInputPreset('full_black')">Чорний квадрат</button>
+                <button class="btn-sm" onclick="clearDeepInput()" style="background:#fee2e2; color:#991b1b;">Очистити</button>
+            </div>
+        </div>
+
+        <div class="row">
+            
+            <div class="column grid-container">
+                <strong>Вхід (5x5)</strong>
+                <div id="deepInput" class="grid interactive" style="grid-template-columns: repeat(5, 1fr);"></div>
+            </div>
+
+            <div class="arrow-box"><div class="big-arrow">➡</div></div>
+
+            <div class="column grid-container">
+                <strong>Шар 1 (Features)</strong>
+                <div style="display:flex; gap: 15px;">
+                    
+                    <div class="filter-box">
+                        <small style="color:#1e40af; font-weight:bold;">Фільтр 1 (Vert)</small>
+                        <div id="visFilter1" class="grid kernel-display" style="grid-template-columns: repeat(3, 1fr);"></div>
+                        <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                        <div id="map1" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                    </div>
+
+                    <div class="filter-box">
+                        <small style="color:#991b1b; font-weight:bold;">Фільтр 2 (Horz)</small>
+                        <div id="visFilter2" class="grid kernel-display" style="grid-template-columns: repeat(3, 1fr);"></div>
+                        <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                        <div id="map2" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="arrow-box"><div class="big-arrow">➡</div></div>
+
+            <div class="column grid-container">
+                <strong>Шар 2 (Output)</strong>
+                <div class="filter-box" style="border-color: #8b5cf6; background: #f5f3ff; min-width: 140px;">
+                    <small style="color:#6b21a8">Сума (Detect)</small>
+                    <div id="visCombined" class="grid" style="grid-template-columns: repeat(3, 1fr); border: none; background: transparent; gap: 4px; pointer-events: none;"></div>
+                    <div style="font-size:1.5rem; line-height:1; color:#ccc;">⬇</div>
+                    <div id="mapMix" class="grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div style="text-align:center; margin-top:20px;">
+            <button onclick="runDeepCalc()" id="btnRun" style="padding: 12px 30px; font-size:1rem;">ОБЧИСЛИТИ</button>
+            <div id="statusMsg" class="status"></div>
+            <div id="debugInfo" style="font-size:0.85rem; color:#666; margin-top:5px;"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /* =========================================
+       MATH & UTILS
+       ========================================= */
+    
+    const Activations = {
+        'none': (x) => x,
+        'relu': (x) => Math.max(0, x),
+        'sigmoid': (x) => 1 / (1 + Math.exp(-x)),
+        'tanh': (x) => Math.tanh(x)
+    };
+
+    // Absolute Heatmap Color Logic
+    function getHeatmapColor(val) {
+        // Absolute scale. 
+        // 0 -> White
+        // +4 -> Full Red
+        // -4 -> Full Blue
+        const maxScale = 4.0;
+        let norm = val / maxScale;
+        
+        // Clamp -1 to 1
+        if(norm > 1) norm = 1;
+        if(norm < -1) norm = -1;
+
+        if (Math.abs(val) < 0.05) return '#f3f4f6'; // Neutral gray
+
+        if (norm > 0) {
+            // RED shade
+            // 255, 255-x, 255-x
+            let intensity = Math.floor(255 * (1 - norm));
+            return `rgb(255, ${intensity}, ${intensity})`;
+        } else {
+            // BLUE shade
+            // 255-x, 255-x, 255
+            let intensity = Math.floor(255 * (1 - Math.abs(norm)));
+            return `rgb(${intensity}, ${intensity}, 255)`;
+        }
+    }
+
+    // Chart Utils
+    const chartState = { history: [], maxPoints: 50, canvas: null, ctx: null };
+
+    function initChart() {
+        chartState.canvas = document.getElementById('lossChart');
+        chartState.canvas.width = chartState.canvas.offsetWidth;
+        chartState.canvas.height = chartState.canvas.offsetHeight;
+        chartState.ctx = chartState.canvas.getContext('2d');
+        drawChart();
+    }
+
+    function updateChart(loss) {
+        chartState.history.push(loss);
+        if(chartState.history.length > chartState.maxPoints) chartState.history.shift();
+        drawChart();
+    }
+
+    function clearChart() { chartState.history = []; drawChart(); }
+
+    function drawChart() {
+        const { ctx, canvas, history, maxPoints } = chartState;
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        // Grid
+        ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1; ctx.beginPath();
+        for(let i=0; i<5; i++) { ctx.moveTo(0, i*h/4); ctx.lineTo(w, i*h/4); }
+        ctx.stroke();
+
+        if(history.length < 2) return;
+        let maxVal = Math.max(...history, 0.1);
+        if (maxVal > 10) maxVal = 10; 
+
+        const padding = 10;
+        const stepX = (w - padding * 2) / (maxPoints - 1);
+        
+        ctx.beginPath(); ctx.strokeStyle = '#4f46e5'; ctx.lineWidth = 2;
+        history.forEach((val, i) => {
+            let x = padding + i * stepX;
+            let y = h - padding - (val / maxVal) * (h - padding * 2);
+            if(y < padding) y = padding;
+            if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    }
+
+    /* =========================================
+       PART 1 & 2: SCANNING
+       ========================================= */
+    
+    const INPUT_SIZE = 6;
+    const KERNEL_SIZE = 3;
+    const OUTPUT_SIZE = INPUT_SIZE - KERNEL_SIZE + 1;
+    
+    let inputData = createMatrixPart1(INPUT_SIZE);
+    let targetData = [[1, -1, 1], [1, 1, -1], [1, -1, 1]];
+    let kernelWeights = createRandomMatrix(KERNEL_SIZE);
+    let autoTrainInterval = null;
+
+    function initScan() {
+        renderInputGrid();
+        renderTargetGrid();
+        renderKernelGrid();
+        createGridDiv(document.getElementById('outputGrid'), OUTPUT_SIZE, 'out-cell');
+        createGridDiv(document.getElementById('miniKernelDisplay'), KERNEL_SIZE, 'cell'); // for part 2 view
+        drawDemoLine();
+        initChart();
+        updateLrDisplay();
+    }
+
+    function updateLrDisplay() {
+        document.getElementById('lrValue').textContent = parseFloat(document.getElementById('lrSlider').value).toFixed(2);
+    }
+
+    function renderInputGrid() {
+        const div = document.getElementById('inputGrid');
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${INPUT_SIZE}, 1fr)`;
+        inputData.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let cell = document.createElement('div');
+                cell.className = 'cell ' + (val === 1 ? 'active' : '');
+                cell.onclick = () => { if(!document.getElementById('scanBtn').disabled) {
+                    inputData[r][c] = inputData[r][c] === 1 ? 0 : 1; renderInputGrid(); 
+                }};
+                div.appendChild(cell);
+            });
+        });
+    }
+
+    function renderTargetGrid() {
+        const div = document.getElementById('targetGrid');
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${KERNEL_SIZE}, 1fr)`;
+        targetData.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                if(val === 1) cell.style.background = '#1f2937';
+                else if(val === -1) { cell.style.background = '#fff'; cell.style.border = '1px solid red'; cell.style.color='red'; cell.textContent='-';}
+                else { cell.style.background = '#e5e7eb'; }
+                cell.onclick = () => {
+                    if(val === 0) targetData[r][c] = 1; else if(val === 1) targetData[r][c] = -1; else targetData[r][c] = 0;
+                    renderTargetGrid();
+                };
+                div.appendChild(cell);
+            });
+        });
+    }
+
+    function renderKernelGrid() {
+        const div = document.getElementById('trainKernel');
+        const miniDiv = document.getElementById('miniKernelDisplay');
+        
+        [div, miniDiv].forEach(d => {
+            d.innerHTML = '';
+            d.style.gridTemplateColumns = `repeat(${KERNEL_SIZE}, 1fr)`;
+            kernelWeights.forEach((row, r) => {
+                row.forEach((val, c) => {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.textContent = val.toFixed(1);
+                    cell.style.backgroundColor = getHeatmapColor(val);
+                    cell.style.color = Math.abs(val) > 2 ? 'white' : 'black';
+                    d.appendChild(cell);
+                });
+            });
+        });
+    }
+
+    function createGridDiv(container, size, cellClass) {
+        container.innerHTML = '';
+        container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        for(let i=0; i<size*size; i++) {
+            let c = document.createElement('div'); c.className = 'cell ' + cellClass; container.appendChild(c);
+        }
+    }
+
+    function trainEpoch() {
+        const learningRate = parseFloat(document.getElementById('lrSlider').value);
+        let totalSqError = 0;
+        let count = 0;
+
+        for(let i=0; i<KERNEL_SIZE; i++) {
+            for(let j=0; j<KERNEL_SIZE; j++) {
+                let t = targetData[i][j];
+                let w = kernelWeights[i][j];
+                let error = t - w; 
+                totalSqError += error * error;
+                count++;
+                kernelWeights[i][j] += error * learningRate;
+            }
+        }
+        updateChart(totalSqError / count);
+        renderKernelGrid();
+    }
+
+    function startAutoTrain() {
+        if(autoTrainInterval) {
+            clearInterval(autoTrainInterval);
+            autoTrainInterval = null;
+            document.getElementById('btnAutoTrain').textContent = "▶ Авто-навчання";
+        } else {
+            document.getElementById('btnAutoTrain').textContent = "⏹ Стоп";
+            autoTrainInterval = setInterval(trainEpoch, 100);
+        }
+    }
+
+    function resetWeights() { 
+        kernelWeights = createRandomMatrix(KERNEL_SIZE); 
+        renderKernelGrid(); 
+        clearChart();
+    }
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    async function runScan() {
+        const btn = document.getElementById('scanBtn');
+        const log = document.getElementById('scanLog');
+        const outDiv = document.getElementById('outputGrid');
+        const inputDiv = document.getElementById('inputGrid');
+        const actFuncType = document.getElementById('scanActivation').value;
+        const actFunc = Activations[actFuncType];
+
+        btn.disabled = true;
+        log.textContent = `Сканування (${actFuncType})...`;
+        
+        Array.from(outDiv.children).forEach(c => { c.textContent = ''; c.style.backgroundColor = '#f3f4f6'; });
+        Array.from(inputDiv.children).forEach(c => c.classList.remove('best-match-border'));
+
+        let maxVal = -Infinity;
+        let bestCoords = null;
+
+        for(let i=0; i<OUTPUT_SIZE; i++) {
+            for(let j=0; j<OUTPUT_SIZE; j++) {
+                
+                highlightInputWithOverlay(i, j, true);
+                
+                let sum = 0;
+                for(let ki=0; ki<KERNEL_SIZE; ki++) {
+                    for(let kj=0; kj<KERNEL_SIZE; kj++) {
+                        // Math logic: convert input 0 -> -1 to match kernel logic properly
+                        let inPixel = inputData[i+ki][j+kj]; 
+                        let inVal = (inPixel === 1) ? 1 : -1; 
+                        let kVal = kernelWeights[ki][kj];
+                        sum += inVal * kVal;
+                    }
+                }
+                
+                let val = actFunc(sum);
+
+                if(val > maxVal) {
+                    maxVal = val;
+                    bestCoords = {r:i, c:j};
+                }
+
+                let cellIdx = i*OUTPUT_SIZE + j;
+                let cell = outDiv.children[cellIdx];
+                cell.textContent = val.toFixed(1);
+                cell.style.backgroundColor = getHeatmapColor(val);
+                if(Math.abs(val) > 2) cell.style.color = 'white'; else cell.style.color = '#333';
+
+                await sleep(50); 
+                highlightInputWithOverlay(i, j, false);
+            }
+        }
+
+        if(maxVal > 0.5 && bestCoords) {
+            log.textContent = `Знайдено максимум: ${maxVal.toFixed(2)}`;
+            drawBestMatchBorder(bestCoords.r, bestCoords.c);
+        } else {
+            log.textContent = "Сильних збігів не знайдено.";
+        }
+        btn.disabled = false;
+    }
+
+    function createMatrixPart1(size) { return Array(size).fill().map(() => Array(size).fill(0)); }
+    function createRandomMatrix(size) { return Array(size).fill().map(() => Array(size).fill().map(() => Math.random() - 0.5)); }
+    function drawDemoLine() { clearInput(); for(let i=0; i<INPUT_SIZE; i++) inputData[i][2] = 1; inputData[1][1] = 1; inputData[4][3] = 1;inputData[3][4] = 1; inputData[5][4] = 1; renderInputGrid(); }
+    function clearInput() { inputData = createMatrixPart1(INPUT_SIZE); renderInputGrid(); }
+
+    function highlightInputWithOverlay(r, c, active) {
+        const div = document.getElementById('inputGrid');
+        for(let i=0; i<KERNEL_SIZE; i++){
+            for(let j=0; j<KERNEL_SIZE; j++){
+                let idx = (r+i)*INPUT_SIZE + (c+j);
+                let cell = div.children[idx];
+                if(active) {
+                    cell.classList.add('scanning');
+                    let overlay = document.createElement('div');
+                    overlay.className = 'kernel-overlay';
+                    overlay.textContent = kernelWeights[i][j].toFixed(1);
+                    cell.appendChild(overlay);
+                } else {
+                    cell.classList.remove('scanning');
+                    let overlay = cell.querySelector('.kernel-overlay');
+                    if(overlay) cell.removeChild(overlay);
+                }
+            }
+        }
+    }
+
+    function drawBestMatchBorder(startR, startC) {
+        const div = document.getElementById('inputGrid');
+        for(let i=0; i<KERNEL_SIZE; i++){
+            for(let j=0; j<KERNEL_SIZE; j++){
+                let idx = (startR+i)*INPUT_SIZE + (startC+j);
+                div.children[idx].classList.add('best-match-border');
+            }
+        }
+    }
+</script>
+
+<script>
+    /* =========================================
+       PART 3: DEEP LEARNING (UPDATED)
+       ========================================= */
+    
+    const SIZE_IN = 5;
+    const SIZE_K = 3;
+    const SIZE_OUT = 3;
+
+    let deepInput = createMatrixDeep(SIZE_IN);
+    let kernel1 = createMatrixDeep(SIZE_K);
+    let kernel2 = createMatrixDeep(SIZE_K);
+    
+    let scores1 = createMatrixDeep(SIZE_OUT);
+    let scores2 = createMatrixDeep(SIZE_OUT);
+    let scoresMix = createMatrixDeep(SIZE_OUT);
+    let hasRun = false;
+
+    const FILTERS = {
+        'vert': [[0, 1, 0], [0, 1, 0], [0, 1, 0]],
+        'horz': [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
+        'checker': [[1, 0, 1], [0, 1, 0], [1, 0, 1]], 
+        'custom': [[0,0,0], [0,0,0], [0,0,0]]
+    };
+
+    function initDeep() {
+        createGrid('deepInput', SIZE_IN, true, 'cell', toggleDeepInput);
+        // Interactive Kernels
+        createGrid('visFilter1', SIZE_K, true, 'cell', (r, c) => toggleFilter(1, r, c)); 
+        createGrid('visFilter2', SIZE_K, true, 'cell', (r, c) => toggleFilter(2, r, c));
+        
+        const combinedDiv = document.getElementById('visCombined');
+        combinedDiv.innerHTML = '';
+        for(let i=0; i<9; i++) {
+            let d = document.createElement('div');
+            d.style.width = '15px'; d.style.height = '15px'; d.style.background='#ccc'; d.style.borderRadius='2px';
+            combinedDiv.appendChild(d);
+        }
+
+        createGrid('map1', SIZE_OUT, false, 'cell out-cell');
+        createGrid('map2', SIZE_OUT, false, 'cell out-cell');
+        createGrid('mapMix', SIZE_OUT, false, 'cell out-cell');
+        
+        loadInputPreset('cross');
+        loadFilterPreset(1, 'vert');
+        loadFilterPreset(2, 'horz');
+    }
+
+    function createMatrixDeep(size) { return Array(size).fill().map(() => Array(size).fill(0)); }
+
+    function createGrid(id, size, interactive, cellClass, clickHandler) {
+        const div = document.getElementById(id);
+        div.innerHTML = '';
+        div.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                let el = document.createElement('div');
+                el.className = cellClass;
+                el.dataset.r = r;
+                el.dataset.c = c;
+                if(interactive && clickHandler) {
+                    el.style.cursor = 'pointer';
+                    el.onclick = () => clickHandler(r, c, el);
+                }
+                div.appendChild(el);
+            }
+        }
+    }
+
+    function toggleDeepInput(r, c, el) {
+        deepInput[r][c] = deepInput[r][c] === 1 ? 0 : 1;
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    // Restore Kernel Editing
+    function toggleFilter(filterNum, r, c) {
+        let k = (filterNum === 1) ? kernel1 : kernel2;
+        k[r][c] = k[r][c] === 1 ? 0 : 1;
+        updateKernelDisplay(filterNum);
+        updateCombinedView();
+        clearResults();
+    }
+
+    function clearDeepInput() {
+        deepInput = createMatrixDeep(SIZE_IN);
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    function loadInputPreset(type) {
+        deepInput = createMatrixDeep(SIZE_IN);
+        if(type === 'cross') { for(let i=0; i<5; i++) { deepInput[2][i] = 1; deepInput[i][2] = 1; } } 
+        else if (type === 'K_letter') {
+            for(let i=0; i<5; i++) deepInput[i][1] = 1;
+            deepInput[1][2] = 1; deepInput[0][3] = 1; deepInput[3][2] = 1; deepInput[4][3] = 1;
+        } else if(type === 'checker') {
+            for(let i=0; i<5; i++) for(let j=0; j<5; j++) if((i+j)%2===0) deepInput[i][j] = 1;
+        } else if(type === 'full_black') {
+            for(let i=0; i<5; i++) for(let j=0; j<5; j++) deepInput[i][j] = 1;
+        }
+        updateGridDisplay('deepInput', deepInput);
+        clearResults();
+    }
+
+    function loadFilterPreset(filterNum, type) {
+        let data = JSON.parse(JSON.stringify(FILTERS[type] || FILTERS['custom']));
+        if (filterNum === 1) kernel1 = data; else kernel2 = data;
+        updateKernelDisplay(filterNum);
+        updateCombinedView();
+        clearResults();
+    }
+
+    function updateGridDisplay(id, matrix) {
+        const div = document.getElementById(id);
+        Array.from(div.children).forEach(cell => {
+            let r = cell.dataset.r, c = cell.dataset.c;
+            cell.classList.remove('active');
+            if(matrix[r][c] === 1) cell.classList.add('active');
+        });
+    }
+
+    function updateKernelDisplay(filterNum) {
+        let k = (filterNum === 1) ? kernel1 : kernel2;
+        let id = `visFilter${filterNum}`;
+        const div = document.getElementById(id);
+        Array.from(div.children).forEach(cell => {
+            let r = cell.dataset.r, c = cell.dataset.c;
+            cell.className = 'cell'; 
+            if(k[r][c] === 1) cell.classList.add('k-pos');
+        });
+    }
+
+    function updateCombinedView() {
+        const div = document.getElementById('visCombined');
+        Array.from(div.children).forEach((cell, i) => {
+            let r = Math.floor(i/3), c = i%3;
+            cell.style.background = '#e5e7eb';
+            let v1 = kernel1[r][c];
+            let v2 = kernel2[r][c];
+            if (v1 && v2) cell.style.background = '#8b5cf6';
+            else if (v1) cell.style.background = '#3b82f6';
+            else if (v2) cell.style.background = '#ef4444';
+        });
+    }
+
+    function clearResults() {
+        ['map1', 'map2', 'mapMix'].forEach(id => {
+            Array.from(document.getElementById(id).children).forEach(c => {
+                c.style.backgroundColor = '#f3f4f6'; c.textContent = '';
+            });
+        });
+        document.getElementById('statusMsg').textContent = "";
+        document.getElementById('debugInfo').textContent = "";
+        // Remove input highlights
+        Array.from(document.getElementById('deepInput').children).forEach(c => c.classList.remove('best-match-border'));
+        hasRun = false;
+    }
+
+    function runDeepCalc() {
+        const btn = document.getElementById('btnRun');
+        const mode = document.getElementById('calcMode').value;
+        const actName = document.getElementById('deepActivation').value;
+
+        btn.disabled = true;
+        
+        scores1 = convDeep(deepInput, kernel1, mode, actName);
+        scores2 = convDeep(deepInput, kernel2, mode, actName);
+        
+        for(let r=0; r<SIZE_OUT; r++) {
+            for(let c=0; c<SIZE_OUT; c++) {
+                scoresMix[r][c] = scores1[r][c] + scores2[r][c];
+            }
+        }
+
+        hasRun = true;
+        updateViewMode();
+        setTimeout(() => btn.disabled = false, 300);
+    }
+
+    function convDeep(input, kernel, mode, actName) {
+        let result = createMatrixDeep(SIZE_OUT);
+        let actFunc = Activations[actName];
+
+        for(let r=0; r<SIZE_OUT; r++) {
+            for(let c=0; c<SIZE_OUT; c++) {
+                let sum = 0;
+                
+                if (mode === 'heuristic') {
+                    for(let i=0; i<SIZE_K; i++) {
+                        for(let j=0; j<SIZE_K; j++) {
+                            let inVal = input[r+i][c+j];
+                            let kVal = kernel[i][j];
+                            if (inVal === 1 && kVal === 1) sum += 1;
+                            else if (inVal === 1 && kVal === 0) sum -= 0.5;
+                        }
+                    }
+                } else {
+                    // MATH MODE: Convert 0 to -1 to prevent Black Square Match
+                    // Input: 0 -> -1, 1 -> 1
+                    // Kernel: 0 -> -1, 1 -> 1
+                    for(let i=0; i<SIZE_K; i++) {
+                        for(let j=0; j<SIZE_K; j++) {
+                            let inVal = (input[r+i][c+j] === 1) ? 1 : -1;
+                            let kVal = (kernel[i][j] === 1) ? 1 : -1;
+                            sum += inVal * kVal;
+                        }
+                    }
+                    // For perfect match of 9 pixels (3x3), sum is 9.
+                    // For perfect inverse, sum is -9.
+                    // Random noise ~ 0.
+                    sum = actFunc(sum);
+                }
+                
+                result[r][c] = sum;
+            }
+        }
+        return result;
+    }
+
+    function updateViewMode() {
+        if(!hasRun) return;
+
+        const isHeatmap = document.getElementById('checkHeatmap').checked;
+        const status = document.getElementById('statusMsg');
+        const debug = document.getElementById('debugInfo');
+        
+        // Render Maps with Absolute Heatmap
+        renderMapDeep('map1', scores1, isHeatmap);
+        renderMapDeep('map2', scores2, isHeatmap);
+        
+        const divMix = document.getElementById('mapMix');
+        let maxScore = -999;
+        let bestR = -1, bestC = -1;
+
+        for(let i=0; i<divMix.children.length; i++) {
+            let r = Math.floor(i/SIZE_OUT), c = i%SIZE_OUT;
+            let s = scoresMix[r][c];
+            let cell = divMix.children[i];
+            
+            if(s > maxScore) { maxScore = s; bestR = r; bestC = c; }
+
+            cell.className = 'cell out-cell';
+            
+            if(isHeatmap) {
+                cell.style.backgroundColor = getHeatmapColor(s/2); // divide by 2 for mix (sum of 2 layers)
+                cell.textContent = s.toFixed(1).replace('.0','');
+                cell.style.color = Math.abs(s) > 3 ? 'white' : 'black';
+            } else {
+                // Binary
+                cell.style.backgroundColor = (s > 3.0) ? '#8b5cf6' : '#f3f4f6';
+                cell.style.color = (s > 3.0) ? 'white' : 'transparent';
+                cell.textContent = "";
+            }
+        }
+        
+        // HIGHLIGHT BEST MATCH IN INPUT (GREEN BORDER)
+        if(maxScore > 1.0 && bestR !== -1) {
+            highlightDeepInput(bestR, bestC);
+            status.textContent = `Макс. сигнал: ${maxScore.toFixed(1)}`;
+            status.style.color = "#059669";
+        } else {
+            status.textContent = "Сигнал слабкий";
+            status.style.color = "#dc2626";
+        }
+
+        if(isHeatmap) {
+            debug.textContent = "Клікайте на вхідне зображення і на фільтри 1 шару, щоб змінити";
+        }
+    }
+
+    function renderMapDeep(id, data, isHeatmap) {
+        const div = document.getElementById(id);
+        for(let i=0; i<div.children.length; i++) {
+            let r = Math.floor(i/SIZE_OUT), c = i%SIZE_OUT;
+            let val = data[r][c];
+            let cell = div.children[i];
+            
+            cell.className = 'cell out-cell';
+            if(isHeatmap) {
+                cell.style.backgroundColor = getHeatmapColor(val);
+                cell.textContent = val.toFixed(1).replace('.0','');
+                cell.style.color = Math.abs(val) > 2 ? 'white' : 'black';
+            } else {
+                cell.style.backgroundColor = (val > 2.0) ? '#3b82f6' : '#f3f4f6';
+                cell.textContent = '';
+            }
+        }
+    }
+
+    function highlightDeepInput(startR, startC) {
+        const div = document.getElementById('deepInput');
+        // Clear old
+        Array.from(div.children).forEach(c => c.classList.remove('best-match-border'));
+        // Draw new (3x3 area)
+        for(let i=0; i<SIZE_K; i++){
+            for(let j=0; j<SIZE_K; j++){
+                let idx = (startR+i)*SIZE_IN + (startC+j);
+                if(div.children[idx]) div.children[idx].classList.add('best-match-border');
+            }
+        }
+    }
+
+    initScan();
+    initDeep();
+</script>
+
+</body>
+</html>
