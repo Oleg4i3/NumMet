@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>kNN Симулятор: Кластеризація та Аналіз</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 3px; color: #2c3e50; }
+        
+        /* TABS */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            background-color: #007aff;
+            color: white;
+        }
+
+        /* CONTAINER */
+        .app-container {
+            display: flex;
+            width: 1100px;
+            height: 650px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 320px;
+            background: #f8f9fa;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        input[type=range], select { width: 100%; margin-bottom: 5px; }
+        
+        button.action-btn {
+            width: 100%;
+            padding: 8px;
+            background: #007aff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        button.action-btn:hover { background: #0056b3; }
+
+        /* VISUALIZATION AREA */
+        .visualization-area {
+            flex-grow: 1;
+            position: relative;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        /* TAB 1: CANVAS */
+        #knn-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            display: block;
+        }
+
+        /* TAB 2: MOVIES */
+        #movie-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #fcfcfc;
+            display: none; 
+        }
+        
+        /* LAYERS IN TAB 2 */
+        #voronoi-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.6;
+        }
+        #connections-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .movie-point {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: #fff;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+        .movie-point:hover { transform: scale(1.2); z-index: 10; }
+        
+        /* States for movies */
+        .movie-point.is-center {
+            border-color: #000;
+            border-width: 3px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            transform: scale(1.3);
+            z-index: 5;
+        }
+        .movie-point.outlier {
+            opacity: 0.3;
+            filter: grayscale(100%);
+            border-color: #ddd;
+        }
+
+        .movie-label {
+            position: absolute;
+            top: 40px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 20;
+        }
+        .movie-point:hover .movie-label { opacity: 1; }
+
+        /* AXIS LABELS */
+        .axis-label {
+            position: absolute;
+            font-size: 12px;
+            color: #555;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.7);
+            padding: 2px 5px;
+            border-radius: 3px;
+            z-index: 3;
+        }
+
+        /* THEORY BOX */
+        .theory-box {
+            margin-top: 20px;
+            border: 1px solid #cce5ff;
+            background: #e8f4ff;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .theory-details {
+            display: none;
+            margin-top: 10px;
+            font-size: 0.9em;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <h1>kNN: Класифікація і Кластеризація</h1>
+	
+	
+	<div class="theory-box" style="margin-top: 20px; border: 1px solid #cce5ff; background: #f0f7ff; border-radius: 8px; padding: 15px;">
+    <details>
+        <summary style="cursor:pointer; color:#0056b3; font-weight:bold; font-size: 1.1em;">
+            📚 Теоретична довідка
+        </summary>
+        
+        <div id="theory-content" style="margin-top: 15px; background: white; padding: 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">1. Як працює kNN (простими словами)</h3>
+            <p>
+                Алгоритм <strong>k-Nearest Neighbors</strong> (k-найближчих сусідів) базується на гіпотезі компактності: 
+                <em>схожі об'єкти зазвичай знаходяться поруч в просторі ознак</em>.
+            </p>
+            <p>Алгоритм не створює моделі заздалегідь (це "ліниве навчання" або <em>Lazy Learning</em>). Замість цього він:</p>
+            <ol>
+                <li>Запам'ятовує всі навчальні дані.</li>
+                <li>Коли з'являється нова точка, він обчислює відстань від неї до всіх відомих точок.</li>
+                <li>Відбирає $k$ точок з найменшою відстанню.</li>
+                <li>Приймає рішення на основі "більшості голосів" (для класифікації) або середнього значення (для регресії).</li>
+            </ol>
+
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">2. Математичне обґрунтування</h3>
+            
+            <h4>А. Метрики відстані</h4>
+            <p>Найчастіше використовується <strong>Евклідова відстань</strong> (пряма лінія). Для двох точок $A$ та $B$ у просторі з $n$ ознак:</p>
+            $$ d(A, B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} $$
+            
+            <p>Якщо ознаки мають "міський" характер (рух тільки по сітці), використовують <strong>Манхеттенську відстань</strong>:</p>
+            $$ d_{manhattan}(A, B) = \sum_{i=1}^{n} |A_i - B_i| $$
+
+            <h4>Б. Важливість Нормалізації</h4>
+            <p>
+                kNN дуже чутливий до масштабу. Якщо одна ознака вимірюється в мільйонах (зарплата), а інша в одиницях (вік), то зарплата повністю перекриє вплив віку. 
+                Тому дані нормалізують (Min-Max Scaling):
+            </p>
+            $$ X_{norm} = \frac{X - X_{min}}{X_{max} - X_{min}} $$
+
+            <h4>В. Класифікація та Зважування</h4>
+            <p>
+                У простому kNN рішення приймається за кількістю:
+                $$ y = \text{mode}(y_1, y_2, ..., y_k) $$
+                
+                У <strong>зваженому kNN</strong> (Weighted kNN) ближчі сусіди мають більший вплив. Вага $w_i$ часто обернена до відстані:
+                $$ w_i = \frac{1}{d(x, x_i)^2} $$
+            </p>
+
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">3. Навіщо kNN в Machine Learning?</h3>
+            <p>Попри простоту, kNN залишається важливим інструментом у сучасному Data Science:</p>
+            <ul style="line-height: 1.6;">
+                <li><strong>Рекомендаційні системи:</strong> "Користувачі, схожі на вас, дивилися цей фільм". Це основа колаборативної фільтрації.</li>
+                <li><strong>Пошук аномалій:</strong> Якщо точка знаходиться далеко від своїх $k$-сусідів, вона може бути шахрайською транзакцією або дефектом на виробництві.</li>
+                <li><strong>Data Mining (Заповнення пропусків):</strong> Якщо в даних пропущено значення, kNN знаходить схожі записи і бере значення з них.</li>
+                <li><strong>Векторний пошук (RAG):</strong> Сучасні AI (як ChatGPT) використовують ідею kNN для пошуку релевантних текстів у базі знань (Vector Embeddings).</li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('classification')">1. Класифікація (Дані)</button>
+        <button class="tab-btn" onclick="switchTab('clustering')">2. Кластеризація (Фільми)</button>
+    </div>
+
+    <div class="app-container">
+        <div class="sidebar">
+            
+            <div id="controls-tab1">
+                <div class="control-group">
+                    <label>Параметр K (Сусіди): <span id="k-value-disp" style="color:#007aff;">3</span></label>
+                    <input type="range" min="1" max="15" value="3" oninput="updateK1(this.value)">
+                </div>
+                <div class="control-group">
+                    <p style="font-size:0.85em; color:#666;">Рухайте мишкою по полю. Алгоритм класифікує нову точку (курсор) за K найближчими сусідами.</p>
+                </div>
+                <div id="vote-stats" style="padding:10px; background:white; border-radius:6px; font-size:0.9em;"></div>
+                <button class="action-btn" onclick="generateRandomPoints()">Перегенерувати Дані</button>
+            </div>
+
+            <div id="controls-tab2" class="hidden">
+                <div class="control-group">
+                    <label>Кількість Кластерів (K): <span id="k-cluster-disp">3</span></label>
+                    <input type="range" id="k-cluster-slider" min="1" max="6" value="3" oninput="updateK2(this.value)">
+                </div>
+                
+                <div class="control-group">
+                    <label>Радіус кластера (Поріг шуму):</label>
+                    <input type="range" id="radius-slider" min="10" max="100" value="40" oninput="runClustering()">
+                    <small style="color:#666;">Фільми за межами радіусу стають аутлайєрами.</small>
+                </div>
+
+                <div class="control-group" style="border-top: 1px solid #ddd; padding-top:10px;">
+                    <label>Вісь X (Горизонталь):</label>
+                    <select id="axis-x-select" onchange="runClustering()">
+                        <option value="scifi_real">Фантастика ↔ Реалізм</option>
+                        <option value="funny_serious">Комедія ↔ Драма</option>
+                        <option value="action_romance">Екшн ↔ Романтика</option>
+                    </select>
+
+                    <label style="margin-top:10px;">Вісь Y (Вертикаль):</label>
+                    <select id="axis-y-select" onchange="runClustering()">
+                        <option value="funny_serious" selected>Комедія ↔ Драма</option>
+                        <option value="scifi_real">Фантастика ↔ Реалізм</option>
+                        <option value="action_romance">Екшн ↔ Романтика</option>
+                    </select>
+                </div>
+
+                <button class="action-btn" onclick="randomizeCenters()">🎲 Змінити Центри</button>
+
+                
+                    <div>
+                        <p><strong>1. Евклідова відстань:</strong></p>
+                        <p>Для визначення схожості між фільмами $A$ та $B$ у просторі ознак:</p>
+                        $$ d(A, B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} $$
+                        
+                        <p><strong>2. Призначення кластера:</strong></p>
+                        <p>Фільм $x$ належить до кластера з центром $C_k$, якщо:</p>
+                        $$ C_{best} = \arg\min_{k} d(x, C_k) $$
+                        
+                        <p><strong>3. Аутлайєр (Шум):</strong></p>
+                        <p>Якщо $d(x, C_{best}) > R_{max}$, то $x$ — шум.</p>
+                    </div>
+                
+            </div>
+        </div>
+
+        <div class="visualization-area">
+            
+            <canvas id="knn-canvas"></canvas>
+
+            <div id="movie-container">
+                <canvas id="voronoi-canvas"></canvas> <div class="axis-label" id="label-top" style="top: 10px; left: 50%; transform: translateX(-50%);">Top</div>
+                <div class="axis-label" id="label-bottom" style="bottom: 10px; left: 50%; transform: translateX(-50%);">Bottom</div>
+                <div class="axis-label" id="label-left" style="top: 50%; left: 10px; transform: translateY(-50%) rotate(-90deg);">Left</div>
+                <div class="axis-label" id="label-right" style="top: 50%; right: 10px; transform: translateY(-50%) rotate(90deg);">Right</div>
+
+                </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DATASET: MOVIES ---
+        // Scales 0-100. 
+        // scifi_real: 0=SciFi/Fantasy, 100=Realistic/History
+        // funny_serious: 0=Funny/Comedy, 100=Serious/Dark
+        // action_romance: 0=Explosions/Fight, 100=Love/Slow
+        
+        const moviesDB = [
+            { id: 1, title: "Avengers", icon: "🦸", scifi_real: 10, funny_serious: 40, action_romance: 10 },
+            { id: 2, title: "Star Wars", icon: "🚀", scifi_real: 5, funny_serious: 50, action_romance: 20 },
+            { id: 3, title: "Titanic", icon: "🚢", scifi_real: 80, funny_serious: 80, action_romance: 95 },
+            { id: 4, title: "Notebook", icon: "📓", scifi_real: 85, funny_serious: 70, action_romance: 100 },
+            { id: 5, title: "Shrek", icon: "🤢", scifi_real: 15, funny_serious: 10, action_romance: 40 },
+            { id: 6, title: "Toy Story", icon: "🤠", scifi_real: 20, funny_serious: 15, action_romance: 50 },
+            { id: 7, title: "Godfather", icon: "🌹", scifi_real: 95, funny_serious: 100, action_romance: 30 },
+            { id: 8, title: "Hangover", icon: "🍻", scifi_real: 90, funny_serious: 0, action_romance: 30 },
+            { id: 9, title: "Inception", icon: "🌀", scifi_real: 30, funny_serious: 85, action_romance: 20 },
+            { id: 10, title: "Matrix", icon: "😎", scifi_real: 25, funny_serious: 80, action_romance: 10 },
+            { id: 11, title: "Joker", icon: "🤡", scifi_real: 85, funny_serious: 90, action_romance: 10 },
+            { id: 12, title: "Minions", icon: "🍌", scifi_real: 10, funny_serious: 5, action_romance: 40 },
+            { id: 13, title: "Barbie", icon: "🎀", scifi_real: 40, funny_serious: 30, action_romance: 60 },
+            { id: 14, title: "Oppenheimer", icon: "💣", scifi_real: 95, funny_serious: 100, action_romance: 10 },
+            { id: 15, title: "Interstellar", icon: "🌌", scifi_real: 10, funny_serious: 90, action_romance: 30 },
+            { id: 16, title: "Pulp Fiction", icon: "🔫", scifi_real: 85, funny_serious: 60, action_romance: 10 },
+            { id: 17, title: "La La Land", icon: "💃", scifi_real: 70, funny_serious: 50, action_romance: 90 },
+            { id: 18, title: "Parasite", icon: "🇰🇷", scifi_real: 90, funny_serious: 85, action_romance: 20 },
+            { id: 19, title: "Harry Potter", icon: "⚡", scifi_real: 0, funny_serious: 50, action_romance: 40 },
+            { id: 20, title: "It", icon: "🎈", scifi_real: 40, funny_serious: 90, action_romance: 10 },
+            { id: 21, title: "Amelie", icon: "🇫🇷", scifi_real: 60, funny_serious: 40, action_romance: 80 },
+            { id: 22, title: "Mad Max", icon: "🔥", scifi_real: 20, funny_serious: 70, action_romance: 0 }
+        ];
+
+        // --- GLOBAL STATE ---
+        let currentTab = 'classification';
+        
+        // Tab 1 Variables
+        let K1 = 3;
+        const canvas1 = document.getElementById('knn-canvas');
+        const ctx1 = canvas1.getContext('2d');
+        let points = [];
+        let mousePos = { x: -100, y: -100 };
+        const CLASS_COLORS = { 0: '#ff4757', 1: '#2ed573', 2: '#5352ed' };
+        
+        // Tab 2 Variables
+        let K2 = 3; // Clusters
+        let activeCenters = []; // Array of movie IDs
+        const canvasVoro = document.getElementById('voronoi-canvas');
+        const ctxVoro = canvasVoro.getContext('2d');
+        const CLUSTER_COLORS = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4'];
+        
+        // Axis Labels Config
+        const AXIS_TEXT = {
+            'scifi_real': ['Фантастика', 'Реалізм'],
+            'funny_serious': ['Комедія', 'Драма'],
+            'action_romance': ['Екшн', 'Романтика']
+        };
+
+        // --- TAB 1 LOGIC (Original) ---
+        
+        function initTab1() {
+            resizeCanvas1();
+            window.addEventListener('resize', resizeCanvas1);
+            
+            canvas1.addEventListener('mousemove', e => {
+                const rect = canvas1.getBoundingClientRect();
+                mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                requestAnimationFrame(drawTab1);
+            });
+            canvas1.addEventListener('mouseleave', () => {
+                mousePos = { x: -100, y: -100 };
+                requestAnimationFrame(drawTab1);
+            });
+            generateRandomPoints();
+        }
+
+        function resizeCanvas1() {
+            canvas1.width = canvas1.parentElement.offsetWidth;
+            canvas1.height = canvas1.parentElement.offsetHeight;
+            if(currentTab === 'classification') drawTab1();
+        }
+
+        function generateRandomPoints() {
+            points = [];
+            const w = canvas1.width || 800;
+            const h = canvas1.height || 600;
+            // Clusters
+            for(let i=0; i<30; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 0 }); 
+            for(let i=0; i<30; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 1 });
+            // Dense areas
+            for(let i=0; i<15; i++) {
+                points.push({ x: w*0.25+(Math.random()-0.5)*150, y: h*0.3+(Math.random()-0.5)*150, type: 0 });
+                points.push({ x: w*0.75+(Math.random()-0.5)*150, y: h*0.7+(Math.random()-0.5)*150, type: 1 });
+                points.push({ x: w*0.5+(Math.random()-0.5)*150, y: h*0.6+(Math.random()-0.5)*150, type: 2 });
+            }
+            drawTab1();
+        }
+
+        function drawTab1() {
+            if(currentTab !== 'classification') return;
+            ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+
+            // Calc dists
+            const pDist = points.map(p => ({...p, d: Math.hypot(p.x - mousePos.x, p.y - mousePos.y)}));
+            pDist.sort((a,b) => a.d - b.d);
+            const neighbors = pDist.slice(0, K1);
+
+            // Draw points
+            points.forEach(p => {
+                ctx1.beginPath();
+                ctx1.arc(p.x, p.y, 6, 0, Math.PI*2);
+                ctx1.fillStyle = CLASS_COLORS[p.type];
+                ctx1.fill();
+            });
+
+            // Draw interaction
+            if(mousePos.x > 0) {
+                // Radius
+                const maxDist = neighbors.length ? neighbors[neighbors.length-1].d : 0;
+                ctx1.beginPath(); ctx1.arc(mousePos.x, mousePos.y, maxDist, 0, Math.PI*2);
+                ctx1.fillStyle = 'rgba(0,122,255,0.05)'; ctx1.fill(); ctx1.strokeStyle = 'rgba(0,122,255,0.2)'; ctx1.stroke();
+
+                // Lines
+                neighbors.forEach(n => {
+                    ctx1.beginPath(); ctx1.moveTo(mousePos.x, mousePos.y); ctx1.lineTo(n.x, n.y);
+                    ctx1.strokeStyle = '#888'; ctx1.stroke();
+                    // Highlight neighbor
+                    ctx1.beginPath(); ctx1.arc(n.x, n.y, 9, 0, Math.PI*2);
+                    ctx1.strokeStyle = '#333'; ctx1.stroke();
+                });
+
+                // Cursor
+                ctx1.beginPath(); ctx1.arc(mousePos.x, mousePos.y, 8, 0, Math.PI*2);
+                ctx1.fillStyle = '#333'; ctx1.fill();
+                
+                // Stats
+                updateStats(neighbors);
+            }
+        }
+
+        function updateStats(neighbors) {
+            const votes = {0:0, 1:0, 2:0};
+            neighbors.forEach(n => votes[n.type]++);
+            let html = "<strong>Голоси:</strong><br>";
+            html += `<span style="color:${CLASS_COLORS[0]}">Red A: ${votes[0]}</span><br>`;
+            html += `<span style="color:${CLASS_COLORS[1]}">Green B: ${votes[1]}</span><br>`;
+            html += `<span style="color:${CLASS_COLORS[2]}">Blue C: ${votes[2]}</span>`;
+            document.getElementById('vote-stats').innerHTML = html;
+        }
+
+        // --- TAB 2 LOGIC (Clustering) ---
+
+        function initTab2() {
+            // Initial Centroids
+            randomizeCenters();
+            window.addEventListener('resize', runClustering);
+        }
+
+        function updateK2(val) {
+            K2 = parseInt(val);
+            document.getElementById('k-cluster-disp').innerText = K2;
+            randomizeCenters(); // Re-pick centers when K changes
+        }
+
+        function randomizeCenters() {
+            // Pick K random movies as centers (k-Medoids init)
+            const shuffled = [...moviesDB].sort(() => 0.5 - Math.random());
+            activeCenters = shuffled.slice(0, K2).map(m => m.id);
+            runClustering();
+        }
+
+        function runClustering() {
+            if(currentTab !== 'clustering') return;
+
+            const axisX = document.getElementById('axis-x-select').value;
+            const axisY = document.getElementById('axis-y-select').value;
+            const radius = parseInt(document.getElementById('radius-slider').value);
+
+            const container = document.getElementById('movie-container');
+            const w = container.offsetWidth;
+            const h = container.offsetHeight;
+            
+            // 1. Resize Voronoi Canvas
+            canvasVoro.width = w;
+            canvasVoro.height = h;
+
+            // 2. Prepare screen coordinates for all movies
+            const moviesRender = moviesDB.map(m => {
+                // Map 0-100 to pixels. Invert Y.
+                const x = (m[axisX] / 100) * w;
+                const y = ((100 - m[axisY]) / 100) * h;
+                return { ...m, sx: x, sy: y };
+            });
+
+            // 3. Get Centers Objects
+            const centers = moviesRender.filter(m => activeCenters.includes(m.id));
+
+            // 4. Draw Voronoi Background (Pixel Logic)
+            drawVoronoiRegion(centers, w, h, radius);
+
+            // 5. Place DOM Elements
+            // Clear old points (except canvas and labels)
+            document.querySelectorAll('.movie-point').forEach(e => e.remove());
+
+            moviesRender.forEach(m => {
+                // Determine Cluster & Outlier status
+                let minDist = Infinity;
+                let closestCenterIndex = -1;
+
+                centers.forEach((c, idx) => {
+                    const d = Math.hypot(m.sx - c.sx, m.sy - c.sy);
+                    if(d < minDist) {
+                        minDist = d;
+                        closestCenterIndex = idx;
+                    }
+                });
+
+                const isOutlier = minDist > (radius * (w/100) * 0.8); // Scale radius roughly to pixels
+                const isCenter = activeCenters.includes(m.id);
+
+                // Create Element
+                const el = document.createElement('div');
+                el.className = `movie-point ${isCenter ? 'is-center' : ''} ${isOutlier && !isCenter ? 'outlier' : ''}`;
+                el.style.left = (m.sx - 18) + 'px'; // Center div
+                el.style.top = (m.sy - 18) + 'px';
+                el.innerHTML = m.icon + `<div class="movie-label">${m.title}</div>`;
+                
+                // Color border if center
+                if(isCenter) {
+                    el.style.borderColor = CLUSTER_COLORS[closestCenterIndex];
+                    el.style.backgroundColor = CLUSTER_COLORS[closestCenterIndex];
+                    el.style.color = 'white';
+                }
+
+                container.appendChild(el);
+            });
+
+            // 6. Update Axis Labels
+            document.getElementById('label-left').innerText = AXIS_TEXT[axisX][0];
+            document.getElementById('label-right').innerText = AXIS_TEXT[axisX][1];
+            document.getElementById('label-bottom').innerText = AXIS_TEXT[axisY][0];
+            document.getElementById('label-top').innerText = AXIS_TEXT[axisY][1];
+        }
+
+        function drawVoronoiRegion(centers, w, h, radiusPercent) {
+            if(centers.length === 0) return;
+
+            const ctx = ctxVoro;
+            ctx.clearRect(0, 0, w, h);
+            
+            // Optimization: Draw in low res (4px blocks)
+            const resolution = 4;
+            const radiusPx = radiusPercent * (w / 100) * 0.8; // Approximate conversion
+
+            for(let x = 0; x < w; x += resolution) {
+                for(let y = 0; y < h; y += resolution) {
+                    
+                    let minDist = Infinity;
+                    let cIndex = -1;
+
+                    // Find nearest center
+                    for(let i=0; i<centers.length; i++) {
+                        const d = Math.hypot(x - centers[i].sx, y - centers[i].sy);
+                        if(d < minDist) {
+                            minDist = d;
+                            cIndex = i;
+                        }
+                    }
+
+                    // Draw if within radius
+                    if(minDist < radiusPx) {
+                        ctx.fillStyle = CLUSTER_COLORS[cIndex];
+                        ctx.globalAlpha = 0.2; // Transparent
+                        ctx.fillRect(x, y, resolution, resolution);
+                    }
+                }
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        // --- COMMON UTILS ---
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const tab1Controls = document.getElementById('controls-tab1');
+            const tab2Controls = document.getElementById('controls-tab2');
+            const canvas1Area = document.getElementById('knn-canvas');
+            const movieArea = document.getElementById('movie-container');
+
+            if(tab === 'classification') {
+                tab1Controls.classList.remove('hidden');
+                tab2Controls.classList.add('hidden');
+                canvas1Area.style.display = 'block';
+                movieArea.style.display = 'none';
+                resizeCanvas1();
+            } else {
+                tab1Controls.classList.add('hidden');
+                tab2Controls.classList.remove('hidden');
+                canvas1Area.style.display = 'none';
+                movieArea.style.display = 'block';
+                runClustering();
+            }
+        }
+
+        function updateK1(val) {
+            K1 = val;
+            document.getElementById('k-value-disp').innerText = val;
+            if(currentTab === 'classification') drawTab1();
+        }
+
+        function toggleTheory() {
+            const el = document.getElementById('theory-content');
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Init
+        setTimeout(() => {
+            initTab1();
+            initTab2();
+        }, 100);
+
+    </script>
+</body>
+</html>
