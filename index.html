@@ -177,17 +177,17 @@
 .badge-new {
     background-color: #e74c3c; /* Яскравий червоний */
     color: white;
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 8px; /* Відступ від тексту кнопки */
+    font-size: 0.6rem;
+   
+    padding: 1px 2px;
+    border-radius: 2px;
+    margin-left: 4px; /* Відступ від тексту кнопки */
     display: inline-block;
     vertical-align: middle;
-    text-transform: uppercase;
+    
     
     /* Анімація */
-    animation: pulse-glow 2s infinite;
+    animation: pulse-glow 1s infinite;
 }
 
 /* Анімація пульсації (тінь розходиться) */
@@ -196,7 +196,7 @@
         box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
     }
     70% {
-        box-shadow: 0 0 0 6px rgba(231, 76, 60, 0);
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0);
     }
     100% {
         box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
@@ -214,21 +214,21 @@
         </div>
     <div class="category">Вступ. Основні поняття обчислювальної математики </div>
 		 <button class="menu-btn" onclick="openSim('intro.html', 'intro', this)">Похибки, збіжність, стійкість, обумовленість</button>
-       <button class="menu-btn" onclick="openSim('O_n_.html', 'Complexity', this)">Обчислювальна складність <span class="badge-new">BigData</span> </button>
+       <button class="menu-btn" onclick="openSim('O_n_.html', 'Complexity', this)">Обчислювальна складність <span class="badge-new">data mining</span> </button>
       
 		
 		<div class="category">1. Чисельні методи лінійної алгебри</div>
-   	<button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення (DCT) як приклад розкладу вектора в ортогональному базисі<span class="badge-new">BigData</span> </button>
+   	<button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення (DCT) як приклад розкладу вектора в ортогональному базисі<span class="badge-new">data mining</span> </button>
    
 		<button class="menu-btn" onclick="openSim('MatrixNorm_SVD_Spectral_Decomposition.html', 'Норми та Спектр', this)">Норми та спектри матриць. SVD</button>
 		    <button class="menu-btn" onclick="openSim('deflation2.html', 'Степеневі ітерації', this)">Метод степеневих ітерацій з дефляцією для чисельного знаходження власних векторів</button>
          <button class="menu-btn" onclick="openSim('LowRank_approx_3D.html', 'Low Rank Approx (3D)', this)">Низькорангова апроксимація (LowRank 3D→2D→1D)</button>
-		<button class="menu-btn" onclick="openSim('rSVD-3D.html', 'rSVD', this)"> Стиснення даних на основі rSVD <span class="badge-new">BigData</span> </button>
-		<button class="menu-btn" onclick="openSim('SVD.html', 'SVD Розклад', this)">Рекомендаційна система на основі SVD і LowRank<span class="badge-new">BigData</span> </button>
+		<button class="menu-btn" onclick="openSim('rSVD-3D.html', 'rSVD', this)"> Стиснення даних на основі rSVD <span class="badge-new">data mining</span> </button>
+		<button class="menu-btn" onclick="openSim('SVD.html', 'SVD Розклад', this)">Рекомендаційна система на основі SVD і LowRank<span class="badge-new">data mining</span> </button>
    
 		
 		<button class="menu-btn" onclick="openSim('condNumber.html', 'Число обумовленості', this)">Число обумовленості</button>
-           <button class="menu-btn" onclick="openSim('PCA2.html', 'PCA', this)">Метод головних компонентів (PCA) <span class="badge-new">BigData</span> </button>
+           <button class="menu-btn" onclick="openSim('PCA2.html', 'PCA', this)">Метод головних компонентів (PCA) <span class="badge-new">data mining</span> </button>
       
 		 <div class="category">2. Наближені розв'язки рівнянь і систем</div>
         <button class="menu-btn" onclick="openSim('Zeydel-Jacobi.html', 'Методи Якобі і Зейделя', this)">Методи Якобі і Зейделя</button>
@@ -237,30 +237,30 @@
 		
       
         <div class="category">3. Кластеризація</div>
-        <button class="menu-btn" onclick="openSim('k-means-2D3D.html', 'Метод k-means', this)">Метод k-means (2D/3D) <span class="badge-new">BigData</span></button>
-         <button class="menu-btn" onclick="openSim('ClasterPlus.html', 'HDBSCAN', this)">HDBSCAN кластерізація<span class="badge-new">BigData</span></button>
+        <button class="menu-btn" onclick="openSim('k-means-2D3D.html', 'Метод k-means', this)">Метод k-means (2D/3D) <span class="badge-new">data mining</span></button>
+         <button class="menu-btn" onclick="openSim('ClasterPlus.html', 'HDBSCAN', this)">HDBSCAN кластерізація<span class="badge-new">data mining</span></button>
                <button class="menu-btn" onclick="openSim('isomorphism.html', 'Спектр графів', this)">Спектр графів </button>
   
-        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Спектральні та інші методи кластеризації<span class="badge-new">BigData</span> </button>
- <button class="menu-btn" onclick="openSim('classifier.html', 'NN-softmax', this)">Нейромережа-класифікатор (розпізнавання голосу)<span class="badge-new">ML</span></button>
+        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Спектральні та інші методи кластеризації<span class="badge-new">data mining</span> </button>
+ <button class="menu-btn" onclick="openSim('classifier.html', 'NN-softmax', this)">Нейромережа-класифікатор (розпізнавання голосу)<span class="badge-new">machine learning</span></button>
        
         <div class="category">4. Апроксимація і інтерполяція. Оптимізація</div>
 		        <button class="menu-btn" onclick="openSim('lagrange.html', 'Інтерполяційний полінм Лагранжа', this)">Інтерполяція: Криптографія і коди із самокорекцією</button>
-          <button class="menu-btn" onclick="openSim('LSM5.html', 'МНК', this)">Метод найменших квадратів<span class="badge-new">BigData</span></button>
+          <button class="menu-btn" onclick="openSim('LSM5.html', 'МНК', this)">Метод найменших квадратів<span class="badge-new">data mining</span></button>
          
 		<button class="menu-btn" onclick="openSim('splines.html', 'Сплайни', this)">Сплайни</button>
 		
 		<button class="menu-btn" onclick="openSim('Bez3.html', 'Безьє', this)">Криві Безьє</button>
        
-            <button class="menu-btn" onclick="openSim('Total-Audio.html', 'SVD&DCT audio compressing', this)">Стиснення звуку з DCT i SVD спектрограми<span class="badge-new">BigData</span></button>
-            <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення<span class="badge-new">ML</span></button>
-          <button class="menu-btn" onclick="openSim('NLM4.html', 'NLM', this)">Нелокальне усереднення для денойзінгу зображень<span class="badge-new">BigData</span></button>
+            <button class="menu-btn" onclick="openSim('Total-Audio.html', 'SVD&DCT audio compressing', this)">Стиснення звуку з DCT i SVD спектрограми<span class="badge-new">data mining</span></button>
+            <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення<span class="badge-new">machine learning</span></button>
+          <button class="menu-btn" onclick="openSim('NLM4.html', 'NLM', this)">Нелокальне усереднення для денойзінгу зображень<span class="badge-new">data mining</span></button>
       
         <button class="menu-btn" onclick="openSim('Pade_and_Taylor_approximation.html', 'Апроксимація Паде/Тейлора', this)">Апроксимація Паде і Тейлора</button>
             
-        <button class="menu-btn" onclick="openSim('gradient.html', 'Градієнтна оптимізація', this)">Градієнтні методи оптимізації<span class="badge-new">ML</span></button>
+        <button class="menu-btn" onclick="openSim('gradient.html', 'Градієнтна оптимізація', this)">Градієнтні методи оптимізації<span class="badge-new">machine learning</span></button>
 
-        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптимізація<span class="badge-new">BigData</span></button>
+        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптимізація<span class="badge-new">data mining</span></button>
   <button class="menu-btn" onclick="openSim('indexGO.html', 'Глобальна оптимізація', this)">Приклад глобальної оптимізацї: мінімізація часу покриття угрупуванням супутників</button>
 
         <div class="category">5. Інтегрування / ODE</div>
@@ -270,11 +270,11 @@
         <button class="menu-btn" onclick="openSim('MonteKarlo_3D.html', 'Метод Монте-Карло', this)">Інтегрування методом Монте-Карло</button>
 
 		<div class="category" style="color:#099;  font-size: 0.95rem;">Бонус: чисельні методи ШІ</div>
- <button class="menu-btn" onclick="openSim('vocoder_encoder2.html', 'Autoencoder', this)">Нейронна мережа автоенкодер<span class="badge-new">ML</span></button>
-     <button class="menu-btn" onclick="openSim('PCA-SVD.html', 'PCA+SVD', this)">PCA+SVD: Детектування аномалій <span class="badge-new">ML</span> </button>
-       <button class="menu-btn" onclick="openSim('CNN-plus.html', 'CNN', this)">Згорткова нейромережа<span class="badge-new">ML</span> </button>
+ <button class="menu-btn" onclick="openSim('vocoder_encoder2.html', 'Autoencoder', this)">Нейронна мережа автоенкодер<span class="badge-new">machine learning</span></button>
+     <button class="menu-btn" onclick="openSim('PCA-SVD.html', 'PCA+SVD', this)">PCA+SVD: Детектування аномалій <span class="badge-new">machine learning</span> </button>
+       <button class="menu-btn" onclick="openSim('CNN-plus.html', 'CNN', this)">Згорткова нейромережа<span class="badge-new">machine learning</span> </button>
       
-		<button class="menu-btn" onclick="openSim('K-SVD8.html', 'K-SVD', this)">Одношарова нейромережа на основі K-SVD<span class="badge-new">ML</span> </button>
+		<button class="menu-btn" onclick="openSim('K-SVD8.html', 'K-SVD', this)">Одношарова нейромережа на основі K-SVD<span class="badge-new">machine learning</span> </button>
    
 		
         <div style="height: 50px;"></div>
