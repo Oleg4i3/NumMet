@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор Чисельних Методів СЛАР</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom slider styling */
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #2563eb; cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e5e7eb; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden ring-1 ring-slate-900/5">
+        
+        <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white p-6 shadow-md">
+            <h3 class="text-3xl font-bold mb-1 tracking-tight">Чисельні методи для жорстких СЛАР</h3>
+           
+        </header>
+
+        <nav class="flex border-b border-gray-200 bg-gray-50">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="flex-1 py-4 text-sm font-semibold uppercase tracking-wider text-gray-500 hover:bg-white hover:text-blue-600 transition-all border-b-2 border-transparent">1. Розбіжність</button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="flex-1 py-4 text-sm font-semibold uppercase tracking-wider text-gray-500 hover:bg-white hover:text-blue-600 transition-all border-b-2 border-transparent">2. Принцип Нормування</button>
+            <button onclick="switchTab('tab3')" id="btn-tab3" class="flex-1 py-4 text-sm font-semibold uppercase tracking-wider text-gray-500 hover:bg-white hover:text-blue-600 transition-all border-b-2 border-transparent">3. Релаксація</button>
+            <button onclick="switchTab('tab4')" id="btn-tab4" class="flex-1 py-4 text-sm font-semibold uppercase tracking-wider text-gray-500 hover:bg-white hover:text-blue-600 transition-all border-b-2 border-transparent">4. Симулятор (Lab)</button>
+        </nav>
+
+        <div class="p-6 md:p-8 min-h-[600px] bg-white">
+
+            <div id="tab1" class="tab-content active fade-in">
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Аналіз розбіжності та осциляцій</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4">
+                            Розглянемо просту систему, де порушено умову діагонального домінування ($|a_{ii}| < \sum |a_{ij}|$).
+                            Наприклад:
+                            $$ \begin{cases} 2x_1 + 5x_2 = 7 \\ 5x_1 + 2x_2 = 7 \end{cases} $$
+                            Точний розв'язок: $(1, 1)$.
+                        </p>
+                        <p class="mb-4 text-sm bg-yellow-100 p-3 rounded border-l-4 border-yellow-500">
+                            <strong>Важливо:</strong> Для методів Якобі і Зейделя умова збіжності пов'язана з домінуванням діагоналі матриці. Якщо діагональний елемент не перевищує за модулем суму модулів інших елементів рядка, методи не гарантують збіжність.
+                        </p>
+                        <p class="mb-4">
+                            У цій системі діагональні елементи (2) менші за позадіагональні (5). Ітерації будуть "стрибати" все далі від істини.
+                        </p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded border">
+                        <h3 class="font-bold mb-2">Демонстрація ітерацій (Якобі):</h3>
+                        <ul class="list-disc pl-5 text-sm space-y-1 font-mono">
+                            <li>Старт: (0, 0)</li>
+                            <li>Ітерація 1: x = (3.5, 3.5)</li>
+                            <li>Ітерація 2: x = (-5.25, -5.25)</li>
+                            <li>Ітерація 3: x = (16.6, 16.6)</li>
+                        </ul>
+                        <div class="mt-4 text-red-600 font-bold">
+                            Результат: Експоненціальне зростання помилки (Вибух).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab2" class="tab-content fade-in">
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Принцип Нормування та Симетризації</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Що таке нормування?</h3>
+                        <p class="mb-2">
+                            У найпростішому сенсі, нормування рядка — це ділення всіх коефіцієнтів рівняння на певе число (наприклад, на $a_{ii}$), щоб зробити діагональний елемент рівним 1.
+                            $$ a_{ij}' = \frac{a_{ij}}{a_{ii}}, \quad b_i' = \frac{b_i}{a_{ii}} $$
+                        </p>
+                        <p class="text-sm text-gray-600 italic">Це допомагає при обчисленнях, але саме по собі не завжди рятує від розбіжності, якщо матриця погана.</p>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded border-l-4 border-blue-600">
+                        <h3 class="text-xl font-semibold mb-2">Потужний метод: Симетризація (Normal Equations)</h3>
+                        <p>
+                            Якщо система $Ax=b$ не має діагонального домінування або матриця не є додатно визначеною, ітерації можуть не збігатися.
+                            Універсальний "лікувальний" засіб — домножити систему зліва на транспоновану матрицю $A^T$:
+                        </p>
+                        $$ A^T A x = A^T b $$
+                        <p class="mt-2">
+                            Отримана матриця $M = A^T A$ є <strong>симетричною та додатно визначеною</strong> (якщо $A$ невироджена).
+                            <br><strong>Теорема:</strong> Метод Зейделя завжди збігається для симетричних додатно визначених матриць.
+                        </p>
+                        <p class="mt-2 text-sm text-red-600">
+                            <strong>Недолік:</strong> Це збільшує <em>число обумовленості</em> ($\kappa(A^T A) = \kappa(A)^2$), що може сповільнити збіжність (зробити систему "жорсткою"). Тут на допомогу приходить релаксація.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab3" class="tab-content fade-in">
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Метод верхньої релаксації (SOR)</h2>
+                
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-1">
+                        <p class="mb-4">
+                            Метод SOR (Successive Over-Relaxation) — це модифікація методу Зейделя, яка дозволяє прискорити збіжність або досягти її там, де звичайний Зейдель розбігається.
+                        </p>
+                        <div class="bg-gray-100 p-4 rounded mb-4">
+                            $$ x_i^{(k+1)} = (1-\omega)x_i^{(k)} + \omega x_i^{GS} $$
+                            де $x_i^{GS}$ — значення, обчислене за формулою Гаусса-Зейделя.
+                        </div>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li><strong>$\omega = 1$:</strong> Звичайний метод Гаусса-Зейделя.</li>
+                            <li><strong>$0 < \omega < 1$ (Нижня релаксація):</strong> Допомагає "погасити" осциляції, якщо метод розбігається.</li>
+                            <li><strong>$1 < \omega < 2$ (Верхня релаксація):</strong> Прискорює збіжність для "повільних" систем.</li>
+                        </ul>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center">
+                        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded shadow-sm">
+                            <h4 class="font-bold text-yellow-800 mb-2">Аналогія</h4>
+                            <p class="text-sm">
+                                Уявіть, що ви йдете до мети. <br>
+                                <strong>Зейдель:</strong> Ви робите крок точно туди, куди вказує рівняння.<br>
+                                <strong>SOR ($\omega > 1$):</strong> Ви бачите напрямок і "стрибаєте" трохи далі, сподіваючись швидше дістатися (екстраполяція).<br>
+                                <strong>SOR ($\omega < 1$):</strong> Ви робите обережний, менший крок, щоб не перестрибнути ціль (інтерполяція).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="tab4" class="tab-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    <div class="lg:col-span-4 flex flex-col gap-4">
+                        
+                        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <h3 class="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2">
+                                <span class="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
+                                Генерація Системи
+                            </h3>
+                            <div class="space-y-2">
+                                <button onclick="setScenario(1)" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-sm group">
+                                    <div class="font-bold text-slate-700 group-hover:text-blue-700">Сценарій 1: Хаос у рядках</div>
+                                    <div class="text-xs text-slate-500">Допоможе: Перестановка рядків</div>
+                                </button>
+                                <button onclick="setScenario(2)" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-orange-400 hover:bg-orange-50 transition-all text-sm group">
+                                    <div class="font-bold text-slate-700 group-hover:text-orange-700">Сценарій 2: Розбіжність або осциляції (3x3)</div>
+                                    <div class="text-xs text-slate-500">Перестановка не діє. Може допомогти: Релаксація</div>
+                                </button>
+                                <button onclick="setScenario(3)" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-red-400 hover:bg-red-50 transition-all text-sm group">
+                                    <div class="font-bold text-slate-700 group-hover:text-red-700">Сценарій 3: Повна розбіжність</div>
+                                    <div class="text-xs text-slate-500">Може допомогти: Нормування, симетризація ($A^T A$, але уповільнює збіжність)</div>
+                                </button>
+                                <button onclick="setScenario(4)" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition-all text-sm group">
+                                    <div class="font-bold text-slate-700 group-hover:text-purple-700">Сценарій 4: Жорстка система</div>
+                                    <div class="text-xs text-slate-500">Може допомогти: Симетризація + Релаксація</div>
+                                </button>
+                            </div>
+                        </div>
+
+                       <div class="flex items-center justify-between mb-2 bg-white p-3 rounded border border-slate-200">
+    <div>
+        <div class="text-sm font-semibold text-slate-700">Нормування (Масштабування)</div>
+        <div class="text-[10px] text-slate-500">Ділення на max елемент</div>
+    </div>
+    <input type="checkbox" id="check-scale" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" onchange="runSimulation()">
+</div>
+
+<div class="flex items-center justify-between mb-2 bg-white p-3 rounded border border-slate-200">
+    <div>
+        <div class="text-sm font-semibold text-slate-700">Перестановка рядків</div>
+        <div class="text-[10px] text-slate-500">Створення діаг. переваги</div>
+    </div>
+    <input type="checkbox" id="check-swap" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" onchange="runSimulation()">
+</div>
+
+<div class="flex items-center justify-between mb-4 bg-white p-3 rounded border border-slate-200">
+    <div>
+        <div class="text-sm font-semibold text-slate-700">Симетризація ($A^T A$)</div>
+        <div class="text-[10px] text-slate-500">Гарантує збіжність (Normal Eq)</div>
+    </div>
+    <input type="checkbox" id="check-sym" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" onchange="runSimulation()">
+</div>
+					   
+					   
+					  <div class="bg-white p-3 rounded border border-slate-200 mt-4">
+    <label class="flex justify-between text-sm font-semibold text-slate-700 mb-2">
+        <span>Релаксація ($\omega$)</span>
+        <span id="omega-val" class="text-blue-600">1.00</span>
+    </label>
+    <input type="range" id="omega-slider" min="0.1" max="1.9" step="0.05" value="1.0" class="w-full mb-1" oninput="updateOmega(this.value)" onchange="runSimulation()">
+    <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+        <span>0.1 (Low)</span>
+        <span class="font-bold text-slate-600">1.0 (Seidel)</span>
+        <span>1.9 (High)</span>
+    </div>
+</div> 
+					   
+
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                            <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Аналіз Матриці</h4>
+                            <div class="flex justify-between items-end mb-1">
+                                <span class="text-sm text-indigo-900">Число обумовленості $\kappa(A)$:</span>
+                                <span id="cond-number" class="font-mono font-bold text-indigo-700 text-lg">-</span>
+                            </div>
+                            <div id="cond-bar-container" class="w-full bg-indigo-200 h-1.5 rounded-full mt-1 overflow-hidden">
+                                <div id="cond-bar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                            </div>
+                            <p id="system-hint" class="text-xs text-indigo-600 mt-2 italic leading-tight"></p>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-8 flex flex-col gap-6">
+                        
+                        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm min-h-[100px] flex flex-col justify-center items-center relative overflow-hidden">
+                            <span class="absolute top-2 left-3 text-xs font-bold text-slate-300 uppercase">Поточна Система</span>
+                            <div id="matrix-display" class="text-lg text-slate-800 overflow-x-auto max-w-full">
+                                $$ \text{Оберіть сценарій...} $$
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-80 relative">
+                            <canvas id="convergenceChart"></canvas>
+                        </div>
+
+                        <div id="sim-log" class="bg-slate-900 text-green-400 font-mono text-xs p-4 rounded-xl h-32 overflow-y-auto border border-slate-700 shadow-inner leading-relaxed">
+                            <span class="opacity-50">// Тут будуть логи симуляції...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+ 
+ 
+ // === Logic Script ===
+
+    // State
+    let initialMatrix = [];
+    let initialRHS = [];
+    let chartInstance = null;
+    let omega = 1.0;
+    let currentScenario = 0;
+
+    // --- Tab Handling ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => {
+            el.classList.remove('active', 'fade-in');
+        });
+        document.querySelectorAll('nav button').forEach(el => {
+            el.classList.remove('border-blue-600', 'text-blue-600');
+            el.classList.add('border-transparent', 'text-gray-500');
+        });
+
+        const tab = document.getElementById(tabId);
+        tab.classList.add('active', 'fade-in');
+        
+        const btn = document.getElementById('btn-' + tabId);
+        btn.classList.remove('border-transparent', 'text-gray-500');
+        btn.classList.add('border-blue-600', 'text-blue-600');
+
+        if(tabId === 'tab4' && initialMatrix.length === 0) setScenario(1);
+    }
+
+    function updateOmega(val) {
+        omega = parseFloat(val);
+        document.getElementById('omega-val').innerText = omega.toFixed(2);
+    }
+
+    // --- Math Library ---
+
+    function getNormInf(A) {
+        return Math.max(...A.map(row => row.reduce((sum, val) => sum + Math.abs(val), 0)));
+    }
+
+    function getInverse(A) {
+        let n = A.length;
+        // Deep copy for Gaussian elimination
+        let M = A.map((row, i) => [...row, ...Array(n).fill(0).map((_, j) => i === j ? 1 : 0)]);
+        
+        for(let i=0; i<n; i++) {
+            let pivot = M[i][i];
+            if(Math.abs(pivot) < 1e-12) {
+                // Try to find a non-zero pivot in this column
+                let swapRow = -1;
+                for(let k=i+1; k<n; k++) {
+                    if(Math.abs(M[k][i]) > 1e-12) { swapRow = k; break; }
+                }
+                if(swapRow === -1) return null; // Singular
+                [M[i], M[swapRow]] = [M[swapRow], M[i]];
+                pivot = M[i][i];
+            }
+
+            for(let j=0; j<2*n; j++) M[i][j] /= pivot;
+
+            for(let k=0; k<n; k++) {
+                if(k !== i) {
+                    let factor = M[k][i];
+                    for(let j=0; j<2*n; j++) M[k][j] -= factor * M[i][j];
+                }
+            }
+        }
+        return M.map(row => row.slice(n));
+    }
+
+    function calculateConditionNumber(A) {
+        let normA = getNormInf(A);
+        let inv = getInverse(A);
+        if(!inv) return Infinity;
+        let normInv = getNormInf(inv);
+        return normA * normInv;
+    }
+
+    function transpose(A) { return A[0].map((_, c) => A.map(r => r[c])); }
+    function matMul(A, B) {
+        let res = Array(A.length).fill(0).map(() => Array(B[0].length).fill(0));
+        return res.map((row, i) => row.map((_, j) => A[i].reduce((sum, elm, k) => sum + elm * B[k][j], 0)));
+    }
+    function matVec(A, v) { return A.map(row => row.reduce((sum, val, i) => sum + val * v[i], 0)); }
+
+    // --- Core Solver ---
+
+    function solveSystem(A, b, w, maxIter) {
+        let x = new Array(b.length).fill(0);
+        let history = [];
+        let diverged = false;
+        
+        let r0 = matVec(A, x).map((v, i) => v - b[i]);
+        history.push(Math.max(...r0.map(Math.abs)));
+
+        for (let k = 0; k < maxIter; k++) {
+            let x_new = [...x];
+            
+            for (let i = 0; i < A.length; i++) {
+                let s1 = 0;
+                for (let j = 0; j < A.length; j++) {
+                    if (j !== i) s1 += A[i][j] * x_new[j];
+                }
+                
+                if (Math.abs(A[i][i]) < 1e-15) {
+                    diverged = true; break;
+                }
+
+                let x_gs = (b[i] - s1) / A[i][i];
+                x_new[i] = (1 - w) * x[i] + w * x_gs;
+                
+                if(!isFinite(x_new[i]) || Math.abs(x_new[i]) > 1e20) {
+                    x_new[i] = 1e20; 
+                    diverged = true;
+                }
+            }
+            
+            x = x_new;
+            
+            let Ax = matVec(A, x);
+            let r = Ax.map((val, i) => val - b[i]);
+            let err = Math.max(...r.map(Math.abs));
+            
+            history.push(err);
+
+            if (diverged || err > 1e15) {
+                return { history, status: 'diverged', x };
+            }
+            if (err < 1e-7) {
+                return { history, status: 'converged', x };
+            }
+        }
+        return { history, status: 'limit', x };
+    }
+
+    // --- Scenario Setup ---
+
+    function setScenario(id) {
+        currentScenario = id;
+        // Reset Checkboxes
+        document.getElementById('check-swap').checked = false;
+        document.getElementById('check-sym').checked = false;
+        document.getElementById('check-scale').checked = false;
+        
+        document.getElementById('omega-slider').value = 1.0; 
+        updateOmega(1.0);
+
+        let A, b, hint;
+
+        switch(id) {
+            case 1: // Хаос у рядках -> Перестановка
+                A = [[2, 10], [10, 2]]; 
+                b = [12, 12];
+                hint = "Діагональ слабка. Перестановка рядків створить діагональну перевагу.";
+                break;
+            
+            case 2: // Осциляція -> Релаксація
+                // Матриця з вашого скріншоту (приблизно)
+                // Діагональ: 2, 1, 1. Суми поза діаг: 2, 1.6, 2.3.
+                // Умови збіжності порушені, але не критично. Зейдель буде "стрибати".
+                A = [
+                    [2,   1,   1],
+                    [0.6, 1,   1],
+                    [2,   0.3, 1]
+                ];
+                b = [4, 2.6, 3.3]; // Розв'язок (1, 1, 1)
+                hint = "Діагональної переваги немає. Перестановка не допоможе. Зейдель дає осциляції. Спробуйте нижню релаксацію (Low Relaxation) $\\omega \\approx 0.6 - 0.8$.";
+                break;
+            
+            case 3: // Повна розбіжність -> Симетризація
+                A = [[1, 5, 5], [5, 1, 5], [5, 5, 1]]; 
+                b = [11, 11, 11];
+                hint = "Матриця невизначена. Релаксація і перестановка безсилі. Потрібна Симетризація ($A^T A$).";
+                break;
+
+         case 4: // Різні масштаби (Жорстка система)
+                // Рядок 1: Великі числа, слабка діагональ (10 < 50)
+                // Рядок 2: Малі числа, слабка діагональ (0.01 < 0.05)
+                A = [
+                    [10, 50],
+                    [0.05, 0.01] 
+                ];
+                b = [60, 0.06]; // x=(1,1)
+                hint = "Масштаби різні ($10^1$ vs $10^{-2}$), діагональ слабка. Без методів розбігається. Увімкніть 'Масштабування' для краси, а потім 'Перестановку' для збіжності.";
+                break;
+        }
+
+        initialMatrix = JSON.parse(JSON.stringify(A));
+        initialRHS = JSON.parse(JSON.stringify(b));
+       // document.getElementById('system-hint').innerText = hint;
+        
+		const hintEl = document.getElementById('system-hint');
+        hintEl.innerHTML = hint; // Використовуємо innerHTML
+        // Явно просимо MathJax оновити формули в блоці підказки
+        if(window.MathJax) {
+            MathJax.typesetPromise([hintEl]).catch((err) => console.log(err));
+        }
+		
+		runSimulation();
+    }
+
+    // --- Simulation Orchestrator ---
+
+    function runSimulation() {
+        if(initialMatrix.length === 0) return;
+
+        const useSwap = document.getElementById('check-swap').checked;
+        const useSym = document.getElementById('check-sym').checked;   // Symmetrization
+        const useScale = document.getElementById('check-scale').checked; // Normalization/Scaling
+        
+        const logEl = document.getElementById('sim-log');
+        logEl.innerHTML = ""; 
+
+        const logger = (msg) => {
+            logEl.innerHTML += `<div>> ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+
+        const MAX_ITER = 100;
+
+        // --- 1. BASELINE RUN ---
+        let A_base = JSON.parse(JSON.stringify(initialMatrix));
+        let b_base = JSON.parse(JSON.stringify(initialRHS));
+        let resBase = solveSystem(A_base, b_base, 1.0, MAX_ITER);
+
+        // --- 2. MODIFIED RUN ---
+        let A_mod = JSON.parse(JSON.stringify(initialMatrix));
+        let b_mod = JSON.parse(JSON.stringify(initialRHS));
+
+        // Step A: SCALING (Normalization)
+        // Ділимо кожен рядок на максимальний по модулю елемент цього рядка.
+        // Це робить коефіцієнти ~1, не змінюючи розв'язок.
+        if (useScale) {
+            for(let i=0; i<A_mod.length; i++) {
+                let maxVal = 0;
+                for(let j=0; j<A_mod[i].length; j++) maxVal = Math.max(maxVal, Math.abs(A_mod[i][j]));
+                
+                if (maxVal > 1e-15) {
+                    for(let j=0; j<A_mod[i].length; j++) A_mod[i][j] /= maxVal;
+                    b_mod[i] /= maxVal;
+                }
+            }
+            logger("Застосовано: Масштабування (Normalization).");
+        }
+
+        // Step B: SYMMETRIZATION (Normal Equations)
+        if (useSym) {
+            let AT = transpose(A_mod);
+            let AA = matMul(AT, A_mod);
+            let bb = matVec(AT, b_mod);
+            A_mod = AA;
+            b_mod = bb;
+            logger("Застосовано: Симетризація (A^T * A).");
+        }
+
+        // Step C: SWAP (Pivoting)
+        if (useSwap) {
+            let swaps = 0;
+            for(let i=0; i<A_mod.length; i++) {
+                let maxRow = i; 
+                let maxVal = Math.abs(A_mod[i][i]);
+                for(let k=i+1; k<A_mod.length; k++) {
+                    if (Math.abs(A_mod[k][i]) > maxVal) {
+                        maxVal = Math.abs(A_mod[k][i]);
+                        maxRow = k;
+                    }
+                }
+                if (maxRow !== i) {
+                    [A_mod[i], A_mod[maxRow]] = [A_mod[maxRow], A_mod[i]];
+                    [b_mod[i], b_mod[maxRow]] = [b_mod[maxRow], b_mod[i]];
+                    swaps++;
+                }
+            }
+            if (swaps > 0) logger(`Застосовано: Перестановка ${swaps} рядків.`);
+        }
+
+        // Stats
+        const cond = calculateConditionNumber(A_mod);
+        const condEl = document.getElementById('cond-number');
+        if (cond === Infinity) {
+            condEl.innerText = "∞ (Singular)";
+            condEl.className = "font-mono font-bold text-red-600 text-lg";
+        } else {
+            condEl.innerText = cond.toExponential(2);
+            condEl.className = cond < 1000 ? "font-mono font-bold text-green-600 text-lg" : "font-mono font-bold text-red-600 text-lg";
+        }
+
+        renderMatrix(A_mod, b_mod);
+
+        // Solve
+        let resMod = solveSystem(A_mod, b_mod, omega, MAX_ITER);
+
+        if(resMod.status === 'converged') {
+            logger(`ЗБІЖНІСТЬ: ${resMod.history.length} ітерацій.`);
+            logger(`Err: ${resMod.history[resMod.history.length-1].toExponential(2)}`);
+        } else if (resMod.status === 'diverged') {
+            logger("РОЗБІЖНІСТЬ! Система нестабільна.");
+        } else {
+            logger(`Ліміт ітерацій. Err: ${resMod.history[resMod.history.length-1].toExponential(2)}`);
+        }
+
+        drawChart(resBase.history, resMod.history);
+    }
+
+  function renderMatrix(A, b) {
+        // Допоміжна функція для красивого форматування чисел у LaTeX
+        const formatNum = (num) => {
+            let absVal = Math.abs(num);
+            if (absVal === 0) return "0";
+            
+            // Якщо число "нормальне" (не надто велике і не надто мале)
+            if (absVal >= 0.0001 && absVal < 10000) {
+                // Відкидаємо зайві нулі: 2.50 -> 2.5
+                return parseFloat(num.toPrecision(5)).toString();
+            }
+            
+            // Для наукового формату (1.2e+5 -> 1.2 \cdot 10^5)
+            let expStr = num.toExponential(1); // "1.2e+5"
+            let [base, power] = expStr.split('e');
+            let baseNum = parseFloat(base);
+            let powerNum = parseInt(power); // +5 -> 5
+
+            if (baseNum === 1) return `10^{${powerNum}}`;
+            if (baseNum === -1) return `-10^{${powerNum}}`;
+            return `${baseNum} \\cdot 10^{${powerNum}}`;
+        };
+
+        let tex = "$$ \\begin{cases} ";
+        let limit = 3;
+        for(let i=0; i<Math.min(A.length, limit); i++) {
+            for(let j=0; j<Math.min(A[0].length, limit); j++) {
+                let val = A[i][j];
+                let sVal = formatNum(val);
+                
+                // Додаємо плюс, якщо це не перший елемент і число додатне
+                let sign = (j > 0 && val >= 0) ? "+" : "";
+                tex += `${sign}${sVal}x_${j+1} `;
+            }
+            tex += `= ${formatNum(b[i])} \\\\ `;
+        }
+        tex += "\\end{cases} $$";
+        
+        const el = document.getElementById('matrix-display');
+        el.innerHTML = tex;
+        if(window.MathJax) MathJax.typesetPromise([el]);
+    }
+
+    function drawChart(baseData, modData) {
+        const ctx = document.getElementById('convergenceChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+
+        const clean = (arr) => arr.map(v => (v <= 0 || !isFinite(v)) ? 1e-16 : v);
+        const cBase = clean(baseData);
+        const cMod = clean(modData);
+        const maxLen = Math.max(cBase.length, cMod.length);
+        const labels = Array.from({length: maxLen}, (_, i) => i);
+
+        const finalErr = cMod[cMod.length-1];
+        const modColor = (finalErr < 1e-5) ? '#10b981' : '#ef4444'; // Green or Red
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Модифікований метод',
+                        data: cMod,
+                        borderColor: modColor,
+                        backgroundColor: modColor + '20',
+                        borderWidth: 3,
+                        tension: 0.1,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Базовий (Без змін)',
+                        data: cBase,
+                        borderColor: '#9ca3af',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        grid: { color: '#f1f5f9' },
+                        title: { display: true, text: 'Похибка ||Ax - b||' },
+                        ticks: {
+                            callback: function(value) {
+                                if (value === 0) return '0';
+                                return Number(value).toExponential(1)
+                                    .replace("e+", "e")
+                                    .replace("e0", ""); 
+                            }
+                        }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    window.onload = () => switchTab('tab1');
+</script>
+</body>
+</html>
