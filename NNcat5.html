@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuro-Sketch v5.0: Animated</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+	
+	<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+    <style>
+        :root { --bg: #f8fafc; --panel: #ffffff; --text: #334155; --accent: #4f46e5; --border: #e2e8f0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .main-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; max-width: 1400px; width: 100%; }
+        .panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        
+        /* Left Column */
+        .canvas-container { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        canvas.draw { border: 3px solid #cbd5e1; cursor: crosshair; background: white; border-radius: 8px; touch-action: none; }
+        canvas.pixelated { image-rendering: pixelated; border: 1px solid #94a3b8; }
+        
+        .mode-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: inline-block; width: 100%; text-align: center; }
+        .mode-collect { background: #fee2e2; color: #991b1b; }
+        .mode-train { background: #fef3c7; color: #92400e; }
+        .mode-test { background: #dcfce7; color: #166534; }
+        .mode-auto { background: #e0e7ff; color: #3730a3; } /* Новий стиль для авто */
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin-top: 15px; }
+        button { padding: 10px 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: transform 0.1s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        button:active { transform: scale(0.98); }
+        
+        .btn-cls-0 { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .btn-cls-1 { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .btn-cls-2 { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        
+        .btn-action { grid-column: span 3; padding: 12px; font-size: 1rem; color: white; background: var(--accent); margin-top: 10px; }
+        .btn-action:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-secondary { background: #f1f5f9; color: #64748b; margin-top: 5px; width: 100%; }
+
+        /* Bars */
+        .pred-box { width: 100%; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #e2e8f0; }
+        .pred-row { display: flex; align-items: center; margin-bottom: 6px; font-size: 0.9rem; }
+        .bar-bg { flex-grow: 1; height: 10px; background: #e2e8f0; margin: 0 10px; border-radius: 5px; overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.2s; }
+        .result-text { text-align: center; font-weight: bold; font-size: 1.1rem; min-height: 1.5rem; margin-bottom: 10px; color: var(--accent); }
+
+        /* Right Column */
+        .vis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .plot-container { height: 350px; width: 100%; }
+        
+        .weights-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: flex; justify-content: center; gap: 30px; }
+        .weight-card { text-align: center; }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div style="text-align: center; margin-bottom: 5px;">
+        <h1 style="margin:0;">Машинний зір</h1>
+		
+	
+	<details class="theory-spoiler" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <summary style="cursor: pointer; font-weight: bold; color: #4f46e5; font-size: 1.1em;">📚 Теоретична Довідка: Що відбувається всередині (Математика)</summary>
+    <div class="theory-content" style="padding-top: 15px; line-height: 1.6; color: #334155; text-align: justify;">
+        
+		
+        <p>
+            Мережа намагається відповісти на питання: <em>"Яка ймовірність, що цей малюнок — це Веселий смайлик (або Сумний, або Кіт)?"</em>.
+        </p>
+
+        <h3> Архітектура Мережі</h3>
+        <ul>
+            <li><strong>Input Layer (256 нейронів):</strong> Це наше зображення 16x16 пікселів.</li>
+            <li><strong>Hidden Layer (2 нейрони):</strong> Це наш "стиснутий" простір (Latent Space). Ми стискаємо інформаційні вектори 256-вимірного простору (значення яскравості кожного пікселя) до всього 2 чисел $(z_1, z_2)$, що візуалізується як точка на площині (двовимірному просторі).
+                           </li>
+            <li><strong>Output Layer (3 нейрони):</strong> По одному нейрону на кожен клас (Happy, Sad, Cat).
+               
+            </li>
+		
+        <h3>1. Вхідні дані (Вектор $\mathbf{x}$)</h3>
+        <p>
+            Все починається з вашого малюнка. Комп'ютер бачить його як набір пікселів. Оскільки картинка має розмір 16x16, ми витягуємо її в один довгий рядок:
+        </p>
+        <p>
+            $$ \mathbf{x} = [x_1, x_2, ..., x_{256}] $$
+        </p>
+        <p>Це <strong>Вектор</strong> (просто список із 256 чисел, де 0 — білий колір, 1 — чорний).</p>
+
+        <h3>2. Стиснення (Encoder)</h3>
+        <p>
+            Ми хочемо стиснути ці 256 чисел у всього 2 числа (координати на графіку). Для цього ми множимо вхідний вектор на Матрицю Ваг першого шару.
+        </p>
+        <div class="math-block">
+            $$ \mathbf{z} = \sigma(\mathbf{W}^{(1)} \cdot \mathbf{x} + \mathbf{b}^{(1)}) $$
+        </div>
+        <ul>
+            <li>$\mathbf{W}^{(1)}$ — це <strong>Матриця</strong> (таблиця коефіцієнтів) розміром $2 \times 256$. Вона містить "фільтри", які шукають певні форми.</li>
+            <li>$\mathbf{x}$ — наш вхідний <strong>вектор</strong> (256).</li>
+            <li>$\mathbf{b}^{(1)}$ — вектор <strong>зсуву</strong> (bias). Додає гнучкості, дозволяючи зсувати результат.</li>
+            <li>$\sigma$ (сигма) — функція активації (Tanh, сігмоїда або ReLU). Вона викривляє простір, щоб ми могли розділяти складні класи.</li>
+        </ul>
+         <p>
+            У природі нейрон не просто сумує сигнали, він має поріг збудження і "насичення" (максимальну частоту імпульсів). Щоб змоделювати це, ми використовуємо нелінійну функцію. Одна з найпопулярніших функцій активації -це <strong>Сигмоїда (Sigmoid)</strong>:
+        </p>
+        <div class="math-block">
+            $$ \sigma(u) = \frac{1}{1 + e^{-u}} $$
+        </div>
+        <p>
+            <strong>Навіщо це потрібно?</strong> Якби ми не використовували $\sigma$, вся мережа $ z = W^{(2)}(W^{(1)}x $ звелася б до однієї лінійної матриці $W = W^{(2)}W^{(1)}$. Нелінійність дозволяє мережі вивчати складні криволінійні структури даних, а не тільки плоскі гіперплощини.
+        </p>
+		
+		<p>
+            Результат $\mathbf{z}$ — це <strong>вектор із 2 чисел</strong>: $[z_1, z_2]$. Саме ці два числа ми малюємо як точку $(x, y)$ на графіку латентного простору.
+        </p>
+
+        <h3>3. Класифікація (Decoder)</h3>
+        <p>
+            Тепер мережа має вгадати клас (Веселий, Сумний, Кіт) на основі цих двох координат. Ми знову множимо, тепер на другу матрицю:
+        </p>
+        <div class="math-block">
+            $$ \mathbf{logits} = \mathbf{W}^{(2)} \cdot \mathbf{z} + \mathbf{b}^{(2)} $$
+        </div>
+        <ul>
+            <li>$\mathbf{W}^{(2)}$ — <strong>Матриця</strong> розміром $3 \times 2$. Вона пов'язує координати з класами.</li>
+            <li>$\mathbf{logits}$ — це "сирий" результат. Наприклад, вектор: $[2.5, -0.1, 1.2]$. Чим більше число, тим впевненіша мережа, але це ще не відсотки.</li>
+        </ul>
+
+        <h3>4. Перетворення у ймовірності (Softmax)</h3>
+        <p>
+            Щоб отримати зрозумілі відсотки (ймовірності), ми використовуємо функцію <strong>Softmax</strong>. Вона бере сирі числа ($\mathbf{logits}$) і перетворює їх на вектор ймовірностей $\mathbf{p}$.
+        </p>
+        <div class="math-block">
+            $$ p_i = \frac{e^{logits_i}}{e^{logits_1} + e^{logits_2} + e^{logits_3}} $$
+        </div>
+        <p>
+            Тут $p_i$ — це ймовірність конкретного $i$-го класу (наприклад, 1-й — Веселий, 2-й — Сумний, 3-й — Кіт). Знаменник (сума експонент) гарантує, що сума всіх ймовірностей дорівнює 100% (або 1.0).
+        </p>
+
+        <h3>5. Навчання (Cross-Entropy Loss)</h3>
+        <p>
+            Ми порівнюємо прогноз мережі $\mathbf{p}$ з правильною відповіддю $\mathbf{t}$ (target).
+        </p>
+        <ul>
+            <li>Нехай правильна відповідь "Кіт" (це 3-й клас). Тоді вектор істини $\mathbf{t} = [0, 0, 1]$.</li>
+            <li>Мережа сказала: $\mathbf{p} = [0.1, 0.2, 0.7]$ (70% що кіт).</li>
+        </ul>
+        <p>Ми рахуємо помилку (Loss) за формулою перехресної ентропії:</p>
+        <div class="math-block">
+            $$ L = - \sum_{i=1}^{3} t_i \cdot \log(p_i) $$
+        </div>
+        <p>
+            У нашому прикладі це буде просто $-\log(0.7)$. Мережа намагається зробити помилку $L$ якомога меншою, підкручуючи матриці $\mathbf{W}$ та вектори $\mathbf{b}$ методом градієнтного спуску.
+        </p>
+		 <h3>6. Backpropagation</h3>
+        <p>
+            Похідна від Cross-Entropy + Softmax виглядає дуже просто:
+            $$ \frac{\partial L}{\partial logits} = p - t $$
+            Тобто помилка — це просто різниця між прогнозом (наприклад, 0.7) і істиною (1.0). Цей сигнал помилки ми передаємо назад (Backpropagation) через мережу, щоб оновити ваги $W^{(1)}$ та $W^{(2)}$ (градієнтний спуск).
+        </p>
+    </div>
+</details>
+
+
+
+        <p style="color: #64748b; margin: 2px;">Намалюй веселого смайлика, або сумного смайлика, або кота
+		<p> Намалюй мінімум по 3 варіанти для навчання </p>
+		</p>
+    </div>
+
+    <div class="main-layout">
+        
+        <div class="panel">
+            <div id="statusBadge" class="mode-badge mode-collect">Етап 1: Збір даних</div>
+			            
+            <div class="canvas-container">
+                <canvas id="bigCanvas" width="200" height="200" class="draw"></canvas>
+                <div style="display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: #64748b;">
+                    <span>Вхід (200px)</span> 
+                    <span>⮕ 16x16 ⮕</span> <br>
+					
+                    <canvas id="smallCanvas" width="16" height="16" class="pixelated" style="width:32px; height:32px"></canvas>
+                </div>
+            </div>
+
+            <div id="predictionBlock" class="pred-box hidden">
+                <div id="finalResult" class="result-text">...</div>
+                <div class="pred-row"><span style="width:20px">🙂</span><div class="bar-bg"><div id="bar0" class="bar-fill" style="background:#16a34a"></div></div><span id="val0">0%</span></div>
+                <div class="pred-row"><span style="width:20px">☹️</span><div class="bar-bg"><div id="bar1" class="bar-fill" style="background:#dc2626"></div></div><span id="val1">0%</span></div>
+                <div class="pred-row"><span style="width:20px">🐱</span><div class="bar-bg"><div id="bar2" class="bar-fill" style="background:#2563eb"></div></div><span id="val2">0%</span></div>
+            </div>
+
+            <div class="controls-grid">
+                <button class="btn-cls-0" id="btnCls0" onclick="handleAddSample(0)">
+                    <span>🙂</span> <span id="lbl0">Веселий</span> <span id="cnt0" style="font-size:0.7em">(0)</span>
+                </button>
+                <button class="btn-cls-1" id="btnCls1" onclick="handleAddSample(1)">
+                    <span>☹️</span> <span id="lbl1">Сумний</span> <span id="cnt1" style="font-size:0.7em">(0)</span>
+                </button>
+                <button class="btn-cls-2" id="btnCls2" onclick="handleAddSample(2)">
+                    <span>🐱</span> <span id="lbl2">Кіт</span> <span id="cnt2" style="font-size:0.7em">(0)</span>
+                </button>
+                
+                <button id="btnClear" class="btn-secondary hidden" style="grid-column: span 3" onclick="clearCanvas(true)">🧹 Очистити канву</button>
+            </div>
+
+            <button id="btnTrain" class="btn-action" onclick="toggleTraining()" disabled>
+                ▶ Запустити навчання
+            </button>
+            <button id="btnAuto" class="btn-secondary" onclick="runAutoAnimation()">
+                Авто-малювання (для лінивих)
+            </button>
+            <button id="btnReset" class="btn-secondary" style="color:#dc2626; margin-top:10px" onclick="resetAll()">
+                🗑️ Скинути все
+            </button>
+        </div>
+
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h2 style="margin:0; font-size:1.1rem;">Латентний простір (2 нейрони)</h2>
+                <div>
+                    <label style="font-size:0.85rem">Активація: </label>
+                    <select id="actFunc" onchange="changeActivation()">
+                        <option value="tanh">Tanh (-1..1)</option>
+                        <option value="sigmoid">Sigmoid (0..1)</option>
+                        <option value="relu">ReLU (0..∞)</option>
+						<option value="linear">Linear (Без активації)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="vis-grid">
+                <div>
+                    <div id="latentPlot" class="plot-container"></div>
+                </div>
+                <div>
+                    <div id="lossPlot" class="plot-container"></div>
+                </div>
+            </div>
+
+            <div class="weights-section">
+                <div class="weight-card">
+                    <canvas id="wView0" width="16" height="16" class="pixelated" style="width:80px; height:80px; border:1px solid #ccc;"></canvas>
+                    <div style="font-size:0.8rem; color:#666; margin-top:5px;">Фільтр Нейрона X</div>
+                </div>
+                <div class="weight-card">
+                    <canvas id="wView1" width="16" height="16" class="pixelated" style="width:80px; height:80px; border:1px solid #ccc;"></canvas>
+                    <div style="font-size:0.8rem; color:#666; margin-top:5px;">Фільтр Нейрона Y</div>
+                </div>
+                <div style="font-size:0.8rem; color:#888; max-width: 200px; display:flex; align-items:center;">
+                    🡄 Це зображення показують, на які патерни вхідного малюнка реагують нейрони латентного шару.
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- CONFIG ---
+const INPUT_DIM = 256; // 16x16
+const LATENT_DIM = 2;
+const OUTPUT_DIM = 3; 
+
+// --- STATE ---
+let state = {
+    mode: 'collect', // collect, training, test, auto
+    samples: [],     // { input:[], label:int }
+    counts: [0,0,0],
+    losses: [],
+    trainInterval: null,
+    actName: 'tanh',
+    cachedBackground: null,
+    lastDrawTime: 0
+};
+
+// --- NEURAL NET ---
+let net = {
+    W1: new Float32Array(INPUT_DIM * LATENT_DIM),
+    b1: new Float32Array(LATENT_DIM),
+    W2: new Float32Array(LATENT_DIM * OUTPUT_DIM),
+    b2: new Float32Array(OUTPUT_DIM),
+    
+    acts: {
+        tanh: { f: x=>Math.tanh(x), d: y=>1-y*y },
+        sigmoid: { f: x=>1/(1+Math.exp(-x)), d: y=>y*(1-y) },
+        relu: { f: x=>x>0?x:0, d: y=>y>0?1:0 },
+		linear: { f: x => x, d: y => 1 }
+    },
+
+    init() {
+        for(let i=0; i<this.W1.length; i++) this.W1[i] = (Math.random()-0.5)*0.1;
+        for(let i=0; i<this.W2.length; i++) this.W2[i] = (Math.random()-0.5)*0.5;
+        this.b1.fill(0); this.b2.fill(0);
+        state.losses = [];
+    },
+
+    forward(input) {
+        const act = this.acts[state.actName];
+        let h = [0,0];
+        // Layer 1
+        for(let j=0; j<LATENT_DIM; j++) {
+            let s = this.b1[j];
+            for(let i=0; i<INPUT_DIM; i++) s += input[i]*this.W1[i*LATENT_DIM+j];
+            h[j] = act.f(s);
+        }
+        // Layer 2
+        let z = [0,0,0];
+        for(let k=0; k<OUTPUT_DIM; k++) {
+            let s = this.b2[k];
+            for(let j=0; j<LATENT_DIM; j++) s += h[j]*this.W2[j*OUTPUT_DIM+k];
+            z[k] = s;
+        }
+        // Softmax
+        let max = Math.max(...z);
+        let exps = z.map(v=>Math.exp(v-max));
+        let sum = exps.reduce((a,b)=>a+b,0);
+        return { h, probs: exps.map(v=>v/sum) };
+    },
+
+    trainStep(lr=0.05) {
+        let totalLoss = 0;
+        const act = this.acts[state.actName];
+        state.samples.sort(()=>Math.random()-0.5);
+
+        for(let s of state.samples) {
+            const fwd = this.forward(s.input);
+            totalLoss += -Math.log(fwd.probs[s.label] + 1e-10);
+
+            // Backprop
+            let dZ2 = [...fwd.probs];
+            dZ2[s.label] -= 1;
+
+            let dW2 = new Float32Array(this.W2.length);
+            let dH = [0,0];
+
+            for(let j=0; j<LATENT_DIM; j++) {
+                for(let k=0; k<OUTPUT_DIM; k++) {
+                    dW2[j*OUTPUT_DIM+k] = fwd.h[j]*dZ2[k];
+                    dH[j] += dZ2[k]*this.W2[j*OUTPUT_DIM+k];
+                }
+            }
+            
+            let dZ1 = dH.map((v,j) => v * (state.actName==='relu' ? (fwd.h[j]>0?1:0) : act.d(fwd.h[j])));
+            
+            let dW1 = new Float32Array(this.W1.length);
+            for(let i=0; i<INPUT_DIM; i++) {
+                for(let j=0; j<LATENT_DIM; j++) {
+                    dW1[i*LATENT_DIM+j] = s.input[i]*dZ1[j];
+                }
+            }
+
+            // Update
+            for(let i=0; i<this.W1.length; i++) this.W1[i] -= lr*dW1[i];
+            for(let i=0; i<this.b1.length; i++) this.b1[i] -= lr*dZ1[i];
+            for(let i=0; i<this.W2.length; i++) this.W2[i] -= lr*dW2[i];
+            
+            // --- FIX: Correct Loop Variable 'i' instead of 'k' ---
+            for(let i=0; i<this.b2.length; i++) this.b2[i] -= lr*dZ2[i]; 
+        }
+        return totalLoss / state.samples.length;
+    }
+};
+net.init();
+
+// --- CANVAS & INPUT ---
+const bigC = document.getElementById('bigCanvas');
+const bigCtx = bigC.getContext('2d', {willReadFrequently:true});
+const smallC = document.getElementById('smallCanvas');
+const smallCtx = smallC.getContext('2d', {willReadFrequently:true});
+let isDrawing = false;
+
+bigCtx.fillStyle="white"; bigCtx.fillRect(0,0,200,200);
+bigCtx.lineWidth=15; bigCtx.lineCap='round'; bigCtx.lineJoin='round';
+
+function getPos(e) {
+    const r=bigC.getBoundingClientRect();
+    const x=(e.clientX||e.touches[0].clientX)-r.left;
+    const y=(e.clientY||e.touches[0].clientY)-r.top;
+    return { x: x*(bigC.width/r.width), y: y*(bigC.height/r.height) };
+}
+
+bigC.addEventListener('mousedown', e=>{ 
+    if(state.mode === 'auto') return;
+    isDrawing=true; bigCtx.beginPath(); bigCtx.moveTo(getPos(e).x, getPos(e).y); e.preventDefault(); 
+});
+bigC.addEventListener('touchstart', e=>{ 
+    if(state.mode === 'auto') return;
+    isDrawing=true; bigCtx.beginPath(); bigCtx.moveTo(getPos(e).x, getPos(e).y); e.preventDefault(); 
+}, {passive:false});
+
+const moveHandler = (e) => {
+    if(!isDrawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    bigCtx.lineTo(p.x, p.y);
+    bigCtx.stroke();
+    
+    smallCtx.drawImage(bigC, 0,0,16,16);
+
+    const now = Date.now();
+    if(state.mode === 'test' && now - state.lastDrawTime > 2500) {//was 100 freezed
+        state.lastDrawTime = now;
+		predictCurrent(false); // <--- FALSE: це "швидке" оновлення
+       
+    }
+};
+
+bigC.addEventListener('mousemove', moveHandler);
+bigC.addEventListener('touchmove', moveHandler, {passive:false});
+
+const endHandler = () => { isDrawing=false; if(state.mode==='test') predictCurrent(true); };
+document.addEventListener('mouseup', endHandler);
+document.addEventListener('touchend', endHandler);
+/*
+function getPixels() {
+    smallCtx.drawImage(bigC, 0,0,16,16);
+    const img = smallCtx.getImageData(0,0,16,16);
+    let arr = [];
+    for(let i=0; i<img.data.length; i+=4) arr.push(1.0 - img.data[i]/255.0);
+    return arr;
+}
+*/
+
+function getPixels() {
+    // 1. Отримуємо "сирі" дані з великої канви, щоб знайти межі малюнка
+    const rawData = bigCtx.getImageData(0, 0, 200, 200);
+    const data = rawData.data;
+    let minX = 200, minY = 200, maxX = 0, maxY = 0;
+    let found = false;
+
+    // Скануємо пікселі, щоб знайти де намальовано (не білий колір)
+    for(let y=0; y<200; y++) {
+        for(let x=0; x<200; x++) {
+            // data[i] = R, data[i+1] = G, data[i+2] = B. Білий = 255,255,255
+            const i = (y * 200 + x) * 4;
+            // Якщо піксель темний (не білий)
+            if(data[i] < 240 || data[i+1] < 240 || data[i+2] < 240) {
+                if(x < minX) minX = x;
+                if(x > maxX) maxX = x;
+                if(y < minY) minY = y;
+                if(y > maxY) maxY = y;
+                found = true;
+            }
+        }
+    }
+
+    // Очищаємо маленьку канву перед малюванням
+    smallCtx.fillStyle = "white";
+    smallCtx.fillRect(0, 0, 16, 16);
+
+    if (found) {
+        // Додаємо невеликий відступ (padding), щоб краї не обрізались
+        const pad = 10; 
+        minX = Math.max(0, minX - pad);
+        minY = Math.max(0, minY - pad);
+        maxX = Math.min(200, maxX + pad);
+        maxY = Math.min(200, maxY + pad);
+
+        let w = maxX - minX;
+        let h = maxY - minY;
+
+        // Робимо вибірку квадратною, щоб не спотворювати пропорції (коло не стало овалом)
+        if (w > h) {
+            minY -= (w - h) / 2;
+            h = w;
+        } else {
+            minX -= (h - w) / 2;
+            w = h;
+        }
+
+        // Малюємо вирізаний шматок на маленьку канву 16x16
+        smallCtx.drawImage(bigC, minX, minY, w, h, 0, 0, 16, 16);
+    } else {
+        // Якщо нічого не знайдено — просто малюємо все як є (пустота)
+        smallCtx.drawImage(bigC, 0, 0, 16, 16);
+    }
+
+    // Тепер зчитуємо вже нормалізовані 16x16 пікселів для нейромережі
+    const img = smallCtx.getImageData(0, 0, 16, 16);
+    let arr = [];
+    for(let i=0; i<img.data.length; i+=4) {
+        // Інвертуємо: 1.0 = чорний, 0.0 = білий (так краще для нейромереж)
+        arr.push(1.0 - img.data[i]/255.0);
+    }
+    return arr;
+}
+function clearCanvas(visualOnly=false) {
+    bigCtx.fillStyle="white"; bigCtx.fillRect(0,0,200,200);
+    smallCtx.fillStyle="white"; smallCtx.fillRect(0,0,16,16);
+    if(state.mode === 'test') {
+        document.getElementById('finalResult').innerText = "...";
+        ['bar0','bar1','bar2'].forEach(id => document.getElementById(id).style.width='0%');
+        updatePlotWithCurrent(null); 
+    }
+}
+
+// --- APP LOGIC ---
+
+function handleAddSample(label) {
+    if(state.mode === 'auto') return; 
+    const input = getPixels();
+    if(input.reduce((a,b)=>a+b,0) < 0.5) { alert("Намалюйте щось!"); return; }
+
+    state.samples.push({ input, label });
+    state.counts[label]++;
+    
+    document.getElementById(`cnt${label}`).innerText = `(${state.counts[label]})`;
+    
+    if(state.mode === 'collect') {
+        clearCanvas();
+        checkReadyToTrain();
+        updatePlotWithCurrent(null); 
+    } else if(state.mode === 'test') {
+        // Test mode: Adding new data
+        document.getElementById('btnTrain').disabled = false;
+        document.getElementById('btnTrain').innerText = "🔄 Донавчити (Є нові дані)";
+        document.getElementById('btnTrain').style.background = "#ea580c";
+        clearCanvas();
+        updatePlotWithCurrent(null);
+    }
+}
+
+function checkReadyToTrain() {
+    const min = 3;
+    const ready = state.counts.every(c => c >= min);
+    document.getElementById('btnTrain').disabled = !ready;
+    if(ready) document.getElementById('btnTrain').innerText = "▶ Запустити навчання";
+}
+
+function toggleTraining() {
+    if(state.trainInterval) stopTraining();
+    else startTraining();
+}
+
+function startTraining() {
+    state.mode = 'training';
+    document.getElementById('statusBadge').className = 'mode-badge mode-train';
+    document.getElementById('statusBadge').innerText = 'Етап 2: Навчання...';
+    document.getElementById('btnTrain').innerText = "⏹ Стоп";
+    document.getElementById('btnTrain').style.background = "#dc2626";
+    document.getElementById('btnAuto').disabled = true;
+    
+    let iter = 0;
+    state.trainInterval = setInterval(() => {
+        const loss = net.trainStep();
+        state.losses.push(loss);
+        iter++;
+        
+        if(iter % 5 === 0) {
+            updateLossPlot();
+            state.cachedBackground = null; 
+            updatePlotWithCurrent(null);
+            updateWeightsViz();
+        }
+
+        if(loss < 0.02 && iter > 50) stopTraining();
+    }, 50);
+}
+
+function stopTraining() {
+    clearInterval(state.trainInterval);
+    state.trainInterval = null;
+    state.mode = 'test';
+    
+    document.getElementById('statusBadge').className = 'mode-badge mode-test';
+    document.getElementById('statusBadge').innerText = 'Етап 3: Тестування';
+    document.getElementById('predictionBlock').classList.remove('hidden');
+    document.getElementById('btnClear').classList.remove('hidden');
+    
+    document.getElementById('btnTrain').innerText = "🔄 Донавчити";
+    document.getElementById('btnTrain').style.background = "#4f46e5";
+    document.getElementById('btnTrain').disabled = true; 
+    document.getElementById('btnAuto').classList.add('hidden');
+    
+    ['Веселий', 'Сумний', 'Кіт'].forEach((t, i) => document.getElementById(`lbl${i}`).innerText = `Це ${t}`);
+    
+    state.cachedBackground = generateVoronoiBackground(); 
+    updatePlotWithCurrent(null);
+    updateWeightsViz();
+}
+
+function predictCurrent(isFinal = false) {
+    const inp = getPixels();
+    const res = net.forward(inp);
+    
+    // Оновлення стовпчиків (HTML - це швидко)
+    const labels = ["Веселий 🙂", "Сумний ☹️", "Кіт 🐱"];
+    let maxP = 0, maxI = 0;
+    res.probs.forEach((p, i) => {
+        document.getElementById(`bar${i}`).style.width = (p*100)+'%';
+        document.getElementById(`val${i}`).innerText = Math.round(p*100)+'%';
+        if(p>maxP) { maxP=p; maxI=i; }
+    });
+    
+    document.getElementById('finalResult').innerText = maxP > 0.6 ? `здається, це ${labels[maxI]}` : "Не впевнений...";
+    
+    // --- ГОЛОВНА ЗМІНА ТУТ ---
+    if (isFinal) {
+        // Якщо ми закінчили малювати (mouseup) - робимо повне оновлення (щоб підігнати межі/zoom)
+        updatePlotWithCurrent(res.h);
+    } else {
+        // Якщо ми в процесі малювання - тільки рухаємо точку (без лагів)
+        fastMoveCross(res.h);
+    }
+}
+
+// --- VISUALIZATION ---
+
+function updateWeightsViz() {
+    const drawW = (canvId, neuronIdx) => {
+        const ctx = document.getElementById(canvId).getContext('2d');
+        const img = ctx.createImageData(16,16);
+        let max = 0;
+        for(let i=0; i<INPUT_DIM; i++) {
+            let val = Math.abs(net.W1[i*LATENT_DIM + neuronIdx]);
+            if(val > max) max = val;
+        }
+        if(max===0) max=1;
+
+        for(let i=0; i<INPUT_DIM; i++) {
+            let val = net.W1[i*LATENT_DIM + neuronIdx];
+            let norm = val/max; 
+            
+            let r=200, g=200, b=200;
+            if(norm > 0) { r=255; g=200 - norm*200; b=200 - norm*200; }
+            else { b=255; r=200 - Math.abs(norm)*200; g=200 - Math.abs(norm)*200; }
+            
+            let p = i*4;
+            img.data[p]=r; img.data[p+1]=g; img.data[p+2]=b; img.data[p+3]=255;
+        }
+        ctx.putImageData(img, 0, 0);
+    };
+    drawW('wView0', 0);
+    drawW('wView1', 1);
+}
+
+// 1. Допоміжна функція для визначення меж
+function getDynamicBounds(currPoint = null) {
+    // Базові межі, якщо точок ще немає
+    let minX = -1.5, maxX = 1.5, minY = -1.5, maxY = 1.5;
+    
+    // Якщо є навчальні точки, беремо їх мінімум/максимум
+    if (state.samples.length > 0) {
+        const pts = state.samples.map(s => net.forward(s.input).h);
+        minX = Math.min(...pts.map(p => p[0]));
+        maxX = Math.max(...pts.map(p => p[0]));
+        minY = Math.min(...pts.map(p => p[1]));
+        maxY = Math.max(...pts.map(p => p[1]));
+    }
+
+    // --- ГОЛОВНА ПРАВКА ТУТ ---
+    // Якщо є поточний хрестик, враховуємо і його!
+    if (currPoint) {
+        minX = Math.min(minX, currPoint[0]);
+        maxX = Math.max(maxX, currPoint[0]);
+        minY = Math.min(minY, currPoint[1]);
+        maxY = Math.max(maxY, currPoint[1]);
+    }
+
+    // Обмеження для Tanh/Sigmoid, щоб не зумитись надто сильно в центр
+  if (state.actName === 'tanh') { 
+        minX = Math.min(minX, -1.1); maxX = Math.max(maxX, 1.1);
+        minY = Math.min(minY, -1.1); maxY = Math.max(maxY, 1.1); // <--- Цього не вистачало
+    }
+    if (state.actName === 'sigmoid') { 
+        minX = Math.min(minX, -0.1); maxX = Math.max(maxX, 1.1);
+        minY = Math.min(minY, -0.1); maxY = Math.max(maxY, 1.1); // <--- І цього
+    }
+    // Додаємо 15% відступу (padding)
+    const padX = (maxX - minX) * 0.15 || 0.5;
+    const padY = (maxY - minY) * 0.15 || 0.5;
+
+    return {
+        x: [minX - padX, maxX + padX],
+        y: [minY - padY, maxY + padY]
+    };
+}
+/*
+function getDynamicBounds() {
+    // Якщо даних немає, даємо стандартні межі залежно від активації
+    if (state.samples.length === 0) {
+        if (state.actName === 'tanh') return { x: [-1.5, 1.5], y: [-1.5, 1.5] };
+        if (state.actName === 'sigmoid') return { x: [-0.5, 1.5], y: [-0.5, 1.5] };
+        return { x: [-2, 5], y: [-2, 5] }; // Для ReLU/Linear за замовчуванням
+    }
+
+    // Збираємо координати всіх точок
+    const pts = state.samples.map(s => net.forward(s.input).h);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+    pts.forEach(p => {
+        if(p[0] < minX) minX = p[0];
+        if(p[0] > maxX) maxX = p[0];
+        if(p[1] < minY) minY = p[1];
+        if(p[1] > maxY) maxY = p[1];
+    });
+
+    // Якщо активація обмежена (Tanh/Sigmoid), не даємо зумитись надто сильно всередину
+    if (state.actName === 'tanh') { minX = Math.min(minX, -1.1); maxX = Math.max(maxX, 1.1); }
+    if (state.actName === 'sigmoid') { minX = Math.min(minX, -0.1); maxX = Math.max(maxX, 1.1); }
+
+    // Додаємо відступи (padding) 15%
+    const padX = (maxX - minX) * 0.15 || 0.5;
+    const padY = (maxY - minY) * 0.15 || 0.5;
+
+    return {
+        x: [minX - padX, maxX + padX],
+        y: [minY - padY, maxY + padY]
+    };
+}
+*/
+// 2. Оновлена генерація фону (тепер використовує динамічні межі)
+function generateVoronoiBackground() {
+    let centers = [];
+    for(let c=0; c<3; c++) {
+        let pts = state.samples.filter(s=>s.label===c).map(s=>net.forward(s.input).h);
+        if(pts.length>0) {
+            let ax=pts.reduce((a,b)=>a+b[0],0)/pts.length;
+            let ay=pts.reduce((a,b)=>a+b[1],0)/pts.length;
+            centers.push({x:ax, y:ay, c:c});
+        }
+    }
+    if(centers.length===0) return null;
+
+    // ОТРИМУЄМО МЕЖІ
+    const bounds = getDynamicBounds();
+    const xR = bounds.x;
+    const yR = bounds.y;
+    
+    let X=[], Y=[], Z=[];
+    // Генеруємо сітку 30x30 у цих межах
+    for(let i=0; i<30; i++) { 
+        let x = xR[0] + (xR[1]-xR[0])*(i/29);
+        for(let j=0; j<30; j++) {
+            let y = yR[0] + (yR[1]-yR[0])*(j/29);
+            let minDist=999, cls=0;
+            for(let cen of centers) {
+                let d = Math.hypot(x-cen.x, y-cen.y);
+                if(d<minDist) { minDist=d; cls=cen.c; }
+            }
+            X.push(x); Y.push(y); Z.push(cls);
+        }
+    }
+    
+    // Зберігаємо межі прямо в об'єкті фону, щоб використати в Layout
+    return {
+        x: X, y: Y, mode: 'markers',
+        marker: { 
+            color: Z, colorscale: [[0, 'rgba(220, 252, 231, 0.3)'], [0.5, 'rgba(254, 226, 226, 0.3)'], [1, 'rgba(219, 234, 254, 0.3)']],
+            size: 14, symbol: 'square'
+        },
+        type: 'scatter', hoverinfo: 'none', showlegend: false,
+        _bounds: bounds // прихована властивість для передачі меж
+    };
+}
+
+
+function fastMoveCross(h) {
+    const div = document.getElementById('latentPlot');
+    if (!div || !div.data) return;
+
+    // Шукаємо індекс сліду (trace), який є нашим хрестиком
+    const crossIndex = div.data.findIndex(trace => trace.name === 'Ви тут');
+
+    if (crossIndex !== -1) {
+        // Оновлюємо ТІЛЬКИ координати цього сліду. Це дуже швидко.
+        Plotly.restyle('latentPlot', {
+            x: [[h[0]]],
+            y: [[h[1]]]
+        }, [crossIndex]);
+    } else {
+        // Якщо хрестика ще немає (перший раз) - малюємо по-старому
+        updatePlotWithCurrent(h);
+    }
+}
+
+
+// 3. Оновлення графіка (тепер застосовує межі з фону)
+function updatePlotWithCurrent(currH) {
+    let traces = [];
+    
+    // 1. Розраховуємо межі (враховуючи хрестик currH!)
+    // Навіть якщо фон закешований для меншої області, графік розшириться
+    const currentBounds = getDynamicBounds(currH);
+
+    // 2. Background (Вороного)
+    if(state.mode !== 'collect' && state.mode !== 'auto') {
+        if(!state.cachedBackground) state.cachedBackground = generateVoronoiBackground();
+        if(state.cachedBackground) {
+            traces.push(state.cachedBackground);
+        }
+    }
+
+    // 3. Навчальні точки
+    const colors = ['#16a34a', '#dc2626', '#2563eb'];
+    for(let c=0; c<3; c++) {
+        const pts = state.samples.filter(s=>s.label===c).map(s=>net.forward(s.input).h);
+        if(pts.length>0) {
+            traces.push({
+                x: pts.map(p=>p[0]), y: pts.map(p=>p[1]),
+                mode: 'markers', type: 'scatter', name: ['Happy','Sad','Cat'][c],
+                marker: { color: colors[c], size: 8, line:{width:1, color:'black'} }
+            });
+        }
+    }
+
+    // 4. Поточний хрестик (Current Cross)
+    if(currH) {
+        traces.push({
+            x: [currH[0]], y: [currH[1]],
+            mode: 'markers', type: 'scatter', name: 'Ви тут',
+            marker: { symbol: 'cross', size: 20, color: 'black', line:{width:4} }
+        });
+    }
+
+    // 5. Layout з новими межами
+    const layout = {
+        margin: {t:30, l:30, r:10, b:30},
+        xaxis: { range: currentBounds.x, title:'Нейрон 1', automargin: true },
+        yaxis: { range: currentBounds.y, title:'Нейрон 2', automargin: true },
+        showlegend: false, hovermode: false
+    };
+
+    Plotly.react('latentPlot', traces, layout);
+}
+/*
+function updatePlotWithCurrent(currH) {
+    let traces = [];
+    let currentBounds = null;
+
+    // 1. Background
+    if(state.mode !== 'collect' && state.mode !== 'auto') {
+        if(!state.cachedBackground) state.cachedBackground = generateVoronoiBackground();
+        if(state.cachedBackground) {
+            traces.push(state.cachedBackground);
+            currentBounds = state.cachedBackground._bounds; // Дістаємо межі з фону
+        }
+    }
+
+    // Якщо фону немає (наприклад, ще не вчились), рахуємо межі зараз
+    if (!currentBounds) currentBounds = getDynamicBounds();
+
+    // 2. Training Points
+    const colors = ['#16a34a', '#dc2626', '#2563eb'];
+    for(let c=0; c<3; c++) {
+        const pts = state.samples.filter(s=>s.label===c).map(s=>net.forward(s.input).h);
+        if(pts.length>0) {
+            traces.push({
+                x: pts.map(p=>p[0]), y: pts.map(p=>p[1]),
+                mode: 'markers', type: 'scatter', name: ['Happy','Sad','Cat'][c],
+                marker: { color: colors[c], size: 8, line:{width:1, color:'black'} }
+            });
+        }
+    }
+
+    // 3. Current Cross
+    if(currH) {
+        traces.push({
+            x: [currH[0]], y: [currH[1]],
+            mode: 'markers', type: 'scatter', name: 'Ви тут',
+            marker: { symbol: 'cross', size: 20, color: 'black', line:{width:4} }
+        });
+    }
+
+    // Налаштування Layout з динамічними межами
+    const layout = {
+        margin: {t:30, l:30, r:10, b:30},
+        xaxis: { range: currentBounds.x, title:'Нейрон 1', automargin: true },
+        yaxis: { range: currentBounds.y, title:'Нейрон 2', automargin: true },
+        showlegend: false, hovermode: false
+    };
+
+    Plotly.react('latentPlot', traces, layout);
+}
+
+*/
+
+function updateLossPlot() {
+    Plotly.newPlot('lossPlot', [{
+        y: state.losses, type: 'scatter', mode: 'lines', line: {color:'#4f46e5'}
+    }], {
+        margin: {t:20,l:40,r:10,b:30}, title:'Loss', xaxis:{title:'Epochs'}, yaxis:{range:[0, Math.max(1,...state.losses)]}
+    }, {staticPlot:true});
+}
+
+async function runAutoAnimation() {
+    // 1. ПРИБРАЛИ перевірку confirm і очищення (state.samples=[])
+    // Тепер ми просто переходимо в режим "auto" і додаємо дані поверх існуючих
+    
+    state.mode = 'auto';
+    document.getElementById('statusBadge').className = 'mode-badge mode-auto';
+    document.getElementById('statusBadge').innerText = 'Етап 1: Авто-генерація (Анімація)...';
+    
+    // Блокуємо кнопки
+    ['btnTrain','btnAuto','btnReset','btnCls0','btnCls1','btnCls2'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.disabled=true;
+    });
+
+    // 2. ЗМІНИЛИ ЛОГІКУ ЦИКЛУ
+    // Додаємо 30 нових прикладів (по 10 кожного виду), не оглядаючись на те, скільки вже є.
+    const totalNewSamples = 30;
+
+    for(let i=0; i<totalNewSamples; i++) {
+        // Просто чергуємо: 0 (Веселий), 1 (Сумний), 2 (Кіт)...
+        let lbl = i % 3;
+
+        drawRandomShape(lbl);
+        smallCtx.drawImage(bigC, 0,0,16,16); // оновлюємо UI
+        
+        // Чекаємо 100мс (трохи швидше, щоб не чекати вічність)
+        await new Promise(r => setTimeout(r, 100));
+
+        // Зберігаємо
+        const input = getPixels();
+        state.samples.push({input, label:lbl});
+        state.counts[lbl]++;
+        document.getElementById(`cnt${lbl}`).innerText = `(${state.counts[lbl]})`;
+        
+        // Оновлюємо тільки точки на графіку
+        updatePlotWithCurrent(null);
+    }
+
+    // Завершення
+    clearCanvas();
+    state.mode = 'collect';
+    document.getElementById('statusBadge').className = 'mode-badge mode-collect';
+    document.getElementById('statusBadge').innerText = 'Етап 1: Збір даних завершено';
+    
+    // Розблокуємо кнопки
+    ['btnAuto','btnReset','btnCls0','btnCls1','btnCls2'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.disabled=false;
+    });
+    
+    checkReadyToTrain();
+}
+/*
+// --- ANIMATED AUTO-GENERATION ---
+async function runAutoAnimation() {
+    if(state.samples.length>0 && !confirm("Видалити поточні дані?")) return;
+    
+    // UI Setup
+    state.samples=[]; state.counts=[0,0,0];
+    state.mode = 'auto';
+    document.getElementById('statusBadge').className = 'mode-badge mode-auto';
+    document.getElementById('statusBadge').innerText = 'Етап 1: Авто-генерація (Анімація)...';
+    
+    // Lock buttons
+    ['btnTrain','btnAuto','btnReset','btnCls0','btnCls1','btnCls2'].forEach(id=>document.getElementById(id).disabled=true);
+
+    const samplesPerClass = 10;
+    const total = 3 * samplesPerClass;
+
+    for(let i=0; i<total; i++) {
+        // Randomly pick a class that isn't full yet
+        let lbl;
+        do { lbl = Math.floor(Math.random()*3); } 
+        while(state.counts[lbl] >= samplesPerClass);
+
+        drawRandomShape(lbl);
+        smallCtx.drawImage(bigC, 0,0,16,16); // force UI update
+        
+        // Wait 200ms
+        await new Promise(r => setTimeout(r, 200));
+
+        // Save
+        const input = getPixels();
+        state.samples.push({input, label:lbl});
+        state.counts[lbl]++;
+        document.getElementById(`cnt${lbl}`).innerText = `(${state.counts[lbl]})`;
+        
+        // Update Plot (just points)
+        updatePlotWithCurrent(null);
+    }
+
+    // Finish
+    clearCanvas();
+    state.mode = 'collect';
+    document.getElementById('statusBadge').className = 'mode-badge mode-collect';
+    document.getElementById('statusBadge').innerText = 'Етап 1: Збір даних завершено';
+    
+    // Unlock
+    ['btnAuto','btnReset','btnCls0','btnCls1','btnCls2'].forEach(id=>document.getElementById(id).disabled=false);
+    checkReadyToTrain();
+}
+
+
+*/
+
+
+function drawRandomShape(type) {
+    bigCtx.fillStyle="white"; bigCtx.fillRect(0,0,200,200);
+    bigCtx.strokeStyle="black"; bigCtx.lineWidth=15; bigCtx.lineJoin='round'; bigCtx.lineCap='round';
+    
+    // 1. Масштабування (щоб привчити мережу до різних розмірів)
+    const scale = 0.5 + Math.random() * 0.5; 
+    
+    const noise = () => (Math.random()-0.5)*20;
+    const cx = 100 + noise(); 
+    const cy = 100 + noise();
+    
+    bigCtx.save();
+    bigCtx.translate(cx, cy);
+    bigCtx.scale(scale, scale);
+    bigCtx.translate(-cx, -cy);
+    
+    // Голова (Спільна для всіх)
+    bigCtx.beginPath(); bigCtx.arc(cx, cy, 75, 0, Math.PI*2); bigCtx.stroke();
+    
+    // Очі (Спільні)
+    bigCtx.fillStyle="black";
+    bigCtx.fillRect(cx-30, cy-30, 15, 15);
+    bigCtx.fillRect(cx+15, cy-30, 15, 15);
+    
+    bigCtx.beginPath();
+    
+    if(type===0) { // Веселий (Happy)
+        bigCtx.arc(cx, cy, 50, 0.2*Math.PI, 0.8*Math.PI);
+    } else if(type===1) { // Сумний (Sad)
+        bigCtx.arc(cx, cy+60, 50, 1.2*Math.PI, 1.8*Math.PI);
+    } else { // Кіт (Cat)
+        // --- НОВІ ВУХА (Зверху, широкі трикутники) ---
+        // Ліве вухо
+        bigCtx.moveTo(cx - 55, cy - 45);  // Старт збоку голови (вище ніж раніше)
+        bigCtx.lineTo(cx - 50, cy - 110); // Кінчик вгору
+        bigCtx.lineTo(cx - 15, cy - 70);  // Повернення на маківку
+        
+        // Праве вухо
+        bigCtx.moveTo(cx + 55, cy - 45);
+        bigCtx.lineTo(cx + 50, cy - 110);
+        bigCtx.lineTo(cx + 15, cy - 70);
+
+        // --- НОВИЙ НІС-РОТ (Перевернута Т) ---
+        // Ніс (маленький трикутник)
+        bigCtx.moveTo(cx - 10, cy + 10);
+        bigCtx.lineTo(cx + 10, cy + 10);
+        bigCtx.lineTo(cx, cy + 20);
+        bigCtx.lineTo(cx - 10, cy + 10);
+
+        // Вертикальна риска
+        bigCtx.moveTo(cx, cy + 20);
+        bigCtx.lineTo(cx, cy + 40);
+
+        // Рот (дужки в сторони)
+        bigCtx.moveTo(cx - 20, cy + 45); 
+        bigCtx.quadraticCurveTo(cx, cy + 50, cx + 20, cy + 45);
+    }
+    bigCtx.stroke();
+    
+    bigCtx.restore();
+}
+function changeActivation() {
+    state.actName = document.getElementById('actFunc').value;
+    state.cachedBackground = null;
+    updatePlotWithCurrent(null); 
+}
+
+function resetAll() { location.reload(); }
+
+// Init plots
+Plotly.newPlot('latentPlot', [], {title:' '});
+Plotly.newPlot('lossPlot', [], {title:' '});
+
+</script>
+</body>
+</html>
