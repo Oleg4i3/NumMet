@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice CNN Snake: 2D Latent</title>
+    <title>Voice CNN Snake v3 (Mel + Latent)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
@@ -15,16 +15,16 @@
         header { padding: 10px 20px; background: var(--panel); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; font-size: 1.2rem; color: var(--accent); }
         
-        .workspace { display: grid; grid-template-columns: 350px 1fr 300px; gap: 10px; padding: 10px; height: calc(100vh - 60px); }
+        .workspace { display: grid; grid-template-columns: 340px 1fr 300px; gap: 10px; padding: 10px; height: calc(100vh - 60px); }
         
         .panel { background: var(--panel); border-radius: 8px; padding: 15px; overflow-y: auto; border: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
         .panel h3 { margin-top: 0; border-bottom: 1px solid #475569; padding-bottom: 5px; font-size: 1rem; color: #94a3b8; }
 
-        button { padding: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; background: #334155; color: white; transition: 0.2s; }
+        button { padding: 10px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; background: #334155; color: white; transition: 0.2s; }
         button:hover { background: #475569; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        .btn-rec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border: 1px solid #475569; padding: 6px 10px; }
+        .btn-rec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; border: 1px solid #475569; }
         .btn-rec.recording { background: #fee2e2; color: #b91c1c; border-color: #ef4444; animation: pulse 1s infinite; }
         .count-badge { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
 
@@ -32,32 +32,36 @@
         .btn-success { background: var(--success); color: #000; } .btn-success:hover { background: #16a34a; }
         
         canvas { background: black; border-radius: 4px; width: 100%; }
-        #spectrogramCanvas { height: 100px; image-rendering: pixelated; }
+        #spectrogramCanvas { height: 120px; image-rendering: pixelated; }
         #snakeCanvas { flex: 1; border: 2px solid #334155; }
         
         .pred-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; font-size: 0.9em; }
         .bar-bg { flex: 1; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
         .bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; }
         .pred-row.active .bar-fill { background: var(--success); }
+        .pred-row.active { font-weight: bold; color: var(--success); }
         .pred-row.disabled { opacity: 0.3; }
 
         input[type=range] { width: 100%; accent-color: var(--accent); }
+
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         
-        /* Графіки */
-        .plot-container { border: 1px solid #334155; border-radius: 4px; background: #0f172a; }
+        .io-group { display: flex; gap: 5px; }
+        .io-group button { flex: 1; font-size: 0.8em; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>🧠 2D Bottleneck Voice Snake</h1>
-    <div style="font-size: 0.8rem; color: #94a3b8;">Bottleneck: 2 Neurons</div>
+    <h1>🧠 Voice Mel-CNN (2-Neuron Bottleneck)</h1>
+    <div style="font-size: 0.8rem; color: #94a3b8;">Mel-Spectrogram & Latent Space</div>
 </header>
 
 <div class="workspace">
     <div class="panel">
-        <h3>1. Дані</h3>
+        <h3>1. Збір Mel-даних</h3>
+        <p style="font-size:0.8rem; color:#cbd5e1;">Говоріть чітко. 10+ прикладів.</p>
+        
         <button id="btnRec0" class="btn-rec" onmousedown="startRec(0)" onmouseup="stopRec()" ontouchstart="startRec(0)" ontouchend="stopRec()">
             <span>🛑 "Стоп"</span> <span id="cnt0" class="count-badge">0</span>
         </button>
@@ -73,18 +77,18 @@
         
         <div><canvas id="spectrogramCanvas" width="32" height="32"></canvas></div>
 
-        <h3>2. Навчання та Латент</h3>
-        <button id="btnTrain" class="btn-primary" onclick="trainNetwork()">🚀 Навчити (2D Bottleneck)</button>
+        <h3>2. Навчання</h3>
+        <button id="btnTrain" class="btn-primary" onclick="trainNetwork()">🚀 Навчити (Bottleneck)</button>
         
-        <div style="font-size:0.8rem; color:#94a3b8; margin-top:5px;">Помилка (Loss):</div>
-        <div id="loss-plot" class="plot-container" style="height: 100px;"></div>
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-top:5px;">Втрати (Loss):</div>
+        <div id="loss-plot" style="height: 80px;"></div>
         
-        <div style="font-size:0.8rem; color:#94a3b8; margin-top:5px;">Латентний простір (2 нейрони):</div>
-        <div id="latent-plot" class="plot-container" style="height: 250px;"></div>
-
-        <div style="display:flex; gap:5px; margin-top:10px;">
-            <button onclick="saveNetwork()" class="btn-success" style="flex:1">💾 Save</button>
-            <button onclick="document.getElementById('fileInput').click()" style="background:#475569; flex:1">📂 Load</button>
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-top:5px;">Латентний простір (2 нейрони):</div>
+        <div id="latent-plot" style="height: 200px; background: #0f172a; border-radius: 4px; border:1px solid #334155;"></div>
+        
+        <div class="io-group" style="margin-top:10px;">
+            <button onclick="saveNetwork()" class="btn-success">💾 Save</button>
+            <button onclick="document.getElementById('fileInput').click()" style="background:#475569;">📂 Load</button>
             <input type="file" id="fileInput" style="display:none" onchange="loadNetwork(this)">
         </div>
     </div>
@@ -92,19 +96,15 @@
     <div class="panel" style="padding: 0; overflow: hidden; position: relative;">
         <canvas id="snakeCanvas"></canvas>
         <div id="gameOverlay" style="position: absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align: center; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; pointer-events: none;">
-            <h2 style="color: var(--accent);">Голосова Змійка</h2>
+            <h2 style="color: var(--accent);">Voice Snake</h2>
             <p>Скажіть "Вперед"!</p>
         </div>
-        <div style="position: absolute; top: 10px; right: 10px; font-size: 1.5rem; font-weight: bold; color: rgba(255,255,255,0.5);">
-            Score: <span id="scoreVal" style="color:white">0</span>
-        </div>
-        <div style="position: absolute; bottom: 10px; left: 10px; font-size: 0.9rem; color: #94a3b8;">
-            Тертя: <span id="momentumVal" style="color:white">0%</span>
-        </div>
+        <div style="position: absolute; top: 10px; right: 10px; font-size: 1.5rem; font-weight: bold; color: rgba(255,255,255,0.5);">Score: <span id="scoreVal" style="color:white">0</span></div>
+        <div style="position: absolute; bottom: 10px; left: 10px; font-size: 0.9rem; color: #94a3b8;">Тертя: <span id="momentumVal" style="color:white">0%</span></div>
     </div>
 
     <div class="panel">
-        <h3>🔍 Управління</h3>
+        <h3>🔍 Параметри</h3>
         <button id="btnListen" class="btn-success" onclick="toggleListening()">🎙️ Старт мікрофону</button>
         
         <div style="margin: 15px 0; border-top:1px solid #334155; padding-top:10px;">
@@ -117,17 +117,17 @@
             </div>
         </div>
 
-        <h3>Класифікація</h3>
+        <h3>Передбачення</h3>
         <div id="predictions"></div>
         <div style="margin-top: auto; border-top: 1px solid #334155; padding-top: 10px;">
-            <div style="font-size: 0.8rem; color: #94a3b8;">Команда: <span id="lastCmd" style="color: var(--accent); font-weight: bold;">-</span></div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">Cmd: <span id="lastCmd" style="color: var(--accent); font-weight: bold;">-</span></div>
         </div>
     </div>
 </div>
 
 <script>
 /**
- * === ЧАСТИНА 1: CNN (Modified for 2D Bottleneck) ===
+ * === ЧАСТИНА 1: CNN з 2-Neuron Bottleneck ===
  */
 class Layer {
     constructor() { this.input = null; this.output = null; }
@@ -142,8 +142,7 @@ class Conv2D extends Layer {
         const scale = Math.sqrt(2.0 / (inChannels * kernelSize * kernelSize));
         this.filters = new Float32Array(outChannels * inChannels * kernelSize * kernelSize).map(() => (Math.random() - 0.5) * 2 * scale);
         this.biases = new Float32Array(outChannels).fill(0);
-        this.gradFilters = new Float32Array(this.filters.length);
-        this.gradBiases = new Float32Array(this.biases.length);
+        this.gradFilters = new Float32Array(this.filters.length); this.gradBiases = new Float32Array(this.biases.length);
     }
     forward(input) {
         this.input = input; const { w, h, d } = input;
@@ -156,7 +155,7 @@ class Conv2D extends Layer {
                     for (let ic = 0; ic < d; ic++) {
                         for (let ky = 0; ky < this.k; ky++) {
                             for (let kx = 0; kx < this.k; kx++) {
-                                sum += input.data[(ic * h + y + ky) * w + x + kx] * this.filters[((oc * d + ic) * this.k + ky) * this.k + kx];
+                                sum += input.data[(ic * h + (y + ky)) * w + (x + kx)] * this.filters[((oc * d + ic) * this.k + ky) * this.k + kx];
                             }
                         }
                     }
@@ -167,7 +166,8 @@ class Conv2D extends Layer {
         return this.output;
     }
     backward(gradOutput) {
-        const { w: inW, h: inH, d: inD } = this.input; const { w: outW, h: outH, d: outD } = this.output;
+        const { w: inW, h: inH, d: inD } = this.input;
+        const { w: outW, h: outH, d: outD } = this.output;
         const gradInput = new Float32Array(inD * inH * inW).fill(0);
         this.gradFilters.fill(0); this.gradBiases.fill(0);
         for (let oc = 0; oc < outD; oc++) {
@@ -180,7 +180,7 @@ class Conv2D extends Layer {
                     for (let ic = 0; ic < inD; ic++) {
                         for (let ky = 0; ky < this.k; ky++) {
                             for (let kx = 0; kx < this.k; kx++) {
-                                const inIdx = (ic * inH + y + ky) * inW + x + kx;
+                                const inIdx = (ic * inH + (y + ky)) * inW + (x + kx);
                                 const fIdx = ((oc * inD + ic) * this.k + ky) * this.k + kx;
                                 this.gradFilters[fIdx] += this.input.data[inIdx] * chain;
                                 gradInput[inIdx] += this.filters[fIdx] * chain;
@@ -197,18 +197,21 @@ class Conv2D extends Layer {
 class MaxPool2x2 extends Layer {
     forward(input) {
         this.input = input; const { w, h, d } = input;
-        const outW = Math.floor(w/2); const outH = Math.floor(h/2);
-        this.output = { w: outW, h: outH, d: d, data: new Float32Array(outW*outH*d) };
-        this.mask = new Int32Array(outW*outH*d);
-        for (let c=0; c<d; c++) {
-            for (let y=0; y<outH; y++) {
-                for (let x=0; x<outW; x++) {
-                    let maxVal = -Infinity, maxIdx = -1;
-                    for (let dy=0; dy<2; dy++) for (let dx=0; dx<2; dx++) {
-                        const idx = (c*h + y*2+dy)*w + x*2+dx;
-                        if (input.data[idx] > maxVal) { maxVal = input.data[idx]; maxIdx = idx; }
+        const outW = Math.floor(w / 2); const outH = Math.floor(h / 2);
+        this.output = { w: outW, h: outH, d: d, data: new Float32Array(outW * outH * d) };
+        this.mask = new Int32Array(outW * outH * d);
+        for (let c = 0; c < d; c++) {
+            for (let y = 0; y < outH; y++) {
+                for (let x = 0; x < outW; x++) {
+                    let maxVal = -Infinity; let maxIdx = -1;
+                    for (let dy = 0; dy < 2; dy++) {
+                        for (let dx = 0; dx < 2; dx++) {
+                            const idx = (c * h + (y * 2 + dy)) * w + (x * 2 + dx);
+                            const val = input.data[idx];
+                            if (val > maxVal) { maxVal = val; maxIdx = idx; }
+                        }
                     }
-                    const outIdx = (c*outH+y)*outW+x;
+                    const outIdx = (c * outH + y) * outW + x;
                     this.output.data[outIdx] = maxVal; this.mask[outIdx] = maxIdx;
                 }
             }
@@ -217,7 +220,7 @@ class MaxPool2x2 extends Layer {
     }
     backward(gradOutput) {
         const gradInput = new Float32Array(this.input.data.length).fill(0);
-        for (let i=0; i<gradOutput.data.length; i++) gradInput[this.mask[i]] = gradOutput.data[i];
+        for (let i = 0; i < gradOutput.data.length; i++) gradInput[this.mask[i]] = gradOutput.data[i];
         return { ...this.input, data: gradInput };
     }
 }
@@ -231,31 +234,35 @@ class Dense extends Layer {
     constructor(inSize, outSize) {
         super();
         this.inSize = inSize; this.outSize = outSize;
-        const scale = Math.sqrt(2.0/inSize);
-        this.weights = new Float32Array(inSize*outSize).map(() => (Math.random()-0.5)*2*scale);
+        const scale = Math.sqrt(2.0 / inSize);
+        this.weights = new Float32Array(inSize * outSize).map(() => (Math.random() - 0.5) * 2 * scale);
         this.biases = new Float32Array(outSize).fill(0);
-        this.gradW = new Float32Array(this.weights.length);
-        this.gradB = new Float32Array(this.biases.length);
+        this.gradW = new Float32Array(this.weights.length); this.gradB = new Float32Array(this.biases.length);
     }
     forward(input) {
         this.input = input; this.output = new Float32Array(this.outSize);
-        for (let i=0; i<this.outSize; i++) {
+        for (let i = 0; i < this.outSize; i++) {
             let sum = this.biases[i];
-            for (let j=0; j<this.inSize; j++) sum += input[j] * this.weights[i*this.inSize+j];
-            this.output[i] = sum > 0 ? sum : 0; // ReLU
+            for (let j = 0; j < this.inSize; j++) sum += input[j] * this.weights[i * this.inSize + j];
+            // Використовуємо Tanh для Bottleneck шару (щоб координати були від -1 до 1), для інших ReLU?
+            // User просив "як 4 букви", там зазвичай ReLU. Але для красивої візуалізації Tanh краще.
+            // Залишимо ReLU для стабільності, але для 2-нейронного шару це означає тільки позитивний квадрант.
+            // Щоб було по кутах (включаючи мінус), краще звичайний лінійний вихід або Tanh. 
+            // Давайте зробимо ReLU, мережа сама навчиться використовувати [0, max].
+            this.output[i] = sum > 0 ? sum : 0; 
         }
         return this.output;
     }
     backward(grad) {
         const gradIn = new Float32Array(this.inSize).fill(0);
         this.gradW.fill(0); this.gradB.fill(0);
-        for (let i=0; i<this.outSize; i++) {
+        for (let i = 0; i < this.outSize; i++) {
             let chain = grad[i];
-            if (this.output[i] <= 0) chain = 0;
+            if (this.output[i] <= 0) chain = 0; // ReLU derivative
             this.gradB[i] += chain;
-            for (let j=0; j<this.inSize; j++) {
-                this.gradW[i*this.inSize+j] += this.input[j] * chain;
-                gradIn[j] += this.weights[i*this.inSize+j] * chain;
+            for (let j = 0; j < this.inSize; j++) {
+                this.gradW[i * this.inSize + j] += this.input[j] * chain;
+                gradIn[j] += this.weights[i * this.inSize + j] * chain;
             }
         }
         return gradIn;
@@ -266,43 +273,45 @@ class SoftmaxLayer extends Layer {
     forward(input) {
         this.input = input; const max = Math.max(...input);
         const exps = input.map(v => Math.exp(v - max));
-        const sum = exps.reduce((a,b) => a+b, 0);
-        this.output = exps.map(v => v/sum);
+        const sum = exps.reduce((a, b) => a + b, 0);
+        this.output = exps.map(v => v / sum);
         return this.output;
     }
     backward(labelIndex) {
         const grad = new Float32Array(this.output);
-        grad[labelIndex] -= 1;
-        return grad;
+        grad[labelIndex] -= 1; return grad;
     }
 }
 
 class CNN {
     constructor() {
         this.layers = [
-            new Conv2D(1, 4, 3),    // 0: Conv
-            new MaxPool2x2(),       // 1: Pool
-            new Flatten(),          // 2: Flatten
-            new Dense(900, 2),      // 3: BOTTLENECK (900 -> 2)
-            new Dense(2, 4),        // 4: Head (2 -> 4)
-            new SoftmaxLayer()      // 5: Softmax
+            new Conv2D(1, 4, 3),   // 32x32 -> 30x30x4
+            new MaxPool2x2(),      // 30x30x4 -> 15x15x4
+            new Flatten(),         // 15*15*4 = 900
+            new Dense(900, 2),     // <--- BOTTLENECK: Стискаємо до 2 координат (X, Y)
+            new Dense(2, 4),       // 2 -> 4 Класи
+            new SoftmaxLayer()
         ];
-        this.learningRate = 0.01;
+        this.learningRate = 0.005; // Трохи менший рейт для bottleneck
     }
     
+    // Повний прохід для отримання класифікації
     forward(inputData) {
         let x = { w: 32, h: 32, d: 1, data: inputData };
         for (const layer of this.layers) x = layer.forward(x);
         return x;
     }
 
-    // Отримання координат з латентного простору
+    // Отримання координат з латентного шару (для візуалізації)
     getLatent(inputData) {
         let x = { w: 32, h: 32, d: 1, data: inputData };
-        // Проганяємо тільки до шару 3 (Dense 900->2) включно
-        for(let i=0; i<=3; i++) {
-            x = this.layers[i].forward(x);
-        }
+        // Проходимо до 4-го шару (Dense 900->2) включно
+        // layers indices: 0:Conv, 1:Pool, 2:Flat, 3:Dense(2), 4:Dense(4), 5:Softmax
+        x = this.layers[0].forward(x);
+        x = this.layers[1].forward(x);
+        x = this.layers[2].forward(x);
+        x = this.layers[3].forward(x);
         return x; // Повертає масив з 2 чисел
     }
 
@@ -311,14 +320,15 @@ class CNN {
         let grad = labelIndex;
         for (let i = this.layers.length - 1; i >= 0; i--) grad = this.layers[i].backward(grad);
         
+        // SGD Update
         for (const layer of this.layers) {
             if (layer.weights) {
-                for (let i=0; i<layer.weights.length; i++) layer.weights[i] -= layer.gradW[i] * this.learningRate;
-                for (let i=0; i<layer.biases.length; i++) layer.biases[i] -= layer.gradB[i] * this.learningRate;
+                for (let i = 0; i < layer.weights.length; i++) layer.weights[i] -= layer.gradW[i] * this.learningRate;
+                for (let i = 0; i < layer.biases.length; i++) layer.biases[i] -= layer.gradB[i] * this.learningRate;
             }
             if (layer.filters) {
-                for (let i=0; i<layer.filters.length; i++) layer.filters[i] -= layer.gradFilters[i] * this.learningRate;
-                for (let i=0; i<layer.biases.length; i++) layer.biases[i] -= layer.gradBiases[i] * this.learningRate;
+                for (let i = 0; i < layer.filters.length; i++) layer.filters[i] -= layer.gradFilters[i] * this.learningRate;
+                for (let i = 0; i < layer.biases.length; i++) layer.biases[i] -= layer.gradBiases[i] * this.learningRate;
             }
         }
         return -Math.log(output[labelIndex] + 1e-7);
@@ -326,196 +336,289 @@ class CNN {
 }
 
 /**
- * === ЧАСТИНА 2: Аудіо (Noise Gate & Buffering) ===
+ * === ЧАСТИНА 2: Аудіо, Mel-Spectrum, Noise Gate ===
  */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const analyser = audioCtx.createAnalyser();
-analyser.fftSize = 64; analyser.smoothingTimeConstant = 0.4;
-let isListening = false, isRecording = false, currentVolume = 0;
-let samples = [], spectroBuffer = [];
+// Збільшуємо FFT для кращої роздільної здатності Mel
+analyser.fftSize = 512; // 256 bins
+analyser.smoothingTimeConstant = 0.2;
+
+let isListening = false;
+let isRecording = false; 
+let samples = []; 
 const labels = ["Стоп", "Вперед", "Праворуч", "Ліворуч"];
-const colors = ['#dc2626', '#22c55e', '#3b82f6', '#f59e0b']; // Colors for plotting
+const colors = ['#ef4444', '#3b82f6', '#f59e0b', '#22c55e']; // Red, Blue, Orange, Green
 const SPECTRO_SIZE = 32;
+let spectroBuffer = []; 
+let currentVolume = 0; 
+
+// --- MEL FILTER BANK SETUP ---
+// Створюємо мапу перетворення лінійних бінiв (0..255) в 32 Mel біни
+const MEL_BINS = 32;
+const SAMPLE_RATE = audioCtx.sampleRate;
+const FFT_SIZE = analyser.fftSize;
+const FREQ_MAX = SAMPLE_RATE / 2;
+const melMap = [];
+
+function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
+function melToHz(mel) { return 700 * (Math.pow(10, mel / 2595) - 1); }
+
+function createMelFilterBank() {
+    const minMel = hzToMel(0);
+    const maxMel = hzToMel(FREQ_MAX); // Або обмежити до 8000Hz для голосу
+    
+    // Центри Mel фільтрів
+    const points = [];
+    for(let i=0; i < MEL_BINS + 2; i++) {
+        points.push(melToHz(minMel + (i / (MEL_BINS + 1)) * (maxMel - minMel)));
+    }
+    
+    // Для кожного Mel біна шукаємо відповідні FFT біни
+    for(let m=0; m < MEL_BINS; m++) {
+        const center = points[m+1];
+        const left = points[m];
+        const right = points[m+2];
+        const weights = [];
+        
+        for(let i=0; i < FFT_SIZE/2; i++) {
+            const freq = i * SAMPLE_RATE / FFT_SIZE;
+            let w = 0;
+            if (freq > left && freq < right) {
+                if (freq <= center) w = (freq - left) / (center - left);
+                else w = (right - freq) / (right - center);
+            }
+            if(w > 0) weights.push({idx: i, w: w});
+        }
+        melMap.push(weights);
+    }
+}
+createMelFilterBank();
 
 async function initAudio() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
         drawSpectrogramLoop();
     } catch (e) { alert("Mic Error: " + e); }
 }
 
-function getAudioFrame() {
+function getMelFrame() {
     const data = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(data);
-    let sum = 0; for(let i=0; i<data.length; i++) sum += data[i]**2;
-    currentVolume = Math.sqrt(sum/data.length)/255.0;
+    
+    // RMS Volume
+    let sum = 0;
+    for(let i=0; i<data.length; i++) sum += data[i]*data[i];
+    currentVolume = Math.sqrt(sum / data.length) / 255.0;
+    
     const bar = document.getElementById('volBar');
-    if(bar) bar.style.width = Math.min(100, currentVolume*400) + "%";
-    return Float32Array.from(data).map(v => v/255);
+    if(bar) bar.style.width = Math.min(100, currentVolume * 400) + "%";
+    
+    // Convert Linear FFT to Mel
+    const melData = new Float32Array(MEL_BINS);
+    for(let m=0; m<MEL_BINS; m++) {
+        let val = 0;
+        for(let wObj of melMap[m]) {
+            val += (data[wObj.idx] / 255.0) * wObj.w;
+        }
+        // Log compression (log-mel) makes features more robust
+        melData[m] = Math.log10(val + 1) * 2; // scale up a bit
+    }
+    return melData;
 }
 
 function drawSpectrogramLoop() {
-    const frame = getAudioFrame();
+    const frame = getMelFrame();
+    
     if (isRecording) {
         spectroBuffer.push(frame);
-        if(spectroBuffer.length > SPECTRO_SIZE*2) spectroBuffer.shift();
-    } else if (isListening) {
+        if(spectroBuffer.length > SPECTRO_SIZE * 2) spectroBuffer.shift();
+    } 
+    else if (isListening) {
         spectroBuffer.push(frame);
         if(spectroBuffer.length > SPECTRO_SIZE) spectroBuffer.shift();
         if(spectroBuffer.length === SPECTRO_SIZE && Math.random() < 0.2) predictLive();
-    } else {
+    } 
+    else {
         drawSpectroCanvas([frame], true);
-        requestAnimationFrame(drawSpectrogramLoop); return;
+        requestAnimationFrame(drawSpectrogramLoop);
+        return;
     }
+
     drawSpectroCanvas(spectroBuffer);
     requestAnimationFrame(drawSpectrogramLoop);
 }
 
-function drawSpectroCanvas(buffer, single=false) {
-    const ctx = document.getElementById('spectrogramCanvas').getContext('2d');
-    const w = ctx.canvas.width, h = ctx.canvas.height;
+function drawSpectroCanvas(buffer, isSingleLine=false) {
+    const cvs = document.getElementById('spectrogramCanvas');
+    const ctx = cvs.getContext('2d');
+    const w = cvs.width; const h = cvs.height;
     ctx.clearRect(0,0,w,h);
-    if(single) {
-        const c = buffer[0]; for(let i=0; i<c.length; i++) {
-            ctx.fillStyle = `rgb(${c[i]*255},${c[i]*255},${c[i]*255})`; ctx.fillRect(0,h-i*3,w,3);
-        } return;
+    
+    if(isSingleLine) {
+       const col = buffer[0];
+       for(let i=0; i<col.length; i++) {
+           const val = Math.min(1, col[i]) * 255;
+           ctx.fillStyle = `rgb(${val},${val},${val})`;
+           ctx.fillRect(0, h-i*(h/32), w, h/32);
+       }
+       return;
     }
-    const cw = w/SPECTRO_SIZE, ch = h/32;
-    const start = Math.max(0, buffer.length-SPECTRO_SIZE);
-    for(let t=0; t<Math.min(buffer.length, SPECTRO_SIZE); t++) {
-        const col = buffer[start+t];
-        for(let f=0; f<col.length; f++) {
-            const v = col[f]*255; ctx.fillStyle = `rgb(${v},${255-v},100)`;
-            ctx.fillRect(t*cw, h-(f*ch), cw, ch);
+
+    const cellW = w / SPECTRO_SIZE;
+    const cellH = h / 32; 
+
+    const startIdx = Math.max(0, buffer.length - SPECTRO_SIZE);
+    for (let t = 0; t < Math.min(buffer.length, SPECTRO_SIZE); t++) {
+        const col = buffer[startIdx + t];
+        for (let f = 0; f < col.length; f++) {
+             const val = Math.min(1, col[f]) * 255;
+             // Mel spectro usually visualized "hot"
+             ctx.fillStyle = `rgb(${val}, ${val*0.5}, ${255-val})`;
+             ctx.fillRect(t * cellW, h - ((f+1) * cellH), cellW, cellH);
         }
     }
 }
 
-function startRec(id) {
-    if(audioCtx.state === 'suspended') audioCtx.resume();
-    isRecording = true; spectroBuffer = [];
-    document.getElementById(`btnRec${id}`).classList.add('recording');
+// === RECORDING ===
+function startRec(labelId) {
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+    isRecording = true; spectroBuffer = []; 
+    document.getElementById(`btnRec${labelId}`).classList.add('recording');
 }
 
 function stopRec() {
-    if(!isRecording) return; isRecording=false;
-    let id = -1;
-    for(let i=0; i<4; i++) if(document.getElementById(`btnRec${i}`).classList.contains('recording')) {
-        document.getElementById(`btnRec${i}`).classList.remove('recording'); id=i;
+    if (!isRecording) return;
+    isRecording = false;
+
+    let labelId = -1;
+    for(let i=0; i<4; i++) {
+        const btn = document.getElementById(`btnRec${i}`);
+        if(btn.classList.contains('recording')) {
+            btn.classList.remove('recording');
+            labelId = i;
+        }
     }
-    if(id!==-1 && spectroBuffer.length >= 10) {
-        const full = new Float32Array(SPECTRO_SIZE*32).fill(0);
+
+    if (labelId !== -1 && spectroBuffer.length >= 8) {
+        const fullData = new Float32Array(SPECTRO_SIZE * 32).fill(0);
         const len = Math.min(spectroBuffer.length, SPECTRO_SIZE);
         const start = spectroBuffer.length - len;
-        for(let t=0; t<len; t++) for(let f=0; f<32; f++) full[(SPECTRO_SIZE-len+t)*32+f] = spectroBuffer[start+t][f];
-        samples.push({ data: full, label: id });
-        document.getElementById(`cnt${id}`).innerText = samples.filter(s=>s.label===id).length;
+        
+        for(let t=0; t<len; t++) {
+            const targetT = SPECTRO_SIZE - len + t; 
+            for(let f=0; f<32; f++) fullData[targetT * 32 + f] = spectroBuffer[start + t][f];
+        }
+        samples.push({ data: fullData, label: labelId });
+        document.getElementById(`cnt${labelId}`).innerText = samples.filter(s => s.label === labelId).length;
     }
 }
 
 /**
- * === ЧАСТИНА 3: Навчання та Візуалізація Латентного простору ===
+ * === ЧАСТИНА 3: Навчання та Візуалізація Latent Space ===
  */
 let net = new CNN();
 
 async function trainNetwork() {
-    if (samples.length < 4) { alert("Запишіть дані!"); return; }
+    if (samples.length < 4) { alert("Мало даних! Запишіть слова."); return; }
+    
     const btn = document.getElementById('btnTrain');
     btn.disabled = true; btn.innerText = "Навчання...";
-    
-    const EPOCHS = 50; 
+    const EPOCHS = 60;
     const lossHistory = [];
-    
-    // Init Plots
-    Plotly.newPlot('loss-plot', [{y:[], type:'scatter', mode:'lines', line:{color:'#3b82f6'}}], 
-        {margin:{t:10,l:30,r:10,b:20}, height:100, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)', xaxis:{color:'#94a3b8'}, yaxis:{color:'#94a3b8'}});
 
-    Plotly.newPlot('latent-plot', [], 
-        {
-            margin:{t:10,l:30,r:10,b:30}, height:250, 
-            paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
-            xaxis:{title:'N1', color:'#94a3b8', gridcolor:'#334155'}, 
-            yaxis:{title:'N2', color:'#94a3b8', gridcolor:'#334155'},
-            showlegend: false
-        }
-    );
+    // Setup Latent Plot
+    const tracePrototype = { mode: 'markers', type: 'scatter', marker: { size: 8 } };
+    const layout = { 
+        margin: {t:10,l:30,r:10,b:20}, 
+        paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+        xaxis:{showgrid:true, gridcolor:'#334155', color:'#94a3b8'}, 
+        yaxis:{showgrid:true, gridcolor:'#334155', color:'#94a3b8'}
+    };
+    
+    Plotly.newPlot('latent-plot', [], layout);
 
     for (let e = 0; e < EPOCHS; e++) {
         let totalLoss = 0;
         samples.sort(() => Math.random() - 0.5);
-        for (const s of samples) totalLoss += net.train(s.data, s.label);
+        
+        // Arrays for visualization
+        const latentX = [[],[],[],[]];
+        const latentY = [[],[],[],[]];
+
+        for (const s of samples) {
+            // Train
+            totalLoss += net.train(s.data, s.label);
+            
+            // Visualize (Get latent coords 2D)
+            const coords = net.getLatent(s.data);
+            latentX[s.label].push(coords[0]);
+            latentY[s.label].push(coords[1]);
+        }
         lossHistory.push(totalLoss / samples.length);
         
-        // Оновлення графіків кожні 5 епох
+        // Update Visualization every 5 epochs
         if (e % 2 === 0 || e === EPOCHS-1) {
-            // Update Loss
-            Plotly.animate('loss-plot', { data: [{y: lossHistory}] }, { transition: {duration: 0}, frame: {duration: 0, redraw: false} });
-            
-            // Update Latent
-            updateLatentPlot();
-            await new Promise(r => setTimeout(r, 10)); // UI Breath
-        }
-    }
-    
-    btn.disabled = false; btn.innerText = "🚀 Навчити (2D Bottleneck)";
-    alert("Навчання завершено! Перевірте латентний графік.");
-}
+            // Loss Plot
+            Plotly.newPlot('loss-plot', [{ y: lossHistory, type: 'scatter', mode: 'lines', line: {color:'#fff'} }], 
+            { margin: {t:10,l:30,r:10,b:20}, height: 80, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)' });
 
-function updateLatentPlot() {
-    // Collect all points
-    const traces = [[], [], [], []]; // x, y arrays for 4 classes
-    
-    for(const s of samples) {
-        const latent = net.getLatent(s.data); // [x, y]
-        // latent - це Float32Array(2)
-        if (!traces[s.label].x) { traces[s.label] = { x:[], y:[], mode:'markers', type:'scatter', marker:{color: colors[s.label], size: 8}, name: labels[s.label] }; }
-        traces[s.label].x.push(latent[0]);
-        traces[s.label].y.push(latent[1]);
-    }
-    
-    // Filter empty traces
-    const plotData = traces.filter(t => t.x && t.x.length > 0);
-    Plotly.react('latent-plot', plotData, 
-        {
-            margin:{t:10,l:30,r:10,b:30}, height:250, 
-            paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
-            xaxis:{color:'#94a3b8', gridcolor:'#334155'}, 
-            yaxis:{color:'#94a3b8', gridcolor:'#334155'},
-            showlegend: true, legend: {x: 0, y: 1, font:{color:'white'}}
+            // Latent Plot
+            const traces = labels.map((lbl, i) => ({
+                x: latentX[i], y: latentY[i],
+                mode: 'markers', type: 'scatter',
+                name: lbl, marker: { color: colors[i], size: 8 }
+            }));
+            Plotly.react('latent-plot', traces, layout);
+            
+            await new Promise(r => setTimeout(r, 10));
         }
-    );
+    }
+    btn.disabled = false; btn.innerText = "🚀 Навчити (Bottleneck)";
 }
 
 function predictLive() {
-    const gateVal = parseInt(document.getElementById('noiseGate').value)/100.0;
-    if ((Math.min(1.0, currentVolume*4)) < gateVal) { updatePredUI([], true); return; }
+    const gateVal = parseInt(document.getElementById('noiseGate').value) / 100.0;
+    const normalizedVol = Math.min(1.0, currentVolume * 4); 
+    if (normalizedVol < gateVal) {
+        updatePredUI(new Float32Array(4).fill(0), true);
+        return;
+    }
 
-    const input = new Float32Array(SPECTRO_SIZE*32).fill(0);
-    const snippet = spectroBuffer.slice(spectroBuffer.length-SPECTRO_SIZE);
-    for(let t=0; t<SPECTRO_SIZE; t++) for(let f=0; f<32; f++) input[t*32+f] = snippet[t][f];
+    const input = new Float32Array(SPECTRO_SIZE * 32).fill(0);
+    const snippet = spectroBuffer.slice(spectroBuffer.length - SPECTRO_SIZE);
+    for(let t=0; t<SPECTRO_SIZE; t++) {
+        for(let f=0; f<32; f++) input[t * 32 + f] = snippet[t][f];
+    }
     
     const probs = net.forward(input);
     updatePredUI(probs, false);
     
-    // Check command
     const maxIdx = probs.indexOf(Math.max(...probs));
-    if (probs[maxIdx] > 0.7) handleVoiceCommand(maxIdx);
+    if (probs[maxIdx] > 0.6) handleVoiceCommand(maxIdx);
 }
 
 function updatePredUI(probs, isSilence) {
-    const div = document.getElementById('predictions'); div.innerHTML='';
+    const container = document.getElementById('predictions');
+    container.innerHTML = '';
+    
     if(isSilence) {
-        labels.forEach(l => div.innerHTML+=`<div class="pred-row disabled"><span style="width:70px">${l}</span><div class="bar-bg"></div><span>...</span></div>`);
+        labels.forEach(l => {
+             container.innerHTML += `<div class="pred-row disabled"><span style="width:70px">${l}</span><div class="bar-bg"></div></div>`;
+        });
         return;
     }
-    const max = Math.max(...probs);
-    probs.forEach((p,i) => {
-        div.innerHTML+=`<div class="pred-row ${i===probs.indexOf(max)&&p>0.7?'active':''}"><span style="width:70px">${labels[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${p*100}%"></div></div><span style="width:30px">${(p*100).toFixed(0)}%</span></div>`;
+    const maxIdx = probs.indexOf(Math.max(...probs));
+    probs.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = `pred-row ${i === maxIdx && p > 0.6 ? 'active' : ''}`;
+        row.innerHTML = `<span style="width:70px">${labels[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${p*100}%"></div></div><span style="width:30px">${(p*100).toFixed(0)}%</span>`;
+        container.appendChild(row);
     });
 }
 
-// IO
 function saveNetwork() {
     const data = { w:[], b:[], f:[] };
     net.layers.forEach(l => {
@@ -525,89 +628,105 @@ function saveNetwork() {
     });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type:'application/json'}));
-    a.download = 'voice-cnn-2d.json'; a.click();
+    a.download = 'cnn-voice-mel-bottleneck.json'; a.click();
 }
-function loadNetwork(inp) {
+
+function loadNetwork(input) {
     const r = new FileReader();
     r.onload = e => {
-        const d = JSON.parse(e.target.result); let wi=0, bi=0, fi=0;
+        const d = JSON.parse(e.target.result);
+        let wi=0, bi=0, fi=0;
         net.layers.forEach(l => {
             if(l.weights) l.weights.set(d.w[wi++]);
             if(l.biases) l.biases.set(d.b[bi++]);
             if(l.filters) l.filters.set(d.f[fi++]);
-        }); alert("Завантажено!");
-    }; r.readAsText(inp.files[0]);
+        });
+        alert("Завантажено!");
+    };
+    r.readAsText(input.files[0]);
 }
 
 /**
- * === ЧАСТИНА 4: Game Physics ===
+ * === ЧАСТИНА 4: Гра Змійка ===
  */
-const cvs = document.getElementById('snakeCanvas'), ctx = cvs.getContext('2d');
-let snake=[{x:10,y:10}], food={x:15,y:15}, dir={x:0,y:-1}, score=0, momentum=0, moveAcc=0;
-const GRID=20, FRICTION=0.02;
+const cvs = document.getElementById('snakeCanvas');
+const ctx = cvs.getContext('2d');
+let snake = [{x: 10, y: 10}];
+let food = {x: 15, y: 15};
+let dir = {x: 0, y: -1}; 
+const GRID = 20;
+let score = 0;
+let momentum = 0.0; const FRICTION = 0.02; let moveAccumulator = 0.0;
 
-window.onresize=()=>{cvs.width=cvs.parentElement.clientWidth;cvs.height=cvs.parentElement.clientHeight;}; window.onresize();
+window.onresize = () => { cvs.width = cvs.parentElement.clientWidth; cvs.height = cvs.parentElement.clientHeight; };
+window.onresize();
 
 function gameLoop() {
-    if(momentum>0) { momentum-=FRICTION; if(momentum<0) momentum=0; }
-    document.getElementById('momentumVal').innerText = (momentum*100).toFixed(0)+"%";
-    
-    moveAcc += momentum;
-    if(moveAcc >= 1.0) { moveAcc -= 1.0; moveSnake(); }
+    if (momentum > 0) { momentum -= FRICTION; if (momentum < 0) momentum = 0; }
+    document.getElementById('momentumVal').innerText = (momentum * 100).toFixed(0) + "%";
+    moveAccumulator += momentum;
+    if (moveAccumulator >= 1.0) { moveAccumulator -= 1.0; moveSnake(); }
     drawGame();
 }
 
 function moveSnake() {
-    const head = {x:snake[0].x+dir.x, y:snake[0].y+dir.y};
-    const tw=Math.floor(cvs.width/GRID), th=Math.floor(cvs.height/GRID);
-    if(head.x<0) head.x=tw-1; if(head.x>=tw) head.x=0;
-    if(head.y<0) head.y=th-1; if(head.y>=th) head.y=0;
-    
-    if(snake.some(s=>s.x===head.x && s.y===head.y)) return resetGame();
+    const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+    const tw = Math.floor(cvs.width/GRID), th = Math.floor(cvs.height/GRID);
+    if (head.x < 0) head.x = tw - 1; if (head.x >= tw) head.x = 0;
+    if (head.y < 0) head.y = th - 1; if (head.y >= th) head.y = 0;
+    if (snake.some(s => s.x===head.x && s.y===head.y)) return resetGame();
+
     snake.unshift(head);
-    if(head.x===food.x && head.y===food.y) {
-        score++; document.getElementById('scoreVal').innerText=score;
-        food={x:Math.floor(Math.random()*tw),y:Math.floor(Math.random()*th)};
-        momentum=Math.min(1.5, momentum+0.2);
+    if (head.x===food.x && head.y===food.y) {
+        score++; document.getElementById('scoreVal').innerText = score;
+        food = {x: Math.floor(Math.random()*tw), y: Math.floor(Math.random()*th)};
+        momentum = Math.min(1.5, momentum + 0.2);
     } else snake.pop();
 }
 
 function drawGame() {
-    ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(food.x*GRID+GRID/2,food.y*GRID+GRID/2,GRID/2-2,0,7); ctx.fill();
-    ctx.fillStyle='#22c55e'; snake.forEach((s,i)=>{ if(i>0)ctx.fillRect(s.x*GRID+1,s.y*GRID+1,GRID-2,GRID-2); });
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(food.x*GRID+GRID/2,food.y*GRID+GRID/2,GRID/2-2,0,7); ctx.fill();
+    ctx.fillStyle = '#22c55e'; snake.forEach((s, i) => { if(i > 0) ctx.fillRect(s.x*GRID+1,s.y*GRID+1,GRID-2,GRID-2); });
     
-    // Head Arrow
-    const cx=snake[0].x*GRID+GRID/2, cy=snake[0].y*GRID+GRID/2;
-    ctx.save(); ctx.translate(cx,cy);
-    let ang=0;
-    if(dir.x===0 && dir.y===-1) ang=0; else if(dir.x===1) ang=Math.PI/2;
-    else if(dir.y===1) ang=Math.PI; else if(dir.x===-1) ang=-Math.PI/2;
-    ctx.rotate(ang);
-    ctx.fillStyle='#4ade80'; ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(8,8); ctx.lineTo(-8,8); ctx.fill();
+    const head = snake[0]; const cx = head.x*GRID + GRID/2; const cy = head.y*GRID + GRID/2;
+    ctx.save(); ctx.translate(cx, cy);
+    let angle = 0;
+    if(dir.x === 0 && dir.y === -1) angle = 0;           
+    else if(dir.x === 1 && dir.y === 0) angle = Math.PI/2; 
+    else if(dir.x === 0 && dir.y === 1) angle = Math.PI;   
+    else if(dir.x === -1 && dir.y === 0) angle = -Math.PI/2; 
+    ctx.rotate(angle);
+    ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.moveTo(0, -GRID/2 + 2); ctx.lineTo(GRID/2 - 2, GRID/2 - 2); ctx.lineTo(-GRID/2 + 2, GRID/2 - 2); ctx.closePath(); ctx.fill();
     ctx.restore();
 }
 
-function resetGame() { snake=[{x:10,y:10}]; dir={x:0,y:-1}; score=0; momentum=0; document.getElementById('scoreVal').innerText=0; document.getElementById('gameOverlay').style.display='block'; }
+function resetGame() {
+    snake = [{x:10,y:10}]; dir={x:0,y:-1}; score=0; momentum=0;
+    document.getElementById('scoreVal').innerText=0;
+    document.getElementById('gameOverlay').style.display='block';
+}
 
-let lastCmd=0;
+let lastCmd = 0;
 function handleVoiceCommand(i) {
     if(Date.now()-lastCmd<300) return; lastCmd=Date.now();
-    document.getElementById('lastCmd').innerText=labels[i];
-    document.getElementById('gameOverlay').style.display='none';
-    if(i===1) momentum=1.0;
-    else if(i===0) momentum=0;
-    else if(i===2) dir={x:-dir.y, y:dir.x};
-    else if(i===3) dir={x:dir.y, y:-dir.x};
+    document.getElementById('lastCmd').innerText = labels[i];
+    document.getElementById('gameOverlay').style.display = 'none';
+
+    if (i===1) momentum = 1.0; 
+    else if (i===0) momentum = 0; 
+    else if (i===2) dir = {x: -dir.y, y: dir.x};
+    else if (i===3) dir = {x: dir.y, y: -dir.x};
 }
 
 setInterval(gameLoop, 100);
 initAudio();
-function toggleListening() { 
-    isListening=!isListening; 
-    document.getElementById('btnListen').innerText=isListening?"🛑 Стоп":"🎙️ Старт";
-    if(audioCtx.state==='suspended') audioCtx.resume();
-    if(!isListening) momentum=0;
+
+function toggleListening() {
+    isListening = !isListening;
+    document.getElementById('btnListen').innerText = isListening ? "🛑 Стоп слухати" : "🎙️ Старт мікрофону";
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    if (!isListening) momentum = 0;
 }
 </script>
 </body>
