@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDPM</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --border: #333;
+            --text: #eee;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 { margin-top: 0; font-weight: 600; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* PANELS */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* CONTROLS */
+        .row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin: 10px 0; }
+        .btn-grp { display: flex; gap: 10px; flex-wrap: wrap; width: 100%; }
+        
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            min-width: 120px;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .b-blue { background: var(--accent); }
+        .b-green { background: var(--success); }
+        .b-purp { background: var(--purple); }
+        .b-gray { background: #4b5563; }
+        .b-red { background: var(--danger); }
+
+        input[type=range] { flex: 1; accent-color: var(--purple); cursor: pointer; }
+        select { background: #333; color: white; border: 1px solid #555; padding: 8px; border-radius: 4px; font-size: 14px; }
+        label { cursor: pointer; display: flex; align-items: center; gap: 5px; user-select: none; }
+
+        /* CANVASES */
+        canvas.draw, canvas.gen {
+            background: #000;
+            border: 1px solid #555;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+            image-rendering: pixelated;
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* PREVIEWS STRIP */
+        #previews {
+            display: flex;
+            overflow-x: auto;
+            gap: 8px;
+            padding: 8px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            height: 60px;
+            margin-top: 15px;
+            border-radius: 6px;
+        }
+        .prev-item { position: relative; flex-shrink: 0; width: 50px; height: 50px; }
+        .prev-item img { width: 100%; height: 100%; border: 1px solid #444; image-rendering: pixelated; }
+        .prev-del {
+            position: absolute; top: -5px; right: -5px;
+            background: var(--danger); color: white;
+            border-radius: 50%; width: 18px; height: 18px;
+            font-size: 12px; line-height: 18px; text-align: center;
+            cursor: pointer; display: none; border: 1px solid #fff;
+            z-index: 2;
+        }
+        .prev-item:hover .prev-del { display: block; }
+
+        /* GRAPH */
+        canvas.graph { width: 100%; height: 60px; background: #222; border-bottom: 1px solid #444; border-radius: 4px; }
+
+        /* SPOILERS (DETAILS/SUMMARY) */
+        details {
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        summary {
+            background: #252525;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::after { content: "▼"; font-size: 0.8em; transition: transform 0.3s; }
+        details[open] summary::after { transform: rotate(180deg); }
+        
+        .theory-content { padding: 20px; font-size: 0.95em; border-top: 1px solid #333; }
+        .theory-block { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #333; }
+        .theory-block:last-child { border-bottom: none; }
+        
+        /* DIAGRAMS */
+        .diagram-flow {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin: 20px 0; flex-wrap: wrap;
+        }
+        .d-node {
+            background: #333; padding: 10px 15px; border-radius: 8px; border: 2px solid #555;
+            text-align: center; font-family: monospace;
+        }
+        .d-arrow { font-size: 20px; color: #777; }
+        .highlight { color: var(--accent); font-weight: bold; }
+        .math-var { font-family: 'Times New Roman', serif; font-style: italic; color: #a78bfa; }
+
+        @media (max-width: 600px) {
+            .btn-grp { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+<details>
+        <summary>🎓 Теоретична довідка</summary>
+        <div class="theory-content">
+            
+              
+            <div class="theory-block">
+                <h3>Дифузійні моделі: Руйнування та Відновлення</h3>
+                <p>Уявіть, що ви капаєте чорнило у склянку з водою. З часом чорнило розсіюється, і вода стає мутною. Це — <strong>прямий процес (дифузія)</strong>, який руйнує структуру.</p>
+                <p>Наша мета — навчити нейромережу "перемотувати час назад". Якщо ми зможемо крок за кроком зібрати чорнило назад у краплю, ми зможемо створити цю краплю (або зображення кота) з абсолютно каламутної води (білого шуму).</p>
+            </div>
+			 <div class="theory-block">
+                <h3>Чому не просто "середнє арифметичне"?</h3>
+                <p>Це найважливіше питання. Якщо ми візьмемо 1000 фотографій різних котів і знайдемо середнє значення кожного пікселя, ми отримаємо <strong>сіру пляму</strong> (середнє між чорним і білим котом — сіре місиво, а не сірий кіт). </p>
+                <p><strong>Проблема:</strong> Середнє арифметичне мінімізує помилку, але вбиває деталі. Воно шукає "центр" розподілу даних.<br>
+                <strong>Рішення Дифузії:</strong> Ми не шукаємо "середнього кота". Ми вчимося малювати <em>шлях</em> від хаосу до конкретного, чіткого кота. Ми вчимо розподіл ймовірностей, а не одну точку.</p>
+            </div>
+
+            <div class="theory-block">
+                <h3> Марковський ланцюг (Markov Chain)</h3>
+                <p>Марківський процес - це процес <strong>без пам'яті.</strong>. </p>
+				 <p>Щоб додати шум до картинки \(x_t\), нам не треба знати, якою вона була на початку (\(x_0\)). Нам достатньо знати лише її стан на попередньому кроці \(x_{t-1}\). Майбутнє залежить тільки від теперішнього.</p>
+            
+                <div class="diagram-flow">
+                    <div class="d-node" style="border-color: #10b981;">X₀<br>(Кіт)</div>
+                    <div class="d-arrow">→ q(x₁|x₀) →</div>
+                    <div class="d-node">X₁<br>(Трохи шуму)</div>
+                    <div class="d-arrow">→ q(x₂|x₁) →</div>
+                    <div class="d-node">X₂</div>
+                    <div class="d-arrow">...</div>
+                    <div class="d-node" style="border-color: #ef4444;">X_T<br>(Шум)</div>
+                </div>
+               </div>
+
+            <div class="theory-block">
+                <h3>Математична модель шуму: \(\beta_t\), \(q\) та \(\epsilon\)</h3>
+                <p>Прямий процес руйнування описується формулою:</p>
+                $$ x_t = \sqrt{1 - \beta_t} x_{t-1} + \sqrt{\beta_t} \cdot \epsilon $$
+                <p><strong>Розшифровка букв:</strong></p>
+                <ul style="list-style: none; padding-left: 10px;">
+                    <li> <strong>\(\beta_t\) (Noise Schedule / Розклад шуму)</strong>: Це нграфік (розклад) за часом. Це число від 0 до 1, яке каже: "яку частку інформації стерти на кроці \(t\)". Спочатку \(\beta\) маленьке (стираємо мало), в кінці — велике.</li>
+                    <li> <strong>\(\epsilon\) (Епсилон)</strong>: Це сам шум. Випадковий вектор з нормального розподілу \(\mathcal{N}(0, I)\). Це "сміття", яке ми додаємо.</li>
+                    <li> <strong>\(q(x_t|x_{t-1})\)</strong>: Це позначення умовного розподілу ймовірностей прямого процесу (руйнування). Ми знаємо \(q\), бо самі його задаємо.</li>
+                </ul>
+            </div>
+
+            <div class="theory-block">
+                <h3>Зворотний процес</h3>
+                <p>Наше завдання — знайти зворотну функцію \(p_\theta(x_{t-1}|x_t)\). Оскільки математично точно порахувати її неможливо (інтеграл по всіх можливих картинках світу), ми наближаємо її нейромережею.</p>
+                
+                <p><strong>Архітектура: U-Net vs MLP</strong></p>
+                <ul>
+                    <li><strong>U-Net (Стандарт індустрії):</strong> Використовує згортки (Conv2D). Розуміє, що піксель [0,0] і [0,1] — сусіди. Зберігає просторову структуру. Довго рахується в браузері.</li>
+                    <li><strong>MLP (Multi-Layer Perceptron - у нас):</strong> Ми просто витягуємо картинку 16x16 у довгий рядок (вектор 256 чисел).
+                        <br><em>Мінус:</em> Мережа втрачає розуміння "сусідства" пікселів. Їй важче намалювати рівні лінії.
+                        <br><em>Плюс:</em> Дуже проста матрична математика, працює миттєво навіть на калькуляторі. Для навчання студентів — ідеально.</li>
+                </ul>
+            </div>
+			 <div class="theory-block">
+                  <p>Ми використовуємо просту 3-шарову повнозв'язну мережу (MLP) </p>
+                <div class="diagram-flow" style="font-size: 0.9em;">
+                    <div class="d-node">
+                        <strong>INPUT</strong><br>
+                        Пікселі \(x_t\) [256]<br>
+                        + Час \(t\) [1]<br>
+                        + Умова (Кіт/Бант) [2]
+                    </div>
+                    <div class="d-arrow">➜</div>
+                    <div class="d-node">
+                        <strong>HIDDEN 1</strong><br>
+                        Linear + LeakyReLU
+                    </div>
+                    <div class="d-arrow">➜</div>
+                    <div class="d-node">
+                        <strong>HIDDEN 2</strong><br>
+                        Linear + LeakyReLU
+                    </div>
+                    <div class="d-arrow">➜</div>
+                    <div class="d-node">
+                        <strong>OUTPUT</strong><br>
+                        Передбачений шум \(\epsilon_\theta\) [256]
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h2>1. Створення Датасету</h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <label>Розмір:</label>
+                <select id="selRes" onchange="initModel()">
+                    <option value="16">16 x 16 (Швидко)</option>
+                    <option value="32">32 x 32 (Якісно-повільно)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+            <div>
+                <canvas id="cDraw" width="160" height="160" class="draw"></canvas>
+                <div style="text-align:center; font-size: 0.9em; color:#888; margin-top:5px;">Малюйте тут або використовуйте авто-генерацію</div>
+            </div>
+
+            <div>
+                <div class="row" style="justify-content:center; background: #222; padding: 10px; border-radius: 8px;">
+                    <span style="color:#aaa;">Мітка класу:</span>
+                    <label><input type="checkbox" id="chkCat" checked> 🐱 Кіт</label>
+                    <label><input type="checkbox" id="chkTie" checked> 🎀 Бант</label>
+                </div>
+
+                <div class="btn-grp">
+                    <button class="b-red" onclick="clearC()">🧹 Очистити</button>
+                    <button class="b-blue" onclick="manualAdd()">➕ Додати вручну</button>
+                    <button class="b-purp" onclick="autoGen()">✨ Авто-малювання</button>
+                </div>
+
+                <div class="btn-grp" style="margin-top: 10px;">
+                    <button class="b-gray" onclick="saveData('data')">💾 Зберегти датасет</button>
+                    <button class="b-gray" onclick="document.getElementById('fDat').click()">📂 Завантажити датасет</button>
+                    <button class="b-gray" onclick="saveData('model')">💾 Зберегти модель</button>
+                    <button class="b-gray" onclick="document.getElementById('fMod').click()">📂 Завантажити модель</button>
+                </div>
+                <input type="file" id="fMod" style="display:none" onchange="loadData('model', this)">
+                <input type="file" id="fDat" style="display:none" onchange="loadData('data', this)">
+            </div>
+        </div>
+
+        <div id="previews"></div>
+        <div style="font-size:12px; color:#666; text-align:right;">Всього семплів: <b id="cnt" style="color:#fff">0</b>. Клікніть [x] щоб видалити.</div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h2>2. Навчання (Training)</h2>
+            <div style="text-align:right;">
+                Епоха: <span id="ep" class="highlight">0</span> | 
+                Loss: <span id="loss" style="color:red; font-weight:bold;">---</span>
+                <span id="lrStat" style="font-size:12px; color:#888;"></span>
+            </div>
+        </div>
+  <p>🟢 <span style="color:#10b981">Зелена зона (loss< 0.25)</span>: Мережа почала розуміти структуру.</p>
+        <canvas id="cGraph" width="600" height="60" class="graph"></canvas>
+        
+		
+		<details style="margin-top:10px;">
+            <summary>⚙️Як вчиться мережа</summary>
+            <div class="theory-content">
+                
+                <div class="theory-block">
+                    
+                    <p>Наша нейромережа — це просто складна функція \( f(x) \), яка має мільйони налаштувань (ваг \( W \) та зміщень \( b \)).</p>
+                    <p><strong>Мета:</strong> Налаштувати ці ваги так, щоб мережа, побачивши зашумлену картинку, могла сказати: <em>"Я бачу тут ось такий шум, якщо його прибрати — вийде щось схоже на кота"</em>.</p>
+                </div>
+
+                <div class="theory-block">
+                    <h3>Що ми подаємо на вхід мережі. </h3>
+                    <p>Ми не робимо шум покроково (\(x_0 \to x_1 \to \dots \to x_t\)) під час навчання, це довго. Ми використовуємо "телепорт" — формулу, що дозволяє стрибнути з чистого фото зразу в крок \(t\).</p>
+                    
+                    <p>Аргумент у дужках формули Loss — це і є зашумлена картинка \(x_t\):</p>
+                    $$ x_t = \underbrace{\sqrt{\bar{\alpha}_t} x_0}_{\text{Сигнал}} + \underbrace{\sqrt{1 - \bar{\alpha}_t} \epsilon}_{\text{Шум}} $$
+
+                    <p><strong>позначення:</strong></p>
+                    <ul>
+                        <li>\(\alpha_t = 1 - \beta_t\) — це "частка збереженого сигналу" за один крок.</li>
+                        <li>\(\bar{\alpha}_t\) (Альфа з рискою / Alpha Bar) — це кумулятивний добуток: \(\alpha_1 \cdot \alpha_2 \cdot \dots \cdot \alpha_t\). Вона показує, скільки <strong>оригінального сигналу</strong> залишилось до кроку \(t\).</li>
+                        <li>Якщо \(t\) велике (кінець процесу), \(\bar{\alpha}_t \approx 0\), тобто картинка майже повністю складається з шуму.</li>
+                    </ul>
+                </div>
+
+                <div class="theory-block">
+                    <h3>3. Функція Втрат (Loss Function)</h3>
+                    <p>Це оцінку якості передбачення. Ми використовуємо MSE (Mean Squared Error) між <strong>справжнім шумом</strong> і <strong>передбаченням мережі</strong>.</p>
+                    
+                    $$ L = || \hspace{2mm} \underbrace{\epsilon}_{\text{Факт}} \hspace{2mm} - \hspace{2mm} \underbrace{\epsilon_\theta(\overbrace{x_t}^{\text{Вхід}}, t, c)}_{\text{Прогноз}} \hspace{2mm} ||^2 $$
+
+                    <p><strong>Що тут відбувається:</strong></p>
+                    <ul style="list-style: none; padding-left: 10px;">
+                        <li> <strong>\(\epsilon\) (Факт):</strong> Шум, який ми самі згенерували (`randn()`) і додали до картинки. Ми знаємо правильну відповідь!</li>
+                        <li> <strong>\(\epsilon_\theta(...)\) (Прогноз):</strong> Це вихід нейромережі. Вона приймає:
+                            <ul>
+                                <li>\(x_t\) — зашумлену картинку (суміш кота і шуму \(\epsilon\)).</li>
+                                <li>\(t\) — "індикатор часу" (рівень шуму). Без нього мережа не зрозуміє, чи це легкий туман, чи повний хаос.</li>
+                                <li>\(c\) — контекст (наприклад, вектор `[1, 0]` для кота). Це підказка: "шукай тут кота".</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>Мережа намагається вгадати \(\epsilon\), дивлячись на \(x_t\).</p>
+                </div>
+
+                <div class="theory-block">
+                    <h3>Як оновлюються ваги </h3>
+                    <p>  Параметр "крок навчання" (Learning Rate) з'являється у формулі оновлення ваг (зворотне поширення помилки / Backpropagation).</p>
+                    <p>Ми рахуємо градієнт \(\nabla L\) (напрямок, у якому помилка зростає) і робимо крок у протилежний бік:</p>
+                    $$ W_{new} = W_{old} - \eta \cdot \nabla L $$
+                    <ul>
+                        <li><strong>\(W\)</strong> — це всі ваги мережі (параметри).</li>
+                        <li><strong>\(\eta\) (Learning Rate)</strong> — це довжина кроку. 
+                            <br>• Якщо \(\eta\) великий — ми швидко вчимося, але можемо "перестрибнути" ідеал і Loss почне скакати.
+                            <br>• Якщо \(\eta\) малий — ми спускаємось плавно, уточнюючи деталі. Тому ми зменшуємо його, коли Loss стає малим.
+                        </li>
+                    </ul>
+                </div>
+
+				<div class="theory-block">
+                    <h3> CFG (Classifier-Free Guidance)</h3>
+                    
+                    <ul>
+                        <li>c (Context / Вектор умови): Це <strong>напрямок</strong>. Це команда "Малюй кота". Без неї мережа не знає, <em>що</em> саме малювати.</li>
+                        <li>s (Scale / Сила впливу): Це <strong>гучність</strong> команди. Це число (у нас 2.5).</li>
+                    </ul>
+                                        <p><strong>Формула підсилення (на кожному кроці):</strong></p>
+                    $$ \epsilon_{final} = \epsilon_{uncond} + s \cdot (\underbrace{\epsilon_{cond} - \epsilon_{uncond}}_{\text{Вектор "Котовості"}}) $$
+                    
+                    <p>Ми просимо мережу передбачити шум двічі:</p>
+                    <ol>
+                        <li>\(\epsilon_{cond} = \epsilon(x_t, t, c=\text{"Кіт"})\) — "Як виглядає шум, якщо це кіт?"</li>
+                        <li>\(\epsilon_{uncond} = \epsilon(x_t, t, c=\emptyset)\) — "Як виглядає шум взагалі?"</li>
+                    </ol>
+                    <p>Різниця \(\epsilon_{cond} - \epsilon_{uncond}\) виділяє унікальні риси кота. Ми множимо це на \(s\), щоб змусити мережу малювати кота "сильніше", ніж вона звикла.</p>
+                </div>
+                <div class="theory-block">
+                    <h3> Словничок</h3>
+                    <ul>
+                        <li><strong>Епоха (Epoch):</strong> Один повний прохід через увесь ваш датасет (всі картинки, що ви намалювали).</li>
+                        <li><strong>Batch.</strong> У нас це пачка випадкових картинок з датасету.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </details>
+        
+
+        <button class="b-green" id="btnTr" onclick="toggleTrain()" style="width:100%; font-size:1.2em; margin-top:10px;">▶ СТАРТ НАВЧАННЯ</button>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h2>3. Генерація (Inference)</h2>
+            <span id="status" style="color:#fbbf24; font-weight:bold;">Очікування</span>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+          
+
+            <div style="flex: 1; min-width: 250px;">
+                <div class="row" style="background:#222; padding:10px; border-radius:8px;">
+                    <span style="color:#aaa;">Що малювати?</span>
+                    <label><input type="checkbox" id="gCat" checked> 🐱 Кіт</label>
+                    <label><input type="checkbox" id="gTie"> 🎀 Бант</label>
+                </div>
+
+                <div class="row">
+                    <label>Температура <span id="tVal" style="color:var(--purple)">0.5</span></label>
+                    <input type="range" min="0.1" max="1.0" step="0.1" value="0.5" oninput="updCfg('temp',this.value); document.getElementById('tVal').innerText=this.value">
+                </div>
+				
+                <button class="b-purp" id="btnGen" onclick="generate()" style="width:100%; margin-top:10px;">🎲 ЗГЕНЕРУВАТИ</button>
+						
+              
+                
+					<div style="flex: 0 0 160px; margin: 0 auto;">
+					<canvas id="cGen" width="160" height="160" class="gen"></canvas>
+					</div>
+				<p>Постобробка</p>
+                <div class="row">
+                    <label>Контраст</label>
+                    <input type="range" min="1.0" max="2.0" step="0.1" value="1.2" oninput="updCfg('cont',this.value); renderFinal()">
+                </div>
+  <div class="row" style="justify-content: flex-end;">
+                    <label><input type="checkbox" id="chkDespeckle" onchange="renderFinal()"> Clean (Despeckle)</label>
+                    <label><input type="checkbox" id="chkSmooth" checked onchange="updCfg('smooth', this.checked); renderFinal()"> Smooth</label>
+                </div>
+
+             
+				
+				<details>
+            <summary> Алгоритм генерації</summary>
+            <div class="theory-content">
+                
+               
+
+                <div class="theory-block">
+                    <h3>Sampling Loop</h3>
+                    <p>Це зворотний шлях від \(T\) до \(0\). Ми не можемо просто відняти весь шум за раз — вийде "каша". Ми робимо це маленькими кроками.</p>
+                    
+                    <p><strong>Крок \(t \to t-1\):</strong></p>
+                    $$ x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}} \epsilon_\theta \right) + \sigma_t \cdot z \cdot \text{Temp} $$
+                    
+                    <p>Ця страшна формула робить три прості речі:</p>
+                    <ol>
+                        <li>🔵 <strong>Прогнозування:</strong> Мережа \(\epsilon_\theta\) вгадує шум.</li>
+                        <li>🔴 <strong>Віднімання:</strong> Ми віднімаємо частину цього шуму (вираз у дужках). Картинка стає чистішою.</li>
+                        <li>🟢 <strong>Додавання Хаосу (\(z \cdot \text{Temp}\)):</strong> Ми додаємо трохи <em>нового</em> випадкового шуму назад!</li>
+                    </ol>
+                </div>
+
+                <div class="theory-block">
+                    <h3>"Температура" і новий шум</h3>
+                    <p>Новий шум - доданок \( + \sigma_t \cdot z \) в кінці формули.  \(z \sim \mathcal{N}(0, I)\).</p>
+					
+					<ul>
+                        <li><strong>\(z \sim \mathcal{N}(0, I)\):</strong> Це генератор випадковості (шум). </li>
+                        <li><strong>\(\sigma_t\) (Sigma):</strong> Це дозволений рівень "тремтіння" на кроці \(t\).
+                            <br>• Коли \(t\) велике (початок) — \(\sigma_t\) велика (ми можемо сильно змінювати картинку).
+                            <br>• Коли \(t \to 0\) (кінець) — \(\sigma_t \to 0\) (тремтіти вже не можна, треба фіксувати деталі).</li>
+                    </ul>
+
+                    <p><strong>Парадокс:</strong> Ми чистимо картинку від шуму, але на кожному кроці додаємо новий шум. Навіщо?!</p>
+                    <p>Це не дозволяє процесу "застрягти" в усередненому, розмитому стані. Це нагадує <em>відпал (annealing)</em> у металургії. Трохи тряски дозволяє системі впасти в більш глибокий і чіткий мінімум (кращу картинку).</p>
+                    <ul>
+                        <li><strong>Температура (Temp):</strong> Це множник для цього додаткового шуму \(z\).
+                            <br>• <strong>Temp = 0:</strong> Ми не додаємо шум. Результат "найбільш ймовірний", але часто "мильний" і нудний.
+                            <br>• <strong>Temp > 0.5:</strong> Додаємо варіативність. Деталі стають гострішими, текстури — багатшими.
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+			
+			 <div class="theory-block">
+                <h3>Запити (Комбінування умов)</h3>
+                <p>Коли ви натискаєте галочки "Кіт" чи "Бант", ви змінюєте траєкторію руху шуму. Ми використовуємо принцип <strong>додавання векторів</strong>.</p>
+                <p>Нейромережа робить три окремі прогнози на кожному кроці:</p>
+                <ul style="font-family: monospace; background: #222; padding: 10px; border-radius: 6px;">
+                    <li>ε_base = Мережа(шум, t, пустий_запит)</li>
+                    <li>ε_cat  = Мережа(шум, t, "Кіт")</li>
+                    <li>ε_tie  = Мережа(шум, t, "Бант")</li>
+                </ul>
+                
+                <p>Фінальний напрямок руху розраховується як сума векторів:</p>
+                $$ \epsilon_{total} = \epsilon_{base} + s \cdot (\epsilon_{cat} - \epsilon_{base}) + s \cdot (\epsilon_{tie} - \epsilon_{base}) $$
+                
+                <p><strong>Що це означає?</strong></p>
+                <ul>
+                    <li>Якщо вибрано <strong>тільки Кота</strong>: Ми беремо базовий шум і "штовхаємо" його в бік котів.</li>
+                    <li>Якщо вибрано <strong>Кіт + Бант</strong>: Ми штовхаємо шум одночасно і до котів, і до бантів. В результаті вектори додаються, і виходить "Кіт з бантом".</li>
+                    <li><em>s (Scale)</em> — це сила поштовху.</li>
+                </ul>
+            </div>
+        </details>
+		
+		
+		
+			</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// === 1. CONFIG & STATE ===
+let SZ = 16;
+let P = SZ*SZ;
+const STEPS = 60; //was 40
+let HIDDEN = 200; 
+const CFG_SCALE = 2.5;
+
+// Settings
+const cfg = { temp: 0.5, cont: 1.2, smooth: true };
+const updCfg = (k,v) => cfg[k] = (k==='smooth')?v:Number(v);
+
+// Math Helpers
+const randn=()=>{let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v);}
+const leaky = x => x > 0 ? x : 0.1 * x;
+const d_leaky = x => x > 0 ? 1 : 0.1;
+const rnd = (min, max) => Math.random() * (max - min) + min;
+
+// Network State
+let W1, B1, W2, B2, W3, B3, ms, vs;
+let dataset = [];
+let lossHistory = [];
+let lastGenRaw = null; // Store last raw generation for live post-process
+
+// Init
+function initModel(customW) {
+    if(!customW) SZ = parseInt(document.getElementById('selRes').value);
+    P = SZ*SZ;
+    HIDDEN = SZ === 32 ? 128 : 256;
+    
+    const init = n => new Float32Array(n).map(()=>(Math.random()-0.5)*0.08);
+    const IN_DIM = P + 3; 
+
+    if(customW) {
+        // Load weights
+        [W1,B1,W2,B2,W3,B3] = customW.map(arr => new Float32Array(arr));
+        alert("Модель завантажено успішно!");
+    } else {
+        // New random weights
+        W1 = init(IN_DIM*HIDDEN); B1 = new Float32Array(HIDDEN);
+        W2 = init((HIDDEN+IN_DIM)*HIDDEN); B2 = new Float32Array(HIDDEN);
+        W3 = init((HIDDEN+IN_DIM)*P); B3 = new Float32Array(P);
+    }
+    
+    // Reset Optim
+    const zeros = n => new Float32Array(n);
+    ms = [W1,B1,W2,B2,W3,B3].map(a=>zeros(a.length));
+    vs = [W1,B1,W2,B2,W3,B3].map(a=>zeros(a.length));
+    
+    // UI Reset
+    if(!customW) {
+        dataset = [];
+        lossHistory = [];
+        document.getElementById('previews').innerHTML = "";
+        document.getElementById('ep').innerText = "0";
+    }
+    drawGraph();
+}
+
+// === 2. DATASET & PREVIEWS ===
+const ctxD = document.getElementById('cDraw').getContext('2d');
+function clearC() { ctxD.fillStyle="#000"; ctxD.fillRect(0,0,160,160); }
+
+// UI Drawing logic
+let isD=false;
+const getPos = e => {
+    const r = ctxD.canvas.getBoundingClientRect();
+    const x = (e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const y = (e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return {x,y};
+}
+['mousedown','touchstart'].forEach(e=>ctxD.canvas.addEventListener(e, ev=>{ isD=true; ev.preventDefault(); ctxD.beginPath(); const p=getPos(ev); ctxD.moveTo(p.x,p.y); }));
+['mousemove','touchmove'].forEach(e=>ctxD.canvas.addEventListener(e, ev=>{ if(!isD)return; ev.preventDefault(); const p=getPos(ev); ctxD.strokeStyle="#fff"; ctxD.lineWidth=SZ===32?8:12; ctxD.lineCap='round'; ctxD.lineTo(p.x,p.y); ctxD.stroke(); }));
+['mouseup','touchend'].forEach(e=>ctxD.canvas.addEventListener(e, ()=>isD=false));
+
+function getPixels() {
+    const t = document.createElement('canvas'); t.width=SZ; t.height=SZ;
+    t.getContext('2d').drawImage(ctxD.canvas,0,0,SZ,SZ);
+    const d = t.getContext('2d').getImageData(0,0,SZ,SZ).data;
+    const arr = [];
+    for(let i=0; i<d.length; i+=4) arr.push( (d[i]/255)*2 - 1 );
+    return { arr, src: t.toDataURL() };
+}
+
+function updatePreviews() {
+    const div = document.getElementById('previews');
+    const cnt = document.getElementById('cnt');
+    div.innerHTML = "";
+    dataset.forEach((item, idx) => {
+        const wrap = document.createElement('div'); wrap.className = 'prev-item';
+        const img = document.createElement('img'); img.src = item.src;
+        const btn = document.createElement('div'); btn.className = 'prev-del'; btn.innerText='x';
+        
+        btn.onclick = () => { dataset.splice(idx, 1); updatePreviews(); };
+        
+        wrap.appendChild(img); wrap.appendChild(btn);
+        div.appendChild(wrap);
+    });
+    cnt.innerText = dataset.length;
+}
+
+function manualAdd() {
+    const l1 = document.getElementById('chkCat').checked?1:0;
+    const l2 = document.getElementById('chkTie').checked?1:0;
+    const p = getPixels();
+    dataset.push({ d: p.arr, src: p.src, l1, l2 });
+    clearC();
+    updatePreviews();
+}
+
+async function autoGen() {
+    clearC();
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+  for(let i=0; i<32; i++) {
+        // --- CAT ---
+        ctxD.fillStyle="#000"; ctxD.fillRect(0,0,160,160);
+        await delay(5);
+        ctxD.strokeStyle="#fff"; ctxD.lineWidth=rnd(12,14); //4 , 7
+        const cx = 80 + rnd(-10,10), cy = 70 + rnd(-1,15), r = rnd(50, 55);
+        
+        ctxD.beginPath(); ctxD.arc(cx, cy, r, 0, 6.28); ctxD.stroke();
+        await delay(15); // Anim frame
+        
+        ctxD.beginPath(); 
+        ctxD.moveTo(cx-r*0.8, cy-r*0.5); ctxD.lineTo(cx-r*1.1, cy-r-20); ctxD.lineTo(cx-r*0.2, cy-r*0.9); ctxD.stroke();
+        await delay(5);
+        
+        ctxD.beginPath();
+        ctxD.moveTo(cx+r*0.8, cy-r*0.5); ctxD.lineTo(cx+r*1.1, cy-r-20); ctxD.lineTo(cx+r*0.2, cy-r*0.9); ctxD.stroke();
+        
+        // Face
+        ctxD.fillStyle="#fff";
+        ctxD.fillRect(cx-20, cy-10, 18, 12); ctxD.fillRect(cx+12, cy-10, 18, 13);
+        ctxD.beginPath(); ctxD.moveTo(cx, cy+15); ctxD.lineTo(cx-20, cy+25); ctxD.moveTo(cx, cy+15); ctxD.lineTo(cx+20, cy+25); ctxD.stroke();
+        
+        let p = getPixels();
+        dataset.push({ d: p.arr, src: p.src, l1:1, l2:0 });
+        updatePreviews();
+
+        // --- BOW ---
+        await delay(25);
+        ctxD.fillStyle="#000"; ctxD.fillRect(0,0,160,160);
+        ctxD.strokeStyle="#fff"; ctxD.lineWidth=rnd(10,12);
+        const tx = 80 + rnd(-5,5), ty = 135 + rnd(-5,5), wing = rnd(30, 40), h = rnd(15, 20);
+        
+        ctxD.beginPath();
+        ctxD.moveTo(tx, ty); ctxD.lineTo(tx-wing, ty-h); ctxD.lineTo(tx-wing, ty+h); ctxD.lineTo(tx, ty); ctxD.stroke();
+        await delay(5);
+        
+        ctxD.beginPath();
+        ctxD.moveTo(tx, ty); ctxD.lineTo(tx+wing, ty-h); ctxD.lineTo(tx+wing, ty+h); ctxD.lineTo(tx, ty); ctxD.stroke();
+        
+        ctxD.fillStyle="#fff"; ctxD.beginPath(); ctxD.arc(tx, ty, 8, 0, 6.28); ctxD.fill();
+        
+        p = getPixels();
+        dataset.push({ d: p.arr, src: p.src, l1:0, l2:1 });
+        updatePreviews();
+        await delay(20);
+    }
+    clearC();
+}
+
+// === 3. IO (SAVE/LOAD) ===
+function saveData(type) {
+    let data, name;
+    if(type === 'model') {
+        data = { sz: SZ, w: [W1,B1,W2,B2,W3,B3].map(a => Array.from(a)) };
+        name = `ddpm_${SZ}x${SZ}.json`;
+    } else {
+        data = dataset;
+        name = `dataset_${SZ}x${SZ}.json`;
+    }
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+
+function loadData(type, input) {
+    const f = input.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = (e) => {
+        const d = JSON.parse(e.target.result);
+        if(type === 'model') {
+            document.getElementById('selRes').value = d.sz;
+            SZ = d.sz;
+            initModel(d.w);
+        } else {
+            dataset = d;
+            updatePreviews();
+            alert(`Завантажено ${dataset.length} семплів.`);
+        }
+    };
+    r.readAsText(f);
+}
+
+// === 4. TRAINING WITH LR SCHEDULER ===
+const alphaBar = [];
+let prod = 1;
+for(let t=0; t<STEPS; t++) {
+    const b = 0.0001 + (0.15 - 0.0001)*(t/(STEPS-1)); 
+    prod *= (1-b); alphaBar.push(prod);
+}
+
+function forward(x, cond) {
+    const inp = [...x, ...cond];
+    const h1 = new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        let s = B1[h]; for(let i=0; i<inp.length; i++) s += inp[i]*W1[i*HIDDEN+h]; h1[h] = leaky(s);
+    }
+    const inp2 = [...h1, ...inp];
+    const h2 = new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        let s = B2[h]; for(let i=0; i<inp2.length; i++) s += inp2[i]*W2[i*HIDDEN+h]; h2[h] = leaky(s);
+    }
+    const inp3 = [...h2, ...inp];
+    const out = new Float32Array(P);
+    for(let o=0; o<P; o++) {
+        let s = B3[o]; for(let i=0; i<inp3.length; i++) s += inp3[i]*W3[i*P+o]; out[o] = s;
+    }
+    return {inp, h1, inp2, h2, inp3, out};
+}
+
+function adam(w, g, m, v, lr) {
+    const b1=0.9, b2=0.999;
+    for(let i=0; i<w.length; i++) {
+        let grad = g[i]; if(grad>1)grad=1; if(grad<-1)grad=-1;
+        m[i] = b1*m[i] + (1-b1)*grad; v[i] = b2*v[i] + (1-b2)*grad*grad;
+        w[i] -= lr * m[i] / (Math.sqrt(v[i])+1e-8);
+    }
+}
+
+function trainStep(x0, l1_in, l2_in, lr) {
+    let l1 = l1_in, l2 = l2_in;
+    if (Math.random() < 0.2) { l1 = 0; l2 = 0; } // CFG Dropout
+
+    const t = Math.floor(Math.random()*STEPS);
+    const noise = new Float32Array(P).map(()=>randn());
+    const ab = alphaBar[t];
+    const xt = x0.map((v,i) => v*Math.sqrt(ab) + noise[i]*Math.sqrt(1-ab));
+    
+    const fwd = forward(xt, [t/STEPS, l1, l2]);
+    let loss=0; const gOut = new Float32Array(P);
+    for(let i=0; i<P; i++) {
+        const e = fwd.out[i] - noise[i]; loss += e*e; gOut[i] = 2*e/P;
+    }
+    
+    const D3=HIDDEN+P+3, D2=HIDDEN+P+3;
+    const gW3=new Float32Array(W3.length), gB3=new Float32Array(P), gIn3=new Float32Array(D3);
+    for(let o=0; o<P; o++) {
+        const g=gOut[o]; gB3[o]=g; for(let i=0; i<D3; i++) { gW3[i*P+o]=g*fwd.inp3[i]; gIn3[i]+=g*W3[i*P+o]; }
+    }
+    const gH2=gIn3.slice(0,HIDDEN);
+    const gW2=new Float32Array(W2.length), gB2=new Float32Array(HIDDEN), gIn2=new Float32Array(D2);
+    for(let h=0; h<HIDDEN; h++) {
+        const g=gH2[h]*d_leaky(fwd.h2[h]); gB2[h]=g; for(let i=0; i<D2; i++) { gW2[i*HIDDEN+h]=g*fwd.inp2[i]; gIn2[i]+=g*W2[i*HIDDEN+h]; }
+    }
+    const gH1=gIn2.slice(0,HIDDEN);
+    const gW1=new Float32Array(W1.length), gB1=new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        const g=gH1[h]*d_leaky(fwd.h1[h]); gB1[h]=g; for(let i=0; i<P+3; i++) gW1[i*HIDDEN+h]=g*fwd.inp[i];
+    }
+    
+    adam(W3,gW3,ms[4],vs[4], lr); adam(B3,gB3,ms[5],vs[5], lr);
+    adam(W2,gW2,ms[2],vs[2], lr); adam(B2,gB2,ms[3],vs[3], lr);
+    adam(W1,gW1,ms[0],vs[0], lr); adam(B1,gB1,ms[1],vs[1], lr);
+    
+    return loss/P;
+}
+
+// Train Loop
+let isT=false, epoch=0;
+const ctxGraph = document.getElementById('cGraph').getContext('2d');
+
+function toggleTrain(){
+    if(!dataset.length)return alert("Спочатку створіть або завантажте датасет!");
+    isT=!isT; document.getElementById('btnTr').innerText=isT?"⏸ СТОП":"▶ СТАРТ НАВЧАННЯ";
+    if(isT) loop();
+}
+
+function loop(){
+    if(!isT)return;
+    let ls=0; const bsz = SZ===32?20:40;
+    
+    // --- LR SCHEDULER ---
+    let lr = 0.0015;
+    const lastLoss = lossHistory.length ? lossHistory[lossHistory.length-1] : 1.0;
+    
+    if (lastLoss < 0.15) lr = 0.0001;      // Precision mode
+    else if (lastLoss < 0.3) lr = 0.0005;  // Stability mode
+    
+    document.getElementById('lrStat').innerText = `(LR: ${lr})`;
+
+    for(let k=0;k<bsz;k++){
+        const d=dataset[Math.floor(Math.random()*dataset.length)];
+        ls += trainStep(d.d, d.l1, d.l2, lr);
+    }
+    epoch++;
+    const avg = ls/bsz;
+    lossHistory.push(avg); if(lossHistory.length>100) lossHistory.shift();
+    
+    document.getElementById('loss').innerText=avg.toFixed(3);
+    document.getElementById('loss').style.color = avg<0.25 ? "#0f0" : (avg<0.4 ? "#fbbf24" : "red");
+    document.getElementById('ep').innerText=epoch;
+    
+    if(epoch%3===0) drawGraph();
+    requestAnimationFrame(loop);
+}
+
+function drawGraph() {
+    const w = ctxGraph.canvas.width, h = ctxGraph.canvas.height;
+    ctxGraph.clearRect(0,0,w,h);
+    const yZone = h - (0.25 * h); 
+    ctxGraph.fillStyle = "#1a3320"; ctxGraph.fillRect(0, yZone, w, h-yZone); // Green zone
+    if(lossHistory.length < 2) return;
+    ctxGraph.strokeStyle = "#0f0"; ctxGraph.lineWidth=2; ctxGraph.beginPath();
+    for(let i=0; i<lossHistory.length; i++) {
+        const x = (i / (100-1)) * w;
+        let val = lossHistory[i]; if(val>1) val=1;
+        const y = h - (val * h);
+        if(i===0) ctxGraph.moveTo(x,y); else ctxGraph.lineTo(x,y);
+    }
+    ctxGraph.stroke();
+}
+
+// === 5. GENERATION & LIVE RENDER ===
+const ctxGen = document.getElementById('cGen').getContext('2d');
+
+// Despeckle Logic
+function applyDespeckle(arr) {
+    const res = new Float32Array(arr);
+    for(let y=1; y<SZ-1; y++) {
+        for(let x=1; x<SZ-1; x++) {
+            const i = y*SZ + x;
+            const c = arr[i] > 0 ? 1 : -1; 
+            const n = [arr[i-1], arr[i+1], arr[i-SZ], arr[i+SZ]];
+            let opp = 0; for(let k=0; k<4; k++) if( (n[k]>0?1:-1) !== c ) opp++;
+            if(opp === 4) res[i] = -c; 
+        }
+    }
+    return res;
+}
+
+// Live Render Function
+function renderFinal() {
+    if(!lastGenRaw) return;
+    
+    // 1. Despeckle if checked
+    let data = document.getElementById('chkDespeckle').checked ? applyDespeckle(lastGenRaw) : lastGenRaw;
+    
+    // 2. Contrast & Convert to pixels
+    const tmp = document.createElement('canvas'); tmp.width=SZ; tmp.height=SZ;
+    const tid = tmp.getContext('2d').createImageData(SZ,SZ);
+    
+    for(let i=0; i<P; i++) {
+        let v = (data[i]+1)/2; // 0..1
+        v = (v - 0.5) * cfg.cont + 0.5; // Contrast
+        v = v*255; v = v<0?0:v>255?255:v;
+        tid.data[i*4]=v; tid.data[i*4+1]=v; tid.data[i*4+2]=v; tid.data[i*4+3]=255;
+    }
+    tmp.getContext('2d').putImageData(tid,0,0);
+    
+    // 3. Smooth Upscale?
+    ctxGen.imageSmoothingEnabled = cfg.smooth;
+    ctxGen.imageSmoothingQuality = "high";
+    ctxGen.clearRect(0,0,160,160);
+    ctxGen.drawImage(tmp, 0, 0, 160, 160);
+}
+
+async function generate() {
+    if(isT) toggleTrain();
+    const btn = document.getElementById('btnGen');
+    btn.disabled=true;
+    
+    const wantCat = document.getElementById('gCat').checked;
+    const wantTie = document.getElementById('gTie').checked;
+    let x = new Float32Array(P).map(()=>randn());
+    
+    for(let t=STEPS-1; t>=0; t--) {
+        document.getElementById('status').innerText = `Denoising... ${t}`;
+        
+        const fwd_uncond = forward(x, [t/STEPS, 0, 0]);
+        let final_eps = new Float32Array(fwd_uncond.out);
+        
+        if(wantCat) {
+            const fwd_cat = forward(x, [t/STEPS, 1, 0]);
+            for(let i=0; i<P; i++) final_eps[i] += CFG_SCALE * (fwd_cat.out[i] - fwd_uncond.out[i]);
+        }
+        if(wantTie) {
+            const fwd_tie = forward(x, [t/STEPS, 0, 1]);
+            for(let i=0; i<P; i++) final_eps[i] += CFG_SCALE * (fwd_tie.out[i] - fwd_uncond.out[i]);
+        }
+        
+        const ab = alphaBar[t];
+        const beta = 1 - (ab/(t>0?alphaBar[t-1]:1));
+        const sigma = Math.sqrt(beta);
+        
+        for(let i=0; i<P; i++) {
+            let z = (t>0) ? randn() : 0;
+            z *= cfg.temp; 
+            x[i] = (1/Math.sqrt(1-beta)) * (x[i] - (beta/Math.sqrt(1-ab))*final_eps[i]) + sigma*z;
+        }
+
+        lastGenRaw = x; // Update buffer
+        renderFinal();  // Draw current step
+        await new Promise(r=>setTimeout(r, 10));
+    }
+    document.getElementById('status').innerText = "Готово";
+    btn.disabled=false;
+}
+
+initModel();
+</script>
+</body>
+</html>
