@@ -117,7 +117,7 @@
         .prev-item:hover .prev-del { display: block; }
 
         /* GRAPH */
-        canvas.graph { width: 100%; height: 60px; background: #222; border-bottom: 1px solid #444; border-radius: 4px; }
+        canvas.graph { width: 100%; height: 120px; background: #222; border-bottom: 1px solid #444; border-radius: 4px; }
 
         /* SPOILERS (DETAILS/SUMMARY) */
         details {
@@ -269,7 +269,7 @@
         <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
             <div>
                 <canvas id="cDraw" width="160" height="160" class="draw"></canvas>
-                <div style="text-align:center; font-size: 0.9em; color:#888; margin-top:5px;">Малюйте тут або використовуйте авто-генерацію</div>
+                <div style="text-align:center; font-size: 0.8em; color:#888; margin-top:5px;">Намалюйте тут кілька разів кота, або бант, або кота з бантом. Якщо не хочете/не вмієте малювати, натисніть авто-малювання</div>
             </div>
 
             <div>
@@ -314,7 +314,7 @@
         
 		
 		<details style="margin-top:10px;">
-            <summary>⚙️Як вчиться мережа</summary>
+            <summary>🎓 Як вчиться мережа</summary>
             <div class="theory-content">
                 
                 <div class="theory-block">
@@ -445,7 +445,7 @@
              
 				
 				<details>
-            <summary> Алгоритм генерації</summary>
+            <summary>🎓 Алгоритм генерації</summary>
             <div class="theory-content">
                 
                
@@ -521,53 +521,63 @@
 <script>
 // === 1. CONFIG & STATE ===
 let SZ = 16;
-let P = SZ*SZ;
-const STEPS = 60; //was 40
-let HIDDEN = 200; 
-const CFG_SCALE = 2.5;
+let P = SZ * SZ;
+const STEPS = 60; 
+let HIDDEN = 256; 
+const CFG_SCALE = 3.0; // Трохи збільшив для чіткості 32х32
 
-// Settings
 const cfg = { temp: 0.5, cont: 1.2, smooth: true };
 const updCfg = (k,v) => cfg[k] = (k==='smooth')?v:Number(v);
 
 // Math Helpers
-const randn=()=>{let u=0,v=0;while(u===0)u=Math.random();while(v===0)v=Math.random();return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v);}
-const leaky = x => x > 0 ? x : 0.1 * x;
-const d_leaky = x => x > 0 ? 1 : 0.1;
+const randn = () => {
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random();
+    while(v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+const leaky = x => x > 0 ? x : 0.01 * x; // Менший коефіцієнт для стабільності
+const d_leaky = x => x > 0 ? 1 : 0.01;
 const rnd = (min, max) => Math.random() * (max - min) + min;
 
 // Network State
 let W1, B1, W2, B2, W3, B3, ms, vs;
 let dataset = [];
 let lossHistory = [];
-let lastGenRaw = null; // Store last raw generation for live post-process
+let lastGenRaw = null;
 
-// Init
+// === NEW: KAIMING INITIALIZATION ===
+function initWeights(rows, cols) {
+    const std = Math.sqrt(2 / rows); // He initialization
+    return new Float32Array(rows * cols).map(() => randn() * std);
+}
+
 function initModel(customW) {
     if(!customW) SZ = parseInt(document.getElementById('selRes').value);
-    P = SZ*SZ;
-    HIDDEN = SZ === 32 ? 128 : 256;
+    P = SZ * SZ;
     
-    const init = n => new Float32Array(n).map(()=>(Math.random()-0.5)*0.08);
-    const IN_DIM = P + 3; 
+    // Динамічна ширина: для 32х32 потрібно значно більше пам'яті
+    HIDDEN = SZ === 32 ? 512 : 256; 
+    
+    const TIME_DIM = 16; // Ембеддінг часу (повторення t), щоб мережа його помітила
+    const IN_DIM = P + TIME_DIM + 2; // Pixels + Time Emb + 2 classes
 
     if(customW) {
-        // Load weights
         [W1,B1,W2,B2,W3,B3] = customW.map(arr => new Float32Array(arr));
-        alert("Модель завантажено успішно!");
+        alert("Модель завантажено!");
     } else {
-        // New random weights
-        W1 = init(IN_DIM*HIDDEN); B1 = new Float32Array(HIDDEN);
-        W2 = init((HIDDEN+IN_DIM)*HIDDEN); B2 = new Float32Array(HIDDEN);
-        W3 = init((HIDDEN+IN_DIM)*P); B3 = new Float32Array(P);
+        W1 = initWeights(IN_DIM, HIDDEN);
+        B1 = new Float32Array(HIDDEN);
+        W2 = initWeights(HIDDEN + IN_DIM, HIDDEN);
+        B2 = new Float32Array(HIDDEN);
+        W3 = initWeights(HIDDEN + IN_DIM, P);
+        B3 = new Float32Array(P);
     }
     
-    // Reset Optim
     const zeros = n => new Float32Array(n);
     ms = [W1,B1,W2,B2,W3,B3].map(a=>zeros(a.length));
     vs = [W1,B1,W2,B2,W3,B3].map(a=>zeros(a.length));
     
-    // UI Reset
     if(!customW) {
         dataset = [];
         lossHistory = [];
@@ -577,11 +587,135 @@ function initModel(customW) {
     drawGraph();
 }
 
-// === 2. DATASET & PREVIEWS ===
+// Посилення входу часу (Time Embedding)
+function getTimeEmb(t_norm) {
+    const emb = new Float32Array(16);
+    for(let i=0; i<16; i++) emb[i] = Math.sin(t_norm * Math.PI * (i+1) / 8);
+    return emb;
+}
+
+function forward(x, t_norm, l1, l2) {
+    const tEmb = getTimeEmb(t_norm);
+    const inp = new Float32Array(x.length + tEmb.length + 2);
+    inp.set(x);
+    inp.set(tEmb, x.length);
+    inp[x.length + 16] = l1;
+    inp[x.length + 17] = l2;
+
+    const h1 = new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        let s = B1[h];
+        for(let i=0; i<inp.length; i++) s += inp[i] * W1[i*HIDDEN + h];
+        h1[h] = leaky(s);
+    }
+
+    const inp2 = new Float32Array(h1.length + inp.length);
+    inp2.set(h1); inp2.set(inp, h1.length);
+
+    const h2 = new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        let s = B2[h];
+        for(let i=0; i<inp2.length; i++) s += inp2[i] * W2[i*HIDDEN + h];
+        h2[h] = leaky(s);
+    }
+
+    const inp3 = new Float32Array(h2.length + inp.length);
+    inp3.set(h2); inp3.set(inp, h2.length);
+
+    const out = new Float32Array(P);
+    for(let o=0; o<P; o++) {
+        let s = B3[o];
+        for(let i=0; i<inp3.length; i++) s += inp3[i] * W3[i*P + o];
+        out[o] = s;
+    }
+    return {inp, h1, inp2, h2, inp3, out};
+}
+
+// Оновлений Adam з меншим beta2 для стабільності
+function adam(w, g, m, v, lr) {
+    const b1=0.9, b2=0.99; 
+    for(let i=0; i<w.length; i++) {
+        let grad = g[i];
+        if(grad > 0.5) grad = 0.5; if(grad < -0.5) grad = -0.5; // Gradient clipping
+        m[i] = b1*m[i] + (1-b1)*grad;
+        v[i] = b2*v[i] + (1-b2)*grad*grad;
+        w[i] -= lr * m[i] / (Math.sqrt(v[i]) + 1e-8);
+    }
+}
+
+function trainStep(x0, l1_in, l2_in, lr) {
+    let l1 = l1_in, l2 = l2_in;
+    if (Math.random() < 0.15) { l1 = 0; l2 = 0; } 
+
+    const t = Math.floor(Math.random() * STEPS);
+    const noise = new Float32Array(P).map(() => randn());
+    const ab = alphaBar[t];
+    const xt = x0.map((v, i) => v * Math.sqrt(ab) + noise[i] * Math.sqrt(1 - ab));
+    
+    const fwd = forward(xt, t/STEPS, l1, l2);
+    const gOut = new Float32Array(P);
+    let loss = 0;
+    for(let i=0; i<P; i++) {
+        const e = fwd.out[i] - noise[i];
+        loss += e*e;
+        gOut[i] = (2 * e) / P;
+    }
+    
+    const D3 = fwd.inp3.length, D2 = fwd.inp2.length, D1 = fwd.inp.length;
+    
+    // Backprop (optimized)
+    const gW3 = new Float32Array(W3.length), gB3 = gOut;
+    const gIn3 = new Float32Array(D3);
+    for(let o=0; o<P; o++) {
+        const g = gOut[o];
+        for(let i=0; i<D3; i++) {
+            gW3[i*P + o] = g * fwd.inp3[i];
+            gIn3[i] += g * W3[i*P + o];
+        }
+    }
+    
+    const gH2 = gIn3.subarray(0, HIDDEN);
+    const gW2 = new Float32Array(W2.length), gB2 = new Float32Array(HIDDEN);
+    const gIn2 = new Float32Array(D2);
+    for(let h=0; h<HIDDEN; h++) {
+        const g = gH2[h] * d_leaky(fwd.h2[h]);
+        gB2[h] = g;
+        for(let i=0; i<D2; i++) {
+            gW2[i*HIDDEN + h] = g * fwd.inp2[i];
+            gIn2[i] += g * W2[i*HIDDEN + h];
+        }
+    }
+    
+    const gH1 = gIn2.subarray(0, HIDDEN);
+    const gW1 = new Float32Array(W1.length), gB1 = new Float32Array(HIDDEN);
+    for(let h=0; h<HIDDEN; h++) {
+        const g = gH1[h] * d_leaky(fwd.h1[h]);
+        gB1[h] = g;
+        for(let i=0; i<D1; i++) {
+            gW1[i*HIDDEN + h] = g * fwd.inp[i];
+        }
+    }
+    
+    adam(W3, gW3, ms[4], vs[4], lr); adam(B3, gB3, ms[5], vs[5], lr);
+    adam(W2, gW2, ms[2], vs[2], lr); adam(B2, gB2, ms[3], vs[3], lr);
+    adam(W1, gW1, ms[0], vs[0], lr); adam(B1, gB1, ms[1], vs[1], lr);
+    
+    return loss / P;
+}
+
+// === РЕШТА ФУНКЦІЙ (UI, Датасет, Генерація) ===
+// (Копіюємо з оригіналу з невеликими правками під нову структуру forward)
+
+const alphaBar = [];
+let prod = 1;
+for(let t=0; t<STEPS; t++) {
+    const b = 0.0001 + (0.12 - 0.0001) * (t / (STEPS - 1)); // Трохи м'якший шум
+    prod *= (1 - b);
+    alphaBar.push(prod);
+}
+
 const ctxD = document.getElementById('cDraw').getContext('2d');
 function clearC() { ctxD.fillStyle="#000"; ctxD.fillRect(0,0,160,160); }
-
-// UI Drawing logic
 let isD=false;
 const getPos = e => {
     const r = ctxD.canvas.getBoundingClientRect();
@@ -590,7 +724,7 @@ const getPos = e => {
     return {x,y};
 }
 ['mousedown','touchstart'].forEach(e=>ctxD.canvas.addEventListener(e, ev=>{ isD=true; ev.preventDefault(); ctxD.beginPath(); const p=getPos(ev); ctxD.moveTo(p.x,p.y); }));
-['mousemove','touchmove'].forEach(e=>ctxD.canvas.addEventListener(e, ev=>{ if(!isD)return; ev.preventDefault(); const p=getPos(ev); ctxD.strokeStyle="#fff"; ctxD.lineWidth=SZ===32?8:12; ctxD.lineCap='round'; ctxD.lineTo(p.x,p.y); ctxD.stroke(); }));
+['mousemove','touchmove'].forEach(e=>ctxD.canvas.addEventListener(e, ev=>{ if(!isD)return; ev.preventDefault(); const p=getPos(ev); ctxD.strokeStyle="#fff"; ctxD.lineWidth=SZ===32?10:14; ctxD.lineCap='round'; ctxD.lineTo(p.x,p.y); ctxD.stroke(); }));
 ['mouseup','touchend'].forEach(e=>ctxD.canvas.addEventListener(e, ()=>isD=false));
 
 function getPixels() {
@@ -604,19 +738,16 @@ function getPixels() {
 
 function updatePreviews() {
     const div = document.getElementById('previews');
-    const cnt = document.getElementById('cnt');
     div.innerHTML = "";
     dataset.forEach((item, idx) => {
         const wrap = document.createElement('div'); wrap.className = 'prev-item';
         const img = document.createElement('img'); img.src = item.src;
         const btn = document.createElement('div'); btn.className = 'prev-del'; btn.innerText='x';
-        
         btn.onclick = () => { dataset.splice(idx, 1); updatePreviews(); };
-        
         wrap.appendChild(img); wrap.appendChild(btn);
         div.appendChild(wrap);
     });
-    cnt.innerText = dataset.length;
+    document.getElementById('cnt').innerText = dataset.length;
 }
 
 function manualAdd() {
@@ -649,8 +780,9 @@ async function autoGen() {
         ctxD.moveTo(cx+r*0.8, cy-r*0.5); ctxD.lineTo(cx+r*1.1, cy-r-20); ctxD.lineTo(cx+r*0.2, cy-r*0.9); ctxD.stroke();
         
         // Face
-        ctxD.fillStyle="#fff";
-        ctxD.fillRect(cx-20, cy-10, 18, 12); ctxD.fillRect(cx+12, cy-10, 18, 13);
+        ctxD.fillStyle="#aaffcc";
+        ctxD.fillRect(cx-28, cy-14, 22, 18); ctxD.fillRect(cx+10, cy-14, 23, 18);
+		 ctxD.fillStyle="#fff";
         ctxD.beginPath(); ctxD.moveTo(cx, cy+15); ctxD.lineTo(cx-20, cy+25); ctxD.moveTo(cx, cy+15); ctxD.lineTo(cx+20, cy+25); ctxD.stroke();
         
         let p = getPixels();
@@ -660,7 +792,7 @@ async function autoGen() {
         // --- BOW ---
         await delay(25);
         ctxD.fillStyle="#000"; ctxD.fillRect(0,0,160,160);
-        ctxD.strokeStyle="#fff"; ctxD.lineWidth=rnd(10,12);
+        ctxD.strokeStyle="#fcf"; ctxD.lineWidth=rnd(10,16);
         const tx = 80 + rnd(-5,5), ty = 135 + rnd(-5,5), wing = rnd(30, 40), h = rnd(15, 20);
         
         ctxD.beginPath();
@@ -679,8 +811,6 @@ async function autoGen() {
     }
     clearC();
 }
-
-// === 3. IO (SAVE/LOAD) ===
 function saveData(type) {
     let data, name;
     if(type === 'model') {
@@ -707,111 +837,31 @@ function loadData(type, input) {
         } else {
             dataset = d;
             updatePreviews();
-            alert(`Завантажено ${dataset.length} семплів.`);
         }
     };
     r.readAsText(f);
 }
 
-// === 4. TRAINING WITH LR SCHEDULER ===
-const alphaBar = [];
-let prod = 1;
-for(let t=0; t<STEPS; t++) {
-    const b = 0.0001 + (0.15 - 0.0001)*(t/(STEPS-1)); 
-    prod *= (1-b); alphaBar.push(prod);
-}
-
-function forward(x, cond) {
-    const inp = [...x, ...cond];
-    const h1 = new Float32Array(HIDDEN);
-    for(let h=0; h<HIDDEN; h++) {
-        let s = B1[h]; for(let i=0; i<inp.length; i++) s += inp[i]*W1[i*HIDDEN+h]; h1[h] = leaky(s);
-    }
-    const inp2 = [...h1, ...inp];
-    const h2 = new Float32Array(HIDDEN);
-    for(let h=0; h<HIDDEN; h++) {
-        let s = B2[h]; for(let i=0; i<inp2.length; i++) s += inp2[i]*W2[i*HIDDEN+h]; h2[h] = leaky(s);
-    }
-    const inp3 = [...h2, ...inp];
-    const out = new Float32Array(P);
-    for(let o=0; o<P; o++) {
-        let s = B3[o]; for(let i=0; i<inp3.length; i++) s += inp3[i]*W3[i*P+o]; out[o] = s;
-    }
-    return {inp, h1, inp2, h2, inp3, out};
-}
-
-function adam(w, g, m, v, lr) {
-    const b1=0.9, b2=0.999;
-    for(let i=0; i<w.length; i++) {
-        let grad = g[i]; if(grad>1)grad=1; if(grad<-1)grad=-1;
-        m[i] = b1*m[i] + (1-b1)*grad; v[i] = b2*v[i] + (1-b2)*grad*grad;
-        w[i] -= lr * m[i] / (Math.sqrt(v[i])+1e-8);
-    }
-}
-
-function trainStep(x0, l1_in, l2_in, lr) {
-    let l1 = l1_in, l2 = l2_in;
-    if (Math.random() < 0.2) { l1 = 0; l2 = 0; } // CFG Dropout
-
-    const t = Math.floor(Math.random()*STEPS);
-    const noise = new Float32Array(P).map(()=>randn());
-    const ab = alphaBar[t];
-    const xt = x0.map((v,i) => v*Math.sqrt(ab) + noise[i]*Math.sqrt(1-ab));
-    
-    const fwd = forward(xt, [t/STEPS, l1, l2]);
-    let loss=0; const gOut = new Float32Array(P);
-    for(let i=0; i<P; i++) {
-        const e = fwd.out[i] - noise[i]; loss += e*e; gOut[i] = 2*e/P;
-    }
-    
-    const D3=HIDDEN+P+3, D2=HIDDEN+P+3;
-    const gW3=new Float32Array(W3.length), gB3=new Float32Array(P), gIn3=new Float32Array(D3);
-    for(let o=0; o<P; o++) {
-        const g=gOut[o]; gB3[o]=g; for(let i=0; i<D3; i++) { gW3[i*P+o]=g*fwd.inp3[i]; gIn3[i]+=g*W3[i*P+o]; }
-    }
-    const gH2=gIn3.slice(0,HIDDEN);
-    const gW2=new Float32Array(W2.length), gB2=new Float32Array(HIDDEN), gIn2=new Float32Array(D2);
-    for(let h=0; h<HIDDEN; h++) {
-        const g=gH2[h]*d_leaky(fwd.h2[h]); gB2[h]=g; for(let i=0; i<D2; i++) { gW2[i*HIDDEN+h]=g*fwd.inp2[i]; gIn2[i]+=g*W2[i*HIDDEN+h]; }
-    }
-    const gH1=gIn2.slice(0,HIDDEN);
-    const gW1=new Float32Array(W1.length), gB1=new Float32Array(HIDDEN);
-    for(let h=0; h<HIDDEN; h++) {
-        const g=gH1[h]*d_leaky(fwd.h1[h]); gB1[h]=g; for(let i=0; i<P+3; i++) gW1[i*HIDDEN+h]=g*fwd.inp[i];
-    }
-    
-    adam(W3,gW3,ms[4],vs[4], lr); adam(B3,gB3,ms[5],vs[5], lr);
-    adam(W2,gW2,ms[2],vs[2], lr); adam(B2,gB2,ms[3],vs[3], lr);
-    adam(W1,gW1,ms[0],vs[0], lr); adam(B1,gB1,ms[1],vs[1], lr);
-    
-    return loss/P;
-}
-
-// Train Loop
 let isT=false, epoch=0;
 const ctxGraph = document.getElementById('cGraph').getContext('2d');
 
 function toggleTrain(){
-    if(!dataset.length)return alert("Спочатку створіть або завантажте датасет!");
+    if(!dataset.length)return alert("Додайте малюнки!"); 
+	if(SZ === 32&&!isT) alert("Увага! Навчання може зайняти тривалий час, бо ви вибрали режим 32х32 пікселі. Дочекайтеся, поки loss стане <0.25, що може статися через кілька сотен епох. Встигнете пообідати. А краще почитайте на кожній панелі теорію (спойлери позначені 🎓)");
     isT=!isT; document.getElementById('btnTr').innerText=isT?"⏸ СТОП":"▶ СТАРТ НАВЧАННЯ";
     if(isT) loop();
 }
 
 function loop(){
     if(!isT)return;
-    let ls=0; const bsz = SZ===32?20:40;
+    let ls=0; 
+    const bsz = SZ === 32 ? 16 : 32; // Менший батч для 32х32 (CPU heavy)
     
-    // --- LR SCHEDULER ---
-    let lr = 0.0015;
-    const lastLoss = lossHistory.length ? lossHistory[lossHistory.length-1] : 1.0;
-    
-    if (lastLoss < 0.15) lr = 0.0001;      // Precision mode
-    else if (lastLoss < 0.3) lr = 0.0005;  // Stability mode
-    
-    document.getElementById('lrStat').innerText = `(LR: ${lr})`;
+    let lr = SZ === 32 ? 0.0004 : 0.001; 
+    if (lossHistory.length > 10 && lossHistory[lossHistory.length-1] < 0.3) lr *= 0.5;
 
-    for(let k=0;k<bsz;k++){
-        const d=dataset[Math.floor(Math.random()*dataset.length)];
+    for(let k=0; k<bsz; k++){
+        const d = dataset[Math.floor(Math.random()*dataset.length)];
         ls += trainStep(d.d, d.l1, d.l2, lr);
     }
     epoch++;
@@ -819,10 +869,8 @@ function loop(){
     lossHistory.push(avg); if(lossHistory.length>100) lossHistory.shift();
     
     document.getElementById('loss').innerText=avg.toFixed(3);
-    document.getElementById('loss').style.color = avg<0.25 ? "#0f0" : (avg<0.4 ? "#fbbf24" : "red");
     document.getElementById('ep').innerText=epoch;
-    
-    if(epoch%3===0) drawGraph();
+    if(epoch%2===0) drawGraph();
     requestAnimationFrame(loop);
 }
 
@@ -842,47 +890,19 @@ function drawGraph() {
     ctxGraph.stroke();
 }
 
-// === 5. GENERATION & LIVE RENDER ===
 const ctxGen = document.getElementById('cGen').getContext('2d');
-
-// Despeckle Logic
-function applyDespeckle(arr) {
-    const res = new Float32Array(arr);
-    for(let y=1; y<SZ-1; y++) {
-        for(let x=1; x<SZ-1; x++) {
-            const i = y*SZ + x;
-            const c = arr[i] > 0 ? 1 : -1; 
-            const n = [arr[i-1], arr[i+1], arr[i-SZ], arr[i+SZ]];
-            let opp = 0; for(let k=0; k<4; k++) if( (n[k]>0?1:-1) !== c ) opp++;
-            if(opp === 4) res[i] = -c; 
-        }
-    }
-    return res;
-}
-
-// Live Render Function
 function renderFinal() {
     if(!lastGenRaw) return;
-    
-    // 1. Despeckle if checked
-    let data = document.getElementById('chkDespeckle').checked ? applyDespeckle(lastGenRaw) : lastGenRaw;
-    
-    // 2. Contrast & Convert to pixels
     const tmp = document.createElement('canvas'); tmp.width=SZ; tmp.height=SZ;
     const tid = tmp.getContext('2d').createImageData(SZ,SZ);
-    
     for(let i=0; i<P; i++) {
-        let v = (data[i]+1)/2; // 0..1
-        v = (v - 0.5) * cfg.cont + 0.5; // Contrast
-        v = v*255; v = v<0?0:v>255?255:v;
+        let v = (lastGenRaw[i]+1)/2;
+        v = (v - 0.5) * cfg.cont + 0.5;
+        v = Math.max(0, Math.min(255, v*255));
         tid.data[i*4]=v; tid.data[i*4+1]=v; tid.data[i*4+2]=v; tid.data[i*4+3]=255;
     }
     tmp.getContext('2d').putImageData(tid,0,0);
-    
-    // 3. Smooth Upscale?
     ctxGen.imageSmoothingEnabled = cfg.smooth;
-    ctxGen.imageSmoothingQuality = "high";
-    ctxGen.clearRect(0,0,160,160);
     ctxGen.drawImage(tmp, 0, 0, 160, 160);
 }
 
@@ -890,39 +910,29 @@ async function generate() {
     if(isT) toggleTrain();
     const btn = document.getElementById('btnGen');
     btn.disabled=true;
-    
-    const wantCat = document.getElementById('gCat').checked;
-    const wantTie = document.getElementById('gTie').checked;
+    const wantCat = document.getElementById('gCat').checked ? 1:0;
+    const wantTie = document.getElementById('gTie').checked ? 1:0;
     let x = new Float32Array(P).map(()=>randn());
     
     for(let t=STEPS-1; t>=0; t--) {
-        document.getElementById('status').innerText = `Denoising... ${t}`;
+        document.getElementById('status').innerText = `Denoising ${t}`;
+        const f_u = forward(x, t/STEPS, 0, 0);
+        const f_c = forward(x, t/STEPS, wantCat, wantTie);
         
-        const fwd_uncond = forward(x, [t/STEPS, 0, 0]);
-        let final_eps = new Float32Array(fwd_uncond.out);
-        
-        if(wantCat) {
-            const fwd_cat = forward(x, [t/STEPS, 1, 0]);
-            for(let i=0; i<P; i++) final_eps[i] += CFG_SCALE * (fwd_cat.out[i] - fwd_uncond.out[i]);
-        }
-        if(wantTie) {
-            const fwd_tie = forward(x, [t/STEPS, 0, 1]);
-            for(let i=0; i<P; i++) final_eps[i] += CFG_SCALE * (fwd_tie.out[i] - fwd_uncond.out[i]);
-        }
+        const eps = new Float32Array(P);
+        for(let i=0; i<P; i++) eps[i] = f_u.out[i] + CFG_SCALE * (f_c.out[i] - f_u.out[i]);
         
         const ab = alphaBar[t];
-        const beta = 1 - (ab/(t>0?alphaBar[t-1]:1));
-        const sigma = Math.sqrt(beta);
+        const prevAb = t>0 ? alphaBar[t-1] : 1;
+        const beta = 1 - (ab/prevAb);
         
         for(let i=0; i<P; i++) {
-            let z = (t>0) ? randn() : 0;
-            z *= cfg.temp; 
-            x[i] = (1/Math.sqrt(1-beta)) * (x[i] - (beta/Math.sqrt(1-ab))*final_eps[i]) + sigma*z;
+            let z = t>0 ? randn() * cfg.temp : 0;
+            const mean = (1/Math.sqrt(1-beta)) * (x[i] - (beta/Math.sqrt(1-ab))*eps[i]);
+            x[i] = mean + Math.sqrt(beta) * z;
         }
-
-        lastGenRaw = x; // Update buffer
-        renderFinal();  // Draw current step
-        await new Promise(r=>setTimeout(r, 10));
+        lastGenRaw = x;
+        if(t%2===0 || t<10) { renderFinal(); await new Promise(r=>setTimeout(r, 1)); }
     }
     document.getElementById('status').innerText = "Готово";
     btn.disabled=false;
