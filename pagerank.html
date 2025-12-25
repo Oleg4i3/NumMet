@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageRank Simulator</title>
+    
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --theory-color: #e74c3c;
+            --bg-color: #f4f4f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column; /* Вертикальний стек: спочатку теорія, потім все інше */
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: #333;
+            overflow: hidden; 
+        }
+
+        /* Стилі для верхньої панелі (спойлера) */
+        details {
+            background: #fff;
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            width: 100%;
+            box-sizing: border-box;
+            flex-shrink: 0; 
+            max-height: 95vh; 
+            overflow-y: auto;
+            z-index: 20;
+        }
+
+        /* --- НОВИЙ КОНТЕЙНЕР --- */
+        /* Він тримає Сайдбар і Графіки в рядок */
+        .app-wrapper {
+            display: flex; 
+            flex-direction: row; /* Сайдбар зліва, Контент справа */
+            flex: 1; /* Займає весь простір, що лишився */
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 350px;
+            min-width: 350px;
+            background: #fff;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            height: 100%; 
+            box-sizing: border-box; /* Важливо для відступів */
+        }
+
+        h2, h3 { margin: 0 0 5px 0; color: var(--primary-color); font-size: 1.1em; }
+        label { font-weight: bold; font-size: 0.85em; display: block; margin-bottom: 3px; }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+            resize: vertical;
+        }
+
+        input[type="range"] { width: 100%; }
+        
+        .controls { display: flex; gap: 5px; margin-top: 5px; }
+        
+        button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+
+        .btn-start { background: var(--accent-color); color: white; }
+        .btn-stop { background: #e67e22; color: white; }
+        .btn-reset { background: #95a5a6; color: white; }
+        .btn-apply { background: var(--primary-color); color: white; width: 100%; margin-top: 5px;}
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-rows: 55% 45%;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+            height: 100%; /* На всю висоту обгортки */
+            box-sizing: border-box;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .graph-panel { grid-column: 1 / 2; grid-row: 1 / 2; }
+        .google-matrix-panel { grid-column: 2 / 3; grid-row: 1 / 2; }
+        .bar-chart-panel { grid-column: 1 / 2; grid-row: 2 / 3; }
+        .line-chart-panel { grid-column: 2 / 3; grid-row: 2 / 3; }
+
+        #network-viz { width: 100%; height: 100%; border: 1px solid #eee; }
+        #googleMatrixOutput { overflow: auto; height: 100%; font-family: monospace; font-size: 0.8em; }
+        .chart-container { position: relative; height: 100%; width: 100%; }
+
+        table.g-matrix { border-collapse: collapse; width: 100%; }
+        table.g-matrix td, table.g-matrix th { border: 1px solid #ddd; padding: 4px; text-align: center; }
+        table.g-matrix th { background: #f0f0f0; position: sticky; top: 0; }
+        
+        .stat-value { font-weight: bold; color: var(--accent-color); }
+        .math-block { margin-bottom: 10px; font-size: 0.85em; background: #fffbe6; padding: 5px; border-left: 3px solid #f1c40f;}
+    </style>
+</head>
+<body>
+<details style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <summary style="cursor: pointer; font-weight: bold; color: #2c3e50; font-size: 1.1em;">
+        📚 Теоретична довідка
+    </summary>
+    
+    <div style="margin-top: 15px; line-height: 1.6; color: #333;">
+        <h3>Алгоритм PageRank</h3>
+        <p>
+            <strong>PageRank</strong> — це алгоритм, розроблений Ларрі Пейджем та Сергієм Бріном (засновниками Google) для оцінки важливості веб-сторінок. В основі алгоритму лежить ідея "голосування посиланнями": посилання зі сторінки A на сторінку B вважається голосом сторінки A за важливість сторінки B.
+        </p>
+        <p>
+            З точки зору математики, Інтернет розглядається як орієнтований граф, а поведінка користувача моделюється як <strong>випадкове блукання (Random Walk)</strong>.
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+        <h3>Ланцюги Маркова та Матриці</h3>
+        <p>
+            Система моделюється як дискретний ланцюг Маркова з $N$ станами (веб-сторінками).
+        </p>
+        
+        <h4>Крок 1: Матриця Суміжності ($A$)</h4>
+        <p>Показує структуру графа. $A_{ij} = 1$, якщо є посилання з $j$ на $i$, інакше $0$.</p>
+        
+        <h4>Крок 2: Стохастична Матриця ($S$)</h4>
+        <p>Це матриця ймовірностей переходів. Ми нормуємо стовпці матриці $A$ так, щоб сума елементів у кожному стовпці дорівнювала 1 (або рядки, залежно від нотації; тут і далі використовуємо нотацію векторів-стовпців).<br>
+        Якщо сторінка $j$ має $k$ вихідних посилань, то ймовірність переходу на конкретну сторінку $i$ дорівнює:</p>
+        $$S_{ij} = \frac{1}{k}$$
+
+        <h4>Крок 3: Google Матриця ($G$)</h4>
+        <p>Звичайного блукання недостатньо через дві проблеми:</p>
+        <ul>
+            <li><strong>Тупики (Dangling Nodes):</strong> Сторінки без вихідних посилань поглинають вагу.</li>
+            <li><strong>Пастки (Spider Traps):</strong> Цикли, з яких неможливо вийти.</li>
+        </ul>
+        <p>Рішення — <strong>Телепортація</strong>. З ймовірністю $\alpha$ (зазвичай 0.85) мандрівник переходить по посиланню, а з ймовірністю $(1-\alpha)$ — телепортується на випадкову сторінку.</p>
+        
+        <div style="background: #f8f9fa; padding: 10px; border-left: 4px solid #3498db;">
+            <strong>Формула Google Матриці:</strong>
+            $$G = \alpha S + (1-\alpha) \frac{1}{N} \mathbf{E}$$
+        </div>
+        <p>Де:</p>
+        <ul>
+            <li>$G$ — результуюча матриця ймовірностей.</li>
+            <li>$\alpha$ (alpha) — коефіцієнт демпфування (damping factor).</li>
+            <li>$S$ — стохастична матриця графа.</li>
+            <li>$N$ — кількість вузлів.</li>
+            <li>$\mathbf{E}$ — матриця, що складається з одиниць (відповідає за рівномірну телепортацію до будь-якого вузла).</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+        <h3>Власні вектори (Eigenvectors)</h3>
+        <p>
+            Ми шукаємо такий розподіл ймовірностей (вектор $\mathbf{v}$), який не змінюється після кроку блукання. У лінійній алгебрі це записується як:
+        </p>
+        $$G \mathbf{v} = \lambda \mathbf{v}$$
+        <p>
+            Де $\lambda = 1$. Це означає, що PageRank — це <strong>головний власний вектор</strong> (principal eigenvector) матриці $G$, що відповідає власному числу 1.
+        </p>
+        <p>
+            Згідно з <em>теоремою Перрона-Фробеніуса</em>, якщо матриця $G$ додатна (всі елементи > 0, що гарантується телепортацією), то такий вектор існує, він єдиний, і всі його елементи додатні.
+        </p>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+        <h3>Персоналізований та Тематичний PageRank</h3>
+        <p>
+            У стандартній формулі телепортація рівномірна: вектор телепортації $\mathbf{e} = [\frac{1}{N}, \dots, \frac{1}{N}]^T$.
+            Однак ми можемо змінити вектор розподілу телепортації $\mathbf{v}_{teleport}$.
+        </p>
+        $$G_{personalized} = \alpha S + (1-\alpha) \mathbf{v}_{teleport} \cdot \mathbf{1}^T$$
+		 ($\mathbf{1}^T$ - це вектор-стовпчик, де всі числа — це 1)
+        
+        <ul>
+            <li><strong>Personalized PageRank:</strong> Якщо користувач додав сторінку $A$ в закладки, ми можемо зробити так, щоб при телепортації він з набагато більшою ймовірністю потрапляв на $A$. Це "перекошує" весь розподіл важливості в сторону інтересів користувача.</li>
+            <li><strong>Topic-Sensitive PageRank:</strong> Створюється кілька векторів $\mathbf{v}_{topic}$ (наприклад, для спорту, науки, новин). Якщо пошуковий запит стосується "тенісу", використовується вектор телепортації, де вага зосереджена на спортивних сайтах.</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+        <h3>Метод cтепеневих ітерацій (Power Iteration)</h3>
+        <p>
+            Як знайти цей власний вектор $\mathbf{v}$ для гігантської матриці Інтернету? Пряме обчислення (через детермінант або розклад Гауса) неможливе для $N > 10^9$.
+        </p>
+        <p>
+            Використовується чисельний метод <strong>Power Iteration</strong>.
+        </p>
+        <ol>
+            <li>Беремо довільний початковий вектор $\mathbf{x}^{(0)}$ (наприклад, рівномірний розподіл).</li>
+            <li>Множимо його на матрицю $G$: 
+                $$\mathbf{x}^{(k+1)} = G \mathbf{x}^{(k)}$$
+            </li>
+            <li>Повторюємо крок 2 багато разів.</li>
+        </ol>
+        <p>
+            <strong>Pв'язок Power Iteration з алгоритмом Page Rank</strong> 
+            Те, що ви бачите на графіку "Еволюція у часі" в симуляторі — це і є візуалізація методу Power Iteration!
+        </p>
+        <ul>
+            <li>Кожен крок мандрівника (або оновлення розподілу мас) наближає вектор $\mathbf{x}$ до стаціонарного стану.</li>
+            <li>Швидкість збіжності залежить від $\lambda_2$ (другого за модулем власного числа). Чим менше $\alpha$, тим швидше збіжність (тим більший розрив між $\lambda_1=1$ та $|\lambda_2| \approx \alpha$).</li>
+        </ul>
+    </div>
+</details>
+
+<div class="app-wrapper">
+
+    <div class="sidebar">
+        <h2>Налаштування</h2>
+        
+        <div class="math-block">
+            Введіть матрицю переходів \(S\).<br>
+            <strong>Важливо:</strong> Сума кожного рядка має дорівнювати 1.0 (або 0 для тупиків).
+        </div>
+
+        <div>
+            <label for="stochMatrix">Матриця ймовірностей (S):</label>
+            <textarea id="stochMatrix">
+0.0 0.1 0.1 0.8
+0.0 0.0 0.9 0.1
+0.1 0.5 0.0 0.4
+0.0 0.0 1.0 0.0</textarea>
+            <button class="btn-apply" onclick="initSimulation()">Побудувати граф</button>
+        </div>
+
+        <hr>
+
+        <div>
+            <label>Телепортація (\(\alpha\)): <span id="dampingVal" class="stat-value">0.85</span></label>
+            <input type="range" id="damping" min="0" max="1" step="0.05" value="0.85" oninput="updateDampingDisplay()">
+        </div>
+
+        <div>
+            <label>Швидкість (мс): <span id="speedVal" class="stat-value">100</span></label>
+            <input type="range" id="speed" min="10" max="1000" step="10" value="100" oninput="updateSpeedDisplay()">
+        </div>
+
+        <div class="controls">
+            <button class="btn-start" onclick="startSimulation()">Старт</button>
+            <button class="btn-stop" onclick="stopSimulation()">Стоп</button>
+            <button class="btn-reset" onclick="resetStats()">Скидання</button>
+        </div>
+
+        <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+            <div style="font-size: 0.9em;">Кроків: <span id="stepCount" class="stat-value">0</span></div>
+            <div style="font-size: 0.9em;">Подія: <span id="eventStatus" style="font-style: italic; color:#666;">-</span></div>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="panel graph-panel">
+            <h3>Граф</h3>
+            <div id="network-viz"></div>
+        </div>
+
+        <div class="panel google-matrix-panel">
+            <h3>Google Матриця (G)</h3>
+            <div id="googleMatrixOutput"></div>
+        </div>
+
+        <div class="panel bar-chart-panel">
+            <h3>Розподіл vs Теорія (Червоний контур)</h3>
+            <div class="chart-container">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel line-chart-panel">
+            <h3>Еволюція у часі</h3>
+            <div class="chart-container">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+    </div>
+    </div> 
+<script>
+    // --- Global Variables ---
+    let network = null;
+    let nodesDataSet = null; 
+    let numNodes = 0;
+    
+    let stochMatrix = []; // S
+    let googleMatrix = []; // G
+    let stationaryDist = []; // Theoretical limit (Eigenvector)
+    
+    let isRunning = false;
+    let timer = null;
+    let currentNodeIndex = 0;
+    
+    let visitCounts = [];
+    let totalSteps = 0;
+
+    let barChart = null;
+    let lineChart = null;
+
+    // --- Config ---
+    const MIN_NODE_SIZE = 15;
+    const MAX_NODE_SIZE = 45;
+
+    window.onload = function() {
+        initSimulation();
+    };
+
+    function updateDampingDisplay() {
+        document.getElementById('dampingVal').innerText = document.getElementById('damping').value;
+        // Оновлюємо матрицю і теоретичний розподіл без перезавантаження графа
+        calculateMatrices();
+        updateChartsData(); 
+    }
+
+    function updateSpeedDisplay() {
+        document.getElementById('speedVal').innerText = document.getElementById('speed').value;
+        if(isRunning) {
+            stopSimulation();
+            startSimulation();
+        }
+    }
+
+    function initSimulation() {
+        stopSimulation();
+        if(!parseMatrix()) return; // Validation happens here
+        
+        calculateMatrices();
+        createGraph(); // Create graph only on full reset/apply
+        initCharts();
+        resetStats();
+    }
+
+    // --- 1. Parsing User Input & Validation ---
+    function parseMatrix() {
+        const raw = document.getElementById('stochMatrix').value.trim();
+        const rows = raw.split('\n');
+        let tempMatrix = [];
+        
+        rows.forEach(row => {
+            const cols = row.trim().split(/\s+/).map(Number);
+            if (cols.length > 0) tempMatrix.push(cols);
+        });
+
+        numNodes = tempMatrix.length;
+        if (numNodes === 0 || tempMatrix.some(r => r.length !== numNodes)) {
+            alert("Помилка: Матриця має бути квадратною!");
+            return false;
+        }
+
+        // Strict Validation
+        stochMatrix = [];
+        for (let i = 0; i < numNodes; i++) {
+            let row = tempMatrix[i];
+            let sum = row.reduce((a, b) => a + b, 0);
+            
+            // Allow 0.0 (Dangling node) or approximately 1.0
+            if (sum !== 0 && Math.abs(sum - 1.0) > 0.01) {
+                alert(`Помилка у рядку ${i+1}: Сума ймовірностей дорівнює ${sum.toFixed(3)}, а має бути 1.0 (або 0 для тупика).`);
+                return false;
+            }
+            stochMatrix.push(row);
+        }
+        return true;
+    }
+
+    // --- 2. Math: G Matrix & Eigenvector ---
+    function calculateMatrices() {
+        if(numNodes === 0) return;
+        const alpha = parseFloat(document.getElementById('damping').value);
+        googleMatrix = [];
+        const teleportProb = (1 - alpha) / numNodes;
+
+        // Calculate G
+        for (let i = 0; i < numNodes; i++) {
+            let rowSum = stochMatrix[i].reduce((a,b)=>a+b, 0);
+            let gRow = [];
+            for (let j = 0; j < numNodes; j++) {
+                let sVal = stochMatrix[i][j];
+                if (rowSum === 0) {
+                    gRow.push(1.0 / numNodes); // Dangling -> 1/N
+                } else {
+                    gRow.push((alpha * sVal) + teleportProb);
+                }
+            }
+            googleMatrix.push(gRow);
+        }
+
+        // Calculate Stationary Distribution (Power Iteration)
+        // We look for vector v such that v * G = v
+        let v = new Array(numNodes).fill(1.0 / numNodes);
+        for(let iter = 0; iter < 100; iter++) {
+            let nextV = new Array(numNodes).fill(0);
+            for(let i = 0; i < numNodes; i++) { // from node
+                for(let j = 0; j < numNodes; j++) { // to node
+                    // v[j] += v[i] * G[i][j] (Row vector multiplication)
+                    nextV[j] += v[i] * googleMatrix[i][j];
+                }
+            }
+            v = nextV;
+        }
+        stationaryDist = v.map(val => val * 100); // Convert to %
+
+        renderGoogleMatrix();
+    }
+
+    function renderGoogleMatrix() {
+        const container = document.getElementById('googleMatrixOutput');
+        let html = '<table class="g-matrix"><thead><tr><th></th>';
+        for(let i=0; i<numNodes; i++) html += `<th>${String.fromCharCode(65+i)}</th>`;
+        html += '</tr></thead><tbody>';
+
+        for (let i = 0; i < numNodes; i++) {
+            html += `<tr><th>${String.fromCharCode(65+i)}</th>`;
+            for (let j = 0; j < numNodes; j++) {
+                let bg = googleMatrix[i][j] > (2/numNodes) ? '#d4e6f1' : '#fff';
+                html += `<td style="background:${bg}">${googleMatrix[i][j].toFixed(3)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    // --- 3. Visualization (Vis.js - Stabilized) ---
+    function createGraph() {
+        const nodes = [];
+        const edges = [];
+
+        for (let i = 0; i < numNodes; i++) {
+            nodes.push({ 
+                id: i, 
+                label: String.fromCharCode(65 + i), 
+                value: 1, 
+                scaling: { min: MIN_NODE_SIZE, max: MAX_NODE_SIZE },
+                color: { background: '#97c2fc', border: '#2b7ce9' }
+            });
+
+            for (let j = 0; j < numNodes; j++) {
+                const weight = stochMatrix[i][j];
+                if (weight > 0.01) { 
+                    edges.push({ 
+                        from: i, to: j, arrows: 'to', 
+                        width: weight * 4, 
+                        color: { opacity: 0.5, color: '#848484' }
+                    });
+                }
+            }
+        }
+
+        nodesDataSet = new vis.DataSet(nodes);
+        const container = document.getElementById('network-viz');
+        const data = { nodes: nodesDataSet, edges: edges };
+        
+        const options = {
+            layout: {
+                randomSeed: 2 // FIXED SEED
+            },
+            nodes: { 
+                shape: 'dot', 
+                font: { size: 16, strokeWidth: 2, strokeColor: '#fff', vadjust: -40 } 
+            },
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: { 
+                    gravitationalConstant: -50, 
+                    springLength: 100, 
+                    damping: 0.9 
+                },
+                stabilization: {
+                    enabled: true,
+                    iterations: 1000, 
+                    updateInterval: 25
+                }
+            },
+            interaction: { zoomView: false, dragView: true }
+        };
+        
+        if (network) network.destroy();
+        network = new vis.Network(container, data, options);
+
+        network.on("stabilizationIterationsDone", function () {
+            network.setOptions( { physics: false } );
+        });
+    }
+
+    // --- 4. Charts (Updated Bar Chart) ---
+    function initCharts() {
+        const labels = Array.from({length: numNodes}, (_, i) => String.fromCharCode(65 + i));
+        
+        // Bar Chart
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        if(barChart) barChart.destroy();
+        
+        barChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Симуляція',
+                        data: new Array(numNodes).fill(0),
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1,
+                        order: 2
+                    },
+                    {
+                        label: 'Теорія (Stationary)',
+                        data: stationaryDist, 
+                        backgroundColor: 'transparent',
+                        borderColor: '#e74c3c',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        type: 'bar', 
+                        order: 1 
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: { 
+                    x: { stacked: true }, 
+                    y: { beginAtZero: true, max: 100 } 
+                },
+                plugins: { legend: { display: true } }
+            }
+        });
+
+        // Line Chart
+        const ctxLine = document.getElementById('lineChart').getContext('2d');
+        if(lineChart) lineChart.destroy();
+
+        const datasets = labels.map((label, index) => ({
+            label: label,
+            data: [],
+            borderColor: `hsl(${(index * 360) / numNodes}, 70%, 50%)`,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false
+        }));
+
+        lineChart = new Chart(ctxLine, {
+            type: 'line',
+            data: { labels: [], datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: { y: { beginAtZero: true, max: 100 }, x: { display: false } },
+                elements: { line: { tension: 0.1 } }
+            }
+        });
+    }
+
+    function updateChartsData() {
+        if (!barChart) return;
+        barChart.data.datasets[1].data = stationaryDist;
+        barChart.update();
+    }
+
+    // --- 5. Simulation Logic ---
+    function resetStats() {
+        visitCounts = new Array(numNodes).fill(0);
+        totalSteps = 0;
+        document.getElementById('stepCount').innerText = 0;
+        
+        barChart.data.datasets[0].data.fill(0);
+        barChart.update();
+        
+        lineChart.data.labels = [];
+        lineChart.data.datasets.forEach(d => d.data = []);
+        lineChart.update();
+
+        nodesDataSet.update(nodesDataSet.get().map(n => ({id: n.id, value: 1})));
+
+        currentNodeIndex = Math.floor(Math.random() * numNodes);
+        highlightNode(currentNodeIndex);
+    }
+
+    function startSimulation() {
+        if(isRunning) return;
+        isRunning = true;
+        const speed = parseInt(document.getElementById('speed').value);
+        timer = setInterval(step, speed);
+    }
+
+    function stopSimulation() {
+        isRunning = false;
+        clearInterval(timer);
+    }
+
+    function step() {
+        totalSteps++;
+        const alpha = parseFloat(document.getElementById('damping').value);
+        let nextNode = -1;
+        let eventType = "";
+
+        const currentRowProbs = stochMatrix[currentNodeIndex];
+        const isDangling = currentRowProbs.every(p => p === 0);
+        const rand = Math.random();
+
+        if (isDangling) {
+             nextNode = Math.floor(Math.random() * numNodes);
+             eventType = "Тупик -> Стрибок";
+        } 
+        else if (rand > alpha) {
+            nextNode = Math.floor(Math.random() * numNodes);
+            eventType = "Телепортація";
+        } else {
+            let r = Math.random();
+            let accumulated = 0;
+            for(let i=0; i<numNodes; i++) {
+                accumulated += currentRowProbs[i];
+                if (r <= accumulated) {
+                    nextNode = i;
+                    break;
+                }
+            }
+            if (nextNode === -1) nextNode = numNodes - 1;
+            eventType = "Перехід";
+        }
+
+        currentNodeIndex = nextNode;
+        visitCounts[currentNodeIndex]++;
+
+        highlightNode(currentNodeIndex);
+        updateStatsUI(eventType);
+        updateVisAndCharts();
+    }
+
+    function highlightNode(id) {
+        const updates = nodesDataSet.get().map(node => ({
+            id: node.id,
+            color: { 
+                background: node.id === id ? '#e74c3c' : '#97c2fc',
+                border: node.id === id ? '#c0392b' : '#2b7ce9'
+            }
+        }));
+        nodesDataSet.update(updates);
+    }
+
+    function updateVisAndCharts() {
+        const percentages = visitCounts.map(c => (c / totalSteps) * 100);
+
+        // Update Node Sizes
+        const sizeUpdates = percentages.map((pct, idx) => ({
+            id: idx,
+            value: pct > 0 ? pct : 1
+        }));
+        nodesDataSet.update(sizeUpdates);
+
+        // Update Bar Chart
+        barChart.data.datasets[0].data = percentages;
+        barChart.update();
+
+        // Update Line Chart
+        if (totalSteps % 2 === 0) {
+            lineChart.data.labels.push(totalSteps);
+            percentages.forEach((pct, idx) => {
+                lineChart.data.datasets[idx].data.push(pct);
+            });
+            if (lineChart.data.labels.length > 50) {
+                lineChart.data.labels.shift();
+                lineChart.data.datasets.forEach(d => d.data.shift());
+            }
+            lineChart.update();
+        }
+    }
+
+    function updateStatsUI(msg) {
+        document.getElementById('stepCount').innerText = totalSteps;
+        document.getElementById('eventStatus').innerText = msg;
+    }
+	
+	
+	// --- ВСТАВИТИ В КІНЦІ СКРИПТА ---
+    
+    // Знаходимо спойлер і кнопку
+    const spoiler = document.querySelector('details');
+    const buildBtn = document.querySelector('.btn-apply');
+
+    // Коли спойлер перемикається...
+    spoiler.addEventListener('toggle', function() {
+        // Чекаємо 300мс, поки "роз'їдуться" блоки
+        setTimeout(function() {
+            // Натискаємо кнопку програмно
+            buildBtn.click();
+        }, 300);
+    });
+</script>
+</body>
+</html>
