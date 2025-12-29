@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BnB: Bin Packing</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #d35400;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --backtrack: #7f8c8d;
+            --bg: #f8f9fa;
+            --highlight-rule: #f1c40f;
+        }
+        body { font-family: 'Verdana', sans-serif; background: var(--bg); padding: 20px; max-width: 1200px; margin: 0 auto; color: #333; }
+        
+        /* Grid Layout */
+        .main-wrapper { display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start; }
+        @media (max-width: 900px) { .main-wrapper { grid-template-columns: 1fr; } }
+
+        /* Panels */
+        .panel { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #ddd; }
+        
+        /* Rules Sidebar */
+        .rules-box { font-size: 13px; line-height: 1.4; background: #eef2f3; border-left: 5px solid var(--primary); }
+        .rules-list { padding-left: 20px; margin: 5px 0; }
+        .rules-list li { margin-bottom: 8px; padding: 4px; border-radius: 4px; transition: 0.3s; color: #555; }
+        .rules-list li.active { background: #ffeaa7; color: black; font-weight: bold; border-left: 4px solid #f39c12; transform: scale(1.02); }
+
+        .metrics-box { background: #e8f8f5; border: 2px dashed var(--success); text-align: center; padding: 10px; margin-bottom: 15px; border-radius: 8px; }
+        .metric-val { font-size: 18px; font-weight: bold; color: var(--success); }
+
+        /* Academic Note Styles */
+        .academic-note {
+            background: #fff; border: 1px solid #ccc; border-radius: 8px; margin-top: 15px; font-family: 'Georgia', serif;
+        }
+        .academic-note summary {
+            padding: 10px; cursor: pointer; background: #f1f2f6; border-radius: 8px; font-weight: bold; color: var(--primary);
+        }
+        .academic-note summary:hover { background: #e2e6ea; }
+        .academic-content { padding: 15px; font-size: 14px; line-height: 1.6; color: #444; border-top: 1px solid #ddd; }
+        .math-block { background: #f9f9f9; padding: 5px; border-left: 3px solid #bdc3c7; margin: 5px 0; font-style: italic; }
+
+        /* Game Area */
+        .box {
+            display: inline-flex; justify-content: center; align-items: center;
+            width: 36px; height: 36px; background: var(--accent); color: white;
+            font-weight: bold; border-radius: 6px; border: 2px solid #a04000; margin: 3px;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.1); font-size: 14px; cursor: grab; user-select: none;
+        }
+        .box.active-item { transform: scale(1.3); background: #e67e22; border-color: #f1c40f; z-index: 100; box-shadow: 0 0 15px rgba(241, 196, 15, 0.6); }
+        .box.dragging { opacity: 0.5; }
+
+        .truck-container { display: flex; flex-wrap: wrap; gap: 10px; min-height: 160px; align-items: flex-start; margin-top: 20px; }
+        .truck {
+            width: 80px; min-height: 140px; background: #ecf0f1; border: 3px dashed #bdc3c7;
+            border-radius: 0 0 10px 10px; border-top: none; position: relative;
+            display: flex; flex-direction: column-reverse; align-items: center; padding-bottom: 5px;
+            transition: 0.3s;
+        }
+        .truck.target { border-color: var(--primary); background: #dfe6e9; box-shadow: 0 0 15px rgba(44, 62, 80, 0.2); transform: scale(1.05); }
+        .truck-label { position: absolute; top: -25px; width: 100%; text-align: center; font-size: 11px; font-weight: bold; color: #7f8c8d; }
+        .truck-fill { width: 100%; background: var(--success); opacity: 0.3; position: absolute; bottom: 0; left: 0; transition: height 0.3s; pointer-events: none; }
+        .truck-info { position: absolute; bottom: -20px; font-size: 10px; font-weight: bold; width: 100%; text-align: center; }
+
+        /* Controls */
+        button { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; margin: 2px; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        button.preset-btn { background: #8e44ad; }
+        button.finish-btn { background: #27ae60; }
+        
+        .progress-bar { height: 6px; background: #eee; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
+        
+        .narrative-box { font-size: 15px; min-height: 80px; padding: 10px; background: #fffde7; border: 1px solid #f9e79f; border-radius: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<h2 style="text-align: center; margin: 10px 0;">Метод меж і гілок (BnB): Оптимізація Пакування (Bin Packing)</h2>
+
+<div class="panel" style="text-align: center; padding: 10px;">
+    <div style="margin-bottom: 8px;">
+        <button class="preset-btn" onclick="loadPreset()">📌 Пресет (6, 5, 4...)</button>
+        <button onclick="generateRandom()">🎲 Випадкові</button>
+        <button onclick="resetGame()">🔄 Скинути</button>
+    </div>
+    <div style="font-size: 14px;">
+        Вантажі: <b id="items-display">[]</b> | Місткість: <b style="color:var(--danger)" id="cap-display">10</b>
+    </div>
+</div>
+
+<div class="main-wrapper">
+    
+    <div>
+        <div class="panel metrics-box">
+            <div> Теоретичний мінімум (МЕЖА): <span id="theory-min" class="metric-val">-</span> маш.</div>
+            <div style="font-size: 14px; color: #955;">(Сума ваги / Місткість)</div>
+            <hr style="border:0; border-top:1px dashed #ccc; margin:5px 0;">
+            <div> Поточний рекорд: <span id="best-record" class="metric-val">?</span> маш.</div>
+        </div>
+
+        <div class="panel rules-box">
+            <h4 style="margin:0 0 10px 0;">ПРОГРАМА ДІЙ (АЛГОРИТМ):</h4>
+            <ol class="rules-list">
+                <li id="rule-0"><b>Підготовка:</b> Сортую вантажі (від великих до малих). Рахую мінімально можливу кількість машин (Lower Bound).</li>
+                <li id="rule-1"><b>Дія:</b> Беру наступну коробку. Перевіряю машини строго по черзі (№1, №2...).</li>
+                <li id="rule-2"><b>Правило "Перша підходяща":</b> Якщо влізла — залишаю і беру наступну. Не шукаю ідеал прямо зараз.</li>
+                <li id="rule-3"><b>Оптимізація (Анти-дубль):</b> Якщо Машина А і Машина Б однаково заповнені, я не буду перевіряти Б, якщо А не підійшла.</li>
+                <li id="rule-4"><b>Нова машина:</b> Якщо нікуди не лізе — беру нову.</li>
+                <li id="rule-5"><b>Відсікання:</b> Якщо я бачу, що поточний шлях вже гірший за знайдений рекорд — зупиняюсь. Це і є гілка (дерева рішень), що відсікається, зменшуючи кількість кроків</li>
+                <li id="rule-6"><b>ВІДКАТ:</b> (Коли я змінюю рішення) Коли я дійшов до кінця і запакував усе, я запам'ятовую результат. Потім я повертаюсь назад, <b>виймаю останню коробку</b> і пробую покласти її в НАСТУПНУ машину (в яку ще не пробував).</li>
+            </ol>
+        </div>
+
+        <details class="academic-note">
+            <summary>🎓 Теоретична довідка</summary>
+            <div class="academic-content">
+                <p><b>Задача одновимірного пакування (1BP)</b> — це класична задача комбінаторної оптимізації. </p>
+                <div class="math-block">
+                    Мета: розмістити <i>n</i> предметів з вагами <i>w<sub>1</sub>...w<sub>n</sub></i> у мінімальну кількість контейнерів ємністю <i>C</i>.
+                </div>
+                <p><b>Складність:</b> Задача є <b>NP-hard</b>. Це означає, що не існує відомого алгоритму, який вирішував би її за поліноміальний час для будь-яких вхідних даних. </p>
+                <p><b>Алгоритм Гілок та Меж (Branch and Bound):</b></p>
+                <ul>
+                    <li><b>Branch (Гілкування):</b> Розбиття задачі на підзадачі (дерево рішень), де кожен вузол — це спроба покласти предмет у певну машину.</li>
+                    <li><b>Bound (Межі):</b> Використання оцінок (Lower Bound), щоб довести, що поточна гілка не може дати результат кращий за вже знайдений, і відсікти її (pruning).</li>
+                </ul>
+                <p><b>Оцінка (Lower Bound):</b> визначає теоретичний мінімум  - це сума ваг ділена на ємність контейнера (округлено вгору до цілого).</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">Склад & Автопарк</h3>
+            <div>
+                <button class="secondary" onclick="runSolver()" id="btn-start"> Запуск Алгоритму</button>
+            </div>
+        </div>
+
+        <div style="min-height: 50px; margin-top:15px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+            <span style="font-size:12px; color:#7f8c8d; font-weight:bold;">ЧЕРГА (Конвеєр):</span>
+            <div id="queue-area" style="display: flex; gap: 5px; flex-wrap: wrap; padding: 5px;"></div>
+        </div>
+
+        <div id="trucks-area" class="truck-container"></div>
+
+        <div class="narrative-box" id="narrative">
+            Зараз працює <b>Ручний режим</b>. 
+            Ви можете перетягувати коробки мишкою. <br>
+            Коли будете готові, натисніть <b>"Запуск Алгоритму"</b>, щоб побачити, як це робить комп'ютер.
+        </div>
+
+        <div style="margin-top: 15px;">
+            <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top:5px;">
+                <button id="btn-prev" onclick="stepper(-1)" disabled>⏪ Назад</button>
+                <span id="step-counter" style="font-size: 12px; font-weight:bold; color:#7f8c8d;">0 / 0</span>
+                <div>
+                    <button id="btn-next" onclick="stepper(1)" disabled>Вперед ⏩</button>
+                    <button id="btn-finish" class="finish-btn" onclick="jumpToEnd()" disabled>⏭ До кінця</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let CAPACITY = 10;
+    let itemsData = [];
+    let trucks = []; // Для ручного режиму
+    
+    // Алгоритмічні змінні
+    let steps = [];
+    let currentStep = -1;
+    let bestSolution = Infinity;
+    let bestBins = []; // Зберігаємо конфігурацію найкращого рішення
+    let stopAlgorithm = false;
+    let theoreticalMin = 0;
+
+    // --- INIT & MANUAL MODE ---
+    function loadPreset() {
+        CAPACITY = 10;
+        initGame([6, 5, 4, 4, 3, 3, 3, 2]);
+    }
+
+    function generateRandom() {
+        CAPACITY = 10;
+        let arr = Array.from({length: 12}, () => Math.floor(Math.random() * 6) + 2);
+        initGame(arr);
+    }
+
+    function resetGame() {
+        initGame(itemsData.map(i => i.w));
+    }
+
+    function initGame(weights) {
+        // Скидання UI
+        itemsData = weights.map((w, i) => ({ id: i, w: w }));
+        document.getElementById('items-display').innerText = `[${weights.join(', ')}]`;
+        document.getElementById('cap-display').innerText = CAPACITY;
+        
+        // Розрахунок метрик
+        let sum = weights.reduce((a, b) => a + b, 0);
+        theoreticalMin = Math.ceil(sum / CAPACITY);
+        document.getElementById('theory-min').innerText = theoreticalMin;
+        document.getElementById('best-record').innerText = "?";
+        
+        // Скидання стану алгоритму
+        steps = [];
+        bestBins = [];
+        currentStep = -1;
+        document.getElementById('btn-prev').disabled = true;
+        document.getElementById('btn-next').disabled = true;
+        document.getElementById('btn-finish').disabled = true;
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('progress').style.width = '0%';
+        document.getElementById('step-counter').innerText = "0 / 0";
+        highlightRule(-1);
+
+        // Підготовка ручного режиму
+        document.getElementById('narrative').innerHTML = "<b>Ручний режим:</b> Перетягніть коробки в машини";
+        renderManualMode();
+    }
+
+    // --- MANUAL DRAG & DROP RENDERER ---
+    function renderManualMode() {
+        const queueEl = document.getElementById('queue-area');
+        const trucksEl = document.getElementById('trucks-area');
+        queueEl.innerHTML = '';
+        trucksEl.innerHTML = '';
+
+        itemsData.forEach(item => {
+            let box = createBoxEl(item.w, item.id);
+            box.draggable = true;
+            box.ondragstart = (e) => { e.dataTransfer.setData("text", JSON.stringify({id: item.id, w: item.w})); };
+            queueEl.appendChild(box);
+        });
+
+        for(let i=0; i<3; i++) {
+            trucksEl.appendChild(createManualTruck(i));
+        }
+        let addBtn = document.createElement('button');
+        addBtn.innerText = "+";
+        addBtn.onclick = () => { trucksEl.insertBefore(createManualTruck(document.querySelectorAll('.truck').length), addBtn); };
+        trucksEl.appendChild(addBtn);
+    }
+
+    function createBoxEl(w, id) {
+        let d = document.createElement('div');
+        d.className = 'box';
+        d.innerText = w;
+        d.id = 'box-'+id;
+        return d;
+    }
+
+    function createManualTruck(id) {
+        let t = document.createElement('div');
+        t.className = 'truck';
+        t.dataset.load = 0;
+        t.innerHTML = `<div class="truck-label">#${id+1}</div><div class="truck-fill"></div>`;
+        
+        t.ondragover = (e) => e.preventDefault();
+        t.ondrop = (e) => {
+            e.preventDefault();
+            let data = JSON.parse(e.dataTransfer.getData("text"));
+            let currentLoad = parseInt(t.dataset.load);
+            
+            if (currentLoad + data.w <= CAPACITY) {
+                let originalBox = document.getElementById('box-'+data.id);
+                if(originalBox) originalBox.remove(); 
+                
+                let newBox = createBoxEl(data.w, data.id);
+                newBox.draggable = false;
+                t.appendChild(newBox);
+                
+                let newLoad = currentLoad + data.w;
+                t.dataset.load = newLoad;
+                t.querySelector('.truck-fill').style.height = (newLoad/CAPACITY)*100 + '%';
+            } else {
+                alert('Не лізе!');
+            }
+        };
+        return t;
+    }
+
+    // --- ALGORITHM SOLVER ---
+    
+    function runSolver() {
+        // Сортування (Важлива евристика)
+        itemsData.sort((a, b) => b.w - a.w);
+        
+        steps = [];
+        bestSolution = itemsData.length + 1;
+        bestBins = [];
+        stopAlgorithm = false;
+
+        // Крок 0: План
+        steps.push({
+            msg: `🔍 <b>Старт:</b> Вантажі відсортовано. Теоретичний мінімум = <b>${theoreticalMin}</b> машин.<br>Якщо я знайду рішення на ${theoreticalMin} машин, я зупинюсь, бо краще не буває.`,
+            bins: [], itemIdx: -1, rule: 0, best: "?"
+        });
+
+        solve(0, []);
+
+        if(stopAlgorithm && bestBins.length > 0) {
+             // Якщо ми зупинились достроково (ідеал), ми вже записали крок.
+             // Але про всяк випадок перевіримо фінал
+        } 
+        else if (bestBins.length > 0) {
+            // Додаємо фінальний крок з найкращим результатом
+            steps.push({
+                msg: `🏆 <b>ФІНІШ:</b> Пошук завершено. Ось найкраще знайдене рішення: <b>${bestSolution}</b> машин.`,
+                bins: clone(bestBins), itemIdx: itemsData.length, rule: 5, best: bestSolution, type: 'perfect'
+            });
+        } else {
+             steps.push({
+                msg: `🏁 <b>Кінець:</b> Не вдалося знайти рішення (щось пішло не так).`,
+                bins: [], itemIdx: -1, rule: 0, best: bestSolution
+            });
+        }
+
+        // Запуск UI
+        currentStep = 0;
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-next').disabled = false;
+        document.getElementById('btn-prev').disabled = false;
+        document.getElementById('btn-finish').disabled = false;
+        updateUI();
+    }
+
+    function solve(itemIdx, currentBins) {
+        if (stopAlgorithm) return;
+
+        // 1. ПЕРЕВІРКА НА ЗАВЕРШЕННЯ
+        if (itemIdx === itemsData.length) {
+            if (currentBins.length < bestSolution) {
+                bestSolution = currentBins.length;
+                bestBins = clone(currentBins); // ЗБЕРІГАЄМО КРАЩУ КОНФІГУРАЦІЮ
+                
+                steps.push({
+                    msg: `🎉 <b>РЕКОРД!</b> Все вмістилося у <b>${bestSolution}</b> машин. <br>Зберігаю цей варіант. Чи можна краще? Зараз зроблю відкат і перевірю.`,
+                    bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution, type: 'record'
+                });
+                
+                // Супер-відсікання: якщо досягли теоретичного мінімуму
+                if (bestSolution === theoreticalMin) {
+                    steps.push({
+                        msg: `✨ <b>ІДЕАЛ!</b> Ми досягли теоретичного мінімуму (${theoreticalMin}). Краще неможливо. <br>Зупиняю пошук.`,
+                        bins: clone(currentBins), itemIdx: itemIdx, rule: 5, best: bestSolution, type: 'perfect'
+                    });
+                    stopAlgorithm = true;
+                }
+            }
+            return;
+        }
+
+        let item = itemsData[itemIdx];
+
+        // 2. ВІДСІКАННЯ (PRUNING) - Bound
+        let currentLoadSum = currentBins.reduce((a,b) => a+b.load, 0);
+        let remainingWeight = itemsData.slice(itemIdx).reduce((a,b) => a+b.w, 0);
+        let minPossibleTotal = Math.max(currentBins.length, Math.ceil((currentLoadSum + remainingWeight)/CAPACITY));
+
+        if (minPossibleTotal >= bestSolution) {
+            steps.push({
+                msg: `🛑 <b>СТОП (Відсікання):</b> Я порахував, що цим шляхом вийде мінімум <b>${minPossibleTotal}</b> машин. <br>Але у нас вже є рекорд <b>${bestSolution}</b>. Вертаюсь назад!`,
+                bins: clone(currentBins), itemIdx: itemIdx, rule: 5, best: bestSolution, type: 'prune'
+            });
+            return;
+        }
+
+        // 3. ПЕРЕБІР МАШИН
+        for (let i = 0; i < currentBins.length; i++) {
+            if (stopAlgorithm) return;
+
+            // Symmetry Breaking
+            if (i > 0 && currentBins[i].load === currentBins[i-1].load) {
+                continue;
+            }
+
+            if (currentBins[i].load + item.w <= CAPACITY) {
+                steps.push({
+                    msg: `👉 Беру <b>${item.w}</b>. Кладу в <b>Машину №${i+1}</b> (там ${currentBins[i].load}/${CAPACITY}).<br>Влізло! Одразу беру наступну.`,
+                    bins: clone(currentBins), itemIdx: itemIdx, rule: 2, best: bestSolution, 
+                    activeTruck: i, activeItem: true
+                });
+
+                let newBins = clone(currentBins);
+                newBins[i].items.push(item.w);
+                newBins[i].load += item.w;
+
+                solve(itemIdx + 1, newBins);
+                
+                if (stopAlgorithm) return;
+
+                steps.push({
+                    msg: `🔙 <b>ВІДКАТ:</b> Перевірив все з <b>${item.w}</b> у Машині №${i+1}.<br>Тепер виймаю її і пробую наступний варіант.`,
+                    bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution,
+                    activeTruck: i
+                });
+            }
+        }
+
+        // 4. НОВА МАШИНА
+        if (stopAlgorithm) return;
+
+        steps.push({
+            msg: `🆕 У наявні машини не лізе (або варіанти погані).<br>Беру <b>НОВУ Машину №${currentBins.length+1}</b> для вантажу <b>${item.w}</b>.`,
+            bins: clone(currentBins), itemIdx: itemIdx, rule: 4, best: bestSolution, activeItem: true
+        });
+
+        let newBinsNew = clone(currentBins);
+        newBinsNew.push({items: [item.w], load: item.w});
+        
+        solve(itemIdx + 1, newBinsNew);
+
+        if (!stopAlgorithm) {
+             steps.push({
+                msg: `🔙 <b>ВІДКАТ:</b> Прибираю нову машину з вантажем <b>${item.w}</b>. Повертаюсь на рівень вище.`,
+                bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution
+            });
+        }
+    }
+
+    // --- VISUALIZATION HELPERS ---
+    function stepper(dir) {
+        currentStep += dir;
+        if(currentStep < 0) currentStep = 0;
+        if(currentStep >= steps.length) currentStep = steps.length - 1;
+        updateUI();
+    }
+
+    function jumpToEnd() {
+        currentStep = steps.length - 1;
+        updateUI();
+    }
+
+    function updateUI() {
+        const s = steps[currentStep];
+        
+        // Narrative & Highlight
+        document.getElementById('narrative').innerHTML = s.msg;
+        highlightRule(s.rule);
+        
+        // Metrics
+        document.getElementById('best-record').innerText = (s.best === Infinity || s.best === "?") ? "?" : s.best;
+        document.getElementById('step-counter').innerText = `${currentStep+1} / ${steps.length}`;
+        document.getElementById('progress').style.width = `${((currentStep+1)/steps.length)*100}%`;
+
+        // Queue Render
+        const qContainer = document.getElementById('queue-area');
+        qContainer.innerHTML = '';
+        itemsData.forEach((item, idx) => {
+            let div = document.createElement('div');
+            div.className = 'box';
+            div.innerText = item.w;
+            // Логіка відображення в черзі:
+            // Якщо ми на фінальному кроці (s.itemIdx == itemsData.length), черга пуста або сіра
+            if (s.type === 'perfect' && idx < itemsData.length) {
+                div.style.opacity = '0.2';
+            } else {
+                 if (idx === s.itemIdx && s.activeItem) div.classList.add('active-item');
+                 if (idx < s.itemIdx) div.style.opacity = '0.2'; // Already placed
+            }
+            qContainer.appendChild(div);
+        });
+
+        // Trucks Render
+        const tContainer = document.getElementById('trucks-area');
+        tContainer.innerHTML = '';
+        
+        let binsToRender = s.bins;
+        
+        binsToRender.forEach((bin, bIdx) => {
+            renderTruck(tContainer, bin, bIdx, s);
+        });
+
+        // Якщо тип 'new', домалюємо примарну нову машину
+        if (s.rule === 4) {
+            let ghostBin = {load: itemsData[s.itemIdx].w, items: [itemsData[s.itemIdx].w]};
+            let div = renderTruck(tContainer, ghostBin, binsToRender.length, s);
+            div.style.opacity = '0.7';
+            div.classList.add('target');
+        }
+    }
+
+    function renderTruck(container, bin, idx, stepState) {
+        let div = document.createElement('div');
+        div.className = 'truck';
+        if (stepState.activeTruck === idx && stepState.rule === 2) div.classList.add('target');
+        // Підсвітка фінального рішення
+        if (stepState.type === 'perfect') {
+            div.style.borderColor = '#27ae60';
+            div.style.backgroundColor = '#e8f8f5';
+        }
+
+        div.innerHTML = `<div class="truck-label">#${idx+1}</div>`;
+        
+        // Items
+        bin.items.forEach(w => {
+            let b = document.createElement('div');
+            b.className = 'box';
+            b.innerText = w;
+            div.appendChild(b);
+        });
+
+        // Fill
+        let fillH = (bin.load / CAPACITY) * 100;
+        div.innerHTML += `<div class="truck-fill" style="height:${fillH}%"></div>`;
+        div.innerHTML += `<div class="truck-info">${bin.load}/${CAPACITY}</div>`;
+
+        container.appendChild(div);
+        return div;
+    }
+
+    function highlightRule(id) {
+        document.querySelectorAll('.rules-list li').forEach(li => li.classList.remove('active'));
+        if (id >= 0) {
+            const el = document.getElementById('rule-' + id);
+            if(el) el.classList.add('active');
+        }
+    }
+
+    function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    // Start with preset
+    loadPreset();
+
+</script>
+</body>
+</html>
