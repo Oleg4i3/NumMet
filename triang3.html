@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Триангуляція Делоне та Three.js TIN Поверхня</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-hover: #1d4ed8;
+            --danger: #ef4444; --danger-hover: #b91c1c;
+            --success: #10b981; --success-hover: #059669;
+            --bg-color: #f8fafc; --card-bg: #ffffff;
+            --text-main: #1e293b; --text-muted: #64748b;
+            --border: #e2e8f0;
+            --highlight-yellow: #facc15; --highlight-green: #22c55e; --highlight-blue: #3b82f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+        }
+
+        h1 { margin-top: 0; text-align: center; color: #0f172a; font-size: 26px; }
+
+        .app-container {
+            background: var(--card-bg); padding: 30px; border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 900px; width: 100%; box-sizing: border-box;
+        }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+        .tab-btn {
+            padding: 12px 24px; background: transparent; border: none; font-size: 16px; font-weight: 600;
+            color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--primary); background: #f1f5f9; border-radius: 8px 8px 0 0; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Buttons */
+        .controls { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        button.action-btn {
+            padding: 10px 18px; border: none; border-radius: 8px; background-color: var(--primary); color: white;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); display: flex; align-items: center; gap: 8px;
+        }
+        button.action-btn:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-1px); }
+        button.action-btn:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; box-shadow: none; }
+        #btn-clear { background-color: var(--danger); } #btn-clear:hover:not(:disabled) { background-color: var(--danger-hover); }
+        #btn-generate { background-color: var(--success); } #btn-generate:hover:not(:disabled) { background-color: var(--success-hover); }
+
+        /* Canvas / Three.js Container */
+        .canvas-wrapper { position: relative; margin: 0 auto; display: table; width: 100%; }
+        #canvas2d {
+            border: 2px solid var(--border); border-radius: 12px;
+            background-color: #ffffff; cursor: crosshair; display: block;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); margin: 0 auto;
+        }
+        #three-container {
+            width: 100%; height: 450px; border-radius: 12px;
+            border: 2px solid var(--border); overflow: hidden;
+            background-color: #0f172a; cursor: grab;
+        }
+        #three-container:active { cursor: grabbing; }
+
+        .step-card {
+            background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px 20px;
+            border-radius: 12px; margin-bottom: 20px; min-height: 50px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .step-badge {
+            align-self: flex-start; background: var(--primary); color: white;
+            padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: bold; text-transform: uppercase;
+        }
+        .step-text { font-size: 15px; line-height: 1.5; color: #1e3a8a; }
+
+        /* Theory Details */
+        details {
+            margin-top: 30px; background: #ffffff; border: 1px solid var(--border);
+            border-radius: 12px; width: 100%; box-sizing: border-box; overflow: hidden;
+        }
+        summary {
+            font-weight: 600; font-size: 17px; padding: 16px 20px; cursor: pointer;
+            color: var(--text-main); background: #f1f5f9; list-style: none; display: flex; justify-content: space-between;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::after { content: "▼"; font-size: 14px; color: var(--text-muted); transition: transform 0.2s; }
+        details[open] summary::after { transform: rotate(180deg); }
+        .theory-content { padding: 20px; font-size: 15px; line-height: 1.6; color: #475569; }
+        .theory-content h3 { font-size: 17px; color: var(--primary); margin-top: 20px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        .theory-content h3:first-child { margin-top: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h1>Триангуляція Делоне: ГІС та 2.5D TIN Поверхня (Three.js)</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('2d')">1. Планарна Триангуляція (XY)</button>
+            <button class="tab-btn" onclick="switchTab('3d')">2. WebGL 3D Сплайн (Z)</button>
+        </div>
+
+        <div class="controls">
+            <button id="btn-generate" class="action-btn">✨ Згенерувати Ландшафт (80 точок)</button>
+            <button id="btn-start" class="action-btn">▶ Почати симуляцію алгоритму</button>
+            <button id="btn-prev" class="action-btn" disabled>⬅ Назад</button>
+            <button id="btn-next" class="action-btn" disabled>Вперед ➡</button>
+            <button id="btn-clear" class="action-btn">✖ Очистити</button>
+        </div>
+
+        <div id="tab-2d" class="tab-content active">
+            <div class="step-card">
+                <div id="step-badge" class="step-badge">Режим редагування</div>
+                <div id="step-text" class="step-text">Клікніть всередині сірого контуру, щоб додати точки (імітація сканера), або натисніть "Згенерувати Ландшафт". Алгоритм працює в 2D просторі.</div>
+            </div>
+            <div class="canvas-wrapper">
+                <canvas id="canvas2d" width="840" height="450"></canvas>
+            </div>
+        </div>
+
+        <div id="tab-3d" class="tab-content">
+            <div class="step-card" style="background-color: #f0fdf4; border-color: #bbf7d0;">
+                <div class="step-badge" style="background-color: var(--success);">Three.js Рендерер</div>
+                <div class="step-text" style="color: #166534;">
+                    Справжній 3D-простір. Ви можете <strong>обертати (ліва кнопка)</strong>, <strong>пересувати (права кнопка)</strong> та <strong>наближати (коліщатко)</strong> модель.
+                </div>
+            </div>
+            <div class="canvas-wrapper">
+                <div id="three-container"></div>
+            </div>
+        </div>
+
+        <details>
+            <summary>Теоретична довідка</summary>
+            <div class="theory-content">
+				<h3>Триангуляція Делоне</h3>
+                <p>Це метод з'єднання множини точок на площині в непересічні трикутники з ключовою властивістю: <strong>всередині описаного кола будь-якого трикутника немає жодної іншої точки з заданої множини</strong>. Це забезпечує уникнення довгих, "вузьких" трикутників і максимізує мінімальні кути.</p>
+
+                <h3>Дуальність з Діаграмою Вороного</h3>
+                <p>В обчислювальній геометрії Триангуляція Делоне і Діаграма Вороного — це дві сторони однієї медалі (дуальні графи). Діаграма Вороного розбиває площину на області (комірки), кожна з яких містить всі точки площини, найближчі до конкретного вузла.</p>
+                <ul>
+                    <li>Якщо з'єднати ребрами центри сусідніх комірок Вороного — ми отримаємо точну Триангуляцію Делоне.</li>
+                    <li>І навпаки: вершини багатокутників Вороного лежать точно в <strong>центрах описаних кіл</strong> трикутників Делоне.</li>
+                </ul>
+                <p></p>
+
+                <h3>Застосування: Підготовчий крок для Евклідового MST / Штейнера</h3>
+                <p>У багатьох задачах дискретної математики та теорії графів нам дано лише координати міст (точки), і потрібно з'єднати їх мережею мінімальної довжини (<strong>Евклідове мінімальне кістякове дерево — EMST</strong>). Якщо перевіряти зв'язки "кожен з кожним", ми отримаємо повний граф із кількістю ребер <code>V(V-1)/2</code>, обробка якого є надто ресурсомісткою.</p>
+                <p><strong>Рішення:</strong> Математично доведено, що ребра EMST <em>завжди</em> є підмножиною ребер триангуляції Делоне. Тому ми:
+                <br>1. Будуємо граф Делоне (який є планарним і має лінійну кількість ребер: максимум <code>3V - 6</code>).
+                <br>2. Запускаємо алгоритм <strong>Крускала</strong> або <strong>Пріма</strong> на цьому розрідженому графі.
+                <br>Це класичний підхід для оптимізації маршрутизації та проєктування мереж.</p>
+
+                <h3>Оцінка часової складності (Big O)</h3>
+                <p><strong>Алгоритм Бойєра-Вотсона ( Bowyer-Watson):</strong></p>
+                <ul>
+                    <li><strong>Базова реалізація (як у цьому симуляторі):</strong> <code>O(N²)</code>. Для кожної з <code>N</code> точок алгоритм лінійно перебирає всі існуючі трикутники, щоб перевірити потрапляння в описане коло. У найгіршому випадку кількість трикутників зростає лінійно, що дає квадратичну складність.</li>
+                    <li><strong>Оптимізована реалізація:</strong> <code>O(N log N)</code>. Досягається завдяки попередньому сортуванню точок (наприклад, за кривою Гільберта або просторовим хешуванням) та зберіганню трикутників у структурах даних для швидкого пошуку (QuadTree або DAG історії розташування). Таким чином пошук першого "поганого" трикутника займає <code>O(log N)</code> замість <code>O(N)</code>.</li>
+                </ul>
+                <h3>Геодеія</h3>
+                <p>Дані реального 3D-сканера (LiDAR) часто утворюють складні структури (дерева, печери, нависаючі скелі), де одним координатам X та Y можуть відповідати декілька точок по осі Z. Це — справжнє 3D.</p>
+                <p>Проте для моделювання рельєфу землі (ЦМР — цифрова модель рельєфу) використовують концепцію <strong>2.5D поверхні</strong>. Це означає, що поверхня описується функцією z = f(x,y), де кожній точці площини відповідає строго одна висота. Саме тому ми спочатку будуємо планарну триангуляцію Делоне в просторі XY, ігноруючи Z, а вже потім піднімаємо вершини отриманих трикутників на задану висоту.</p>
+
+                <h3>TIN (Triangulated Irregular Network) як лінійний сплайн</h3>
+                <p>TIN — це стандарт представлення поверхонь у геодезії. Він перетворює дискретну хмару точок на суцільну кусково-лінійну поверхню (сплайн). Всередині кожного трикутника рівняння площини виглядає так:</p>
+               
+                <p>Триангуляція Делоне тут критично важлива. Якщо ми з'єднаємо точки неправильно (утворивши довгі "вузькі" трикутники), ми отримаємо різкі, штучні "хребти" на поверхні (артефакти інтерполяції). Делоне гарантує найбільш "товсті" трикутники, що робить розрахунок нормалей та освітлення (яке ви бачите у WebGL) найбільш природним.</p>
+            </div>
+        </details>
+    </div>
+
+<script>
+    // --- Змінні UI та Canvas 2D ---
+    const canvas2d = document.getElementById('canvas2d'); const ctx2d = canvas2d.getContext('2d');
+    const stepBadgeEl = document.getElementById('step-badge');
+    const stepTextEl = document.getElementById('step-text');
+    const btnStart = document.getElementById('btn-start'), btnPrev = document.getElementById('btn-prev'), btnNext = document.getElementById('btn-next'), btnClear = document.getElementById('btn-clear'), btnGenerate = document.getElementById('btn-generate');
+
+    let points = []; let pointIdCounter = 0;
+    const SUPER_A = { x: 420, y: 20 }, SUPER_B = { x: 20, y: 430 }, SUPER_C = { x: 820, y: 430 };
+    
+    let simulationSteps = []; let currentStepIndex = -1; let isSimulating = false; let currentTab = '2d';
+    let finalTriangulation = [];
+
+    // --- Математика ---
+    class Point {
+        constructor(x, y) { 
+            this.x = x; this.y = y; this.id = pointIdCounter++; 
+            // Генеруємо складну висоту (Z) - суміш синусів для формування "пагорбів"
+            let nx = x / 100, ny = y / 100;
+            this.z = Math.sin(nx) * Math.cos(ny) * 60 + Math.sin(nx*2) * 20;
+        }
+    }
+
+    class Triangle {
+        constructor(a, b, c) { this.a = a; this.b = b; this.c = c; this.edges = [ [a, b], [b, c], [c, a] ]; }
+        hasVertex(p) { return this.a.id === p.id || this.b.id === p.id || this.c.id === p.id; }
+    }
+
+    function getCircumcircle(tri) {
+        const A = tri.a, B = tri.b, C = tri.c;
+        const D = 2 * (A.x * (B.y - C.y) + B.x * (C.y - A.y) + C.x * (A.y - B.y));
+        if (Math.abs(D) < 0.000001) return null;
+        const Ux = ((A.x*A.x + A.y*A.y) * (B.y - C.y) + (B.x*B.x + B.y*B.y) * (C.y - A.y) + (C.x*C.x + C.y*C.y) * (A.y - B.y)) / D;
+        const Uy = ((A.x*A.x + A.y*A.y) * (C.x - B.x) + (B.x*B.x + B.y*B.y) * (A.x - C.x) + (C.x*C.x + C.y*C.y) * (B.x - A.x)) / D;
+        return { x: Ux, y: Uy, r: Math.sqrt(Math.pow(Ux - A.x, 2) + Math.pow(Uy - A.y, 2)) };
+    }
+
+    function inCircumcircle(p, circle) {
+        if (!circle) return false; return Math.sqrt(Math.pow(p.x - circle.x, 2) + Math.pow(p.y - circle.y, 2)) <= circle.r + 0.0001; 
+    }
+
+    function areEdgesEqual(e1, e2) { return (e1[0].id === e2[0].id && e1[1].id === e2[1].id) || (e1[0].id === e2[1].id && e1[1].id === e2[0].id); }
+
+    function isPointInSuperTriangle(px, py) {
+        const v0 = { x: SUPER_C.x - SUPER_A.x, y: SUPER_C.y - SUPER_A.y }, v1 = { x: SUPER_B.x - SUPER_A.x, y: SUPER_B.y - SUPER_A.y }, v2 = { x: px - SUPER_A.x, y: py - SUPER_A.y };
+        const d00 = v0.x*v0.x + v0.y*v0.y, d01 = v0.x*v1.x + v0.y*v1.y, d02 = v0.x*v2.x + v0.y*v2.y;
+        const d11 = v1.x*v1.x + v1.y*v1.y, d12 = v1.x*v2.x + v1.y*v2.y;
+        const invDenom = 1 / (d00 * d11 - d01 * d01);
+        const u = (d11 * d02 - d01 * d12) * invDenom, v = (d00 * d12 - d01 * d02) * invDenom;
+        return (u > 0.02) && (v > 0.02) && (u + v < 0.98);
+    }
+
+    // --- Логіка симуляції ---
+    function generateSimulation() {
+        simulationSteps = []; const pts = [...points];
+        const superA = new Point(SUPER_A.x, SUPER_A.y); const superB = new Point(SUPER_B.x, SUPER_B.y); const superC = new Point(SUPER_C.x, SUPER_C.y);
+        let triangles = [new Triangle(superA, superB, superC)];
+        
+        simulationSteps.push({ points: [...pts], triangles: [...triangles], activePoint: null, badTriangles: [], polygon: [], newEdges: [], desc: "Створено супер-трикутник." });
+
+        for (let i = 0; i < pts.length; i++) {
+            const p = pts[i];
+            simulationSteps.push({ points: [...pts], triangles: [...triangles], activePoint: p, badTriangles: [], polygon: [], newEdges: [], desc: `Обробка точки X:${Math.round(p.x)}, Y:${Math.round(p.y)}` });
+
+            let badTriangles = [];
+            for (let t of triangles) {
+                if (inCircumcircle(p, getCircumcircle(t))) badTriangles.push(t);
+            }
+
+            simulationSteps.push({ points: [...pts], triangles: [...triangles], activePoint: p, badTriangles: [...badTriangles], polygon: [], newEdges: [], desc: "Знайдено трикутники, що порушують умову Делоне." });
+
+            let polygon = [];
+            for (let bt of badTriangles) {
+                for (let edge of bt.edges) {
+                    let isShared = false;
+                    for (let otherBt of badTriangles) {
+                        if (bt === otherBt) continue;
+                        if (areEdgesEqual(edge, otherBt.edges[0]) || areEdgesEqual(edge, otherBt.edges[1]) || areEdgesEqual(edge, otherBt.edges[2])) { isShared = true; break; }
+                    }
+                    if (!isShared) polygon.push(edge);
+                }
+            }
+
+            triangles = triangles.filter(t => !badTriangles.includes(t));
+            simulationSteps.push({ points: [...pts], triangles: [...triangles], activePoint: p, badTriangles: [], polygon: [...polygon], newEdges: [], desc: "Видалено погані трикутники, утворено порожнину." });
+
+            let newEdges = [];
+            for (let edge of polygon) {
+                triangles.push(new Triangle(edge[0], edge[1], p));
+                newEdges.push([p, edge[0]]); newEdges.push([p, edge[1]]);
+            }
+            simulationSteps.push({ points: [...pts], triangles: [...triangles], activePoint: p, badTriangles: [], polygon: [...polygon], newEdges: newEdges, desc: "Побудовано нові ребра." });
+        }
+
+        finalTriangulation = triangles.filter(t => !t.hasVertex(superA) && !t.hasVertex(superB) && !t.hasVertex(superC));
+        simulationSteps.push({ points: [...pts], triangles: [...finalTriangulation], activePoint: null, badTriangles: [], polygon: [], newEdges: [], desc: "<strong>Симуляцію завершено.</strong> Перейдіть на вкладку WebGL 3D." });
+    }
+
+    // --- Відмальовка 2D ---
+    function draw2D() {
+        ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+        if (!isSimulating) {
+            ctx2d.beginPath(); ctx2d.moveTo(SUPER_A.x, SUPER_A.y); ctx2d.lineTo(SUPER_B.x, SUPER_B.y); ctx2d.lineTo(SUPER_C.x, SUPER_C.y); ctx2d.closePath();
+            ctx2d.fillStyle = "#f8fafc"; ctx2d.fill(); ctx2d.strokeStyle = "#cbd5e1"; ctx2d.lineWidth = 2; ctx2d.setLineDash([8, 6]); ctx2d.stroke(); ctx2d.setLineDash([]);
+            points.forEach(p => drawPoint(ctx2d, p.x, p.y, '#334155'));
+            return;
+        }
+
+        const state = simulationSteps[currentStepIndex];
+        state.triangles.forEach(t => {
+            ctx2d.beginPath(); ctx2d.moveTo(t.a.x, t.a.y); ctx2d.lineTo(t.b.x, t.b.y); ctx2d.lineTo(t.c.x, t.c.y); ctx2d.closePath();
+            ctx2d.strokeStyle = '#cbd5e1'; ctx2d.stroke();
+        });
+        
+        state.badTriangles.forEach(t => {
+            ctx2d.beginPath(); ctx2d.moveTo(t.a.x, t.a.y); ctx2d.lineTo(t.b.x, t.b.y); ctx2d.lineTo(t.c.x, t.c.y); ctx2d.closePath();
+            ctx2d.fillStyle = 'rgba(239, 68, 68, 0.15)'; ctx2d.fill(); ctx2d.strokeStyle = '#ef4444'; ctx2d.stroke();
+        });
+
+        state.polygon.forEach(edge => { ctx2d.beginPath(); ctx2d.moveTo(edge[0].x, edge[0].y); ctx2d.lineTo(edge[1].x, edge[1].y); ctx2d.strokeStyle = '#22c55e'; ctx2d.lineWidth = 3; ctx2d.stroke(); ctx2d.lineWidth = 1; });
+        state.newEdges.forEach(edge => { ctx2d.beginPath(); ctx2d.moveTo(edge[0].x, edge[0].y); ctx2d.lineTo(edge[1].x, edge[1].y); ctx2d.strokeStyle = '#3b82f6'; ctx2d.setLineDash([5, 5]); ctx2d.stroke(); ctx2d.setLineDash([]); });
+        state.points.forEach(p => drawPoint(ctx2d, p.x, p.y, '#334155'));
+        if (state.activePoint) drawPoint(ctx2d, state.activePoint.x, state.activePoint.y, '#facc15', 6);
+
+        stepBadgeEl.innerText = `Крок ${currentStepIndex + 1} / ${simulationSteps.length}`;
+        stepTextEl.innerHTML = state.desc;
+        btnPrev.disabled = currentStepIndex === 0; btnNext.disabled = currentStepIndex === simulationSteps.length - 1;
+    }
+
+    function drawPoint(ctx, x, y, color, size = 4) { ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+
+
+    // --- Three.js 3D Ініціалізація та Рендер ---
+    let scene, camera, renderer, controls, terrainMesh, wireframeMesh;
+    const container3d = document.getElementById('three-container');
+
+    function initThreeJS() {
+        if (scene) return; // Вже ініціалізовано
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a); // Темний фон для контрасту
+
+        camera = new THREE.PerspectiveCamera(45, container3d.clientWidth / container3d.clientHeight, 1, 5000);
+        camera.position.set(0, -600, 500); // Позиція камери (дивимось під кутом)
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container3d.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Освітлення (щоб бачити рельєф від сплайнів)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(100, -200, 300);
+        scene.add(dirLight);
+
+        const dirLight2 = new THREE.DirectionalLight(0x90b0d0, 0.5);
+        dirLight2.position.set(-100, 200, 100);
+        scene.add(dirLight2);
+
+        // Анімаційний цикл
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Ресайз контейнера
+        window.addEventListener('resize', () => {
+            if(container3d.clientWidth === 0) return;
+            camera.aspect = container3d.clientWidth / container3d.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+        });
+    }
+
+    function update3DTerrain() {
+        if (!scene) initThreeJS();
+
+        // Очищуємо стару сітку
+        if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); terrainMesh.material.dispose(); }
+        if (wireframeMesh) { scene.remove(wireframeMesh); wireframeMesh.geometry.dispose(); wireframeMesh.material.dispose(); }
+
+        if (finalTriangulation.length === 0) return;
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        const colors = [];
+
+        // Центрування поверхні (зміщуємо координати так, щоб 0,0,0 був у центрі моделі)
+        const offsetX = 420; const offsetY = 250; 
+        
+        // Генеруємо колір на основі висоти (гіпсометрія)
+        const color = new THREE.Color();
+        
+        for (let tri of finalTriangulation) {
+            const pts = [tri.a, tri.b, tri.c];
+            for (let p of pts) {
+                // X та Y на площині, Z вгору
+                vertices.push(p.x - offsetX, -(p.y - offsetY), p.z);
+                
+                // Колір від низин (зелено-синій) до вершин (жовто-червоний)
+                const hue = Math.max(0, 0.6 - (p.z + 50) / 150); 
+                color.setHSL(hue, 0.8, 0.5);
+                colors.push(color.r, color.g, color.b);
+            }
+        }
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        
+        // КРИТИЧНО для сплайнів: розраховуємо нормалі вершин, щоб площини відбивали світло!
+        geometry.computeVertexNormals(); 
+
+        const material = new THREE.MeshStandardMaterial({ 
+            vertexColors: true, 
+            side: THREE.DoubleSide,
+            flatShading: true // Показує грані трикутників (TIN)
+        });
+
+        terrainMesh = new THREE.Mesh(geometry, material);
+        scene.add(terrainMesh);
+
+        // Додаємо сітку ребер (Wireframe) для наочності Делоне
+        const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.15 });
+        wireframeMesh = new THREE.Mesh(geometry, wireMaterial);
+        scene.add(wireframeMesh);
+
+        // Направляємо камеру на центр
+        controls.target.set(0, 0, 0);
+        camera.position.set(0, -500, 400);
+        controls.update();
+    }
+
+    // --- Обробники подій ---
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        
+        if (tab === '3d') {
+            if (!isSimulating && points.length >= 3) {
+                generateSimulation(); currentStepIndex = simulationSteps.length - 1; isSimulating = true;
+            }
+            // Даємо час DOM оновитись, щоб canvas отримав правильні розміри
+            setTimeout(() => {
+                initThreeJS();
+                update3DTerrain();
+            }, 50);
+        } else {
+            draw2D();
+        }
+    }
+
+    canvas2d.addEventListener('click', (e) => {
+        if (isSimulating) return;
+        const rect = canvas2d.getBoundingClientRect(); const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (!isPointInSuperTriangle(x, y)) return alert("Точки лише всередині контуру.");
+        points.push(new Point(x, y)); draw2D();
+        stepTextEl.innerHTML = `Точок: <strong>${points.length}</strong>.`;
+    });
+
+    btnGenerate.addEventListener('click', () => {
+        points = []; isSimulating = false;
+        // 80 точок для кращої деталізації моделі
+        for(let i=0; i<80; i++) {
+            let x = Math.random() * 600 + 120; let y = Math.random() * 300 + 80;
+            if (isPointInSuperTriangle(x, y)) points.push(new Point(x, y));
+        }
+        generateSimulation();
+        currentStepIndex = simulationSteps.length - 1; isSimulating = true;
+        btnStart.disabled = true; btnPrev.disabled = false; btnNext.disabled = true;
+        draw2D();
+        switchTab('3d');
+    });
+
+    btnStart.addEventListener('click', () => {
+        if (points.length < 3) return alert("Додайте мінімум 3 точки.");
+        generateSimulation(); isSimulating = true; currentStepIndex = 0;
+        btnStart.disabled = true; draw2D();
+    });
+
+    btnNext.addEventListener('click', () => { if (currentStepIndex < simulationSteps.length - 1) { currentStepIndex++; draw2D(); } });
+    btnPrev.addEventListener('click', () => { if (currentStepIndex > 0) { currentStepIndex--; draw2D(); } });
+
+    btnClear.addEventListener('click', () => {
+        points = []; simulationSteps = []; finalTriangulation = []; isSimulating = false; currentStepIndex = -1; pointIdCounter = 0;
+        btnStart.disabled = false; btnPrev.disabled = true; btnNext.disabled = true;
+        stepBadgeEl.innerText = 'Режим редагування'; stepTextEl.innerHTML = 'Клікніть всередині контуру, щоб додати точки.';
+        draw2D(); 
+        if (terrainMesh && scene) { scene.remove(terrainMesh); scene.remove(wireframeMesh); }
+        if(currentTab === '3d') switchTab('2d');
+    });
+
+    draw2D();
+</script>
+</body>
+</html>
