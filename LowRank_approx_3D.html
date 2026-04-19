@@ -3,6 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>3D Візуалізація матричних перетворень з Low-Rank Апроксимацією</title>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.7.3/build/index.module.js",
+            "three-bvh-csg": "https://esm.sh/three-bvh-csg@0.0.16?external=three,three-mesh-bvh"
+        }
+    }
+</script>
+
+
 	<script>
       window.MathJax = {
         tex: {
@@ -355,16 +367,8 @@
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
-    <script type="importmap">
-        { 
-          "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "three-bvh-csg": "https://esm.sh/three-bvh-csg@0.0.16"
-    }
-        }
-    </script>
-
+   
+ 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
