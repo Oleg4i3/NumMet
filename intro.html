@@ -134,56 +134,37 @@
 
 <div class="sidebar">
     <h2>Основні поняття обчислювальної математики</h2>
-    <button class="nav-btn active" onclick="showTab('errors')">1. Теорія похибок</button>
-    <button class="nav-btn" onclick="showTab('epsilon')">2. Машинний нуль</button>
+    <button class="nav-btn active" onclick="showTab('intro')">Вступ</button>
+    <button class="nav-btn" onclick="showTab('epsilon')">1. Машинний нуль</button>
+    <button class="nav-btn" onclick="showTab('errors')">2. Теорія похибок</button>
     <button class="nav-btn" onclick="showTab('convergence')">3. Збіжність</button>
-    <button class="nav-btn" onclick="showTab('stability')">4. Стійкість</button>
-    <button class="nav-btn" onclick="showTab('conditioning')">5. Обумовленість</button>
+    <button class="nav-btn" onclick="showTab('conditioning')">4. Обумовленість</button>
+    <button class="nav-btn" onclick="showTab('stability')">5. Стійкість</button>
 </div>
 
 <div class="main-content">
 
-    <div id="tab-errors" class="tab-content active">
-        <h1>1. Теорія похибок</h1>
+    <div id="tab-intro" class="tab-content active">
+        <h1>Вступ</h1>
         <div class="theory-block">
-            <p><strong>Похибка функції від похибок аргументів (Linear Error Propagation):</strong></p>
-            <p>Якщо $y = f(x)$, а $x$ відоме з похибкою $\Delta x$, то абсолютна похибка функції:</p>
-            $$ \Delta y \approx |f'(x)| \cdot \Delta x $$
-            <p>Для нашого прикладу $S = \pi R^2$, похідна $S' = 2\pi R$. Отже, $\Delta S \approx 2\pi R \cdot \Delta R$.</p>
-			
-			<h3>Похибка функції від похибок декількох аргументів</h3>
-                <p>Якщо $y = f(x_1, x_2, \ldots, x_n)$, то похибка функції залежить від похибок її аргументів:</p>
-                <div class="formula">
-                    $$  \Delta y \approx \left| \frac{\partial f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial f}{\partial x_n} \right| \Delta x_n  $$
-                </div>
-                <p>Для відносної похибки:</p>
-                <div class="formula">
-                   $$ \delta y \approx \left| \frac{\partial \ln f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial \ln f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial \ln f}{\partial x_n} \right| \Delta x_n $$
-                </div>
-				
-				
-        </div>
-
-        <div class="demo-block">
-            <h3>Інтерактив: Площа круга</h3>
-            <div class="controls">
-                <div class="control-group">
-                    <label>Радіус $R$: <span id="val-r" class="val-display">10</span></label>
-                    <input type="range" id="rng-r" min="1" max="50" step="0.5" value="10">
-                </div>
-                <div class="control-group">
-                    <label>Похибка $\Delta R$: <span id="val-dr" class="val-display">0.5</span></label>
-                    <input type="range" id="rng-dr" min="0.01" max="2.0" step="0.01" value="0.5">
-                </div>
-            </div>
-
-            <div class="result-box" id="err-output"></div>
-            <div id="error-plot" style="width:100%; height:250px;"></div>
+            <p>Відкрийте калькулятор на телефоні і порахуйте $\sqrt{10\,000\,000 + 1} - \sqrt{10\,000\,000}$. Зрозуміло, відповідь тут явно якесь маленьке додатне число. Але телефони чсто видають <strong>0</strong>. Тому що в них закінчилися значущі цифри.</p>
+            
+            <p>Комп'ютер — добрий рахівник, але з обмеженою пам'яттю. Він не може запам'ятати нескінченну кількість десяткових знаків. Тому іноді він <em>округлює</em>, <em>втрачає</em> і <em>підганяє</em> результат під свої можливості. І якщо ви не розумієте, як і коли він це робить, ваші розрахунки можуть перетворитися на красиву, але абсолютно хибну картинку.</p>
+            
+            <p>Почнемо вивчати чисельні методи з п'яти базових понять:</p>
+            <ul>
+                <li><strong>Машинний нуль</strong> — наскільки відносно малими можуть бути числа в комп'ютерній арифметиці?</li>
+                <li><strong>Похибки</strong> — як врахувати неточність вхідних даних і як вони впливають на результат?</li>
+                <li><strong>Збіжність</strong> — чи наближається ітераційний процес до правильної відповіді?</li>
+                <li><strong>Обумовленість</strong> — чи сама задача чутлива до збурень?</li>
+                <li><strong>Стійкість</strong> — чи не розганяє обчислювальний метод маленькі похибки до катастрофи?</li>
+            </ul>
+           
         </div>
     </div>
 
     <div id="tab-epsilon" class="tab-content">
-        <h1>2. Машинна арифметика</h1>
+        <h1>1. Машинна арифметика</h1>
         
         <div class="theory-block">
             <p>Комп'ютери мають обмежену точність (IEEE 754 Double Precision). Це призводить до ситуацій, коли математично правильні вирази дають нуль.</p>
@@ -220,6 +201,63 @@
             <button class="action-btn" onclick="findEpsilon()">Запустити алгоритм</button>
             <div class="result-box" id="eps-output"></div>
         </div>
+
+        <div class="demo-block">
+            <h3>📝 Завдання для самоперевірки</h3>
+            <ol>
+                <li>Чому вираз $(1 + 10^{-20}) - 1$ дає нуль у JavaScript? Спробуйте пояснити своїми словами: скільки значущих цифр має число $1$, і чи «вміщається» поруч із ним $10^{-20}$?</li>
+                <li>Використайте інтерактив «Піднесення до степеня». Встановіть $k = 10^{15}$ і порахуйте вручну за формулою $1 + k\varepsilon$. Чому наївний метод <code>Math.pow(1 + 1e-20, k)</code> дає зовсім інший результат?</li>
+                <li>Як думаєте, чи зміниться машинний епсилон, якщо шукати його не для $1.0$, а для $1000.0$? Спробуйте модифікувати алгоритм у голові.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div id="tab-errors" class="tab-content">
+        <h1>2. Теорія похибок</h1>
+        <div class="theory-block">
+            <p><strong>Похибка функції від похибок аргументів (Linear Error Propagation):</strong></p>
+            <p>Якщо $y = f(x)$, а $x$ відоме з похибкою $\Delta x$, то абсолютна похибка функції:</p>
+            $$ \Delta y \approx |f'(x)| \cdot \Delta x $$
+            <p>Для нашого прикладу $S = \pi R^2$, похідна $S' = 2\pi R$. Отже, $\Delta S \approx 2\pi R \cdot \Delta R$.</p>
+			
+			<h3>Похибка функції від похибок декількох аргументів</h3>
+                <p>Якщо $y = f(x_1, x_2, \ldots, x_n)$, то похибка функції залежить від похибок її аргументів:</p>
+                <div class="formula">
+                    $$  \Delta y \approx \left| \frac{\partial f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial f}{\partial x_n} \right| \Delta x_n  $$
+                </div>
+                <p>Для відносної похибки:</p>
+                <div class="formula">
+                   $$ \delta y \approx \left| \frac{\partial \ln f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial \ln f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial \ln f}{\partial x_n} \right| \Delta x_n $$
+                </div>
+				
+				
+        </div>
+
+        <div class="demo-block">
+            <h3>Інтерактив: Площа круга</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Радіус $R$: <span id="val-r" class="val-display">10</span></label>
+                    <input type="range" id="rng-r" min="1" max="50" step="0.5" value="10">
+                </div>
+                <div class="control-group">
+                    <label>Похибка $\Delta R$: <span id="val-dr" class="val-display">0.5</span></label>
+                    <input type="range" id="rng-dr" min="0.01" max="2.0" step="0.01" value="0.5">
+                </div>
+            </div>
+
+            <div class="result-box" id="err-output"></div>
+            <div id="error-plot" style="width:100%; height:250px;"></div>
+        </div>
+
+        <div class="demo-block">
+            <h3>📝 Завдання для самоперевірки</h3>
+            <ol>
+                <li>Встановіть $R = 5$ і $\Delta R = 0.1$. Запишіть формулу $\Delta S \approx 2\pi R \cdot \Delta R$ і порахуйте результат вручну. Чи збігається він із показом інтерактиву?</li>
+                <li>Відносна похибка площі $\delta_S$ приблизно вдвічі більша за відносну похибку радіуса $\delta_R$. Чому? Поясніть через похідну або логарифмічне диференціювання.</li>
+                <li>Об'єм кулі $V = \frac{4}{3}\pi R^3$. Виведіть формулу для $\Delta V$ через $\Delta R$ і порахуйте похибку для $R = 10$, $\Delta R = 0.5$. На скільки відсотків помиляємося?</li>
+            </ol>
+        </div>
     </div>
 
     <div id="tab-convergence" class="tab-content">
@@ -245,10 +283,63 @@
             </div>
             <div id="cobweb-plot" style="height:400px;"></div>
         </div>
+
+        <div class="demo-block">
+            <h3>📝 Завдання для самоперевірки</h3>
+            <ol>
+                <li>Виберіть $\varphi(x) = \cos(x)$ і $x_0 = 2$. Скільки кроків (приблизно) потрібно, щоб червона «павутина» зійшлася до нерухомої точки? Порахуйте на око з графіка.</li>
+                <li>Для $\varphi(x) = 2x - 2$ обчисліть перші три ітерації при $x_0 = 1.5$ вручну. Чому послідовність не збігається, а розбігається?</li>
+                <li>Для хаотичної функції $3.9x(1-x)$ змініть $x_0$ з $0.1$ на $0.1000001$. Що відбувається з траєкторією? Це прояв якого відомого ефекту?</li>
+            </ol>
+        </div>
+    </div>
+
+    <div id="tab-conditioning" class="tab-content">
+        <h1>4. Обумовленість (Conditioning)</h1>
+
+        <div class="theory-block">
+            <p><strong>Число обумовленості ($\kappa$)</strong> показує чутливість задачі до збурень. $\kappa \approx \frac{\delta_{out}}{\delta_{in}}$.</p>
+            <p>Графічно: перетин двох прямих (ааналітично - розв'язок лінійної системи рівнянь). Якщо прямі майже паралельні (кажуть "задача погано обумовлена"), найменший зсув однієї прямої призводить до гігантського зсуву точки перетину.</p>
+        </div>
+
+        <div class="demo-block">
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 2;">
+                    <label>Кут нахилу червоної прямої (збурення): <span id="val-cond" class="val-display">0.900</span></label>
+                    <input type="range" id="rng-cond" min="0.8" max="1.15" step="0.001" value="0.9">
+                </div>
+            </div>
+
+            <canvas id="cond-canvas" width="600" height="350"></canvas>
+
+            <div class="result-box">
+                <div class="metric-row">
+                    <span>Вхідне збурення ($\delta_{in}$):</span>
+                    <span id="res-d-in">0%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Вихідна похибка ($\delta_{out}$):</span>
+                    <span id="res-d-out" class="highlight-red">0%</span>
+                </div>
+                <div class="metric-row" style="border:none; margin-top:10px;">
+                    <span>Число обумовленості ($\kappa$):</span>
+                    <span id="res-cond-num" style="background:var(--secondary); color:white; padding:2px 5px; border-radius:3px;">1</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-block">
+            <h3>📝 Завдання для самоперевірки</h3>
+            <ol>
+                <li>Встановіть $k = 0.95$. Точка перетину $x = \frac{1}{1-k}$. Порахуйте її вручну. Чому при $k \to 1$ точка перетину «втікає» в нескінченність?</li>
+                <li>При $k = 1.0$ прямі стають паралельними. Яке число обумовленості $\kappa$ в цьому випадку? Що це означає практично?</li>
+                <li>При $k = 0.99$ порахуйте, на скільки відсотків змінилася відповідь $x$ при зміні $k$ від $0.90$ лише на $0.09$ (тобто на 10% відносно бази). Чому зміна вхідних даних на 10% призводить до набагато більшої зміни результату?</li>
+            </ol>
+        </div>
     </div>
 
     <div id="tab-stability" class="tab-content">
-        <h1>4. Стійкість: Класичний приклад</h1>
+        <h1>5. Стійкість: Класичний приклад</h1>
 
         <div class="theory-block">
             <p><strong>Три визначення простими словами</strong> (щоб не плутати схожі на вигляд, але різні за суттю речі):</p>
@@ -288,7 +379,7 @@
                 $$ \sqrt{x+1} - \sqrt{x} = \frac{(\sqrt{x+1} - \sqrt{x})(\sqrt{x+1} + \sqrt{x})}{\sqrt{x+1} + \sqrt{x}} = \frac{1}{\sqrt{x+1} + \sqrt{x}} $$
                 Ця формула стійка, бо містить лише додавання додатних чисел.</li>
             </ul>
-            <p style="font-size:0.9em; color:#666;">Нижче, під спойлером — <strong>випадок 2</strong>: нестійкість не одного обчислення, а <em>процесу, що повторюється</em> (рекурентна формула). Це ближче до того, що означає "нестійкість методу" для чисельного розв'язання рівнянь — там теж похибка не просто виникає, а <em>накопичується від кроку до кроку</em>.</p>
+            <p style="font-size:0.9em; color:#666;">Нижче — <strong>випадок 2</strong>: нестійкість не одного обчислення, а <em>процесу, що повторюється</em> (рекурентна формула). Це ближче до того, що означає "нестійкість методу" для чисельного розв'язання рівнянь — там теж похибка не просто виникає, а <em>накопичується від кроку до кроку</em>.</p>
         </div>
 
         <div class="demo-block">
@@ -306,12 +397,10 @@
                 </div>
         </div>
 
-        <details class="demo-block" id="rec-bonus-block" style="border-color:#f0d0d0;">
-            <summary style="cursor:pointer; font-weight:bold; color:var(--secondary); font-size:1.05em;">
-               Коли нестійка не формула, а <u>процес (ітераційний метод)</u> 
-            </summary>
+        <div class="demo-block" style="border-color:#f0d0d0;">
+            <h3>Коли нестійка не формула, а <u>процес (ітераційний метод)</u></h3>
 
-            <div style="margin-top:15px;">
+            <div>
                 <p><strong>Випадок 2 — нестійкість рекурентного (повторюваного) обчислення.</strong>
                 Це не рівняння і не диференціал — звичайна прогресія, яку ви вже знаєте. Задаємо перші два числа:</p>
                 $$ p_0 = 1, \qquad p_1 = \frac{1}{3} \approx 0.3333\ldots $$
@@ -342,41 +431,15 @@
                     <strong>До чого тут майбутнє:</strong> формула $p_n = \frac{10}{3}p_{n-1} - p_{n-2}$ — це найпростіший <em>рекурсивний цифровий фільтр</em> (те,що називається БІХ-фільтром, IIR). Коли фільтр раптом починає сам-себе розгойдувати — це той самий ефект нестійкості, який ви щойно побачили тут вручну.
                 </p>
             </div>
-        </details>
-    </div>
-
-    <div id="tab-conditioning" class="tab-content">
-        <h1>5. Обумовленість (Conditioning)</h1>
-
-        <div class="theory-block">
-            <p><strong>Число обумовленості ($\kappa$)</strong> показує чутливість задачі до збурень. $\kappa \approx \frac{\delta_{out}}{\delta_{in}}$.</p>
-            <p>Графічно: перетин двох прямих (ааналітично - розв'язок лінійної системи рівнянь). Якщо прямі майже паралельні (кажуть "задача погано обумовлена"), найменший зсув однієї прямої призводить до гігантського зсуву точки перетину.</p>
         </div>
 
         <div class="demo-block">
-            <div class="controls">
-                <div class="control-group" style="grid-column: span 2;">
-                    <label>Кут нахилу червоної прямої (збурення): <span id="val-cond" class="val-display">0.900</span></label>
-                    <input type="range" id="rng-cond" min="0.8" max="1.15" step="0.001" value="0.9">
-                </div>
-            </div>
-
-            <canvas id="cond-canvas" width="600" height="350"></canvas>
-
-            <div class="result-box">
-                <div class="metric-row">
-                    <span>Вхідне збурення ($\delta_{in}$):</span>
-                    <span id="res-d-in">0%</span>
-                </div>
-                <div class="metric-row">
-                    <span>Вихідна похибка ($\delta_{out}$):</span>
-                    <span id="res-d-out" class="highlight-red">0%</span>
-                </div>
-                <div class="metric-row" style="border:none; margin-top:10px;">
-                    <span>Число обумовленості ($\kappa$):</span>
-                    <span id="res-cond-num" style="background:var(--secondary); color:white; padding:2px 5px; border-radius:3px;">1</span>
-                </div>
-            </div>
+            <h3>📝 Завдання для самоперевірки</h3>
+            <ol>
+                <li>Встановіть $x = 10^8$. Обчисліть вручну за раціоналізованою формулою $\frac{1}{\sqrt{x+1}+\sqrt{x}}$ і порівняйте з наївним результатом. Знайдіть відносну похибку.</li>
+                <li>У рекурентному блоці встановіть знаків після коми у $p_1$ рівним 5. На якому кроці $n$ похибка перевищує 5%? Чому це відбувається саме на цьому кроці, а не відразу?</li>
+                <li>Підставте $n=2$ у формулу $p_n = \frac{10}{3}p_{n-1} - p_{n-2}$ з $p_0=1$, $p_1=\frac13$. Доведіть, що $p_2 = \left(\frac13\right)^2 = \frac19$. Чому на комп'ютері при недостатній точності результат з часом спотворюється?</li>
+            </ol>
         </div>
     </div>
 
@@ -390,106 +453,21 @@
         document.getElementById('tab-'+id).classList.add('active');
         
         // Button highlighting hack
-        const map = ['errors', 'epsilon', 'convergence', 'stability', 'conditioning'];
+        const map = ['intro', 'epsilon', 'errors', 'convergence', 'conditioning', 'stability'];
         const btns = document.querySelectorAll('.nav-btn');
         if(btns[map.indexOf(id)]) btns[map.indexOf(id)].classList.add('active');
         
         // Refresh specific visualizers
         if(id === 'convergence') drawCobweb();
-        if(id === 'stability') updateStability();
+        if(id === 'stability') {
+            updateStability();
+            updateRecurrence();
+        }
         if(id === 'conditioning') updateConditioning();
     }
 
-    // Plotly не рахує коректні розміри в прихованому <details>, тож малюємо графік
-    // рекурсії лише в момент розкриття спойлера (і повторно при кожному відкритті)
-    document.getElementById('rec-bonus-block').addEventListener('toggle', function () {
-        if (this.open) updateRecurrence();
-    });
-
    // ==========================================
-    // 1. ERRORS LOGIC (ВИПРАВЛЕНО)
-    // ==========================================
-    const rngR = document.getElementById('rng-r');
-    const rngdR = document.getElementById('rng-dr');
-    
-    function updateErrors() {
-        const R = parseFloat(rngR.value);
-        const dR = parseFloat(rngdR.value);
-        
-        // Оновлення текстових значень
-        document.getElementById('val-r').innerText = R.toFixed(1);
-        document.getElementById('val-dr').innerText = dR.toFixed(2);
-
-        const S = Math.PI * R * R;
-        // Лінійна оцінка похибки: dS = |f'(R)| * dR = 2 * pi * R * dR
-        const dS = 2 * Math.PI * R * dR;
-        
-        const rel_R = (dR / R) * 100;
-        const rel_S = (dS / S) * 100;
-
-        // Виведення тексту
-        document.getElementById('err-output').innerHTML = `
-            <div class="metric-row"><strong>Аргумент (Радіус):</strong> $R = ${R} \\pm ${dR}$ <span style="color:blue">($\\delta \\approx ${rel_R.toFixed(2)}\\%$)</span></div>
-            <div class="metric-row"><strong>Функція (Площа):</strong> $S \\approx ${S.toFixed(1)} \\pm ${dS.toFixed(1)}$ <span style="color:red">($\\delta \\approx ${rel_S.toFixed(2)}\\%$)</span></div>
-        `;
-        if(window.MathJax) MathJax.typesetPromise();
-
-        // --- ГРАФІК ---
-        
-        // Розрахуємо межі для осі X, щоб графік не стрибав, 
-        // але при цьому вміщував максимальну можливу похибку для поточного R.
-        // Максимальна похибка на слайдері - 2.0. Тому dS_max ~ 2 * pi * R * 2.0
-        const max_possible_dS = 2 * Math.PI * R * 2.0;
-        const xRange = [S - max_possible_dS * 1.1, S + max_possible_dS * 1.1];
-
-        const traceLine = { 
-            x: [S-dS, S+dS], 
-            y: [0,0], 
-            mode: 'lines+markers', 
-            line: {color:'#e74c3c', width:8},
-            marker: {size: 10, symbol: 'line-ns-open', color: '#e74c3c'},
-            name: 'Інтервал похибки',
-            hoverinfo: 'x'
-        };
-
-        const traceCenter = { 
-            x: [S], 
-            y: [0], 
-            mode: 'markers', 
-            marker: {size:16, color:'#2c3e50'}, 
-            name: 'Точне S',
-            hoverinfo: 'x'
-        };
-
-        const layout = {
-            title: 'Візуалізація інтервалу невизначеності',
-            xaxis: { 
-                title: 'Площа', 
-                range: xRange, // Фіксуємо діапазон відносно макс. можливої похибки
-                zeroline: false
-            },
-            yaxis: { 
-                showticklabels:false, 
-                range:[-0.5, 0.5],
-                fixedrange: true 
-            },
-            height: 250,
-            margin: {t:40, b:40, l:40, r:40},
-            showlegend: false,
-            annotations: [
-                {x: S, y: 0.15, text: "S", showarrow: false, font: {size: 14, color: '#2c3e50'}},
-                {x: S-dS, y: -0.15, text: (S-dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}},
-                {x: S+dS, y: -0.15, text: (S+dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}}
-            ]
-        };
-
-        Plotly.react('error-plot', [traceLine, traceCenter], layout, {displayModeBar: false});
-    }
-    rngR.addEventListener('input', updateErrors);
-    rngdR.addEventListener('input', updateErrors);
-
-    // ==========================================
-    // 2. EPSILON LOGIC
+    // 1. EPSILON LOGIC
     // ==========================================
     function runEpsCalc() {
         const res = (1.0 + 1e-20) - 1.0;
@@ -502,31 +480,21 @@
         `;
     }
 
-// --- Додати це в блоці JS (Секція 2. EPSILON) ---
-
     const rngPowK = document.getElementById('rng-pow-k');
     
-    // Слухач для оновлення відображення числа над слайдером
     rngPowK.addEventListener('input', function() {
         const k_exp = parseFloat(rngPowK.value);
         document.getElementById('val-pow-k').innerHTML = `10^{${k_exp.toFixed(1)}}`;
         if(window.MathJax) MathJax.typesetPromise();
-        runPowerParadox(); // Автоматичний перерахунок при русі
+        runPowerParadox();
     });
 
     function runPowerParadox() {
         const k_exp = parseFloat(rngPowK.value);
-        const k = Math.pow(10, k_exp); // Наприклад, 10^15
+        const k = Math.pow(10, k_exp);
         const eps = 1e-20;
 
-        // 1. Наївний метод JS
-        // Спочатку виконується (1 + eps), що стає рівним 1.0 через втрату точності
-        // Потім 1.0 підноситься до степеня k, що дорівнює 1.0
         const naive = Math.pow(1 + eps, k);
-
-        // 2. Математично коректний підхід для малих чисел
-        // Використовуємо біноміальне наближення: (1+x)^k ≈ 1 + kx
-        // Це працює, бо k*eps значно більше за машинний епсилон, хоча саме eps - ні.
         const smart_increment = k * eps; 
         const smart = 1 + smart_increment;
 
@@ -554,8 +522,6 @@
         if(window.MathJax) MathJax.typesetPromise();
     }
 
-
-
     function findEpsilon() {
         let eps = 1.0;
         let iter = 0;
@@ -571,6 +537,80 @@
         html += `<tr style="background:#ffdada"><td><strong>${iter}</strong></td><td><strong>${(eps/2).toExponential(4)}</strong></td><td style="color:red; font-weight:bold;">НІ (Межу знайдено)</td></tr></table>`;
         document.getElementById('eps-output').innerHTML = html;
     }
+
+    // ==========================================
+    // 2. ERRORS LOGIC
+    // ==========================================
+    const rngR = document.getElementById('rng-r');
+    const rngdR = document.getElementById('rng-dr');
+    
+    function updateErrors() {
+        const R = parseFloat(rngR.value);
+        const dR = parseFloat(rngdR.value);
+        
+        document.getElementById('val-r').innerText = R.toFixed(1);
+        document.getElementById('val-dr').innerText = dR.toFixed(2);
+
+        const S = Math.PI * R * R;
+        const dS = 2 * Math.PI * R * dR;
+        
+        const rel_R = (dR / R) * 100;
+        const rel_S = (dS / S) * 100;
+
+        document.getElementById('err-output').innerHTML = `
+            <div class="metric-row"><strong>Аргумент (Радіус):</strong> $R = ${R} \\pm ${dR}$ <span style="color:blue">($\\delta \\approx ${rel_R.toFixed(2)}\\%$)</span></div>
+            <div class="metric-row"><strong>Функція (Площа):</strong> $S \\approx ${S.toFixed(1)} \\pm ${dS.toFixed(1)}$ <span style="color:red">($\\delta \\approx ${rel_S.toFixed(2)}\\%$)</span></div>
+        `;
+        if(window.MathJax) MathJax.typesetPromise();
+
+        const max_possible_dS = 2 * Math.PI * R * 2.0;
+        const xRange = [S - max_possible_dS * 1.1, S + max_possible_dS * 1.1];
+
+        const traceLine = { 
+            x: [S-dS, S+dS], 
+            y: [0,0], 
+            mode: 'lines+markers', 
+            line: {color:'#e74c3c', width:8},
+            marker: {size: 10, symbol: 'line-ns-open', color: '#e74c3c'},
+            name: 'Інтервал похибки',
+            hoverinfo: 'x'
+        };
+
+        const traceCenter = { 
+            x: [S], 
+            y: [0], 
+            mode: 'markers', 
+            marker: {size:16, color:'#2c3e50'}, 
+            name: 'Точне S',
+            hoverinfo: 'x'
+        };
+
+        const layout = {
+            title: 'Візуалізація інтервалу невизначеності',
+            xaxis: { 
+                title: 'Площа', 
+                range: xRange,
+                zeroline: false
+            },
+            yaxis: { 
+                showticklabels:false, 
+                range:[-0.5, 0.5],
+                fixedrange: true 
+            },
+            height: 250,
+            margin: {t:40, b:40, l:40, r:40},
+            showlegend: false,
+            annotations: [
+                {x: S, y: 0.15, text: "S", showarrow: false, font: {size: 14, color: '#2c3e50'}},
+                {x: S-dS, y: -0.15, text: (S-dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}},
+                {x: S+dS, y: -0.15, text: (S+dS).toFixed(0), showarrow: false, font: {size: 10, color: '#e74c3c'}}
+            ]
+        };
+
+        Plotly.react('error-plot', [traceLine, traceCenter], layout, {displayModeBar: false});
+    }
+    rngR.addEventListener('input', updateErrors);
+    rngdR.addEventListener('input', updateErrors);
 
     // ==========================================
     // 3. CONVERGENCE LOGIC
@@ -592,13 +632,12 @@
 
         for(let i=0; i<40; i++) {
             let next = f(curr);
-            if(Math.abs(next) > 100) break; // limit divergence
+            if(Math.abs(next) > 100) break;
             x.push(curr); y.push(next); 
             x.push(next); y.push(next); 
             curr = next;
         }
 
-        // Plot Background functions
         const domain = []; const f_vals = []; const identity = [];
         for(let i=-2; i<=3; i+=0.1) {
             domain.push(i); f_vals.push(f(i)); identity.push(i);
@@ -614,7 +653,62 @@
     rngX0.addEventListener('input', drawCobweb);
 
     // ==========================================
-    // 4. STABILITY LOGIC (SQRT EXAMPLE)
+    // 4. CONDITIONING LOGIC
+    // ==========================================
+    const rngCond = document.getElementById('rng-cond');
+    const cvs = document.getElementById('cond-canvas');
+    const ctx = cvs.getContext('2d');
+    
+    const k_base = 0.9;
+    const x_base = 10; 
+
+    function updateConditioning() {
+        const k_curr = parseFloat(rngCond.value);
+        document.getElementById('val-cond').innerText = k_curr.toFixed(3);
+
+        let x_new = 1 / (1 - k_curr);
+        if(!isFinite(x_new)) x_new = 1000;
+
+        let rel_err_in = Math.abs((k_curr - k_base) / k_base) * 100;
+        let rel_err_out = Math.abs((x_new - x_base) / x_base) * 100;
+        let kappa = (rel_err_in === 0) ? 1 : (rel_err_out / rel_err_in);
+
+        document.getElementById('res-d-in').innerText = rel_err_in.toFixed(2) + "%";
+        document.getElementById('res-d-out').innerText = rel_err_out.toFixed(2) + "%";
+        document.getElementById('res-cond-num').innerText = kappa > 100 ? "> 100" : kappa.toFixed(1);
+
+        const w = cvs.width, h = cvs.height;
+        ctx.clearRect(0,0,w,h);
+        const scale = 20;
+        const tx = (x) => w/2 + (x - x_base) * scale;
+        const ty = (y) => h/2 - (y - x_base) * scale;
+
+        ctx.strokeStyle = "#eee"; ctx.beginPath();
+        ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+        ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+        ctx.stroke();
+
+        ctx.strokeStyle = "blue"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(tx(-10), ty(-10)); ctx.lineTo(tx(30), ty(30)); ctx.stroke();
+        
+        ctx.strokeStyle = "red"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(tx(0), ty(1)); ctx.lineTo(tx(30), ty(30*k_curr + 1)); ctx.stroke();
+
+        ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.arc(tx(x_base), ty(x_base), 4, 0, Math.PI*2); ctx.fill();
+        
+        if(Math.abs(x_new - x_base) < 15) {
+            ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(tx(x_new), ty(x_new), 5, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "green"; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(tx(x_base), ty(x_base) + 15);
+            ctx.lineTo(tx(x_new), ty(x_base) + 15);
+            ctx.stroke();
+        }
+    }
+    
+    rngCond.addEventListener('input', updateConditioning);
+
+    // ==========================================
+    // 5. STABILITY LOGIC (SQRT EXAMPLE)
     // ==========================================
     const rngStab = document.getElementById('rng-stab-k');
     
@@ -625,21 +719,15 @@
         document.getElementById('val-stab-k').innerHTML = `x = 10^{${k.toFixed(1)}}`;
         if(window.MathJax) MathJax.typesetPromise();
 
-        // 1. Naive calculation
         const naive = Math.sqrt(x + 1) - Math.sqrt(x);
-        
-        // 2. Rationalized calculation (Assume "True" for comparison)
         const rational = 1.0 / (Math.sqrt(x + 1) + Math.sqrt(x));
 
-        // Calculate discrepancy
-        // Note: For extremely large x, naive becomes exactly 0.
         let diff = Math.abs(naive - rational);
         let errorPercent = (rational !== 0) ? (diff / rational) * 100 : 0;
         
         let naiveStr = naive.toExponential(10);
         let ratStr = rational.toExponential(10);
         
-        // Coloring for bad results
         let colorStyle = "color: black;";
         if (errorPercent > 10) colorStyle = "color: var(--danger); font-weight:bold;";
         else if (errorPercent > 0.00001) colorStyle = "color: orange;";
@@ -670,7 +758,7 @@
     rngStab.addEventListener('input', updateStability);
 
     // ==========================================
-    // 4b. RECURRENCE INSTABILITY BONUS (BIH/IIR preview)
+    // 5b. RECURRENCE INSTABILITY BONUS (BIH/IIR preview)
     // ==========================================
     const rngRecDigits = document.getElementById('rng-rec-digits');
     const rngRecSteps = document.getElementById('rng-rec-steps');
@@ -678,7 +766,6 @@
 
     function computeRecurrence(digits, nSteps) {
         const p0 = 1.0;
-        // Навмисне округлення старту до заданої кількості знаків після коми
         const p1 = parseFloat((1.0 / 3.0).toFixed(digits));
         const vals = [p0, p1];
         for (let n = 2; n <= nSteps; n++) {
@@ -701,7 +788,7 @@
         document.getElementById('val-rec-steps').innerText = nSteps;
 
         const computed = computeRecurrence(digits, nSteps);
-        const exact = []; // (1/3)^n, еталон
+        const exact = [];
         for (let n = 0; n <= nSteps; n++) exact.push(Math.pow(1 / 3, n));
 
         const n_axis = [];
@@ -709,7 +796,6 @@
 
         let yComputed, yExact, yTitle;
         if (recLogScale) {
-            // log10(|значення|), щоб і зростання, і перехід через нуль/знак було видно на одній осі
             yComputed = computed.map(v => Math.log10(Math.abs(v) + 1e-300));
             yExact = exact.map(v => Math.log10(Math.abs(v) + 1e-300));
             yTitle = 'log₁₀|pₙ|';
@@ -729,7 +815,6 @@
             hovermode: 'closest'
         });
 
-        // Знайти перший крок, де відносна похибка перевищує 5% — момент "вибуху"
         let blowupStep = null;
         for (let n = 0; n <= nSteps; n++) {
             const relErr = Math.abs(computed[n] - exact[n]) / (Math.abs(exact[n]) || 1e-300);
@@ -750,66 +835,6 @@
 
     rngRecDigits.addEventListener('input', updateRecurrence);
     rngRecSteps.addEventListener('input', updateRecurrence);
-
-    // ==========================================
-    // 5. CONDITIONING LOGIC
-    // ==========================================
-    const rngCond = document.getElementById('rng-cond');
-    const cvs = document.getElementById('cond-canvas');
-    const ctx = cvs.getContext('2d');
-    
-    const k_base = 0.9;
-    const x_base = 10; 
-
-    function updateConditioning() {
-        const k_curr = parseFloat(rngCond.value);
-        document.getElementById('val-cond').innerText = k_curr.toFixed(3);
-
-        let x_new = 1 / (1 - k_curr);
-        if(!isFinite(x_new)) x_new = 1000;
-
-        let rel_err_in = Math.abs((k_curr - k_base) / k_base) * 100;
-        let rel_err_out = Math.abs((x_new - x_base) / x_base) * 100;
-        let kappa = (rel_err_in === 0) ? 1 : (rel_err_out / rel_err_in);
-
-        document.getElementById('res-d-in').innerText = rel_err_in.toFixed(2) + "%";
-        document.getElementById('res-d-out').innerText = rel_err_out.toFixed(2) + "%";
-        document.getElementById('res-cond-num').innerText = kappa > 100 ? "> 100" : kappa.toFixed(1);
-
-        // Draw
-        const w = cvs.width, h = cvs.height;
-        ctx.clearRect(0,0,w,h);
-        const scale = 20;
-        const tx = (x) => w/2 + (x - x_base) * scale;
-        const ty = (y) => h/2 - (y - x_base) * scale;
-
-        // Axes
-        ctx.strokeStyle = "#eee"; ctx.beginPath();
-        ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
-        ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
-        ctx.stroke();
-
-        // Lines
-        ctx.strokeStyle = "blue"; ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(tx(-10), ty(-10)); ctx.lineTo(tx(30), ty(30)); ctx.stroke();
-        
-        ctx.strokeStyle = "red"; ctx.lineWidth = 2; ctx.beginPath();
-        ctx.moveTo(tx(0), ty(1)); ctx.lineTo(tx(30), ty(30*k_curr + 1)); ctx.stroke();
-
-        // Points
-        ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.arc(tx(x_base), ty(x_base), 4, 0, Math.PI*2); ctx.fill();
-        
-        if(Math.abs(x_new - x_base) < 15) {
-            ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(tx(x_new), ty(x_new), 5, 0, Math.PI*2); ctx.fill();
-            // Arrow
-            ctx.strokeStyle = "green"; ctx.lineWidth = 2; ctx.beginPath();
-            ctx.moveTo(tx(x_base), ty(x_base) + 15);
-            ctx.lineTo(tx(x_new), ty(x_base) + 15);
-            ctx.stroke();
-        }
-    }
-    
-    rngCond.addEventListener('input', updateConditioning);
 
     // Initial Calls
     updateErrors();
