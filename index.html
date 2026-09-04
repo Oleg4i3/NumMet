@@ -343,6 +343,19 @@
             sidebar.classList.add('active');
         }
     }
+	
+	window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const simFile = urlParams.get('sim'); // зчитує ключ ?sim=...
+    
+    if (simFile) {
+        // Шукаємо кнопку, яка викликає openSim з цим файлом
+        const targetBtn = document.querySelector(`button[onclick*='${simFile}']`);
+        if (targetBtn) {
+            targetBtn.click();
+        }
+    }
+});
 </script>
 
 </body>
