@@ -83,6 +83,32 @@
             line-height: 1.6; border-left: 4px solid var(--accent);
         }
 
+        h2.section-h2 { color: var(--primary); margin-top: 10px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+
+        /* Strict/formal definitions block — distinct from "simple words" theory-block */
+        .def-block {
+            background: #fbf7ec; padding: 18px 20px; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;
+            line-height: 1.6; border-left: 4px solid #b8860b;
+        }
+        .def-block h4 {
+            margin: 0 0 6px 0; color: #7a5c00; font-size: 1rem;
+            text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .def-block .def-item { margin-bottom: 14px; }
+        .def-block .def-item:last-child { margin-bottom: 0; }
+        .def-tag {
+            display: inline-block; background: #b8860b; color: white;
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px;
+            padding: 2px 8px; border-radius: 10px; margin-bottom: 6px;
+        }
+
+        /* Extended theory reference (e.g. condition-number derivation) */
+        .math-block {
+            background: #f4f7f6; border: 1px solid #e0e0e0; border-radius: 6px;
+            padding: 10px 15px; margin: 12px 0; overflow-x: auto; text-align: center;
+        }
+
         .demo-block {
             background: #fff; padding: 25px; border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px;
@@ -128,6 +154,77 @@
         .highlight-green { color: var(--success); font-weight: bold; }
 
         canvas { background: white; width: 100%; border: 1px solid #ccc; }
+
+        /* ===== Quiz tab (ported from quiz.html) ===== */
+        .quiz-container { max-width: 800px; margin: 0 auto; }
+        .quiz-container .intro {
+            background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 25px; line-height: 1.6;
+        }
+        .quiz-container h2 { color: var(--secondary); margin-top: 30px; font-size: 1.15rem; border-left: 4px solid var(--accent); padding-left: 10px; }
+        .question {
+            background: white; padding: 20px 22px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 18px;
+            border-left: 4px solid #bdc3c7; transition: border-color 0.3s;
+        }
+        .question.correct { border-left-color: var(--success); }
+        .question.wrong { border-left-color: var(--danger); }
+        .q-num {
+            display: inline-block; background: var(--secondary); color: white;
+            width: 28px; height: 28px; border-radius: 50%; text-align: center;
+            line-height: 28px; font-size: 0.85rem; font-weight: bold; margin-right: 8px;
+        }
+        .q-text { font-weight: 600; color: var(--primary); }
+        .options { margin-top: 12px; }
+        .option {
+            display: block; padding: 10px 14px; margin: 6px 0;
+            background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px;
+            cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .option:hover { background: #eef6fc; border-color: var(--accent); }
+        .option input { margin-right: 10px; }
+        .option.selected { background: #d6eaf8; border-color: var(--accent); }
+        .option.correct-ans { background: #d4edda; border-color: var(--success); }
+        .option.wrong-ans { background: #f8d7da; border-color: var(--danger); }
+
+        .input-ans {
+            margin-top: 10px; padding: 10px 14px; width: 100%; max-width: 320px;
+            border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;
+        }
+        .input-ans:focus { outline: none; border-color: var(--accent); }
+
+        .feedback {
+            margin-top: 10px; padding: 10px 14px; border-radius: 6px;
+            font-size: 0.92rem; display: none;
+        }
+        .feedback.ok { background: #d4edda; color: #155724; display: block; }
+        .feedback.err { background: #f8d7da; color: #721c24; display: block; }
+        .feedback.hint { background: #fff3cd; color: #856404; display: block; }
+
+        .btn-bar { margin-top: 30px; text-align: center; }
+        .btn {
+            padding: 12px 28px; background: var(--accent); color: white;
+            border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; margin: 0 6px; transition: 0.2s;
+        }
+        .btn:hover { background: #1a5276; }
+        .btn.secondary { background: var(--secondary); }
+        .btn.secondary:hover { background: #1c2833; }
+
+        .score-box {
+            text-align: center; padding: 25px; background: white;
+            border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 30px 0; display: none;
+        }
+        .score-box.show { display: block; }
+        .score-num { font-size: 3rem; font-weight: bold; color: var(--accent); }
+        .score-label { color: #666; margin-top: 5px; }
+
+        .section-label {
+            display: inline-block; background: var(--light); color: var(--secondary);
+            padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;
+            margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -135,11 +232,12 @@
 <div class="sidebar">
     <h2>Основні поняття обчислювальної математики</h2>
     <button class="nav-btn active" onclick="showTab('intro')">Вступ</button>
-    <button class="nav-btn" onclick="showTab('epsilon')">1. Машинний нуль</button>
+    <button class="nav-btn" onclick="showTab('epsilon')">1. Машинна точність</button>
     <button class="nav-btn" onclick="showTab('errors')">2. Теорія похибок</button>
     <button class="nav-btn" onclick="showTab('convergence')">3. Збіжність</button>
     <button class="nav-btn" onclick="showTab('conditioning')">4. Обумовленість</button>
     <button class="nav-btn" onclick="showTab('stability')">5. Стійкість</button>
+    <button class="nav-btn" onclick="showTab('quiz')">6. Тест</button>
 </div>
 
 <div class="main-content">
@@ -153,7 +251,7 @@
             
             <p>Почнемо вивчати чисельні методи з п'яти базових понять:</p>
             <ul>
-                <li><strong>Машинний нуль</strong> — наскільки відносно малими можуть бути числа в комп'ютерній арифметиці?</li>
+                <li><strong>Машинний нуль і машинне епсілон</strong> — наскільки відносно малими можуть бути числа в комп'ютерній арифметиці?</li>
                 <li><strong>Похибки</strong> — як врахувати неточність вхідних даних і як вони впливають на результат?</li>
                 <li><strong>Збіжність</strong> — чи наближається ітераційний процес до правильної відповіді?</li>
                 <li><strong>Обумовленість</strong> — чи сама задача чутлива до збурень?</li>
@@ -168,6 +266,23 @@
         
         <div class="theory-block">
             <p>Комп'ютери мають обмежену точність (IEEE 754 Double Precision). Це призводить до ситуацій, коли математично правильні вирази дають нуль.</p>
+        </div>
+
+        <div class="def-block">
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Машинний нуль</h4>
+                <p><strong>Машинний нуль</strong> ($x_{min}$, англ. underflow limit) — найменше за модулем додатне число, яке комп'ютер ще здатний відрізнити від нуля у заданому форматі представлення чисел (наприклад, IEEE 754 double). Будь-яке ненульове математичне значення, менше за модулем за це число, при обчисленні на комп'ютері округлюється до $0$ (явище <em>underflow</em>, «зникнення в нуль»).</p>
+                <div class="math-block">$$ 0 < |x| < x_{min} \;\Rightarrow\; \text{fl}(x) = 0 $$</div>
+                <p style="font-size:0.9em; color:#666;">Тут $\text{fl}(x)$ («floating-point of $x$») — це число, яке комп'ютер насправді зберігає й повертає як результат після округлення точного математичного значення $x$ до найближчого представленого в машинній арифметиці числа. Формула вище означає: якщо точне значення $x$ за модулем менше за $x_{min}$, комп'ютер збереже замість нього $0$. Для IEEE 754 double найменше нормалізоване додатне число $x_{min} \approx 2.2 \times 10^{-308}$. Це все, що дозволяють виділені 64 біти (розряда).</p>
+            </div>
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Машинне епсилон (машинна точність)</h4>
+                <p><strong>Машинне епсилон</strong> $\varepsilon_{mach}$ — найменше додатне число, для якого в машинній арифметиці ще виконується нерівність $1 + \varepsilon_{mach} > 1$; еквівалентно, це відстань між числом $1$ і найближчим до нього більшим числом, яке комп'ютер здатний представити.</p>
+                <div class="math-block">$$ \varepsilon_{mach} = \min\{\, \varepsilon > 0 : 1 + \varepsilon > 1 \text{ в машинній арифметиці} \,\} $$</div>
+                <p style="font-size:0.9em; color:#666;">Для IEEE 754 double $\varepsilon_{mach} \approx 2.22 \times 10^{-16}$. На відміну від машинного нуля (абсолютна межа розрізнення чисел біля $0$), машинне епсилон характеризує <em>відносну</em> точність арифметичних операцій біля $1$ — і саме воно визначає, скільки значущих десяткових цифр (приблизно 15–16) можна довіряти в результаті double-обчислень.</p>
+            </div>
         </div>
 
      <div class="demo-block">
@@ -229,8 +344,21 @@
                 <div class="formula">
                    $$ \delta y \approx \left| \frac{\partial \ln f}{\partial x_1} \right| \Delta x_1 + \left| \frac{\partial \ln f}{\partial x_2} \right| \Delta x_2 + \ldots + \left| \frac{\partial \ln f}{\partial x_n} \right| \Delta x_n $$
                 </div>
-				
-				
+
+				<h3>Чому при множенні й діленні відносні похибки додаються</h3>
+				<p>Це не окреме правило, а прямий наслідок формули вище. Нехай $Y = \dfrac{A \cdot B}{C}$ — результат отримано множенням і діленням трьох вимірюваних величин. Прологарифмуємо обидві частини:</p>
+				<div class="formula">
+					$$ \ln Y = \ln A + \ln B - \ln C $$
+				</div>
+				<p>Тепер продиференціюємо це рівняння — кожен доданок дає похідну логарифма своєї змінної, а $d(\ln Y) = dY/Y$:</p>
+				<div class="formula">
+					$$ \frac{dY}{Y} = \frac{dA}{A} + \frac{dB}{B} - \frac{dC}{C} $$
+				</div>
+				<p>Це рівняння точне для нескінченно малих приростів, але знаки $dA$, $dB$, $dC$ нам невідомі — похибка вимірювання може мати будь-який знак. Щоб отримати гарантовану (найгіршу) оцінку, беремо кожен доданок за модулем: тоді від'ємний знак перед $dC/C$ зникає, і всі внески підсумовуються, а не віднімаються:</p>
+				<div class="formula">
+					$$ \delta_Y = \left|\frac{\Delta Y}{Y}\right| \approx \frac{\Delta A}{A} + \frac{\Delta B}{B} + \frac{\Delta C}{C} = \delta_A + \delta_B + \delta_C $$
+				</div>
+				<p>Той самий результат випливає й напряму з частинних похідних: $\dfrac{\partial Y}{\partial A} = \dfrac{Y}{A}$, $\dfrac{\partial Y}{\partial B} = \dfrac{Y}{B}$, $\dfrac{\partial Y}{\partial C} = -\dfrac{Y}{C}$ — у кожному випадку похідна за змінною, поділена на $Y$, дає рівно $1/A$, $1/B$ або $1/C$, тобто множник при $\Delta X$ у формулі відносної похибки. Тому для будь-якого добутку чи частки степенів $Y = A^{p} B^{q} C^{r}$ загальне правило має вигляд $\delta_Y \approx |p|\,\delta_A + |q|\,\delta_B + |r|\,\delta_C$ — на відміну від суми чи різниці доданків, де додаються не відносні, а <em>абсолютні</em> похибки.</p>
         </div>
 
         <div class="demo-block">
@@ -251,12 +379,20 @@
         </div>
 
         <div class="demo-block">
-            <h3>📝 Завдання для самоперевірки</h3>
-            <ol>
-                <li>Встановіть $R = 5$ і $\Delta R = 0.1$. Запишіть формулу $\Delta S \approx 2\pi R \cdot \Delta R$ і порахуйте результат вручну. Чи збігається він із показом інтерактиву?</li>
-                <li>Відносна похибка площі $\delta_S$ приблизно вдвічі більша за відносну похибку радіуса $\delta_R$. Чому? Поясніть через похідну або логарифмічне диференціювання.</li>
-                <li>Об'єм кулі $V = \frac{4}{3}\pi R^3$. Виведіть формулу для $\Delta V$ через $\Delta R$ і порахуйте похибку для $R = 10$, $\Delta R = 0.5$. На скільки відсотків помиляємося?</li>
-            </ol>
+            <h3>📐 Приклад: похибка непрямого вимірювання нелінійної функції — кут через арктангенс</h3>
+            <p>Формула $\Delta S \approx 2\pi R \cdot \Delta R$ вище — окремий випадок, лінійний за похідною. Але похідна функції не обов'язково стала: розглянемо визначення кута нахилу $\alpha$ через виміряні катети прямокутного трикутника — висоту $h$ і горизонтальну відстань $L$:</p>
+            <div class="formula">
+                $$ \alpha = \arctan\!\left(\frac{h}{L}\right) $$
+            </div>
+            <p>Це функція двох незалежних величин, кожна зі своєю похибкою: $h = 8{,}0 \pm 0{,}1$ м, $L = 15{,}0 \pm 0{,}2$ м. Застосовуємо загальну формулу для похибки функції кількох аргументів (частинні похідні), а не спрощену для одного аргументу. Позначивши $u = h/L$ і скориставшись $\left(\arctan u\right)' = \dfrac{1}{1+u^2}$ разом із правилом диференціювання складеної функції:</p>
+            <div class="formula">
+                $$ \frac{\partial \alpha}{\partial h} = \frac{1}{1+u^2}\cdot\frac{1}{L} = \frac{L}{h^2+L^2}, \qquad \frac{\partial \alpha}{\partial L} = \frac{1}{1+u^2}\cdot\left(-\frac{h}{L^2}\right) = -\frac{h}{h^2+L^2} $$
+            </div>
+            <p>Обидві похідні залежать від самих $h$ і $L$ — на відміну від прикладу з площею круга, де похідна $S'=2\pi R$ не залежала від $\Delta R$. Підставляємо в формулу похибки функції кількох змінних (беручи модулі похідних, як і в загальному випадку):</p>
+            <div class="formula">
+                $$ \Delta \alpha \approx \left|\frac{\partial \alpha}{\partial h}\right|\Delta h + \left|\frac{\partial \alpha}{\partial L}\right|\Delta L = \frac{L\,\Delta h + h\,\Delta L}{h^2+L^2} $$
+            </div>
+            <p>Числове обчислення: $h^2+L^2 = 64 + 225 = 289$, тому $\Delta\alpha \approx \dfrac{15{,}0\cdot 0{,}1 + 8{,}0\cdot 0{,}2}{289} = \dfrac{3{,}1}{289} \approx 0{,}0107$ рад $\approx 0{,}61°$. Сам кут $\alpha = \arctan(8/15) \approx 0{,}4900$ рад $\approx 28{,}07°$. Результат: $\alpha = (28{,}07 \pm 0{,}61)°$ — і зверніть увагу, що абсолютна похибка кута тут вимірюється в радіанах (або градусах), а не в метрах, як похибки вхідних $h$ і $L$: одиниці змінює саме похідна.</p>
         </div>
     </div>
 
@@ -265,6 +401,29 @@
         <div class="theory-block">
             <p>Метод простих ітерацій $x_{k+1} = \varphi(x_k)$. Змінюйте точку старту та функцію, щоб побачити "сходи", "спіраль" або "хаос".</p>
         </div>
+
+        <div class="def-block">
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Збіжність</h4>
+                <p>Послідовність $\{x_k\}_{k=0}^{\infty}$, породжена ітераційним процесом, <strong>збігається</strong> до $x^*$, якщо</p>
+                <div class="math-block">$$ \quad \lim_{k \to \infty} x_k = x^*. $$</div>
+                <p>Для чисельного методу, що апроксимує задачу з параметром дискретизації $h$ (крок сітки, розмір кроку тощо), кажуть, що метод <strong>збігається</strong>, якщо наближений розв'язок прямує до точного при $h \to 0$ (або при кількості ітерацій $k \to \infty$).</p>
+            </div>
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Швидкість (порядок) збіжності</h4>
+                <p>Нехай $e_k = |x_k - x^*|$ — похibка на кроці $k$. Кажуть, що збіжність має <strong>порядок $p \ge 1$</strong> з асимптотичною константою похибки $C$, якщо</p>
+                <div class="math-block">$$ \lim_{k \to \infty} \frac{e_{k+1}}{e_k^{\,p}} = C, \qquad 0 < C < \infty. $$</div>
+                <ul style="margin-top:8px;">
+                    <li>$p = 1$ і $0 < C < 1$ — <strong>лінійна</strong> збіжність (похibка щоразу зменшується приблизно в одне й те саме число разів);</li>
+                    <li>$1 < p < 2$ — <strong>надлінійна (суперлінійна)</strong> збіжність;</li>
+                    <li>$p = 2$ — <strong>квадратична</strong> збіжність (кількість правильних цифр приблизно подвоюється на кожному кроці — так збігається, наприклад, метод Ньютона поблизу простого кореня).</li>
+                </ul>
+                <p style="font-size:0.9em; color:#666;">Порядок збіжності — характеристика саме <em>методу</em> (алгоритму), на відміну від того, чи взагалі є збіжність — це властивість пари «метод + стартова точка/задача».</p>
+            </div>
+        </div>
+
         <div class="demo-block">
             <div class="controls">
                 <div class="control-group" style="grid-column: span 2;">
@@ -298,8 +457,55 @@
         <h1>4. Обумовленість (Conditioning)</h1>
 
         <div class="theory-block">
-            <p><strong>Число обумовленості ($\kappa$)</strong> показує чутливість задачі до збурень. $\kappa \approx \frac{\delta_{out}}{\delta_{in}}$.</p>
+            <p><strong>Число обумовленості ($\kappa$)</strong> показує чутливість задачі до збурень. $\kappa \approx \frac{\delta_{out}}{\delta_{in}}$, де $\delta_{in}$, $\delta_{out}$ — відносні (у частках або відсотках) похибки входу й виходу.</p>
             <p>Графічно: перетин двох прямих (ааналітично - розв'язок лінійної системи рівнянь). Якщо прямі майже паралельні (кажуть "задача погано обумовлена"), найменший зсув однієї прямої призводить до гігантського зсуву точки перетину.</p>
+        </div>
+
+        <div class="def-block">
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Обумовленість</h4>
+                <p><strong>Обумовленість</strong> — властивість самої <em>задачі</em> (а не методу її розв'язання): наскільки точний розв'язок задачі чутливий до малих збурень вхідних даних, якщо всі проміжні обчислення виконувати абсолютно точно, без жодного округлення. Задача називається <strong>добре обумовленою</strong>, якщо малі відносні збурення входу дають сумірно малі відносні збурення виходу, і <strong>погано обумовленою</strong>, якщо навіть незначне збурення входу може призвести до великої відносної зміни результату.</p>
+            </div>
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Число обумовленості</h4>
+                <p><strong>Число обумовленості</strong> $\kappa$ (традиційне позначення, читається «каппа») — кількісна міра обумовленості: коефіцієнт підсилення відносної похибки, тобто у скільки разів відносна похибка результату більша за відносну похибку вхідних даних:</p>
+                <div class="math-block">$$ \kappa = \frac{|\Delta y| / |y|}{|\Delta x| / |x|} $$</div>
+                <p>де $x$ — точне значення вхідних даних, $\Delta x$ — його (мале) збурення, $y = f(x)$ — точний результат, а $\Delta y = f(x+\Delta x) - f(x)$ — спричинена ним зміна результату. Для скалярної функції $y = f(x)$ ця величина обчислюється явно: $\kappa(x) = \left| \dfrac{x f'(x)}{f(x)} \right|$, де $f'(x)$ — похідна $f$ у точці $x$ (виведення — у довідці нижче). Для матричної задачі $Ax = b$ її аналогом є $\kappa(A) = \|A\| \cdot \|A^{-1}\|$ (тут $\|\cdot\|$ — норма матриці/вектора, узагальнення модуля на векторні й матричні величини). Умовно вважають задачу добре обумовленою, якщо $\kappa$ має порядок одиниць — десятків, і погано обумовленою, якщо $\kappa \gg 1$ (сотні, тисячі й більше).</p>
+            </div>
+        </div>
+
+        <div class="theory-block">
+            <h3 class="section-h2" style="border:none; margin-top:0;">Теоретична довідка: чому існує коефіцієнт обумовленості для функцій і як виводиться його формула</h3>
+
+            <h4>1. Загальна фізична сутність обумовленості</h4>
+            <p>У багатьох курсах вищої математики <strong>число обумовленості</strong> (condition number) вводять першочергово для матриць та СЛАР ($A x = b$), де воно визначається як $\kappa(A) = \|A\| \cdot \|A^{-1}\|$ ($\|\cdot\|$ — норма). Однак у чисельному аналізі поняття обумовленості є набагато ширшим — воно стосується <em>будь-якої математичної задачі</em> обчислення функції $y = f(x)$. Обумовленість вимірює <strong>коефіцієнт підсилення відносної похибки</strong>: показує, у скільки разів відносна похибка результату більша за відносну похибку вхідних даних.</p>
+
+            <h4>2. Вивід формули для скалярної функції $y = f(x)$</h4>
+            <p>Нехай маємо диференційовну функцію $y = f(x)$. При малому збуренні вхідного аргументу на $\Delta x$, за формулою Тейлора першого порядку, зміна результату становить:</p>
+            <div class="math-block">$$\Delta y = f(x + \Delta x) - f(x) \approx f'(x) \cdot \Delta x$$</div>
+            <p>Підставимо це значення у формулу відносної похибки результату:</p>
+            <div class="math-block">$$\frac{|\Delta y|}{|y|} \approx \frac{|f'(x) \cdot \Delta x|}{|f(x)|}$$</div>
+            <p>Поділивши її на відносну похибку аргументу $\frac{|\Delta x|}{|x|}$, отримуємо підсумкову формулу для числа обумовленості $\kappa(x)$:</p>
+            <div class="math-block">$$\kappa(x) = \frac{\frac{|f'(x) \cdot \Delta x|}{|f(x)|}}{\frac{|\Delta x|}{|x|}} = \frac{|x \cdot f'(x)|}{|f(x)|}$$</div>
+
+            <h4>3. Розбір на прикладі степенних та кубічних функцій</h4>
+            <ul>
+                <li><strong>Чисто кубічна (степенна) функція $f(x) = x^3$:</strong><br>
+                Похідна: $f'(x) = 3x^2$. За формулою: $\kappa(x) = \left| \frac{x \cdot (3x^2)}{x^3} \right| = \left| \frac{3x^3}{x^3} \right| = 3$.<br>
+                <em>Висновок:</em> для $f(x) = x^3$ число обумовленості <strong>стале й дорівнює 3</strong> незалежно від $x$. Похибка у $1\%$ на вході призводить до похибки у $\approx 3\%$ у результаті.</li>
+
+                <li><strong>Кубічна функція з декількома членами, наприклад $f(x) = x^3 - 2x$ у точці $x = 2$:</strong><br>
+                $f(2) = 2^3 - 2(2) = 4$; $f'(x) = 3x^2 - 2 \implies f'(2) = 3(4) - 2 = 10$.<br>
+                Тоді $\kappa(2) = \left| \frac{2 \cdot 10}{4} \right| = \frac{20}{4} = 5$.<br>
+                <em>Висновок:</em> у точці $x = 2$ похибка підсилюється у 5 разів. Якщо ж $f(x) \to 0$ (наближення до кореня), $\kappa(x) \to \infty$, що свідчить про погану обумовленість обчислення відносної похибки біля нулів функції.</li>
+            </ul>
+
+            <h4>4. Зв'язок із матричним числом обумовленості $\kappa(A)$</h4>
+            <p>Для матричного рівняння $A x = b$, якщо збурено вектор $b \to b + \Delta b$, то розв'язок $x = A^{-1}b$ змінюється на $\Delta x = A^{-1} \Delta b$. Оцінюючи норми (тут $\|\cdot\|$ означає векторну норму — узагальнення модуля $|\cdot|$ на вектори, наприклад евклідову довжину):</p>
+            <div class="math-block">$$\frac{\|\Delta x\|}{\|x\|} \le (\|A\| \cdot \|A^{-1}\|) \cdot \frac{\|\Delta b\|}{\|b\|}$$</div>
+            <p>Тобто матричне число $\kappa(A) = \|A\| \cdot \|A^{-1}\|$ є безпосереднім узагальненням виразу $\left| \frac{x f'(x)}{f(x)} \right|$ на випадок багатовимірних лінійних операторів.</p>
         </div>
 
         <div class="demo-block">
@@ -382,6 +588,18 @@
             <p style="font-size:0.9em; color:#666;">Нижче — <strong>випадок 2</strong>: нестійкість не одного обчислення, а <em>процесу, що повторюється</em> (рекурентна формула). Це ближче до того, що означає "нестійкість методу" для чисельного розв'язання рівнянь — там теж похибка не просто виникає, а <em>накопичується від кроку до кроку</em>.</p>
         </div>
 
+        <div class="def-block">
+            <div class="def-item">
+                <span class="def-tag">Означення</span>
+                <h4>Стійкість (обчислювального процесу)</h4>
+                <p>Нехай алгоритм обчислює результат за $n$ кроків, і на кожному кроці $k$ через округлення вноситься похибка $\varepsilon_k$ (звичайне число, а не вектор). Позначимо через $y$ точний результат (без жодних округлень), а через $\hat{y}$ — результат, реально обчислений комп'ютером. Алгоритм (метод) називають <strong>обчислювально стійким</strong>, якщо сумарний вплив цих похибок на кінцевий результат залишається <em>контрольованим</em> — тобто існує константа $C$, яка не зростає катастрофічно (наприклад, не росте експоненційно) зі збільшенням $n$, для якої</p>
+                <div class="math-block">$$ |\hat{y} - y| \;\le\; C \cdot \max_k |\varepsilon_k|, $$</div>
+                <p>де $|\cdot|$ — звичайний модуль числа (тут немає потреби в узагальненому понятті норми — обидва результати, $y$ і $\hat y$, це просто числа).</p>
+                <p>Якщо ж така константа $C$ зростає необмежено швидко (наприклад, експоненційно за $n$) — процес називають <strong>нестійким</strong>: тоді як завгодно мала похибка округлення, внесена на якомусь кроці, з часом «розганяється» і починає домінувати в результаті.</p>
+                <p style="font-size:0.9em; color:#666;">Є ще одне, <em>споріднене, але не тотожне</em> поняття — <em>зворотна стійкість</em> (backward stability): кажуть, що алгоритм зворотно стійкий, якщо обчислений результат $\hat{y}$ збігається з <em>точним</em> розв'язком трохи <em>збуреної</em> вхідної задачі (тобто задачі з небагато зміненими вхідними даними), причому величина цього збурення визначається лише самим алгоритмом і розрядністю арифметики — і не залежить від конкретної задачі. Тому зворотна стійкість, як і означення вище, є властивістю виключно <em>методу</em> (задача тут ні до чого — так само, як зазначено в таблиці нижче). Але це не інша форма запису того самого факту: зворотна стійкість гарантує лише малість збурення на вході, а от чи буде малою похибка самого результату $\hat y - y$ — залежить ще й від того, наскільки добре обумовлена сама задача (число $\kappa$ з попередньої вкладки): приблизно, підсумкова похибка $\approx \kappa \times$ (зворотна похибка). Не плутайте це з <strong>збіжністю</strong>: збіжність — про наближення до точної відповіді зі зменшенням кроку сітки чи зростанням числа ітерацій, тоді як стійкість (пряма чи зворотна) — про те, чи не розганяються похибки округлення в межах одного-єдиного обчислення при фіксованих вхідних даних.</p>
+            </div>
+        </div>
+
         <div class="demo-block">
             <h3>Експеримент: Зростання $x$</h3>
             <p>Тягніть слайдер вправо, щоб збільшити степінь $x$ (від $10^1$ до $10^{16}$).</p>
@@ -443,6 +661,217 @@
         </div>
     </div>
 
+    <div id="tab-quiz" class="tab-content">
+        <h1>6. Тест</h1>
+        <div class="quiz-container">
+            <div class="intro">
+                <strong>20 питань:</strong> 5 теоретичних (вибір відповіді) + 15 обчислювальних (введіть число або оберіть варіант).<br>
+                Деякі питання вимагають калькулятора (або здорового глузду). У числових відповідях допускається похибка до 5%.
+            </div>
+
+            <!-- ===== ТЕОРІЯ ===== -->
+            <h2>Теоретичні питання</h2>
+
+            <div class="question" data-type="mc" data-ans="b">
+                <div class="section-label">Теорія</div>
+                <div><span class="q-num">1</span><span class="q-text">Що таке машинний епсилон (ε_mach)?</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q1" value="a"> Найменше додатне число, яке може представити комп'ютер</label>
+                    <label class="option"><input type="radio" name="q1" value="b"> Найбільше число $\varepsilon$, для якого ще виконується $1 + \varepsilon > 1$</label>
+                    <label class="option"><input type="radio" name="q1" value="c"> Відносна похибка будь-якого обчислення</label>
+                    <label class="option"><input type="radio" name="q1" value="d"> Абсолютна похибка округлення</label>
+                </div>
+                <div class="feedback" id="fb-q1"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="c">
+                <div class="section-label">Теорія</div>
+                <div><span class="q-num">2</span><span class="q-text">Яке з тверджень правильно описує різницю між обумовленістю та стійкістю?</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q2" value="a"> Це синоніми; обидва терміни означають чутливість до похибок</label>
+                    <label class="option"><input type="radio" name="q2" value="b"> Обумовленість — властивість методу, стійкість — властивість задачі</label>
+                    <label class="option"><input type="radio" name="q2" value="c"> Обумовленість — властивість задачі, стійкість — властивість методу/алгоритму</label>
+                    <label class="option"><input type="radio" name="q2" value="d"> Обидва поняття стосуються лише ітераційних процесів</label>
+                </div>
+                <div class="feedback" id="fb-q2"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="b">
+                <div class="section-label">Теорія</div>
+                <div><span class="q-num">3</span><span class="q-text">Для збіжності методу простих ітерацій $x_{k+1} = \varphi(x_k)$ у околі нерухомої точки достатньо, щоб:</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q3" value="a"> $|\varphi(x)| < 1$ для всіх $x$</label>
+                    <label class="option"><input type="radio" name="q3" value="b"> $|\varphi'(x^*)| < 1$ у точці збігу</label>
+                    <label class="option"><input type="radio" name="q3" value="c"> $\varphi(x)$ була неперервною</label>
+                    <label class="option"><input type="radio" name="q3" value="d"> $x_0$ збігалася з точним розв'язком</label>
+                </div>
+                <div class="feedback" id="fb-q3"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="a">
+                <div class="section-label">Теорія</div>
+                <div><span class="q-num">4</span><span class="q-text">Явище «катастрофічної втрати значущих цифр» найчастіше виникає при:</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q4" value="a"> Відніманні двох близьких чисел</label>
+                    <label class="option"><input type="radio" name="q4" value="b"> Додаванні двох додатних чисел</label>
+                    <label class="option"><input type="radio" name="q4" value="c"> Множенні двох великих чисел</label>
+                    <label class="option"><input type="radio" name="q4" value="d"> Діленні на число, близьке до нуля</label>
+                </div>
+                <div class="feedback" id="fb-q4"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="d">
+                <div class="section-label">Теорія</div>
+                <div><span class="q-num">5</span><span class="q-text">Що означає число обумовленості $\kappa \gg 1$?</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q5" value="a"> Задача розв'язується дуже швидко</label>
+                    <label class="option"><input type="radio" name="q5" value="b"> Метод гарантовано збігається</label>
+                    <label class="option"><input type="radio" name="q5" value="c"> Похибка округлення не впливає на результат</label>
+                    <label class="option"><input type="radio" name="q5" value="d"> Мала похибка вхідних даних призводить до великої похибки результату</label>
+                </div>
+                <div class="feedback" id="fb-q5"></div>
+            </div>
+
+            <!-- ===== ОБЧИСЛЕННЯ ===== -->
+            <h2>Обчислювальні завдання</h2>
+
+            <div class="question" data-type="num" data-ans="1" data-tol="0">
+                <div class="section-label">Обчислення · Машинний нуль</div>
+                <div><span class="q-num">6</span><span class="q-text">Скільки дорівнює $(1 + 10^{-20})^{21}$ у стандартній подвійній точності (IEEE 754)? Введіть число.</span></div>
+                <input type="text" class="input-ans" id="ans-q6" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q6"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="2.22e-16" data-tol="5">
+                <div class="section-label">Обчислення · Машинний нуль</div>
+                <div><span class="q-num">7</span><span class="q-text">Яким приблизно є машинний епсилон для числа з подвійною точністю (double)? Введіть у вигляді десяткового дробу (наприклад, 1.6e-20).</span></div>
+                <input type="text" class="input-ans" id="ans-q7" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q7"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="c">
+                <div class="section-label">Обчислення · Похибки</div>
+                <div><span class="q-num">8</span><span class="q-text">Радіус круга $R = 10 \pm 0.2$. Яка лінійна оцінка абсолютної похибки площі $\Delta S$?</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q8" value="a"> $\Delta S \approx 0.4\pi$</label>
+                    <label class="option"><input type="radio" name="q8" value="b"> $\Delta S \approx 2\pi$</label>
+                    <label class="option"><input type="radio" name="q8" value="c"> $\Delta S \approx 4\pi$</label>
+                    <label class="option"><input type="radio" name="q8" value="d"> $\Delta S \approx 20\pi$</label>
+                </div>
+                <div class="feedback" id="fb-q8"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="3.14159" data-tol="5">
+                <div class="section-label">Обчислення · Похибки</div>
+                <div><span class="q-num">9</span><span class="q-text">Для $R = 5$, $\Delta R = 0.1$ обчисліть $\Delta S \approx 2\pi R \cdot \Delta R$. Відповідь округліть до 5 значущих цифр.</span></div>
+                <input type="text" class="input-ans" id="ans-q9" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q9"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="0.02" data-tol="5">
+                <div class="section-label">Обчислення · Похибки</div>
+                <div><span class="q-num">10</span><span class="q-text">Визначили кут $\alpha = \arctan(50)$ з похибкою $\Delta(\tan\alpha) = 0.01$. Знайдіть $\Delta\alpha$ (у радіанах) за формулою $\Delta\alpha \approx \frac{\Delta(\tan\alpha)}{1 + \tan^2\alpha}$. Відповідь: приблизно …</span></div>
+                <input type="text" class="input-ans" id="ans-q10" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q10"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="15" data-tol="5">
+                <div class="section-label">Обчислення · Похибки</div>
+                <div><span class="q-num">11</span><span class="q-text">Об'єм кулі $V = \frac{4}{3}\pi R^3$. При $R = 10$, $\Delta R = 0.5$ знайдіть відносну похибку $\delta_V$ (у відсотках, округлено до цілого).</span></div>
+                <input type="text" class="input-ans" id="ans-q11" placeholder="Ваша відповідь (%)">
+                <div class="feedback" id="fb-q11"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="b">
+                <div class="section-label">Обчислення · Збіжність</div>
+                <div><span class="q-num">12</span><span class="q-text">Нерухома точка рівняння $x = \cos(x)$ лежить приблизно в інтервалі:</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q12" value="a"> $(0; 0.5)$</label>
+                    <label class="option"><input type="radio" name="q12" value="b"> $(0.7; 0.8)$</label>
+                    <label class="option"><input type="radio" name="q12" value="c"> $(1.0; 1.2)$</label>
+                    <label class="option"><input type="radio" name="q12" value="d"> $(1.5; 2.0)$</label>
+                </div>
+                <div class="feedback" id="fb-q12"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="0.035" data-tol="10">
+                <div class="section-label">Обчислення · Збіжність</div>
+                <div><span class="q-num">13</span><span class="q-text">Для $\varphi(x) = 0.5\sin(x) + 1.5$ знайдіть $|\varphi'(x^*)|$ у нерухомій точці $x^* \approx 1.498$. Чому дорівнює похідна (з точністю до 0.01)?</span></div>
+                <input type="text" class="input-ans" id="ans-q13" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q13"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="d">
+                <div class="section-label">Обчислення · Збіжність</div>
+                <div><span class="q-num">14</span><span class="q-text">Ітераційний процес $x_{k+1} = 2x_k - 2$ при $x_0 = 1.5$:</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q14" value="a"> Збігається до $x = 1$</label>
+                    <label class="option"><input type="radio" name="q14" value="b"> Збігається до $x = 2$</label>
+                    <label class="option"><input type="radio" name="q14" value="c"> Коливається між двома значеннями</label>
+                    <label class="option"><input type="radio" name="q14" value="d"> Розбігається</label>
+                </div>
+                <div class="feedback" id="fb-q14"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="10" data-tol="5">
+                <div class="section-label">Обчислення · Обумовленість</div>
+                <div><span class="q-num">15</span><span class="q-text">Для задачі $x = \frac{1}{1-k}$ при $k = 0.9$ знайдіть $x$. Якщо $k$ змінюється на 1% (стає 0.909), на скільки відсотків зміниться $x$? Округліть до цілого.</span></div>
+                <input type="text" class="input-ans" id="ans-q15" placeholder="Ваша відповідь (%)" style="max-width: 220px;">
+                <div class="feedback" id="fb-q15"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="9" data-tol="10">
+                <div class="section-label">Обчислення · Обумовленість</div>
+                <div><span class="q-num">16</span><span class="q-text">Число обумовленості $\kappa$ для $f(x) = \frac{1}{1-x}$ у точці $x = 0.9$ приблизно дорівнює: $\kappa = \left| \frac{x \cdot f'(x)}{f(x)} \right|$. Обчисліть (округліть до цілого).</span></div>
+                <input type="text" class="input-ans" id="ans-q16" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q16"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="0.0001" data-tol="5">
+                <div class="section-label">Обчислення · Стійкість</div>
+                <div><span class="q-num">17</span><span class="q-text">Обчисліть $\sqrt{10^8 + 1} - \sqrt{10^8}$ за стійкою (раціоналізованою) формулою $\frac{1}{\sqrt{x+1} + \sqrt{x}}$. Відповідь: приблизно …</span></div>
+                <input type="text" class="input-ans" id="ans-q17" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q17"></div>
+            </div>
+
+            <div class="question" data-type="mc" data-ans="a">
+                <div class="section-label">Обчислення · Стійкість</div>
+                <div><span class="q-num">18</span><span class="q-text">Наївний метод $\sqrt{x+1} - \sqrt{x}$ при $x = 10^{16}$ у подвійній точності дає:</span></div>
+                <div class="options">
+                    <label class="option"><input type="radio" name="q18" value="a"> $0$</label>
+                    <label class="option"><input type="radio" name="q18" value="b"> $5 \cdot 10^{-9}$</label>
+                    <label class="option"><input type="radio" name="q18" value="c"> $10^{-8}$</label>
+                    <label class="option"><input type="radio" name="q18" value="d"> $0.5$</label>
+                </div>
+                <div class="feedback" id="fb-q18"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="0.111" data-tol="5">
+                <div class="section-label">Обчислення · Стійкість</div>
+                <div><span class="q-num">19</span><span class="q-text">Для рекурентної формули $p_n = \frac{10}{3}p_{n-1} - p_{n-2}$ з $p_0 = 1$, $p_1 = \frac{1}{3}$ обчисліть $p_2$. Відповідь: …</span></div>
+                <input type="text" class="input-ans" id="ans-q19" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q19"></div>
+            </div>
+
+            <div class="question" data-type="num" data-ans="0" data-tol="0">
+                <div class="section-label">Обчислення · Стійкість</div>
+                <div><span class="q-num">20</span><span class="q-text">При $x = 10^{20}$ вираз $1 + x - x$ у подвійній точності дорівнює … (введіть число)</span></div>
+                <input type="text" class="input-ans" id="ans-q20" placeholder="Ваша відповідь">
+                <div class="feedback" id="fb-q20"></div>
+            </div>
+
+            <div class="btn-bar">
+                <button class="btn" onclick="checkAll()">Перевірити відповіді</button>
+                <button class="btn secondary" onclick="resetAll()">Скинути</button>
+            </div>
+
+            <div class="score-box" id="scoreBox">
+                <div class="score-num" id="scoreNum">0/20</div>
+                <div class="score-label">правильних відповідей</div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -453,7 +882,7 @@
         document.getElementById('tab-'+id).classList.add('active');
         
         // Button highlighting hack
-        const map = ['intro', 'epsilon', 'errors', 'convergence', 'conditioning', 'stability'];
+        const map = ['intro', 'epsilon', 'errors', 'convergence', 'conditioning', 'stability', 'quiz'];
         const btns = document.querySelectorAll('.nav-btn');
         if(btns[map.indexOf(id)]) btns[map.indexOf(id)].classList.add('active');
         
@@ -464,6 +893,7 @@
             updateRecurrence();
         }
         if(id === 'conditioning') updateConditioning();
+        if(id === 'quiz' && window.MathJax) MathJax.typesetPromise();
     }
 
    // ==========================================
@@ -835,6 +1265,111 @@
 
     rngRecDigits.addEventListener('input', updateRecurrence);
     rngRecSteps.addEventListener('input', updateRecurrence);
+
+    // ==========================================
+    // 6. QUIZ LOGIC (ported from quiz.html)
+    // ==========================================
+    function parseNum(s) {
+        s = s.replace(/,/g, '.').replace(/\s+/g, '').toLowerCase();
+        if (s.includes('e')) {
+            const [m, e] = s.split('e');
+            return parseFloat(m) * Math.pow(10, parseFloat(e));
+        }
+        return parseFloat(s);
+    }
+
+    function checkAll() {
+        let score = 0;
+        const quizRoot = document.getElementById('tab-quiz');
+        const questions = quizRoot.querySelectorAll('.question');
+
+        questions.forEach((q) => {
+            const type = q.dataset.type;
+            const correct = q.dataset.ans;
+            const tol = parseFloat(q.dataset.tol || '0');
+            const fb = q.querySelector('.feedback');
+            let isCorrect = false;
+
+            if (type === 'mc') {
+                const selected = q.querySelector('input[type="radio"]:checked');
+                const options = q.querySelectorAll('.option');
+                options.forEach(opt => {
+                    opt.classList.remove('correct-ans', 'wrong-ans', 'selected');
+                    const inp = opt.querySelector('input');
+                    if (inp.value === correct) opt.classList.add('correct-ans');
+                });
+                if (selected) {
+                    const parent = selected.closest('.option');
+                    parent.classList.add('selected');
+                    if (selected.value === correct) {
+                        isCorrect = true;
+                    } else {
+                        parent.classList.add('wrong-ans');
+                    }
+                }
+            } else {
+                const input = q.querySelector('.input-ans');
+                const userVal = parseNum(input.value);
+                const correctVal = parseNum(correct);
+                if (!isNaN(userVal)) {
+                    if (tol === 0) {
+                        isCorrect = Math.abs(userVal - correctVal) < 1e-12;
+                    } else {
+                        const relErr = Math.abs(userVal - correctVal) / Math.abs(correctVal);
+                        isCorrect = relErr <= tol / 100;
+                    }
+                }
+            }
+
+            if (isCorrect) {
+                score++;
+                q.classList.add('correct');
+                q.classList.remove('wrong');
+                fb.className = 'feedback ok';
+                fb.innerText = '✅ Правильно!';
+            } else {
+                q.classList.add('wrong');
+                q.classList.remove('correct');
+                fb.className = 'feedback err';
+                if (type === 'mc') {
+                    fb.innerText = '❌ Неправильно. Правильна відповідь позначена зеленим.';
+                } else {
+                    fb.innerText = '❌ Неправильно. Правильна відповідь: ' + correct + (q.dataset.tol && q.dataset.tol !== '0' ? ' (допуск ±' + q.dataset.tol + '%)' : '');
+                }
+            }
+        });
+
+        document.getElementById('scoreNum').innerText = score + '/20';
+        document.getElementById('scoreBox').classList.add('show');
+        const scrollParent = document.querySelector('.main-content');
+        scrollParent.scrollTo({ top: scrollParent.scrollHeight, behavior: 'smooth' });
+    }
+
+    function resetAll() {
+        const quizRoot = document.getElementById('tab-quiz');
+        quizRoot.querySelectorAll('.question').forEach(q => {
+            q.classList.remove('correct', 'wrong');
+            q.querySelectorAll('.option').forEach(opt => {
+                opt.classList.remove('correct-ans', 'wrong-ans', 'selected');
+            });
+            q.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+            const inp = q.querySelector('.input-ans');
+            if (inp) inp.value = '';
+            const fb = q.querySelector('.feedback');
+            fb.className = 'feedback';
+            fb.innerText = '';
+        });
+        document.getElementById('scoreBox').classList.remove('show');
+    }
+
+    // Highlight selected MC options
+    document.querySelectorAll('#tab-quiz .option input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const opts = this.closest('.options').querySelectorAll('.option');
+            opts.forEach(o => o.classList.remove('selected'));
+            this.closest('.option').classList.add('selected');
+        });
+    });
 
     // Initial Calls
     updateErrors();
