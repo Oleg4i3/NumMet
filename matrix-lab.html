@@ -653,7 +653,7 @@ function renderStep2(body){
 
 /* ===================== КРОК 3: матриця як оператор ===================== */
 function renderStep3(body){
-  var state={a:1.2,b:0.6,c:-0.4,d:0.9};
+  var state={a:1.0,b:0.0,c:0.,d:1.0};
   var grid=document.createElement('div'); grid.className='step-grid';
   var colEditor=document.createElement('div'); colEditor.className='col col-editor';
   colEditor.innerHTML='<div class="editor-note">Матриця A (тягніть числа АБО самі вектори на малюнку):</div>';
@@ -667,7 +667,7 @@ function renderStep3(body){
 
   var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
   presetsWrap.innerHTML='<span class="presets-label">Приклади:</span>';
-  addPreset(presetsWrap,'Розтягнення',function(){ state.a=2;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Розтягнення',function(){ state.a=1.2;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
   addPreset(presetsWrap,'Зсув (shear)',function(){ state.a=1;state.b=1;state.c=0;state.d=1; editor.refresh(); redraw(); });
   addPreset(presetsWrap,'Поворот 45°',function(){ var t=Math.PI/4; state.a=Math.cos(t);state.b=-Math.sin(t);state.c=Math.sin(t);state.d=Math.cos(t); editor.refresh(); redraw(); });
   colEditor.appendChild(presetsWrap);
@@ -842,14 +842,14 @@ function renderStep6(body){
 
 /* ===================== КРОК 7: обернена матриця ===================== */
 function renderStep7(body){
-  var state={a:2,b:1,c:1,d:1};
+  var state={a:1.2,b:1,c:0.4,d:1};
 
   var controls=document.createElement('div'); controls.className='wide-controls';
   var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
   controls.appendChild(noteSpan);
   var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
   var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
-  addPreset(controls,'Типовий',function(){ state.a=2;state.b=1;state.c=1;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Типовий',function(){ state.a=1.2;state.b=1;state.c=0.4;state.d=1; editor.refresh(); redraw(); });
   addPreset(controls,'Ортогональна (пов. 40°)',function(){ var t=40*Math.PI/180; state.a=Math.cos(t);state.b=-Math.sin(t);state.c=Math.sin(t);state.d=Math.cos(t); editor.refresh(); redraw(); });
   addPreset(controls,'Сингулярна (det=0)',function(){ state.a=2;state.b=4;state.c=1;state.d=2; editor.refresh(); redraw(); });
   body.appendChild(controls);
@@ -989,15 +989,15 @@ function renderStep8(body){
 
 /* ===================== КРОК 9: спектральний розклад ===================== */
 function renderStep9(body){
-  var state={a:2,b:1,c:1,d:2};
+  var state={a:1.2,b:0.3,c:0.3,d:1.5};
 
   var controls=document.createElement('div'); controls.className='wide-controls';
   var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
   controls.appendChild(noteSpan);
   var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
   var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
-  addPreset(controls,'Симетрична',function(){ state.a=2;state.b=1;state.c=1;state.d=2; editor.refresh(); redraw(); });
-  addPreset(controls,'Несиметрична',function(){ state.a=3;state.b=1;state.c=0;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Симетрична',function(){ state.a=1.2;state.b=0.3;state.c=0.3;state.d=1.5; editor.refresh(); redraw(); });
+  addPreset(controls,'Несиметрична',function(){ state.a=0.3;state.b=1;state.c=0;state.d=1; editor.refresh(); redraw(); });
   addPreset(controls,'Комплексні (неможливо)',function(){ state.a=0;state.b=-1;state.c=1;state.d=0; editor.refresh(); redraw(); });
   body.appendChild(controls);
 
@@ -1073,14 +1073,14 @@ function renderStep9(body){
 
 /* ===================== КРОК 10: SVD ===================== */
 function renderStep10(body){
-  var state={a:1,b:2,c:3,d:1};
+  var state={a:0.7,b:1.7,c:-0.7,d:0.8};
 
   var controls=document.createElement('div'); controls.className='wide-controls';
   var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
   controls.appendChild(noteSpan);
   var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
   var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
-  addPreset(controls,'Загальний',function(){ state.a=1;state.b=2;state.c=3;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Загальний',function(){ state.a=0.7;state.b=1.7;state.c=-0.7;state.d=0.8; editor.refresh(); redraw(); });
   addPreset(controls,'Вироджена (ранг 1)',function(){ state.a=2;state.b=4;state.c=1;state.d=2; editor.refresh(); redraw(); });
   addPreset(controls,'"Сигара" (σ₁≫σ₂)',function(){ state.a=4;state.b=0;state.c=0;state.d=0.3; editor.refresh(); redraw(); });
   body.appendChild(controls);
@@ -1136,16 +1136,16 @@ function renderStep10(body){
   redraw();
 }
 
-/* ===================== КРОК 11 (бонус): QR / Грам-Шмідт ===================== */
+/* ===================== КРОК 11 : QR / Грам-Шмідт ===================== */
 function renderStep11(body){
-  var state={a:2,b:1.2,c:0.6,d:2};
+  var state={a:1.6,b:0.4,c:0.6,d:1.2};
 
   var controls=document.createElement('div'); controls.className='wide-controls';
   var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Стовпці A = a₁ (черв.), a₂ (зел.):';
   controls.appendChild(noteSpan);
   var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
   var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
-  addPreset(controls,'Типовий',function(){ state.a=2;state.b=1.2;state.c=0.6;state.d=2; editor.refresh(); redraw(); });
+  addPreset(controls,'Типовий',function(){ state.a=-0.7;state.b=1.2;state.c=0.6;state.d=1.3; editor.refresh(); redraw(); });
   addPreset(controls,'Вже ортогональні',function(){ state.a=1;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
   addPreset(controls,'Майже колінеарні',function(){ state.a=2;state.b=1.9;state.c=0.5;state.d=0.48; editor.refresh(); redraw(); });
   body.appendChild(controls);
@@ -1231,14 +1231,14 @@ var STEP_META={
     theory:"<p>Для 2×2: \\[A^{-1}=\\frac{1}{\\det A}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}.\\] Формула працює лише коли \\(\\det(A)\\neq0\\) — «вироджені» (крок 4) матриці необоротні: інформація втрачена, відновити неможливо.</p><p>Для ортогональної Q обернена співпадає з транспонованою: \\(Q^{-1}=Q^\\top\\) — обчислювати явно не потрібно.</p>"},
  8:{title:"8. Власні вектори і власні значення",
     explain:"Власний вектор \\(\\mathbf{v}\\) матриці A — напрямок, який A не повертає, а лише масштабує: \\(A\\mathbf{v}=\\lambda\\mathbf{v}\\). Потягніть сірий вектор w і знайдіть напрямок, де \\(Aw\\) (жовтий) стає паралельним до w — це і буде власний напрямок, а коефіцієнт розтягу — власне значення λ.",
-    theory:"<p><b>Означення.</b> Ненульовий вектор \\(\\mathbf{v}\\) — власний вектор A з власним значенням λ, якщо \\[A\\mathbf{v}=\\lambda\\mathbf{v}.\\] A діє на \\(\\mathbf{v}\\) як звичайне число λ: лише розтягує/стискає (і перевертає, якщо λ<0), не збиваючи з прямої.</p><p><b>Як знайти λ.</b> Перепишемо: \\((A-\\lambda I)\\mathbf{v}=\\mathbf{0}\\). Ненульовий розв'язок існує лише якщо \\(A-\\lambda I\\) вироджена: \\[\\det(A-\\lambda I)=0\\] — характеристичне рівняння.</p><p>Нехай \\(\\operatorname{tr}(A)=a+d\\) — <b>слід матриці</b> (сума діагональних елементів). Для 2×2 характеристичне рівняння: \\[\\lambda^2-\\operatorname{tr}(A)\\lambda+\\det(A)=0,\\] звідки \\[\\lambda_{1,2}=\\frac{\\operatorname{tr}(A)\\pm\\sqrt{\\operatorname{tr}(A)^2-4\\det(A)}}{2}.\\]</p><p>Від'ємний дискримінант → λ комплексні, дійсних власних напрямків немає (геометрично — поворот, крок 6). Якщо λ₁=λ₂ — або A вже кратна одиничній (тоді власний БУДЬ-який вектор), або A «дефектна» (лише один незалежний власний вектор).</p><p><b>Власних векторів — безліч.</b> Якщо \\(\\mathbf{v}\\) — власний вектор із значенням λ, то і \\(c\\mathbf{v}\\) для БУДЬ-якого ненульового числа c — теж власний вектор із тим самим λ: \\(A(c\\mathbf{v})=c(A\\mathbf{v})=c\\lambda\\mathbf{v}=\\lambda(c\\mathbf{v})\\). Тобто «власний вектор» — це насправді ціла пряма через початок координат (без самого нуля). Коли говорять «власний вектор матриці», найчастіше мають на увазі саме цей НАПРЯМОК, а не конкретну довжину чи знак.</p>"},
+    theory:"<p><b>Означення.</b> Ненульовий вектор \\(\\mathbf{v}\\) — власний вектор A з власним значенням λ, якщо \\[A\\mathbf{v}=\\lambda\\mathbf{v}.\\] A діє на \\(\\mathbf{v}\\) як звичайне число λ: лише розтягує/стискає (і перевертає, якщо λ<0), не збиваючи з прямої.</p><p><b>Як знайти λ.</b> Перепишемо: \\((A-\\lambda I)\\mathbf{v}=\\mathbf{0}\\). Ненульовий розв'язок існує лише якщо \\(A-\\lambda I\\) вироджена: \\[\\det(A-\\lambda I)=0\\] — характеристичне рівняння.</p><p>Нехай \\(\\operatorname{tr}(A)=a+d\\) — <b>слід матриці</b> (сума діагональних елементів). Для 2×2 характеристичне рівняння: \\[\\lambda^2-\\operatorname{tr}(A)\\lambda+\\det(A)=0,\\] звідки \\[\\lambda_{1,2}=\\frac{\\operatorname{tr}(A)\\pm\\sqrt{\\operatorname{tr}(A)^2-4\\det(A)}}{2}.\\]</p><p>Від'ємний дискримінант → λ комплексні, дійсних власних напрямків немає (геометрично — поворот, крок 6). Якщо λ₁=λ₂ — або A вже кратна одиничній (тоді власний БУДЬ-який вектор), або A «дефектна» (лише один незалежний власний вектор).</p><p><b>Власних векторів — безліч.</b> Якщо \\(\\mathbf{v}\\) — власний вектор із значенням λ, то і \\(c\\mathbf{v}\\) для БУДЬ-якого ненульового числа c — теж власний вектор із тим самим λ: \\(A(c\\mathbf{v})=c(A\\mathbf{v})=c\\lambda\\mathbf{v}=\\lambda(c\\mathbf{v})\\). Тобто «власний вектор» — це насправді ціла пряма через початок координат (без самого нуля). Коли говорять «власний вектор матриці», найчастіше мають на увазі саме цей НАПРЯМОК, а не конкретну довжину чи знак.</p><p><b>Що таке (Aw·w)/(w·w)?</b> Це <b>частка Рейлі</b> (Rayleigh quotient). Якщо w — точно власний вектор, то \\(Aw=\\lambda w\\), і дріб дає точно λ: \\[\\frac{Aw\\cdot w}{w\\cdot w}=\\frac{\\lambda w\\cdot w}{w\\cdot w}=\\lambda.\\] Якщо ж w ще не власний вектор, ця частка — найкраще можливе наближення λ для цього w: вона мінімізує \\(\\|Aw-\\lambda w\\|^2\\) по λ. Тому в симуляторі число плавно наближається до справжнього λ ще до того, як ви точно влучили в напрямок.</p><p><b>Не плутати зі степеневим методом.</b> Степеневі ітерації — це лише повторення \\(w\\leftarrow Aw/\\|Aw\\|\\) без жодної частки Рейлі; вони дають вектор, що збігається до домінантного власного напрямку. Частка Рейлі — окрема формула «зчитування» λ із будь-якого w. Якщо ж підставити частку Рейлі НАЗАД у саму ітерацію як зсув — \\(w\\leftarrow(A-\\mu I)^{-1}w\\), де μ — поточна частка Рейлі — вийде окремий, значно швидший метод: <b>ітерація частки Рейлі</b> (Rayleigh quotient iteration), з кубічною збіжністю ціною розв'язання СЛАР на кожному кроці.</p>"},
  9:{title:"9. Спектральний розклад A = QΛQ⁻¹",
     explain:"Якщо A має два незалежних дійсних власних вектори, її можна розкласти на три дії: перейти в базис власних векторів (\\(Q^{-1}\\)), масштабувати вздовж нових осей (Λ), і повернутись назад (Q). Фіолетові пунктирні лінії — власні напрями на кожній стадії.",
     theory:"<p>Стовпці Q — власні вектори A, діагональ Λ — відповідні власні значення (крок 8). Розклад існує лише коли A діагоналізовна.</p><p><b>Зазвичай Q складають з НОРМОВАНИХ (одиничної довжини) власних векторів.</b> Сама пряма (крок 8) визначена однозначно, а конкретний вектор на ній — ні. Але нормована довжина — це ще не ортогональність!</p><p><b>Q ортогональна (\(Q^{-1}=Q^\top\)) тільки тоді, коли A симетрична</b> (спектральна теорема гарантує, що власні вектори симетричної матриці попарно перпендикулярні). Якщо A несиметрична — власні вектори здебільшого НЕ перпендикулярні одне одному, навіть якщо кожен нормований; Q тоді не ортогональна, і доводиться рахувати справжню обернену \(Q^{-1}\) (як у кроці 7), а не просто транспонувати. Спробуйте приклади «Симетрична» і «Несиметрична» та подивіться на бейдж «Q ортогональна?».</p><p>Комплексні λ або «дефектна» матриця роблять розклад у дійсних числах неможливим — тоді на допомогу приходить SVD (крок 10), який працює завжди.</p>"},
  10:{title:"10. Сингулярний розклад A = UΣVᵀ",
     explain:"SVD розкладає будь-яку матрицю на три дії: поворот/відбиття \\(V^\\top\\), масштабування вздовж осей Σ (\\(\\sigma_1\\ge\\sigma_2\\ge0\\)), і ще один поворот/відбиття U. Сині лінії — сингулярні напрями (стовпці V) на кожній стадії.",
     theory:"<p><b>Чому саме \\(A^\\top A\\)?</b> Якщо A має розмір \\(m\\times n\\), то \\(A^\\top\\) — \\(n\\times m\\), і добуток \\(A^\\top A\\) — завжди \\(n\\times n\\), тобто <b>квадратна</b>, незалежно від форми A.</p><p>Вона завжди <b>симетрична</b>: \\((A^\\top A)^\\top=A^\\top(A^\\top)^\\top=A^\\top A\\).</p><p>Вона завжди <b>додатно напіввизначена</b> (positive semi-definite): для будь-якого вектора \\(\\mathbf{v}\\) \\[\\mathbf{v}^\\top(A^\\top A)\\mathbf{v}=(A\\mathbf{v})^\\top(A\\mathbf{v})=\\|A\\mathbf{v}\\|^2\\ge0.\\] <i>(Означення: симетрична матриця M додатно напіввизначена, якщо \\(\\mathbf{v}^\\top M\\mathbf{v}\\ge0\\) для всіх \\(\\mathbf{v}\\); додатно визначена — якщо строго більше нуля для всіх ненульових \\(\\mathbf{v}\\).)</i></p><p>Звідси всі власні значення \\(A^\\top A\\) невід'ємні — тому \\(\\sigma_i=\\sqrt{\\lambda_i(A^\\top A)}\\) завжди дійсні й невід'ємні, і SVD існує для будь-якої матриці (на відміну від спектрального розкладу, крок 9).</p><p><b>Сингулярні вектори:</b> \\(\\mathbf{v}_i\\) (стовпці V) — власні вектори \\(A^\\top A\\); \\(\\mathbf{u}_i=A\\mathbf{v}_i/\\sigma_i\\) (стовпці U) — відповідні напрями в просторі виходу. A перетворює одиничну кулю на еліпс з півосями \\(\\sigma_i\\) вздовж \\(\\mathbf{u}_i\\).</p>"},
- 11:{title:"11. QR-розклад: зсув, розтяг, поворот (бонус)",
+ 11:{title:"11. QR-розклад: зсув, розтяг, поворот",
     explain:"QR розкладає A на дві геометричні дії, як і кроки 9-10: спершу R виконує зсув і розтяг, не відриваючи вісь e₁ від напрямку a₁ (вона лише масштабується); потім Q ставить результат у кінцеву орієнтацію A — це чистий поворот, якщо det(A)>0, або поворот із дзеркалом, якщо det(A)<0 (як у кроці 4).",
     theory:"<p>A = QR, де Q ортогональна, а R — верхньотрикутна з невід'ємною діагоналлю. Оскільки \\(\\det(R)=r_{11}r_{22}\\ge0\\), знак \\(\\det(Q)\\) завжди збігається зі знаком \\(\\det(A)\\): \\(\\det(A)=\\det(Q)\\det(R)\\).</p><p><b>Як обчислити Q і R: процес Грама-Шмідта.</b> Для стовпців \\(\\mathbf{a}_1,\\dots,\\mathbf{a}_n\\) будуємо ортонормовані \\(\\mathbf{q}_1,\\dots,\\mathbf{q}_n\\) ІТЕРАТИВНО: \\(\\mathbf{q}_1=\\mathbf{a}_1/\\|\\mathbf{a}_1\\|\\); кожен наступний \\(\\mathbf{q}_k\\) — це \\(\\mathbf{a}_k\\) мінус його проєкції на ВСІ попередні \\(\\mathbf{q}_1,\\dots,\\mathbf{q}_{k-1}\\), нормовані до одиниці. У 2D це лише один крок (для \\(\\mathbf{a}_2\\)), тому ітеративна природа процесу помітна тільки при \\(n>2\\) стовпцях — саме тому тут показано тільки геометричний РЕЗУЛЬТАТ (R і Q), а не покроковий Грам-Шмідт.</p><p>Матриця \\(R=Q^\\top A\\) — це якраз коефіцієнти проєкцій з Грама-Шмідта, і вона верхньотрикутна за побудовою.</p><p><b>Чому Q ортогональна?</b> \\(\\mathbf{q}_1\\) — одиничний за побудовою. За властивістю ортогональної проєкції \\[\\mathbf{q}_1\\cdot\\mathbf{u}_2=\\mathbf{q}_1\\cdot\\mathbf{a}_2-(\\mathbf{a}_2\\cdot\\mathbf{q}_1)(\\mathbf{q}_1\\cdot\\mathbf{q}_1)=0,\\] тобто \\(\\mathbf{q}_2\\perp\\mathbf{q}_1\\) гарантовано.</p><p><b>Чому R верхньотрикутна?</b> \\(R_{21}=\\mathbf{q}_2\\cdot\\mathbf{a}_1=0\\), бо \\(\\mathbf{a}_1\\) лежить точно на прямій \\(\\mathbf{q}_1\\), а \\(\\mathbf{q}_2\\perp\\mathbf{q}_1\\).</p><p><b>Важливо для практики:</b> класичний Грам-Шмідт у скінченній точності втрачає ортогональність, коли стовпці майже колінеарні (спробуйте приклад «Майже колінеарні» — r₂₂ стає крихітним). Тому реальні бібліотеки обчислюють QR не через наївний Грам-Шмідт, а через числово стійкіші повороти Гівенса або відбиття Хаусхолдера.</p><p><b>Навіщо QR у чисельних методах:</b> R використовують для розв'язання задачі найменших квадратів — це та сама лінійна регресія, яку ви бачили в статистиці (мінімізація суми квадратів залишків), тільки в матричній формі: замість погано обумовлених нормальних рівнянь \\(A^\\top Ax=A^\\top b\\) розв'язують стійкіше \\(Rx=Q^\\top b\\). QR також лежить в основі QR-алгоритму для обчислення власних значень великих матриць.</p>"}
 };
