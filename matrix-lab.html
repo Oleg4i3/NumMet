@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Матриці як лінійні оператори — інтерактивний лікбез</title>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+:root{
+  --bg:#EEF1F5;
+  --panel:#FFFFFF;
+  --ink:#1B2430;
+  --muted:#5B6572;
+  --line:#C9D2DC;
+  --accent:#0F7173;
+  --accent-dark:#0B5658;
+  --amber:#E8A33D;
+  --crimson:#D64550;
+  --green:#2E8B57;
+  --violet:#7B5EA7;
+  --blue:#3B82C4;
+  --bad:#C4423B;
+  --radius:10px;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;}
+#app{max-width:1180px;margin:0 auto;padding:10px 14px 24px;}
+header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-0.01em;}
+header .subtitle{font-size:12px;color:var(--muted);margin-top:2px;}
+#stepNav{display:flex;gap:4px;flex-wrap:wrap;max-width:400px;justify-content:flex-end;}
+.step-dot{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;}
+.step-dot:hover{border-color:var(--accent);color:var(--accent-dark);}
+.step-dot.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.legend-row{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:2px 0 10px;}
+.legend-row span.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+main{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+#stepTitle{font-size:16px;margin:0 0 8px;}
+.banner{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12.5px;font-weight:600;margin-bottom:10px;min-height:14px;}
+.banner-info{background:#E3F2F2;color:var(--accent-dark);}
+.banner-good{background:#E4F3E9;color:#1F6B44;}
+.banner-warn{background:#FCEFDC;color:#9A6414;}
+.banner-bad{background:#FBE4E2;color:#93221D;}
+.step-grid{display:flex;align-items:flex-start;justify-content:center;gap:16px;flex-wrap:wrap;}
+.step-grid>.col-editor{width:190px;flex:0 0 190px;}
+.step-grid>.col-canvas{flex:0 0 auto;}
+.step-grid>.col-badges{width:180px;flex:0 0 180px;}
+.step-grid-2{display:flex;align-items:flex-start;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:10px;}
+.step-grid-2>.col-editor{width:280px;flex:0 0 280px;}
+.step-grid-2>.col-badges{width:200px;flex:0 0 200px;}
+@media(max-width:760px){.step-grid>.col-editor,.step-grid>.col-badges,.step-grid-2>.col-editor,.step-grid-2>.col-badges{width:100%;flex:1 1 100%;}#stepNav{max-width:none;justify-content:flex-start;}}
+.col-editor .editor-note{font-size:12px;color:var(--muted);margin-bottom:4px;}
+/* компактна "матриця в дужках" */
+.matrix-editor{display:inline-flex;align-items:stretch;margin:2px 0 6px;}
+.matrix-bracket-left,.matrix-bracket-right{width:6px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);}
+.matrix-bracket-left{border-left:2px solid var(--ink);}
+.matrix-bracket-right{border-right:2px solid var(--ink);}
+.matrix-cells{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 6px;padding:4px 5px;}
+.matrix-cells input,.matrix-cells span{width:42px;height:24px;text-align:center;border:none;border-radius:4px;font-family:var(--mono);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;}
+.matrix-cells input{background:#eef2f4;}
+.matrix-cells span{background:#F5F7F9;}
+.matrix-cells input::-webkit-outer-spin-button,.matrix-cells input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.matrix-cells input[type=number]{-moz-appearance:textfield;}
+.matbox{margin-bottom:4px;}
+.matbox-label{font-size:11px;color:var(--muted);margin-bottom:1px;}
+.presets{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.presets-label{font-size:11px;color:var(--muted);margin-right:2px;}
+.preset-btn{font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink);}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent-dark);}
+.mode-toggle{display:flex;gap:12px;font-size:12px;margin-top:8px;}
+.mode-toggle label{display:flex;align-items:center;gap:4px;cursor:pointer;}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0;}
+.col-canvas{display:flex;flex-direction:column;align-items:center;gap:6px;}
+canvas{background:#fff;border:1px solid var(--line);border-radius:8px;touch-action:none;}
+.col-badges{display:flex;flex-direction:column;gap:6px;}
+.pill{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 9px;border-radius:8px;background:#F5F7F9;border:1px solid var(--line);}
+.pill-label{color:var(--muted);}
+.pill-value{font-family:var(--mono);font-weight:600;white-space:nowrap;}
+.pill-good{background:#E4F3E9;border-color:#BFE3CC;}
+.pill-bad{background:#FBE4E2;border-color:#F2BEB9;}
+.pill-warn{background:#FCEFDC;border-color:#F3D6A2;}
+.stage-row{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.stage{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.stage-label{font-size:11px;color:var(--muted);text-align:center;line-height:1.3;}
+.stage-sub{display:block;font-size:9px;opacity:.75;margin-top:1px;}
+.stage-arrow{font-size:16px;color:var(--muted);}
+.aside-note{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--muted);}
+.explain{font-size:13px;color:var(--ink);margin-top:12px;line-height:1.6;}
+details{margin-top:10px;font-size:12.5px;}
+summary{cursor:pointer;color:var(--accent-dark);font-weight:600;}
+details[open] summary{margin-bottom:6px;}
+#theoryContent{line-height:1.6;color:var(--ink);columns:1;}
+#theoryContent ul{margin:6px 0;padding-left:22px;}
+@media(min-width:900px){#theoryContent{columns:2;column-gap:28px;}#theoryContent p,#theoryContent ul{break-inside:avoid;}}
+#theoryContent p{margin:6px 0;}
+footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+footer button{font-size:13px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;}
+footer button:disabled{opacity:0.35;cursor:default;}
+footer button:not(:disabled):hover{border-color:var(--accent);color:var(--accent-dark);}
+.mult-row{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0;flex-wrap:wrap;}
+.mult-sign{font-size:22px;color:var(--muted);font-weight:300;}
+.row-calc{font-size:13px;font-family:var(--mono);padding:9px 14px;border-radius:8px;margin:6px auto;max-width:480px;line-height:1.7;text-align:center;}
+.row-calc-1{background:#E3F2F2;}
+.row-calc-2{background:#FCEFDC;}
+.row-tag{display:inline-block;font-family:var(--sans);font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;margin-right:8px;vertical-align:middle;color:#fff;}
+.row-tag-1{background:var(--accent);}
+.row-tag-2{background:var(--amber);}
+.wide-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px;margin-bottom:12px;}
+.wide-controls .editor-note{font-size:12px;color:var(--muted);margin-right:2px;}
+.matrix-strip{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:22px;margin:6px 0 12px;}
+.matrix-strip-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.matrix-strip-item .matbox-label{font-size:12px;}
+.badge-strip{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:4px 0 6px;}
+#stepCounter{font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Матриці як лінійні оператори</h1>
+      <div class="subtitle">Наочний конспект: від одиничної матриці до SVD</div>
+    </div>
+    <div id="stepNav"></div>
+  </header>
+  <div class="legend-row">
+    <span><span class="dot" style="background:#D64550"></span>e₁ / стовпець 1</span>
+    <span><span class="dot" style="background:#2E8B57"></span>e₂ / стовпець 2</span>
+    <span><span class="dot" style="background:#7B5EA7"></span>власний напрям</span>
+    <span><span class="dot" style="background:#3B82C4"></span>сингулярний напрям</span>
+    <span><span class="dot" style="background:#5B6572"></span>довільний вектор</span>
+    <span><span class="dot" style="background:#E8A33D"></span>його образ (Av)</span>
+  </div>
+  <main>
+    <h2 id="stepTitle"></h2>
+    <div id="banner" class="banner"></div>
+    <div id="stepBody"></div>
+    <div id="stepExplain" class="explain"></div>
+    <details id="theory"><summary>Теорія детальніше</summary><div id="theoryContent"></div></details>
+  </main>
+  <footer>
+    <button id="prevBtn">← Назад</button>
+    <span id="stepCounter"></span>
+    <button id="nextBtn">Далі →</button>
+  </footer>
+</div>
+
+<script>
+/* ===================== МАТЕМАТИКА ===================== */
+function matVec(M,v){return [M[0][0]*v[0]+M[0][1]*v[1], M[1][0]*v[0]+M[1][1]*v[1]];}
+function matMul(A,B){return [[A[0][0]*B[0][0]+A[0][1]*B[1][0], A[0][0]*B[0][1]+A[0][1]*B[1][1]],[A[1][0]*B[0][0]+A[1][1]*B[1][0], A[1][0]*B[0][1]+A[1][1]*B[1][1]]];}
+function det2(M){return M[0][0]*M[1][1]-M[0][1]*M[1][0];}
+function inv2(M){var d=det2(M); if(Math.abs(d)<1e-9) return null; return [[M[1][1]/d, -M[0][1]/d],[-M[1][0]/d, M[0][0]/d]];}
+function transpose2(M){return [[M[0][0],M[1][0]],[M[0][1],M[1][1]]];}
+function dot(u,v){return u[0]*v[0]+u[1]*v[1];}
+function norm(v){return Math.hypot(v[0],v[1]);}
+function normalize(v){var n=norm(v); return n>1e-9 ? [v[0]/n, v[1]/n] : [0,0];}
+function fmt(x){ if(!isFinite(x)) return "—"; if(Math.abs(x)<0.005) x=0; return x.toFixed(2); }
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function round2(x){ return Math.round(x*100)/100; }
+
+function rankOf(M){
+  var c1=[M[0][0],M[1][0]], c2=[M[0][1],M[1][1]];
+  var n1=norm(c1), n2=norm(c2);
+  if(n1<1e-6 && n2<1e-6) return 0;
+  if(Math.abs(det2(M)) < 1e-6*Math.max(1,n1*n2)) return 1;
+  return 2;
+}
+function norm1Mat(M){ return Math.max(Math.abs(M[0][0])+Math.abs(M[1][0]), Math.abs(M[0][1])+Math.abs(M[1][1])); }
+function normInfMat(M){ return Math.max(Math.abs(M[0][0])+Math.abs(M[0][1]), Math.abs(M[1][0])+Math.abs(M[1][1])); }
+function normFrob(M){ return Math.sqrt(M[0][0]*M[0][0]+M[0][1]*M[0][1]+M[1][0]*M[1][0]+M[1][1]*M[1][1]); }
+
+function eig2(M){
+  var a=M[0][0], b=M[0][1], c=M[1][0], d=M[1][1];
+  var tr=a+d, dt=a*d-b*c;
+  var disc=tr*tr-4*dt;
+  if(disc < -1e-9){
+    return {complex:true, re:tr/2, im:Math.sqrt(-disc)/2};
+  }
+  var s=Math.sqrt(Math.max(0,disc));
+  var l1=(tr+s)/2, l2=(tr-s)/2;
+  function eigVec(lambda){
+    var v1=[-b, a-lambda];
+    var v2=[-(d-lambda), c];
+    var n1=v1[0]*v1[0]+v1[1]*v1[1];
+    var n2=v2[0]*v2[0]+v2[1]*v2[1];
+    var v = n1>=n2 ? v1 : v2;
+    if(n1<1e-12 && n2<1e-12) v=[1,0];
+    return normalize(v);
+  }
+  return {complex:false, l1:l1, l2:l2, v1:eigVec(l1), v2:eigVec(l2)};
+}
+function tryDiagonalize(M){
+  var eg=eig2(M);
+  if(eg.complex) return {ok:false, reason:'complex', eig:eg};
+  var scale=Math.max(1,Math.abs(eg.l1),Math.abs(eg.l2));
+  var repeated = Math.abs(eg.l1-eg.l2) < 1e-6*scale;
+  if(repeated){
+    var diff=[[M[0][0]-eg.l1, M[0][1]],[M[1][0], M[1][1]-eg.l1]];
+    var isScalar = Math.abs(diff[0][0])<1e-6*scale && Math.abs(diff[0][1])<1e-6*scale && Math.abs(diff[1][0])<1e-6*scale && Math.abs(diff[1][1])<1e-6*scale;
+    if(isScalar){
+      return {ok:true, Q:[[1,0],[0,1]], Lambda:[[eg.l1,0],[0,eg.l2]], Qinv:[[1,0],[0,1]], eig:eg, scalar:true};
+    }
+    return {ok:false, reason:'defective', eig:eg};
+  }
+  var Q=[[eg.v1[0],eg.v2[0]],[eg.v1[1],eg.v2[1]]];
+  var Qinv=inv2(Q);
+  if(!Qinv) return {ok:false, reason:'singular', eig:eg};
+  return {ok:true, Q:Q, Lambda:[[eg.l1,0],[0,eg.l2]], Qinv:Qinv, eig:eg};
+}
+
+function svd2(M){
+  var a=M[0][0], b=M[0][1], c=M[1][0], d=M[1][1];
+  var ATA=[[a*a+c*c, a*b+c*d],[a*b+c*d, b*b+d*d]];
+  var tr=ATA[0][0]+ATA[1][1];
+  var dt=ATA[0][0]*ATA[1][1]-ATA[0][1]*ATA[1][0];
+  var disc=Math.sqrt(Math.max(0,tr*tr-4*dt));
+  var e1=(tr+disc)/2, e2=(tr-disc)/2;
+  var s1=Math.sqrt(Math.max(0,e1)), s2=Math.sqrt(Math.max(0,e2));
+  var v1=[ATA[0][1], e1-ATA[0][0]];
+  var nv1=norm(v1);
+  if(nv1>1e-7){ v1=[v1[0]/nv1, v1[1]/nv1]; } else { v1=[1,0]; }
+  var v2=[-v1[1], v1[0]];
+  var u1, u2;
+  if(s1>1e-7){ var t1=matVec(M,v1); u1=[t1[0]/s1, t1[1]/s1]; } else { u1=[1,0]; }
+  if(s2>1e-7){ var t2=matVec(M,v2); u2=[t2[0]/s2, t2[1]/s2]; } else { u2=[-u1[1], u1[0]]; }
+  var U=[[u1[0],u2[0]],[u1[1],u2[1]]];
+  var V=[[v1[0],v2[0]],[v1[1],v2[1]]];
+  var S=[[s1,0],[0,s2]];
+  return {U:U,S:S,V:V,s1:s1,s2:s2};
+}
+
+/* ===================== МАЛЮВАННЯ ===================== */
+function circlePts(cx,cy,r,steps){steps=steps||48;var pts=[];for(var i=0;i<=steps;i++){var t=i/steps*2*Math.PI; pts.push([cx+r*Math.cos(t), cy+r*Math.sin(t)]);} return pts;}
+function arcPts(cx,cy,r,a0,a1,steps){steps=steps||24;var pts=[];for(var i=0;i<=steps;i++){var t=a0+(a1-a0)*i/steps; pts.push([cx+r*Math.cos(t), cy+r*Math.sin(t)]);} return pts;}
+function lineWorld(ctx,p1,p2,M){
+  ctx.beginPath();
+  var a=M?matVec(M,p1):p1, b=M?matVec(M,p2):p2;
+  ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+}
+function polyWorld(ctx,pts,M,fillStyle,strokeStyle,close){
+  ctx.beginPath();
+  var p0=matVec(M,pts[0]); ctx.moveTo(p0[0],p0[1]);
+  for(var i=1;i<pts.length;i++){ var p=matVec(M,pts[i]); ctx.lineTo(p[0],p[1]); }
+  if(close) ctx.closePath();
+  if(fillStyle){ ctx.fillStyle=fillStyle; ctx.fill(); }
+  if(strokeStyle){ ctx.strokeStyle=strokeStyle; ctx.stroke(); }
+}
+function drawGridWorld(ctx,M,range,step,scale,opts){
+  opts=opts||{};
+  ctx.strokeStyle=opts.color||'#C9D2DC';
+  ctx.lineWidth=(opts.lw||1)/scale;
+  if(opts.dash){ ctx.setLineDash([opts.dash[0]/scale, opts.dash[1]/scale]); } else { ctx.setLineDash([]); }
+  var start=Math.ceil(-range/step)*step;
+  for(var i=start;i<=range+1e-6;i+=step){
+    lineWorld(ctx,[i,-range],[i,range],M);
+    lineWorld(ctx,[-range,i],[range,i],M);
+  }
+  ctx.setLineDash([]);
+}
+function gridStep(range){
+  var raw = range/5;
+  var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  var norm = raw/mag;
+  var step;
+  if(norm<1.5) step=1*mag; else if(norm<3.5) step=2*mag; else if(norm<7.5) step=5*mag; else step=10*mag;
+  return step;
+}
+function drawAxesWorld(ctx,range,scale,color){
+  ctx.strokeStyle=color||'#8b96a3'; ctx.lineWidth=1.3/scale;
+  lineWorld(ctx,[-range,0],[range,0],null);
+  lineWorld(ctx,[0,-range],[0,range],null);
+}
+function drawArrowWorld(ctx,from,to,color,scale,lw){
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=(lw||2.5)/scale;
+  lineWorld(ctx,from,to,null);
+  var dx=to[0]-from[0], dy=to[1]-from[1];
+  var len=Math.hypot(dx,dy);
+  if(len<1e-6) return;
+  var ux=dx/len, uy=dy/len;
+  var headLen=0.14, headW=0.07;
+  var bx=to[0]-headLen*ux, by=to[1]-headLen*uy;
+  var p1=[bx+headW*uy, by-headW*ux];
+  var p2=[bx-headW*uy, by+headW*ux];
+  ctx.beginPath(); ctx.moveTo(to[0],to[1]); ctx.lineTo(p1[0],p1[1]); ctx.lineTo(p2[0],p2[1]); ctx.closePath(); ctx.fill();
+}
+function drawSmileyWorld(ctx,M,scale,opts){
+  opts=opts||{};
+  ctx.lineWidth=(opts.lw||2)/scale;
+  if(opts.dash) ctx.setLineDash([5/scale,4/scale]); else ctx.setLineDash([]);
+  var strokeColor = opts.stroke || '#20242B';
+  var eyeColor = opts.eyeColor || '#20242B';
+  polyWorld(ctx, circlePts(0,0,1.5,56), M, opts.fill||'rgba(255,214,92,0.62)', strokeColor, true);
+  polyWorld(ctx, circlePts(-0.5,0.5,0.2,24), M, eyeColor, strokeColor, true);
+  polyWorld(ctx, circlePts(0.7,0.3,0.15,24), M, null, strokeColor, true);
+  polyWorld(ctx, arcPts(0,-1.5,1,Math.PI*0.2,Math.PI*0.8,20), M, null, strokeColor, false);
+  polyWorld(ctx, arcPts(1.5,-0.1,0.3,4.2,2.5*Math.PI,16), M, null, strokeColor, false);
+  ctx.setLineDash([]);
+}
+function withScene(canvas, range, fn){
+  var size=canvas.width;
+  var scale=size/(2*range);
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,size,size);
+  ctx.save();
+  ctx.translate(size/2,size/2);
+  ctx.scale(scale,-scale);
+  fn(ctx,scale);
+  ctx.restore();
+  return scale;
+}
+function paintMatrixScene(canvas, M, opts){
+  opts=opts||{};
+  var range=opts.range||2.4;
+  return withScene(canvas, range, function(ctx,scale){
+    if(opts.ghost){
+      drawGridWorld(ctx, opts.ghost, range, 1, scale, {color:'#c7cfd9', dash:[4,4], lw:1});
+      if(opts.ghostSmiley!==false) drawSmileyWorld(ctx, opts.ghost, scale, {fill:'rgba(255,214,92,0.14)', lw:1.4, stroke:'#b7c0cc', dash:true, eyeColor:'rgba(32,36,43,0.3)'});
+    }
+    drawGridWorld(ctx, M, range, 1, scale, {color:'#9fb0c2', lw:1});
+    if(opts.smiley!==false) drawSmileyWorld(ctx,M,scale);
+    if(opts.fillArea){
+      var O=[0,0], c1=matVec(M,[1,0]), c2=matVec(M,[0,1]), c12=matVec(M,[1,1]);
+      ctx.beginPath(); ctx.moveTo(O[0],O[1]); ctx.lineTo(c1[0],c1[1]); ctx.lineTo(c12[0],c12[1]); ctx.lineTo(c2[0],c2[1]); ctx.closePath();
+      ctx.fillStyle='rgba(15,113,115,0.30)'; ctx.fill();
+      ctx.strokeStyle='#0F7173'; ctx.lineWidth=1.6/scale; ctx.stroke();
+    }
+    if(opts.guideLines){
+      opts.guideLines.forEach(function(g){
+        if(!g || !g.dir) return;
+        ctx.strokeStyle=g.color||'#7B5EA7'; ctx.lineWidth=2.2/scale; ctx.setLineDash([7/scale,4/scale]);
+        lineWorld(ctx,[-g.dir[0]*range*1.3,-g.dir[1]*range*1.3],[g.dir[0]*range*1.3,g.dir[1]*range*1.3], null);
+      });
+      ctx.setLineDash([]);
+    }
+    if(opts.basis!==false){
+      var e1=matVec(M,[1,0]), e2=matVec(M,[0,1]);
+      drawArrowWorld(ctx,[0,0],e1,'#D64550',scale,3);
+      drawArrowWorld(ctx,[0,0],e2,'#2E8B57',scale,3);
+    }
+    if(opts.extraVectors){
+      opts.extraVectors.forEach(function(ev){ drawArrowWorld(ctx,[0,0],ev.v,ev.color,scale); });
+    }
+  });
+}
+function rangeForPoints(points, minRange){
+  var r=minRange||2.2;
+  points.forEach(function(p){ if(p) r=Math.max(r, Math.abs(p[0])*1.2, Math.abs(p[1])*1.2); });
+  return r;
+}
+function rangeForStages(mats, minRange, extraPoints){
+  var r=minRange||2.2;
+  mats.forEach(function(M){
+    if(!M) return;
+    var e1=matVec(M,[1,0]), e2=matVec(M,[0,1]);
+    r=Math.max(r, Math.abs(e1[0])*1.2, Math.abs(e1[1])*1.2, Math.abs(e2[0])*1.2, Math.abs(e2[1])*1.2);
+    var sv=svd2(M);
+    r=Math.max(r, sv.s1*1.9);
+  });
+  if(extraPoints) extraPoints.forEach(function(p){ if(p) r=Math.max(r, Math.abs(p[0])*1.2, Math.abs(p[1])*1.2); });
+  return r;
+}
+function drawUnitBalls(canvas){
+  withScene(canvas, 1.6, function(ctx,scale){
+    ctx.lineWidth=1.6/scale;
+    ctx.strokeStyle='#3B82C4'; ctx.strokeRect(-1,-1,2,2);
+    ctx.strokeStyle='#0F7173'; ctx.beginPath(); ctx.arc(0,0,1,0,2*Math.PI); ctx.stroke();
+    ctx.strokeStyle='#D64550'; ctx.beginPath(); ctx.moveTo(1,0); ctx.lineTo(0,1); ctx.lineTo(-1,0); ctx.lineTo(0,-1); ctx.closePath(); ctx.stroke();
+  });
+}
+
+/* ===================== UI-ХЕЛПЕРИ ===================== */
+function buildMatrixEditor(container, state, keys, onChange, opts){
+  opts=opts||{};
+  var min=opts.min!==undefined?opts.min:-6, max=opts.max!==undefined?opts.max:6;
+  var wrap=document.createElement('div'); wrap.className='matrix-editor';
+  var bl=document.createElement('div'); bl.className='matrix-bracket-left';
+  var cells=document.createElement('div'); cells.className='matrix-cells';
+  var br=document.createElement('div'); br.className='matrix-bracket-right';
+  var inputs={};
+  keys.forEach(function(k,idx){
+    var colColor=(idx%2===0)?'#D64550':'#2E8B57';
+    var num=document.createElement('input'); num.type='number'; num.step='0.1'; num.value=round2(state[k]);
+    num.style.color=colColor;
+    function set(v){
+      v=clamp(v,min,max);
+      state[k]=v;
+      num.value=round2(v);
+      onChange();
+    }
+    num.addEventListener('input',function(){ var v=parseFloat(num.value); if(!isNaN(v)) set(v); });
+    num.addEventListener('blur',function(){ var v=parseFloat(num.value); set(isNaN(v)?0:v); });
+    cells.appendChild(num);
+    inputs[k]=num;
+  });
+  wrap.appendChild(bl); wrap.appendChild(cells); wrap.appendChild(br);
+  container.appendChild(wrap);
+  return { refresh:function(){ keys.forEach(function(k){ inputs[k].value=round2(state[k]); }); } };
+}
+function addPreset(container,label,fn){
+  var btn=document.createElement('button'); btn.className='preset-btn'; btn.type='button'; btn.textContent=label;
+  btn.addEventListener('click',fn);
+  container.appendChild(btn);
+}
+function pill(container,label,value,type){
+  var el=document.createElement('div');
+  el.className='pill pill-'+(type||'info');
+  var l=document.createElement('span'); l.className='pill-label'; l.textContent=label;
+  var v=document.createElement('span'); v.className='pill-value'; v.textContent=value;
+  el.appendChild(l); el.appendChild(v);
+  container.appendChild(el);
+  return el;
+}
+function matBox(container,label,M){
+  var box=document.createElement('div'); box.className='matbox';
+  var lab=document.createElement('div'); lab.className='matbox-label'; lab.textContent=label;
+  var wrap=document.createElement('div'); wrap.className='matrix-editor';
+  var bl=document.createElement('div'); bl.className='matrix-bracket-left';
+  var cells=document.createElement('div'); cells.className='matrix-cells';
+  var br=document.createElement('div'); br.className='matrix-bracket-right';
+  var vals=[M[0][0],M[0][1],M[1][0],M[1][1]];
+  var colColors=['#D64550','#2E8B57','#D64550','#2E8B57'];
+  vals.forEach(function(x,i){ var s=document.createElement('span'); s.textContent=fmt(x); s.style.color=colColors[i]; g_append(cells,s); });
+  wrap.appendChild(bl); wrap.appendChild(cells); wrap.appendChild(br);
+  box.appendChild(lab); box.appendChild(wrap);
+  container.appendChild(box);
+  return box;
+}
+function g_append(container,el){ container.appendChild(el); }
+function setBanner(html,type){
+  var b=document.getElementById('banner');
+  b.innerHTML=html;
+  b.className='banner banner-'+(type||'info');
+}
+function makeStage(container,label,size){
+  var st=document.createElement('div'); st.className='stage';
+  var canvas=document.createElement('canvas'); canvas.width=size||140; canvas.height=size||140;
+  var cap=document.createElement('div'); cap.className='stage-label'; cap.innerHTML=label;
+  st.appendChild(canvas); st.appendChild(cap);
+  container.appendChild(st);
+  return {canvas:canvas, el:st};
+}
+function makeArrow(container){
+  var a=document.createElement('div'); a.className='stage-arrow'; a.textContent='→';
+  container.appendChild(a);
+}
+function attachMatrixDrag(canvas, state, rangeArg, onChange){
+  var size=canvas.width;
+  function toMath(evt){
+    var range=(typeof rangeArg==='function')?rangeArg():rangeArg;
+    var scale=size/(2*range);
+    var rect=canvas.getBoundingClientRect();
+    var px=(evt.clientX-rect.left) * (canvas.width/rect.width);
+    var py=(evt.clientY-rect.top) * (canvas.height/rect.height);
+    return [ (px-size/2)/scale, -(py-size/2)/scale ];
+  }
+  canvas.style.cursor='grab';
+  canvas.addEventListener('pointerdown', function(e){
+    var m=toMath(e); var mx=m[0], my=m[1];
+    var e1=[state.a,state.c], e2=[state.b,state.d];
+    var d1=Math.hypot(mx-e1[0], my-e1[1]);
+    var d2=Math.hypot(mx-e2[0], my-e2[1]);
+    var thresh=0.45;
+    var target=null;
+    if(d1<thresh && d1<=d2) target='e1';
+    else if(d2<thresh) target='e2';
+    if(!target) return;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor='grabbing';
+    function move(ev){
+      var m2=toMath(ev); var mx2=m2[0], my2=m2[1];
+      if(target==='e1'){ state.a=mx2; state.c=my2; } else { state.b=mx2; state.d=my2; }
+      onChange();
+    }
+    function up(){
+      canvas.removeEventListener('pointermove',move);
+      canvas.style.cursor='grab';
+    }
+    canvas.addEventListener('pointermove',move);
+    canvas.addEventListener('pointerup',up,{once:true});
+    canvas.addEventListener('pointercancel',up,{once:true});
+  });
+}
+function attachFreeDrag(canvas, vectors, rangeArg, onChange){
+  var size=canvas.width;
+  function toMath(evt){
+    var range=(typeof rangeArg==='function')?rangeArg():rangeArg;
+    var scale=size/(2*range);
+    var rect=canvas.getBoundingClientRect();
+    var px=(evt.clientX-rect.left)*(canvas.width/rect.width);
+    var py=(evt.clientY-rect.top)*(canvas.height/rect.height);
+    return [ (px-size/2)/scale, -(py-size/2)/scale ];
+  }
+  canvas.style.cursor='grab';
+  canvas.addEventListener('pointerdown', function(e){
+    var m=toMath(e); var mx=m[0], my=m[1];
+    var keys=Object.keys(vectors);
+    var best=null, bestD=0.45;
+    keys.forEach(function(k){
+      var v=vectors[k];
+      var dd=Math.hypot(mx-v[0], my-v[1]);
+      if(dd<bestD){ bestD=dd; best=k; }
+    });
+    if(!best) return;
+    canvas.setPointerCapture(e.pointerId);
+    function move(ev){
+      var m2=toMath(ev);
+      vectors[best]=[m2[0],m2[1]];
+      onChange();
+    }
+    function up(){ canvas.removeEventListener('pointermove',move); }
+    canvas.addEventListener('pointermove',move);
+    canvas.addEventListener('pointerup',up,{once:true});
+    canvas.addEventListener('pointercancel',up,{once:true});
+  });
+}
+
+function buildVectorEditor(container, state, keys, onChange, opts){
+  opts=opts||{};
+  var min=opts.min!==undefined?opts.min:-6, max=opts.max!==undefined?opts.max:6;
+  var wrap=document.createElement('div'); wrap.className='matrix-editor';
+  var bl=document.createElement('div'); bl.className='matrix-bracket-left';
+  var cells=document.createElement('div'); cells.className='matrix-cells'; cells.style.gridTemplateColumns='1fr';
+  var br=document.createElement('div'); br.className='matrix-bracket-right';
+  var inputs={};
+  keys.forEach(function(k){
+    var num=document.createElement('input'); num.type='number'; num.step='0.1'; num.value=round2(state[k]);
+    num.style.color='#5B6572';
+    function set(v){ v=clamp(v,min,max); state[k]=v; num.value=round2(v); onChange(); }
+    num.addEventListener('input',function(){ var v=parseFloat(num.value); if(!isNaN(v)) set(v); });
+    num.addEventListener('blur',function(){ var v=parseFloat(num.value); set(isNaN(v)?0:v); });
+    cells.appendChild(num);
+    inputs[k]=num;
+  });
+  wrap.appendChild(bl); wrap.appendChild(cells); wrap.appendChild(br);
+  container.appendChild(wrap);
+  return { refresh:function(){ keys.forEach(function(k){ inputs[k].value=round2(state[k]); }); } };
+}
+function vecBox(container,v){
+  var wrap=document.createElement('div'); wrap.className='matrix-editor';
+  var bl=document.createElement('div'); bl.className='matrix-bracket-left';
+  var cells=document.createElement('div'); cells.className='matrix-cells'; cells.style.gridTemplateColumns='1fr';
+  var br=document.createElement('div'); br.className='matrix-bracket-right';
+  v.forEach(function(x){ var s=document.createElement('span'); s.textContent=fmt(x); s.style.color='#0B5658'; s.style.fontWeight='700'; cells.appendChild(s); });
+  wrap.appendChild(bl); wrap.appendChild(cells); wrap.appendChild(br);
+  container.appendChild(wrap);
+}
+function buildRowHighlightMatrixEditor(container, state, keys, onChange, opts){
+  opts=opts||{};
+  var min=opts.min!==undefined?opts.min:-6, max=opts.max!==undefined?opts.max:6;
+  var rowBg=['#E3F2F2','#E3F2F2','#FCEFDC','#FCEFDC'];
+  var wrap=document.createElement('div'); wrap.className='matrix-editor';
+  var bl=document.createElement('div'); bl.className='matrix-bracket-left';
+  var cells=document.createElement('div'); cells.className='matrix-cells';
+  var br=document.createElement('div'); br.className='matrix-bracket-right';
+  var inputs={};
+  keys.forEach(function(k,idx){
+    var num=document.createElement('input'); num.type='number'; num.step='0.1'; num.value=round2(state[k]);
+    num.style.background=rowBg[idx];
+    function set(v){ v=clamp(v,min,max); state[k]=v; num.value=round2(v); onChange(); }
+    num.addEventListener('input',function(){ var v=parseFloat(num.value); if(!isNaN(v)) set(v); });
+    num.addEventListener('blur',function(){ var v=parseFloat(num.value); set(isNaN(v)?0:v); });
+    cells.appendChild(num);
+    inputs[k]=num;
+  });
+  wrap.appendChild(bl); wrap.appendChild(cells); wrap.appendChild(br);
+  container.appendChild(wrap);
+  return { refresh:function(){ keys.forEach(function(k){ inputs[k].value=round2(state[k]); }); } };
+}
+
+/* ===================== КРОК 1 ===================== */
+function renderStep1(body){
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  colEditor.innerHTML='<div class="editor-note">Одинична матриця I. Стовпці = базис:</div>';
+  matBox(colEditor,'I',[[1,0],[0,1]]);
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  paintMatrixScene(canvas, [[1,0],[0,1]], {range:2.4});
+  pill(colBadges,'e₁ (стовп. 1) =','(1, 0)','info');
+  pill(colBadges,'e₂ (стовп. 2) =','(0, 1)','info');
+  setBanner('Стовпці матриці I — це базисні вектори: <b style="color:#D64550">e₁</b> (перший стовпець) і <b style="color:#2E8B57">e₂</b> (другий стовпець).', 'good');
+}
+
+/* ===================== КРОК 2: правило множення (рядок на стовпець) ===================== */
+function renderStep2(body){
+  var A={a:2,b:1,c:1,d:1.5};
+  var v={v1:1.0,v2:0.6};
+
+  var multRow=document.createElement('div'); multRow.className='mult-row';
+  var aHolder=document.createElement('span');
+  var vHolder=document.createElement('span');
+  var sign1=document.createElement('span'); sign1.className='mult-sign'; sign1.textContent='×';
+  var sign2=document.createElement('span'); sign2.className='mult-sign'; sign2.textContent='=';
+  var resHolder=document.createElement('span');
+  multRow.appendChild(aHolder); multRow.appendChild(sign1); multRow.appendChild(vHolder);
+  multRow.appendChild(sign2); multRow.appendChild(resHolder);
+  body.appendChild(multRow);
+
+  var editorA=buildRowHighlightMatrixEditor(aHolder, A, ['a','b','c','d'], redraw, {min:-4,max:4});
+  var editorV=buildVectorEditor(vHolder, v, ['v1','v2'], redraw, {min:-4,max:4});
+
+  var rowCalc1=document.createElement('div'); rowCalc1.className='row-calc row-calc-1';
+  var rowCalc2=document.createElement('div'); rowCalc2.className='row-calc row-calc-2';
+  body.appendChild(rowCalc1);
+  body.appendChild(rowCalc2);
+
+  var grid2=document.createElement('div'); grid2.className='step-grid-2';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
+  presetsWrap.innerHTML='<span class="presets-label">Приклади:</span>';
+  addPreset(presetsWrap,'Типовий',function(){ A.a=2;A.b=1;A.c=1;A.d=1.5; v.v1=1;v.v2=0.6; editorA.refresh(); editorV.refresh(); redraw(); });
+  addPreset(presetsWrap,'v = e₁',function(){ v.v1=1; v.v2=0; editorV.refresh(); redraw(); });
+  addPreset(presetsWrap,'v = e₂',function(){ v.v1=0; v.v2=1; editorV.refresh(); redraw(); });
+  colEditor.appendChild(presetsWrap);
+  var hint=document.createElement('p'); hint.className='hint'; hint.innerHTML='Міняйте числа в A і v — обидва рядки перерахуються.';
+  colEditor.appendChild(hint);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid2.appendChild(colEditor); grid2.appendChild(colBadges);
+  body.appendChild(grid2);
+
+  function redraw(){
+    var Av1=A.a*v.v1 + A.b*v.v2;
+    var Av2=A.c*v.v1 + A.d*v.v2;
+    resHolder.innerHTML='';
+    vecBox(resHolder,[Av1,Av2]);
+
+    rowCalc1.innerHTML='<span class="row-tag row-tag-1">рядок 1</span>('+fmt(A.a)+', '+fmt(A.b)+') · ('+fmt(v.v1)+', '+fmt(v.v2)+') = '+fmt(A.a)+'·'+fmt(v.v1)+' + '+fmt(A.b)+'·'+fmt(v.v2)+' = '+fmt(A.a*v.v1)+' + '+fmt(A.b*v.v2)+' = <b>'+fmt(Av1)+'</b>';
+    rowCalc2.innerHTML='<span class="row-tag row-tag-2">рядок 2</span>('+fmt(A.c)+', '+fmt(A.d)+') · ('+fmt(v.v1)+', '+fmt(v.v2)+') = '+fmt(A.c)+'·'+fmt(v.v1)+' + '+fmt(A.d)+'·'+fmt(v.v2)+' = '+fmt(A.c*v.v1)+' + '+fmt(A.d*v.v2)+' = <b>'+fmt(Av2)+'</b>';
+
+    colBadges.innerHTML='';
+    pill(colBadges,'Av =','('+fmt(Av1)+', '+fmt(Av2)+')','good');
+
+    var nearE1 = Math.abs(v.v1-1)<0.05 && Math.abs(v.v2)<0.05;
+    var nearE2 = Math.abs(v.v1)<0.05 && Math.abs(v.v2-1)<0.05;
+    if(nearE1){
+      setBanner('Підставили v=e₁=(1,0) → отримали (1-й стовпець A)! Не випадково — побачимо детальніше на кроці 3.','good');
+    } else if(nearE2){
+      setBanner('Підставили v=e₂=(0,1) → отримали (2-й стовпець A)! Не випадково — побачимо детальніше на кроці 3.','good');
+    } else {
+      setBanner('Кожна координата Av — це відповідний РЯДОК матриці A, помножений «по компонентах» на v і зсумований.','info');
+    }
+  }
+  redraw();
+}
+
+/* ===================== КРОК 3: матриця як оператор ===================== */
+function renderStep3(body){
+  var state={a:1.2,b:0.6,c:-0.4,d:0.9};
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  colEditor.innerHTML='<div class="editor-note">Матриця A (тягніть числа АБО самі вектори на малюнку):</div>';
+  var editor=buildMatrixEditor(colEditor, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
+  presetsWrap.innerHTML='<span class="presets-label">Приклади:</span>';
+  addPreset(presetsWrap,'Розтягнення',function(){ state.a=2;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Зсув (shear)',function(){ state.a=1;state.b=1;state.c=0;state.d=1; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Поворот 45°',function(){ var t=Math.PI/4; state.a=Math.cos(t);state.b=-Math.sin(t);state.c=Math.sin(t);state.d=Math.cos(t); editor.refresh(); redraw(); });
+  colEditor.appendChild(presetsWrap);
+  var hint=document.createElement('p'); hint.className='hint'; hint.innerHTML='Можна тягнути кінчики червоної/зеленої стрілки просто на малюнку.';
+  colEditor.appendChild(hint);
+
+  var RANGE=2.6;
+  attachMatrixDrag(canvas, state, RANGE, redraw);
+
+  function redraw(){
+    var M=[[state.a,state.b],[state.c,state.d]];
+    editor.refresh();
+    paintMatrixScene(canvas, M, {range:RANGE, ghost:[[1,0],[0,1]]});
+    colBadges.innerHTML='';
+    matBox(colBadges,'A', M);
+    pill(colBadges,'e₁ →', '('+fmt(state.a)+', '+fmt(state.c)+')','info');
+    pill(colBadges,'e₂ →', '('+fmt(state.b)+', '+fmt(state.d)+')','info');
+  }
+  redraw();
+  setBanner('Кожен стовпець матриці — це те, куди переходить відповідний базисний вектор.', 'info');
+}
+
+/* ===================== КРОК 4: детермінант, ранг, норми ===================== */
+function renderStep4(body){
+  var state={a:1,b:2,c:1,d:-1};
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  colEditor.innerHTML='<div class="editor-note">Матриця A:</div>';
+  var editor=buildMatrixEditor(colEditor, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
+  presetsWrap.innerHTML='<span class="presets-label">Приклади:</span>';
+  addPreset(presetsWrap,'Площа ×3',function(){ state.a=3;state.b=0;state.c=0;state.d=1; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,"Дзеркало (det<0)",function(){ state.a=1;state.b=2;state.c=1;state.d=-1; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Вироджена (ранг 1)',function(){ state.a=2;state.b=4;state.c=1;state.d=2; editor.refresh(); redraw(); });
+  colEditor.appendChild(presetsWrap);
+
+  var RANGE=2.6;
+  attachMatrixDrag(canvas, state, RANGE, redraw);
+
+  function redraw(){
+    var M=[[state.a,state.b],[state.c,state.d]];
+    editor.refresh();
+    paintMatrixScene(canvas, M, {range:RANGE, ghost:[[1,0],[0,1]], fillArea:true});
+    var d=det2(M), r=rankOf(M);
+    var sv=svd2(M);
+    colBadges.innerHTML='';
+    pill(colBadges,'det(A) =', fmt(d), Math.abs(d)<1e-6?'bad':(d<0?'warn':'good'));
+    pill(colBadges,'площа = |det| =', fmt(Math.abs(d)),'info');
+    pill(colBadges,'ранг(A) =', r,'info');
+    pill(colBadges,'‖A‖₁ =', fmt(norm1Mat(M)),'info');
+    pill(colBadges,'‖A‖∞ =', fmt(normInfMat(M)),'info');
+    pill(colBadges,'‖A‖₂ =', fmt(sv.s1),'info');
+    pill(colBadges,'‖A‖_F =', fmt(normFrob(M)),'info');
+    if(Math.abs(d)<1e-6){
+      setBanner("⛔ det = 0 → площа стиснулась у лінію. Ранг = "+r+", оберненої матриці не існує.",'bad');
+    } else if(d<0){
+      setBanner("🪞 det від'ємний → дзеркало: чорне око й вухо перескочили на протилежний бік!",'warn');
+    } else {
+      setBanner('Площа заштрихованого паралелограма = |det(A)| = '+fmt(Math.abs(d))+'.','good');
+    }
+  }
+  redraw();
+
+  var aside=document.createElement('div'); aside.className='aside-note';
+  var bc=document.createElement('canvas'); bc.width=80; bc.height=80;
+  var cap=document.createElement('div');
+  cap.innerHTML='Одиничні кулі норм вектора: <span style="color:#D64550">◆ ‖v‖₁</span>, <span style="color:#0F7173">● ‖v‖₂</span>, <span style="color:#3B82C4">■ ‖v‖∞</span>';
+  aside.appendChild(bc); aside.appendChild(cap);
+  body.appendChild(aside);
+  drawUnitBalls(bc);
+}
+
+/* ===================== КРОК 5: ортогональність ===================== */
+function renderStep5(body){
+  var vecs={u:[1.4,0.5], w:[-0.3,1.2]};
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  var hint=document.createElement('p'); hint.className='hint'; hint.innerHTML='Тягніть кінці векторів <b style="color:#E8A33D">u</b> і <b style="color:#3B82C4">w</b> прямо на малюнку.';
+  colEditor.appendChild(hint);
+  var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
+  addPreset(presetsWrap,'Зробити ⊥',function(){ vecs.u=[1.2,0.6]; vecs.w=[-0.6,1.2]; redraw(); });
+  addPreset(presetsWrap,'Скинути',function(){ vecs.u=[1.4,0.5]; vecs.w=[-0.3,1.2]; redraw(); });
+  colEditor.appendChild(presetsWrap);
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  attachFreeDrag(canvas, vecs, 2.6, redraw);
+
+  function redraw(){
+    withScene(canvas, 2.6, function(ctx,scale){
+      drawAxesWorld(ctx,2.6,scale,'#C9D2DC');
+      drawArrowWorld(ctx,[0,0],vecs.u,'#E8A33D',scale);
+      drawArrowWorld(ctx,[0,0],vecs.w,'#3B82C4',scale);
+    });
+    var dp=dot(vecs.u,vecs.w);
+    var nu=norm(vecs.u), nw=norm(vecs.w);
+    var cosv=clamp(dp/((nu*nw)||1),-1,1);
+    var angle=Math.acos(cosv)*180/Math.PI;
+    colBadges.innerHTML='';
+    pill(colBadges,'u · w =', fmt(dp), Math.abs(dp)<0.05*Math.max(nu*nw,0.01)?'good':'info');
+    pill(colBadges,'кут(u,w) =', fmt(angle)+'°','info');
+    pill(colBadges,'‖u‖ =', fmt(nu),'info');
+    pill(colBadges,'‖w‖ =', fmt(nw),'info');
+    if(Math.abs(dp) < 0.05*Math.max(nu*nw,0.01)){
+      setBanner('✓ u · w ≈ 0 → вектори ортогональні (кут ≈ 90°).','good');
+    } else {
+      setBanner('Скалярний добуток u·w = ‖u‖‖w‖·cos(кут) — знак каже, гострий кут чи тупий.','info');
+    }
+  }
+  redraw();
+}
+
+/* ===================== КРОК 6: ортогональні матриці ===================== */
+function renderStep6(body){
+  var state={theta:30, reflect:false};
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  colEditor.innerHTML='<div class="editor-note">Кут θ (град.):</div>';
+  var cell=document.createElement('div');
+  var num=document.createElement('input'); num.type='number'; num.value=state.theta; num.style.width='60px';
+  var rng=document.createElement('input'); rng.type='range'; rng.min=0; rng.max=360; rng.step=1; rng.value=state.theta; rng.style.width='100%'; rng.style.display='block'; rng.style.marginTop='4px';
+  cell.appendChild(num); cell.appendChild(rng);
+  colEditor.appendChild(cell);
+  var modeWrap=document.createElement('div'); modeWrap.className='mode-toggle';
+  modeWrap.innerHTML='<label><input type="checkbox" id="reflectCb"> віддзеркалити</label>';
+  colEditor.appendChild(modeWrap);
+  rng.addEventListener('input',function(){ state.theta=parseFloat(rng.value); num.value=state.theta; redraw(); });
+  num.addEventListener('input',function(){ var v=parseFloat(num.value); if(!isNaN(v)){ state.theta=v; rng.value=v; redraw(); } });
+  modeWrap.querySelector('#reflectCb').addEventListener('change', function(e){ state.reflect=e.target.checked; redraw(); });
+
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  function computeQ(){
+    var t=state.theta*Math.PI/180;
+    var R=[[Math.cos(t),-Math.sin(t)],[Math.sin(t),Math.cos(t)]];
+    if(state.reflect){
+      var F=[[1,0],[0,-1]];
+      return matMul(R,F);
+    }
+    return R;
+  }
+  function redraw(){
+    var Q=computeQ();
+    paintMatrixScene(canvas, Q, {range:2.2, ghost:[[1,0],[0,1]]});
+    colBadges.innerHTML='';
+    matBox(colBadges,'Q', Q);
+    var c1=[Q[0][0],Q[1][0]], c2=[Q[0][1],Q[1][1]];
+    pill(colBadges,'‖стовп.1‖ =', fmt(norm(c1)),'good');
+    pill(colBadges,'‖стовп.2‖ =', fmt(norm(c2)),'good');
+    pill(colBadges,'стовп.1·стовп.2 =', fmt(dot(c1,c2)), Math.abs(dot(c1,c2))<1e-6?'good':'bad');
+    pill(colBadges,'det(Q) =', fmt(det2(Q)),'info');
+    setBanner(!state.reflect ? 'Поворот: det(Q) = +1, орієнтація зберігається.' : 'Дзеркало + поворот: det(Q) = −1, орієнтація змінюється.', 'info');
+  }
+  redraw();
+}
+
+/* ===================== КРОК 7: обернена матриця ===================== */
+function renderStep7(body){
+  var state={a:2,b:1,c:1,d:1};
+
+  var controls=document.createElement('div'); controls.className='wide-controls';
+  var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
+  controls.appendChild(noteSpan);
+  var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
+  var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  addPreset(controls,'Типовий',function(){ state.a=2;state.b=1;state.c=1;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Ортогональна (пов. 40°)',function(){ var t=40*Math.PI/180; state.a=Math.cos(t);state.b=-Math.sin(t);state.c=Math.sin(t);state.d=Math.cos(t); editor.refresh(); redraw(); });
+  addPreset(controls,'Сингулярна (det=0)',function(){ state.a=2;state.b=4;state.c=1;state.d=2; editor.refresh(); redraw(); });
+  body.appendChild(controls);
+  var hint=document.createElement('p'); hint.className='hint'; hint.style.textAlign='center'; hint.innerHTML='Третій канвас — це ВЛАСНИЙ базис A⁻¹ (свої червона/зелена стрілки). Можна тягнути кінчики стрілок і на середньому канвасі.';
+  body.appendChild(hint);
+
+  var stageRow=document.createElement('div'); stageRow.className='stage-row';
+  var c1=makeStage(stageRow,'I',260); makeArrow(stageRow);
+  var c2=makeStage(stageRow,'A',260); makeArrow(stageRow);
+  var c3=makeStage(stageRow,'A⁻¹',260);
+  body.appendChild(stageRow);
+
+  var matrixStrip=document.createElement('div'); matrixStrip.className='matrix-strip';
+  var slotA=document.createElement('div'); slotA.className='matrix-strip-item';
+  var slotAinv=document.createElement('div'); slotAinv.className='matrix-strip-item';
+  matrixStrip.appendChild(slotA); matrixStrip.appendChild(slotAinv);
+  body.appendChild(matrixStrip);
+
+  var badgeStrip=document.createElement('div'); badgeStrip.className='badge-strip';
+  body.appendChild(badgeStrip);
+
+  var RANGE=2.6;
+  attachMatrixDrag(c2.canvas, state, RANGE, redraw);
+
+  function redraw(){
+    var A=[[state.a,state.b],[state.c,state.d]];
+    var Ainv=inv2(A);
+    editor.refresh();
+    paintMatrixScene(c1.canvas, [[1,0],[0,1]], {range:RANGE});
+    paintMatrixScene(c2.canvas, A, {range:RANGE, ghost:[[1,0],[0,1]]});
+    slotA.innerHTML=''; slotAinv.innerHTML='';
+    matBox(slotA,'A', A);
+    badgeStrip.innerHTML='';
+    if(!Ainv){
+      c3.canvas.getContext('2d').clearRect(0,0,c3.canvas.width,c3.canvas.height);
+      pill(badgeStrip,'A⁻¹','не існує','bad');
+      setBanner('⛔ det(A)=0 — оберненої матриці не існує (перетворення незворотне).','bad');
+    } else {
+      paintMatrixScene(c3.canvas, Ainv, {range:RANGE, ghost:[[1,0],[0,1]]});
+      matBox(slotAinv,'A⁻¹', Ainv);
+      var AAinv=matMul(A,Ainv);
+      var isI = Math.abs(AAinv[0][0]-1)<0.01 && Math.abs(AAinv[1][1]-1)<0.01 && Math.abs(AAinv[0][1])<0.01 && Math.abs(AAinv[1][0])<0.01;
+      pill(badgeStrip,'A·A⁻¹ =', isI?'I ✓':'?', isI?'good':'bad');
+      var At=transpose2(A);
+      var isOrtho = Math.abs(Ainv[0][0]-At[0][0])<0.02 && Math.abs(Ainv[0][1]-At[0][1])<0.02 && Math.abs(Ainv[1][0]-At[1][0])<0.02 && Math.abs(Ainv[1][1]-At[1][1])<0.02;
+      if(isOrtho){
+        setBanner("✓ Тут A⁻¹ = Aᵀ (матриця ортогональна) — базис A⁻¹ це просто рядки A!",'good');
+      } else {
+        setBanner('Базис A⁻¹ (третій канвас) — напрямки, які точно скасовують дію A.','good');
+      }
+    }
+  }
+  redraw();
+}
+
+/* ===================== КРОК 8: власні вектори і значення ===================== */
+function renderStep8(body){
+  var state={a:2,b:1,c:1,d:1};
+  var w={p:[1,0.3]};
+  var grid=document.createElement('div'); grid.className='step-grid';
+  var colEditor=document.createElement('div'); colEditor.className='col col-editor';
+  colEditor.innerHTML='<div class="editor-note">Матриця A:</div>';
+  var editor=buildMatrixEditor(colEditor,state,['a','b','c','d'],redraw,{min:-4,max:4});
+  var presetsWrap=document.createElement('div'); presetsWrap.className='presets';
+  presetsWrap.innerHTML='<span class="presets-label">Приклади:</span>';
+  addPreset(presetsWrap,'Два дійсних λ',function(){ state.a=2;state.b=1;state.c=1;state.d=1; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Однакове λ',function(){ state.a=1.5;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
+  addPreset(presetsWrap,'Комплексні λ (поворот)',function(){ state.a=0;state.b=-1;state.c=1;state.d=0; editor.refresh(); redraw(); });
+  colEditor.appendChild(presetsWrap);
+  var hint=document.createElement('p'); hint.className='hint'; hint.innerHTML='Тягніть сірий вектор <b>w</b> — знайдіть напрямок, де <b style="color:#E8A33D">Aw</b> паралельний до w. Дивіться також, куди дивиться те саме «око» смайлика.';
+  colEditor.appendChild(hint);
+
+  var canvasWrap=document.createElement('div'); canvasWrap.className='col col-canvas';
+  var canvas=document.createElement('canvas'); canvas.width=300; canvas.height=300;
+  canvasWrap.appendChild(canvas);
+  var colBadges=document.createElement('div'); colBadges.className='col col-badges';
+  grid.appendChild(colEditor); grid.appendChild(canvasWrap); grid.appendChild(colBadges);
+  body.appendChild(grid);
+
+  var RANGE=2.6;
+  attachFreeDrag(canvas, w, RANGE, redraw);
+
+  function redraw(){
+    var M=[[state.a,state.b],[state.c,state.d]];
+    var Mw=matVec(M,w.p);
+    var eg=eig2(M);
+    editor.refresh();
+
+    var guideLines=null;
+    if(!eg.complex){
+      var sc=Math.max(1,Math.abs(eg.l1),Math.abs(eg.l2));
+      var repeated=Math.abs(eg.l1-eg.l2)<1e-6*sc;
+      if(!repeated){
+        guideLines=[{dir:eg.v1,color:'#7B5EA7'},{dir:eg.v2,color:'#7B5EA7'}];
+      } else {
+        var diff=[[M[0][0]-eg.l1,M[0][1]],[M[1][0],M[1][1]-eg.l1]];
+        var isScalar=Math.abs(diff[0][0])<1e-6*sc&&Math.abs(diff[0][1])<1e-6*sc&&Math.abs(diff[1][0])<1e-6*sc&&Math.abs(diff[1][1])<1e-6*sc;
+        if(!isScalar) guideLines=[{dir:eg.v1,color:'#7B5EA7'}];
+      }
+    }
+
+    paintMatrixScene(canvas, M, {
+      range:RANGE, ghost:[[1,0],[0,1]], basis:false,
+      guideLines:guideLines,
+      extraVectors:[{v:w.p,color:'#5B6572'},{v:Mw,color:'#E8A33D'}]
+    });
+
+    var nw=norm(w.p), nMw=norm(Mw);
+    var cosv=(nw>1e-9&&nMw>1e-9)?clamp(dot(w.p,Mw)/(nw*nMw),-1,1):1;
+    var angle=Math.acos(cosv)*180/Math.PI;
+    var aligned=nMw>1e-9 && (angle<3||angle>177);
+    var rq=dot(w.p,w.p)>1e-9?dot(Mw,w.p)/dot(w.p,w.p):0;
+
+    colBadges.innerHTML='';
+    pill(colBadges,'w =','('+fmt(w.p[0])+', '+fmt(w.p[1])+')','info');
+    pill(colBadges,'Aw =','('+fmt(Mw[0])+', '+fmt(Mw[1])+')','info');
+    pill(colBadges,'кут(w,Aw) =',fmt(angle)+'°', aligned?'good':'info');
+    pill(colBadges,'(Aw·w)/(w·w) ≈ λ',fmt(rq), aligned?'good':'info');
+    if(eg.complex){
+      pill(colBadges,'λ₁,₂ =', fmt(eg.re)+' ± '+fmt(eg.im)+'i','warn');
+    } else {
+      pill(colBadges,'λ₁ =', fmt(eg.l1),'good');
+      pill(colBadges,'λ₂ =', fmt(eg.l2),'good');
+    }
+
+    if(eg.complex){
+      setBanner('Комплексні λ = '+fmt(eg.re)+' ± '+fmt(eg.im)+"i — жоден дійсний напрямок w не залишиться паралельним! Це поворот (крок 6).",'warn');
+    } else if(aligned){
+      setBanner('🎯 Знайшли! w і Aw паралельні, і характерна точка смайлика лежить на цій самій лінії — власний напрямок, λ ≈ '+fmt(rq)+'.','good');
+    } else {
+      setBanner('Тягніть w на фіолетову пунктирну лінію — там w і Aw паралельні, а характерна точка смайлика (наприклад, чорне око) залишається на тому самому промені з центру.','info');
+    }
+  }
+  redraw();
+}
+
+
+/* ===================== КРОК 9: спектральний розклад ===================== */
+function renderStep9(body){
+  var state={a:2,b:1,c:1,d:2};
+
+  var controls=document.createElement('div'); controls.className='wide-controls';
+  var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
+  controls.appendChild(noteSpan);
+  var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
+  var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  addPreset(controls,'Симетрична',function(){ state.a=2;state.b=1;state.c=1;state.d=2; editor.refresh(); redraw(); });
+  addPreset(controls,'Несиметрична',function(){ state.a=3;state.b=1;state.c=0;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Комплексні (неможливо)',function(){ state.a=0;state.b=-1;state.c=1;state.d=0; editor.refresh(); redraw(); });
+  body.appendChild(controls);
+
+  var stageRow=document.createElement('div'); stageRow.className='stage-row';
+  var c0=makeStage(stageRow,'Оригінал<span class="stage-sub">власні напрями</span>',220); makeArrow(stageRow);
+  var c1=makeStage(stageRow,'Q⁻¹<span class="stage-sub">зміна базису</span>',220); makeArrow(stageRow);
+  var c2=makeStage(stageRow,'ΛQ⁻¹<span class="stage-sub">масштабування</span>',220); makeArrow(stageRow);
+  var c3=makeStage(stageRow,'QΛQ⁻¹=A<span class="stage-sub">назад до базису</span>',220);
+  body.appendChild(stageRow);
+
+  var matrixStrip=document.createElement('div'); matrixStrip.className='matrix-strip';
+  var slotQ=document.createElement('div'); slotQ.className='matrix-strip-item';
+  var slotL=document.createElement('div'); slotL.className='matrix-strip-item';
+  var slotQinv=document.createElement('div'); slotQinv.className='matrix-strip-item';
+  matrixStrip.appendChild(slotQ); matrixStrip.appendChild(slotL); matrixStrip.appendChild(slotQinv);
+  body.appendChild(matrixStrip);
+
+  var badgeStrip=document.createElement('div'); badgeStrip.className='badge-strip';
+  body.appendChild(badgeStrip);
+
+  function clearStages(){ [c1,c2,c3].forEach(function(c){ c.canvas.getContext('2d').clearRect(0,0,c.canvas.width,c.canvas.height); }); }
+  var RANGE=2.8;
+
+  function redraw(){
+    var A=[[state.a,state.b],[state.c,state.d]];
+    var dg=tryDiagonalize(A);
+    badgeStrip.innerHTML=''; slotQ.innerHTML=''; slotL.innerHTML=''; slotQinv.innerHTML='';
+    editor.refresh();
+    if(!dg.ok){
+      paintMatrixScene(c0.canvas, [[1,0],[0,1]], {range:RANGE});
+      clearStages();
+      if(dg.reason==='complex'){
+        pill(badgeStrip,'λ','комплексні','bad');
+        setBanner('⛔ Комплексні власні значення — спектральний розклад неможливий. Спробуйте крок 10 (SVD) — він працює завжди!','bad');
+      } else if(dg.reason==='defective'){
+        pill(badgeStrip,'λ₁=λ₂','лише 1 в.вектор','bad');
+        setBanner("⛔ λ₁=λ₂, але є лише один незалежний власний вектор — матриця недіагоналізовна («дефектна»).",'bad');
+      } else {
+        pill(badgeStrip,'Q','сингулярна','bad');
+        setBanner('⛔ Власні вектори колінеарні — матриця недіагоналізовна.','bad');
+      }
+      return;
+    }
+    var M1=dg.Qinv, M2=matMul(dg.Lambda,dg.Qinv), M3=matMul(dg.Q,M2);
+    function guides(stageM){
+      if(dg.scalar) return null;
+      return [{dir:normalize(matVec(stageM,dg.eig.v1)),color:'#7B5EA7'},{dir:normalize(matVec(stageM,dg.eig.v2)),color:'#7B5EA7'}];
+    }
+    paintMatrixScene(c0.canvas, [[1,0],[0,1]], {range:RANGE, guideLines:guides([[1,0],[0,1]])});
+    paintMatrixScene(c1.canvas, M1, {range:RANGE, ghost:[[1,0],[0,1]], guideLines:guides(M1)});
+    paintMatrixScene(c2.canvas, M2, {range:RANGE, ghost:M1, guideLines:guides(M2)});
+    paintMatrixScene(c3.canvas, M3, {range:RANGE, ghost:M2, guideLines:guides(M3)});
+    matBox(slotQ,'Q', dg.Q);
+    matBox(slotL,'Λ', dg.Lambda);
+    matBox(slotQinv,'Q⁻¹', dg.Qinv);
+    var isSymA = Math.abs(state.b-state.c) < 1e-6;
+    var c1v=[dg.Q[0][0],dg.Q[1][0]], c2v=[dg.Q[0][1],dg.Q[1][1]];
+    var dotQ = dot(c1v,c2v);
+    var isOrthoQ = dg.scalar || Math.abs(dotQ) < 1e-6;
+    pill(badgeStrip,'‖стовп. Q‖ =', fmt(norm(c1v))+', '+fmt(norm(c2v))+' (завжди 1 — нормовані)','info');
+    pill(badgeStrip,'стовп.1·стовп.2 (Q) =', fmt(dotQ), isOrthoQ?'good':'warn');
+    pill(badgeStrip,'Q ортогональна (QᵀQ=I)?', isOrthoQ?'Так':'Ні', isOrthoQ?'good':'warn');
+    if(dg.scalar){
+      setBanner('λ₁=λ₂ → A вже саме по собі «діагональне» (чисте масштабування), Q=I підходить.','good');
+    } else if(isSymA){
+      setBanner('A симетрична → власні вектори завжди ПЕРПЕНДИКУЛЯРНІ одне одному, тож Q вийшла ортогональною: Q⁻¹=Qᵀ.','good');
+    } else {
+      setBanner('A несиметрична → власні вектори НОРМОВАНІ (довжина 1), але не перпендикулярні одне одному — Q НЕ ортогональна, тому й рахуємо справжню Q⁻¹, а не Qᵀ.','warn');
+    }
+  }
+  redraw();
+}
+
+/* ===================== КРОК 10: SVD ===================== */
+function renderStep10(body){
+  var state={a:1,b:2,c:3,d:1};
+
+  var controls=document.createElement('div'); controls.className='wide-controls';
+  var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Матриця A:';
+  controls.appendChild(noteSpan);
+  var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
+  var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  addPreset(controls,'Загальний',function(){ state.a=1;state.b=2;state.c=3;state.d=1; editor.refresh(); redraw(); });
+  addPreset(controls,'Вироджена (ранг 1)',function(){ state.a=2;state.b=4;state.c=1;state.d=2; editor.refresh(); redraw(); });
+  addPreset(controls,'"Сигара" (σ₁≫σ₂)',function(){ state.a=4;state.b=0;state.c=0;state.d=0.3; editor.refresh(); redraw(); });
+  body.appendChild(controls);
+  var hint=document.createElement('p'); hint.className='hint'; hint.style.textAlign='center'; hint.innerHTML='Сині лінії — сингулярні напрями (стовпці V); дивіться, як вони «випрямляються» на стадії Vᵀ.';
+  body.appendChild(hint);
+
+  var stageRow=document.createElement('div'); stageRow.className='stage-row';
+  var c0=makeStage(stageRow,'Оригінал<span class="stage-sub">сингулярні напрями (вхід)</span>',220); makeArrow(stageRow);
+  var c1=makeStage(stageRow,'Vᵀ<span class="stage-sub">вирівнювання входу</span>',220); makeArrow(stageRow);
+  var c2=makeStage(stageRow,'ΣVᵀ<span class="stage-sub">масштабування</span>',220); makeArrow(stageRow);
+  var c3=makeStage(stageRow,'UΣVᵀ=A<span class="stage-sub">поворот у вихід</span>',220);
+  body.appendChild(stageRow);
+
+  var matrixStrip=document.createElement('div'); matrixStrip.className='matrix-strip';
+  var slotU=document.createElement('div'); slotU.className='matrix-strip-item';
+  var slotS=document.createElement('div'); slotS.className='matrix-strip-item';
+  var slotV=document.createElement('div'); slotV.className='matrix-strip-item';
+  matrixStrip.appendChild(slotU); matrixStrip.appendChild(slotS); matrixStrip.appendChild(slotV);
+  body.appendChild(matrixStrip);
+
+  var badgeStrip=document.createElement('div'); badgeStrip.className='badge-strip';
+  body.appendChild(badgeStrip);
+
+  var RANGE=2.8;
+  function redraw(){
+    var A=[[state.a,state.b],[state.c,state.d]];
+    var r=svd2(A);
+    editor.refresh();
+    var Vt=transpose2(r.V);
+    var M1=Vt, M2=matMul(r.S,Vt), M3=matMul(r.U,M2);
+    var v1=[r.V[0][0],r.V[1][0]], v2=[r.V[0][1],r.V[1][1]];
+    function guides(stageM){
+      return [{dir:normalize(matVec(stageM,v1)),color:'#3B82C4'},{dir:normalize(matVec(stageM,v2)),color:'#3B82C4'}];
+    }
+    paintMatrixScene(c0.canvas, [[1,0],[0,1]], {range:RANGE, guideLines:guides([[1,0],[0,1]])});
+    paintMatrixScene(c1.canvas, M1, {range:RANGE, ghost:[[1,0],[0,1]], guideLines:guides(M1)});
+    paintMatrixScene(c2.canvas, M2, {range:RANGE, ghost:M1, guideLines:guides(M2)});
+    paintMatrixScene(c3.canvas, M3, {range:RANGE, ghost:M2, guideLines:guides(M3)});
+    slotU.innerHTML=''; slotS.innerHTML=''; slotV.innerHTML=''; badgeStrip.innerHTML='';
+    matBox(slotU,'U', r.U);
+    matBox(slotS,'Σ', r.S);
+    matBox(slotV,'V', r.V);
+    pill(badgeStrip,'σ₁ =', fmt(r.s1),'good');
+    pill(badgeStrip,'σ₂ =', fmt(r.s2), r.s2<1e-3?'bad':'good');
+    if(r.s2<1e-3){
+      setBanner('σ₂ ≈ 0 → матриця по суті рангу 1 (образ сплющився в лінію).','warn');
+    } else if(r.s1>3*r.s2){
+      setBanner('σ₁ набагато більше σ₂ → еліпс витягнутий у «сигару» (пригадайте 3D-приклад) — натяк на наближення матриці малим рангом.','info');
+    } else {
+      setBanner('SVD існує для БУДЬ-якої матриці — на відміну від спектрального розкладу (крок 9).','good');
+    }
+  }
+  redraw();
+}
+
+/* ===================== КРОК 11 (бонус): QR / Грам-Шмідт ===================== */
+function renderStep11(body){
+  var state={a:2,b:1.2,c:0.6,d:2};
+
+  var controls=document.createElement('div'); controls.className='wide-controls';
+  var noteSpan=document.createElement('span'); noteSpan.className='editor-note'; noteSpan.textContent='Стовпці A = a₁ (черв.), a₂ (зел.):';
+  controls.appendChild(noteSpan);
+  var editorHolder=document.createElement('span'); controls.appendChild(editorHolder);
+  var editor=buildMatrixEditor(editorHolder, state, ['a','b','c','d'], redraw, {min:-4,max:4});
+  addPreset(controls,'Типовий',function(){ state.a=2;state.b=1.2;state.c=0.6;state.d=2; editor.refresh(); redraw(); });
+  addPreset(controls,'Вже ортогональні',function(){ state.a=1;state.b=0;state.c=0;state.d=1.5; editor.refresh(); redraw(); });
+  addPreset(controls,'Майже колінеарні',function(){ state.a=2;state.b=1.9;state.c=0.5;state.d=0.48; editor.refresh(); redraw(); });
+  body.appendChild(controls);
+
+  var stageRow=document.createElement('div'); stageRow.className='stage-row';
+  var c0=makeStage(stageRow,'Оригінал',260); makeArrow(stageRow);
+  var c1=makeStage(stageRow,'R<span class="stage-sub">зсув і розтяг</span>',260); makeArrow(stageRow);
+  var c2=makeStage(stageRow,'A = QR<span class="stage-sub">поворот</span>',260);
+  body.appendChild(stageRow);
+
+  var matrixStrip=document.createElement('div'); matrixStrip.className='matrix-strip';
+  var slotQ=document.createElement('div'); slotQ.className='matrix-strip-item';
+  var slotR=document.createElement('div'); slotR.className='matrix-strip-item';
+  matrixStrip.appendChild(slotQ); matrixStrip.appendChild(slotR);
+  body.appendChild(matrixStrip);
+
+  var badgeStrip=document.createElement('div'); badgeStrip.className='badge-strip';
+  body.appendChild(badgeStrip);
+
+  var RANGE=2.6;
+  attachMatrixDrag(c2.canvas, state, RANGE, redraw);
+
+  function redraw(){
+    var A=[[state.a,state.b],[state.c,state.d]];
+    editor.refresh();
+    var a1=[state.a,state.c], a2=[state.b,state.d];
+    var na1=norm(a1);
+    var q1 = na1>1e-9 ? [a1[0]/na1, a1[1]/na1] : [1,0];
+    var r12 = dot(a2,q1);
+    var proj=[q1[0]*r12,q1[1]*r12];
+    var u2=[a2[0]-proj[0],a2[1]-proj[1]];
+    var r22=norm(u2);
+    var q2 = r22>1e-9 ? [u2[0]/r22,u2[1]/r22] : [-q1[1],q1[0]];
+    var Q=[[q1[0],q2[0]],[q1[1],q2[1]]];
+    var R=[[na1,r12],[0,r22]];
+
+    paintMatrixScene(c0.canvas,[[1,0],[0,1]],{range:RANGE});
+    paintMatrixScene(c1.canvas,R,{range:RANGE, ghost:[[1,0],[0,1]]});
+    paintMatrixScene(c2.canvas,A,{range:RANGE, ghost:R});
+
+    slotQ.innerHTML=''; slotR.innerHTML=''; badgeStrip.innerHTML='';
+    matBox(slotQ,'Q', Q);
+    matBox(slotR,'R', R);
+    var angle=Math.atan2(q1[1],q1[0])*180/Math.PI;
+    var dQ=det2(Q);
+    pill(badgeStrip,'кут a₁ (напрям e₁ після R) ≈', fmt(angle)+'°','info');
+    pill(badgeStrip,'det(Q) =', fmt(dQ), Math.abs(dQ-1)<0.01?'good':'info');
+    if(r22<1e-6){
+      setBanner('⛔ a₁ і a₂ колінеарні — R вироджена (r₂₂=0).','bad');
+    } else if(r22 < 0.08*na1){
+      setBanner('⚠ Майже колінеарні: r₂₂ дуже мале — тут числова стійкість Грама-Шмідта під питанням (див. теорію).','warn');
+    } else if(dQ>0){
+      setBanner('R не зрушує e₁ з осі (лише масштабує), зате зсуває й тягне e₂; Q потім чисто повертає все на місце (det(Q)=+1).','good');
+    } else {
+      setBanner('R не зрушує e₁ з осі; Q тут повертає З дзеркалом (det(Q)=−1) — бо a₁,a₂ мають "ліву" орієнтацію, як det(A)<0 у кроці 4.','info');
+    }
+  }
+  redraw();
+}
+
+/* ===================== КОНТЕНТ КРОКІВ ===================== */
+var STEP_META={
+ 1:{title:"1. Одинична матриця — базис",
+    explain:"Стовпці одиничної матриці I — це базисні вектори \\(\\mathbf{e}_1=(1,0)\\) (червоний) та \\(\\mathbf{e}_2=(0,1)\\) (зелений). Це система відліку, з якою порівнюватимемо всі інші матриці.",
+    theory:"<p>Формально, I — нейтральний елемент множення матриць: \\(AI=IA=A\\) для будь-якої матриці A. Геометрично I залишає весь простір на місці.</p><p>У наступному кроці побачимо, що саме означає «помножити вектор на матрицю».</p>"},
+ 2:{title:"2. Правило множення: рядок на стовпець",
+    explain:"Щоб порахувати Av, кожну координату результату отримуємо ОКРЕМО: беремо відповідний РЯДОК матриці A, множимо його «по компонентах» на v і додаємо. Це вся механіка множення матриці на вектор — жодної геометрії поки що, лише арифметика.",
+    theory:"<p>Означення: якщо \\(A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}\\), \\(\\mathbf{v}=\\begin{pmatrix}v_1\\\\v_2\\end{pmatrix}\\), то \\[A\\mathbf{v}=\\begin{pmatrix}av_1+bv_2\\\\cv_1+dv_2\\end{pmatrix}.\\] Кожна координата результату — скалярний добуток відповідного РЯДКА A на СТОВПЕЦЬ v (про сам скалярний добуток — крок 5).</p><p><b>Множення матриці на матрицю</b> — те саме правило, застосоване до кожного СТОВПЦЯ другої матриці окремо: якщо \\(B=[\\mathbf{b}_1\\ \\mathbf{b}_2]\\), то \\[AB=[A\\mathbf{b}_1\\ \\ A\\mathbf{b}_2].\\] Тобто стовпець j добутку AB — це просто A, помножена на стовпець j матриці B (той самий рядок-на-стовпець, що й вище, тільки повторений для кожного стовпця).</p><p>Важливо: тут ми НЕ розкладаємо v «по базису» (це окрема задача, яка в загальному випадку вимагає розв'язання системи рівнянь — тобто оберненої матриці, крок 7). Тут v — просто готовий стовпець чисел, і ми обчислюємо Av напряму за формулою.</p><p>У наступному кроці подивимось, ЩО геометрично робить це правило — куди переходять базисні вектори і весь простір.</p>"},
+ 3:{title:"3. Матриця як лінійний оператор",
+    explain:"Змінюючи елементи матриці A (числа або самі стрілки на малюнку), ви змінюєте, куди переходять базисні вектори e₁ (червоний) і e₂ (зелений). Сітка та смайлик деформуються лінійно: прямі лишаються прямими, паралельні — паралельними.",
+    theory:"<p>Стовпець 1 матриці A — вектор \\(A\\mathbf{e}_1\\), стовпець 2 — \\(A\\mathbf{e}_2\\) (див. крок 2). Це і є означення лінійного оператора: \\[A(\\alpha\\mathbf{u}+\\beta\\mathbf{w})=\\alpha A\\mathbf{u}+\\beta A\\mathbf{w}.\\]</p><p><b>Це основа не лише векторної графіки, а й багато чого іншого:</b></p><ul><li><b>Комп'ютерна графіка:</b> кожен поворот, масштабування чи нахил зображення, спрайту або 3D-моделі на екрані — це множення координат вершин на матрицю (в іграх і GPU-шейдерах — саме так, десятки мільйонів разів за секунду).</li><li><b>CSS/SVG:</b> властивість <code>transform: matrix(a,b,c,d,e,f)</code> у браузері — буквально ця сама матриця 2×2 (плюс зсув).</li><li><b>Обробка зображень:</b> фільтри зсуву, повороту, «викривлення» фото — застосування лінійного оператора до координат пікселів.</li><li><b>Машинне навчання:</b> кожен «шар» нейронної мережі спочатку множить вектор ознак на матрицю ваг — це точно те саме перетворення, яке ви щойно покрутили руками.</li><li><b>Робототехніка й комп'ютерний зір:</b> перехід між системами координат камери, робота-маніпулятора чи датчика — теж множення на матрицю.</li></ul>"},
+ 4:{title:"4. Детермінант, ранг і норми",
+    explain:"Заштрихована область — образ одиничного квадрата під дією A; її площа дорівнює \\(|\\det(A)|\\). Знак det визначає орієнтацію: додатний зберігає «закрученість», від'ємний дзеркалить. Коли det=0, площина стискається в лінію — ранг падає.",
+    theory:"<p>У 2D: \\[\\det(A)=ad-bc\\] — орієнтована площа паралелограма на стовпцях A. У n вимірах \\(\\det(A)\\) — n-вимірний гіпероб'єм паралелепіпеда на стовпцях A, з тим самим правилом знаку.</p><p>Ранг — розмірність образу: ранг 2, якщо \\(\\det(A)\\neq0\\); ранг 1, якщо стовпці колінеарні (не нульові); ранг 0, якщо \\(A=0\\).</p><p><b>Формальне означення (для будь-якої матриці, не лише 2×2):</b> \\(\\operatorname{rank}(A)\\) — це розмірність простору стовпців A (їхнього лінійного об'єднання, «образу» A), тобто максимальна кількість лінійно незалежних стовпців. Теорема лінійної алгебри стверджує, що ця кількість завжди дорівнює максимальній кількості лінійно незалежних РЯДКІВ (розмірності простору рядків) — тому «ранг за стовпцями» і «ранг за рядками» це те саме число. Еквівалентно: ранг дорівнює числу НЕНУЛЬОВИХ сингулярних значень A (крок 10).</p><p><b>Норми вектора (нагадування):</b> \\[\\|\\mathbf{v}\\|_1=|x|+|y|,\\qquad \\|\\mathbf{v}\\|_2=\\sqrt{x^2+y^2},\\qquad \\|\\mathbf{v}\\|_\\infty=\\max(|x|,|y|).\\]</p><p><b>Норми матриці</b>, породжені векторними (induced/operator norm): \\(\\|A\\|=\\max_{\\|\\mathbf{v}\\|=1}\\|A\\mathbf{v}\\|\\) — у скільки найбільше разів A розтягує одиничний вектор. Для 2×2: \\[\\|A\\|_1=\\max(|a|+|c|,\\,|b|+|d|)\\ \\ \\text{(макс. сума по стовпцю)},\\] \\[\\|A\\|_\\infty=\\max(|a|+|b|,\\,|c|+|d|)\\ \\ \\text{(макс. сума по рядку)},\\] \\[\\|A\\|_2=\\sigma_{\\max}(A)\\ \\ \\text{(найбільше сингулярне значення, крок 10).}\\]</p><p><b>Норма Фробеніуса</b> (довжина вектора зі всіх елементів матриці): \\[\\|A\\|_F=\\sqrt{a^2+b^2+c^2+d^2}.\\]</p><p>Про вищі виміри: для 3×3 і більше матриця стискає одиничну кулю в еліпсоїд; коли сингулярне значення (крок 10) прямує до нуля, еліпсоїд сплющується в «млинець» (падає ранг), а коли одне значення набагато більше за решту — витягується у «сигару». Це показано в окремому 3D-інтерактиві.</p>"},
+ 5:{title:"5. Ортогональність векторів",
+    explain:"Скалярний добуток \\(\\mathbf{u}\\cdot\\mathbf{w}=u_1w_1+u_2w_2\\). У 2D/3D він пов'язаний із кутом: \\(\\mathbf{u}\\cdot\\mathbf{w}=\\|\\mathbf{u}\\|\\|\\mathbf{w}\\|\\cos\\theta\\) — тобто сам косинус кута це скалярний добуток НОРМОВАНИХ (одиничних) векторів. Якщо \\(\\mathbf{u}\\cdot\\mathbf{w}=0\\) — вектори ортогональні, незалежно від довжини.",
+    theory:"<p>Точна формула для n координат: \\[\\mathbf{u}\\cdot\\mathbf{w}=\\sum_{i=1}^n u_i w_i.\\] Твердження «дивляться в один бік» строго вірне лише після нормування — це косинус кута. У просторах великої розмірності (десятки й тисячі координат) кут важко уявити геометрично, тож зручніше сприймати скалярний добуток формально, як <b>«зважену схожість»</b>: якщо координати u і w переважно збігаються знаком і величиною — сума додатна; якщо протилежні — від'ємна; якщо в середньому компенсують одна одну — нуль (ортогональні), навіть без жодного «кута», який можна уявити.</p><p><b>Приклад — функції Уолша:</b> послідовності з ±1, що використовуються в обробці сигналів і кодуванні. Дві різні функції Уолша завжди ортогональні (сума добутків їхніх значень дорівнює нулю), хоча жодного зображуваного «кута 90°» між ними немає — вони просто «максимально незалежні» в абстрактному просторі послідовностей.</p><p><b>Приклад — sin і cos:</b> у нескінченновимірному просторі функцій \\(\\sin x\\) і \\(\\cos x\\) на періоді теж ортогональні — тільки сума перетворюється на інтеграл: \\[\\int_0^{2\\pi}\\sin x\\cos x\\,dx=0.\\] Це той самий принцип, застосований до функцій замість скінченних наборів координат — саме на цьому базується розклад Фур'є.</p><p>Це основа наступного кроку: якщо всі стовпці матриці попарно ортогональні й одиничної довжини, матриця називається ортогональною.</p>"},
+ 6:{title:"6. Ортогональні матриці: поворот і дзеркало",
+    explain:"У ортогональної матриці Q стовпці одиничні й попарно перпендикулярні (\\(Q^\\top Q=I\\)). Такі матриці не деформують форми, а лише повертають (\\(\\det=+1\\)) або відбивають (\\(\\det=-1\\)) — довжини й кути зберігаються.",
+    theory:"<p>Матриця повороту на кут \\(\\theta\\): \\[R(\\theta)=\\begin{pmatrix}\\cos\\theta&-\\sin\\theta\\\\ \\sin\\theta&\\cos\\theta\\end{pmatrix}\\] Матриця відбиття відносно прямої під кутом \\(\\theta\\): \\[F(\\theta)=\\begin{pmatrix}\\cos2\\theta&\\sin2\\theta\\\\ \\sin2\\theta&-\\cos2\\theta\\end{pmatrix}\\] Обидві мають ортонормовані стовпці — «жорсткі рухи» площини (ізометрії).</p>"},
+ 7:{title:"7. Обернена матриця",
+    explain:"\\(A^{-1}\\) повертає результат дії A назад: \\(A^{-1}A=I\\). Існує лише коли \\(\\det(A)\\neq0\\). Третій канвас показує ВЛАСНИЙ базис матриці \\(A^{-1}\\) — ті самі кольори, але вже інші вектори.",
+    theory:"<p>Для 2×2: \\[A^{-1}=\\frac{1}{\\det A}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}.\\] Формула працює лише коли \\(\\det(A)\\neq0\\) — «вироджені» (крок 4) матриці необоротні: інформація втрачена, відновити неможливо.</p><p>Для ортогональної Q обернена співпадає з транспонованою: \\(Q^{-1}=Q^\\top\\) — обчислювати явно не потрібно.</p>"},
+ 8:{title:"8. Власні вектори і власні значення",
+    explain:"Власний вектор \\(\\mathbf{v}\\) матриці A — напрямок, який A не повертає, а лише масштабує: \\(A\\mathbf{v}=\\lambda\\mathbf{v}\\). Потягніть сірий вектор w і знайдіть напрямок, де \\(Aw\\) (жовтий) стає паралельним до w — це і буде власний напрямок, а коефіцієнт розтягу — власне значення λ.",
+    theory:"<p><b>Означення.</b> Ненульовий вектор \\(\\mathbf{v}\\) — власний вектор A з власним значенням λ, якщо \\[A\\mathbf{v}=\\lambda\\mathbf{v}.\\] A діє на \\(\\mathbf{v}\\) як звичайне число λ: лише розтягує/стискає (і перевертає, якщо λ<0), не збиваючи з прямої.</p><p><b>Як знайти λ.</b> Перепишемо: \\((A-\\lambda I)\\mathbf{v}=\\mathbf{0}\\). Ненульовий розв'язок існує лише якщо \\(A-\\lambda I\\) вироджена: \\[\\det(A-\\lambda I)=0\\] — характеристичне рівняння.</p><p>Нехай \\(\\operatorname{tr}(A)=a+d\\) — <b>слід матриці</b> (сума діагональних елементів). Для 2×2 характеристичне рівняння: \\[\\lambda^2-\\operatorname{tr}(A)\\lambda+\\det(A)=0,\\] звідки \\[\\lambda_{1,2}=\\frac{\\operatorname{tr}(A)\\pm\\sqrt{\\operatorname{tr}(A)^2-4\\det(A)}}{2}.\\]</p><p>Від'ємний дискримінант → λ комплексні, дійсних власних напрямків немає (геометрично — поворот, крок 6). Якщо λ₁=λ₂ — або A вже кратна одиничній (тоді власний БУДЬ-який вектор), або A «дефектна» (лише один незалежний власний вектор).</p><p><b>Власних векторів — безліч.</b> Якщо \\(\\mathbf{v}\\) — власний вектор із значенням λ, то і \\(c\\mathbf{v}\\) для БУДЬ-якого ненульового числа c — теж власний вектор із тим самим λ: \\(A(c\\mathbf{v})=c(A\\mathbf{v})=c\\lambda\\mathbf{v}=\\lambda(c\\mathbf{v})\\). Тобто «власний вектор» — це насправді ціла пряма через початок координат (без самого нуля). Коли говорять «власний вектор матриці», найчастіше мають на увазі саме цей НАПРЯМОК, а не конкретну довжину чи знак.</p>"},
+ 9:{title:"9. Спектральний розклад A = QΛQ⁻¹",
+    explain:"Якщо A має два незалежних дійсних власних вектори, її можна розкласти на три дії: перейти в базис власних векторів (\\(Q^{-1}\\)), масштабувати вздовж нових осей (Λ), і повернутись назад (Q). Фіолетові пунктирні лінії — власні напрями на кожній стадії.",
+    theory:"<p>Стовпці Q — власні вектори A, діагональ Λ — відповідні власні значення (крок 8). Розклад існує лише коли A діагоналізовна.</p><p><b>Зазвичай Q складають з НОРМОВАНИХ (одиничної довжини) власних векторів.</b> Сама пряма (крок 8) визначена однозначно, а конкретний вектор на ній — ні. Але нормована довжина — це ще не ортогональність!</p><p><b>Q ортогональна (\(Q^{-1}=Q^\top\)) тільки тоді, коли A симетрична</b> (спектральна теорема гарантує, що власні вектори симетричної матриці попарно перпендикулярні). Якщо A несиметрична — власні вектори здебільшого НЕ перпендикулярні одне одному, навіть якщо кожен нормований; Q тоді не ортогональна, і доводиться рахувати справжню обернену \(Q^{-1}\) (як у кроці 7), а не просто транспонувати. Спробуйте приклади «Симетрична» і «Несиметрична» та подивіться на бейдж «Q ортогональна?».</p><p>Комплексні λ або «дефектна» матриця роблять розклад у дійсних числах неможливим — тоді на допомогу приходить SVD (крок 10), який працює завжди.</p>"},
+ 10:{title:"10. Сингулярний розклад A = UΣVᵀ",
+    explain:"SVD розкладає будь-яку матрицю на три дії: поворот/відбиття \\(V^\\top\\), масштабування вздовж осей Σ (\\(\\sigma_1\\ge\\sigma_2\\ge0\\)), і ще один поворот/відбиття U. Сині лінії — сингулярні напрями (стовпці V) на кожній стадії.",
+    theory:"<p><b>Чому саме \\(A^\\top A\\)?</b> Якщо A має розмір \\(m\\times n\\), то \\(A^\\top\\) — \\(n\\times m\\), і добуток \\(A^\\top A\\) — завжди \\(n\\times n\\), тобто <b>квадратна</b>, незалежно від форми A.</p><p>Вона завжди <b>симетрична</b>: \\((A^\\top A)^\\top=A^\\top(A^\\top)^\\top=A^\\top A\\).</p><p>Вона завжди <b>додатно напіввизначена</b> (positive semi-definite): для будь-якого вектора \\(\\mathbf{v}\\) \\[\\mathbf{v}^\\top(A^\\top A)\\mathbf{v}=(A\\mathbf{v})^\\top(A\\mathbf{v})=\\|A\\mathbf{v}\\|^2\\ge0.\\] <i>(Означення: симетрична матриця M додатно напіввизначена, якщо \\(\\mathbf{v}^\\top M\\mathbf{v}\\ge0\\) для всіх \\(\\mathbf{v}\\); додатно визначена — якщо строго більше нуля для всіх ненульових \\(\\mathbf{v}\\).)</i></p><p>Звідси всі власні значення \\(A^\\top A\\) невід'ємні — тому \\(\\sigma_i=\\sqrt{\\lambda_i(A^\\top A)}\\) завжди дійсні й невід'ємні, і SVD існує для будь-якої матриці (на відміну від спектрального розкладу, крок 9).</p><p><b>Сингулярні вектори:</b> \\(\\mathbf{v}_i\\) (стовпці V) — власні вектори \\(A^\\top A\\); \\(\\mathbf{u}_i=A\\mathbf{v}_i/\\sigma_i\\) (стовпці U) — відповідні напрями в просторі виходу. A перетворює одиничну кулю на еліпс з півосями \\(\\sigma_i\\) вздовж \\(\\mathbf{u}_i\\).</p>"},
+ 11:{title:"11. QR-розклад: зсув, розтяг, поворот (бонус)",
+    explain:"QR розкладає A на дві геометричні дії, як і кроки 9-10: спершу R виконує зсув і розтяг, не відриваючи вісь e₁ від напрямку a₁ (вона лише масштабується); потім Q ставить результат у кінцеву орієнтацію A — це чистий поворот, якщо det(A)>0, або поворот із дзеркалом, якщо det(A)<0 (як у кроці 4).",
+    theory:"<p>A = QR, де Q ортогональна, а R — верхньотрикутна з невід'ємною діагоналлю. Оскільки \\(\\det(R)=r_{11}r_{22}\\ge0\\), знак \\(\\det(Q)\\) завжди збігається зі знаком \\(\\det(A)\\): \\(\\det(A)=\\det(Q)\\det(R)\\).</p><p><b>Як обчислити Q і R: процес Грама-Шмідта.</b> Для стовпців \\(\\mathbf{a}_1,\\dots,\\mathbf{a}_n\\) будуємо ортонормовані \\(\\mathbf{q}_1,\\dots,\\mathbf{q}_n\\) ІТЕРАТИВНО: \\(\\mathbf{q}_1=\\mathbf{a}_1/\\|\\mathbf{a}_1\\|\\); кожен наступний \\(\\mathbf{q}_k\\) — це \\(\\mathbf{a}_k\\) мінус його проєкції на ВСІ попередні \\(\\mathbf{q}_1,\\dots,\\mathbf{q}_{k-1}\\), нормовані до одиниці. У 2D це лише один крок (для \\(\\mathbf{a}_2\\)), тому ітеративна природа процесу помітна тільки при \\(n>2\\) стовпцях — саме тому тут показано тільки геометричний РЕЗУЛЬТАТ (R і Q), а не покроковий Грам-Шмідт.</p><p>Матриця \\(R=Q^\\top A\\) — це якраз коефіцієнти проєкцій з Грама-Шмідта, і вона верхньотрикутна за побудовою.</p><p><b>Чому Q ортогональна?</b> \\(\\mathbf{q}_1\\) — одиничний за побудовою. За властивістю ортогональної проєкції \\[\\mathbf{q}_1\\cdot\\mathbf{u}_2=\\mathbf{q}_1\\cdot\\mathbf{a}_2-(\\mathbf{a}_2\\cdot\\mathbf{q}_1)(\\mathbf{q}_1\\cdot\\mathbf{q}_1)=0,\\] тобто \\(\\mathbf{q}_2\\perp\\mathbf{q}_1\\) гарантовано.</p><p><b>Чому R верхньотрикутна?</b> \\(R_{21}=\\mathbf{q}_2\\cdot\\mathbf{a}_1=0\\), бо \\(\\mathbf{a}_1\\) лежить точно на прямій \\(\\mathbf{q}_1\\), а \\(\\mathbf{q}_2\\perp\\mathbf{q}_1\\).</p><p><b>Важливо для практики:</b> класичний Грам-Шмідт у скінченній точності втрачає ортогональність, коли стовпці майже колінеарні (спробуйте приклад «Майже колінеарні» — r₂₂ стає крихітним). Тому реальні бібліотеки обчислюють QR не через наївний Грам-Шмідт, а через числово стійкіші повороти Гівенса або відбиття Хаусхолдера.</p><p><b>Навіщо QR у чисельних методах:</b> R використовують для розв'язання задачі найменших квадратів — це та сама лінійна регресія, яку ви бачили в статистиці (мінімізація суми квадратів залишків), тільки в матричній формі: замість погано обумовлених нормальних рівнянь \\(A^\\top Ax=A^\\top b\\) розв'язують стійкіше \\(Rx=Q^\\top b\\). QR також лежить в основі QR-алгоритму для обчислення власних значень великих матриць.</p>"}
+};
+var RENDER={1:renderStep1,2:renderStep2,3:renderStep3,4:renderStep4,5:renderStep5,6:renderStep6,7:renderStep7,8:renderStep8,9:renderStep9,10:renderStep10,11:renderStep11};
+var TOTAL=11;
+var currentStep=1;
+
+function showStep(n){
+  currentStep=n;
+  var dots=document.querySelectorAll('.step-dot');
+  for(var i=0;i<dots.length;i++){ dots[i].classList.toggle('active', i===(n-1)); }
+  document.getElementById('stepTitle').textContent=STEP_META[n].title;
+  document.getElementById('stepCounter').textContent=n+' / '+TOTAL;
+  document.getElementById('banner').innerHTML=''; document.getElementById('banner').className='banner';
+  var body=document.getElementById('stepBody'); body.innerHTML='';
+  document.getElementById('stepExplain').innerHTML=STEP_META[n].explain;
+  document.getElementById('theoryContent').innerHTML=STEP_META[n].theory;
+  document.getElementById('prevBtn').disabled=(n===1);
+  document.getElementById('nextBtn').disabled=(n===TOTAL);
+  RENDER[n](body);
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetPromise(); }
+}
+
+document.getElementById('prevBtn').addEventListener('click', function(){ if(currentStep>1) showStep(currentStep-1); });
+document.getElementById('nextBtn').addEventListener('click', function(){ if(currentStep<TOTAL) showStep(currentStep+1); });
+document.addEventListener('keydown', function(e){
+  var tag=(e.target && e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(e.key==='ArrowRight' && currentStep<TOTAL) showStep(currentStep+1);
+  if(e.key==='ArrowLeft' && currentStep>1) showStep(currentStep-1);
+});
+
+var nav=document.getElementById('stepNav');
+for(var i=1;i<=TOTAL;i++){
+  (function(i){
+    var d=document.createElement('button');
+    d.className='step-dot'; d.type='button'; d.textContent=i; d.title=STEP_META[i].title;
+    d.addEventListener('click', function(){ showStep(i); });
+    nav.appendChild(d);
+  })(i);
+}
+showStep(1);
+</script>
+</body>
+</html>
