@@ -407,16 +407,311 @@
                 height: 400px;
             }
         }
+
+        /* ===== Стилі для блоку "Класи складності" ===== */
+
+        .class-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .class-badge.p { background-color: #2ecc71; }
+        .class-badge.np { background-color: #3498db; }
+        .class-badge.conp { background-color: #9b59b6; }
+        .class-badge.nph { background-color: #e67e22; }
+        .class-badge.npc { background-color: #e74c3c; }
+
+        .venn-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .venn-wrap svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* --- Гра-класифікація --- */
+
+        .classify-instructions {
+            background-color: #eef3fb;
+            border-left: 4px solid var(--primary);
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .card-pool, .basket-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 50px;
+        }
+
+        .card-pool {
+            padding: 15px;
+            background-color: #f5f7fa;
+            border: 2px dashed #bbb;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .prob-card {
+            padding: 10px 14px;
+            background-color: white;
+            border: 2px solid var(--primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .prob-card:hover {
+            background-color: #e1ecf4;
+        }
+
+        .prob-card.selected {
+            background-color: var(--primary);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .prob-card.correct {
+            background-color: #d4edda;
+            border-color: var(--success);
+            color: #1e7e34;
+            cursor: default;
+        }
+
+        .prob-card.incorrect {
+            background-color: #f8d7da;
+            border-color: var(--danger);
+            color: #a12a2a;
+            cursor: default;
+        }
+
+        .baskets {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .basket {
+            flex: 1;
+            min-width: 220px;
+            background-color: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .basket.droppable-highlight {
+            border-color: var(--primary);
+            background-color: #f0f5ff;
+        }
+
+        .basket-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+            text-align: center;
+        }
+
+        .basket-title.p { color: #27ae60; }
+        .basket-title.npc { color: #c0392b; }
+        .basket-title.nph { color: #d35400; }
+
+        .classify-controls {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .classify-summary {
+            margin-top: 20px;
+        }
+
+        .classify-note {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.92rem;
+        }
+
+        .classify-note.bad {
+            background-color: #fff3f3;
+            border-left: 4px solid var(--danger);
+            color: #a12a2a;
+        }
+
+        .classify-note.missing {
+            background-color: #fff8e1;
+            border-left: 4px solid #f1c40f;
+            color: #8a6d00;
+        }
+
+        .classify-score {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 15px;
+        }
+
+        .quiz-section-title {
+            margin: 25px 0 15px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+
+        /* ===== Дві теми-кольори для груп вкладок ===== */
+
+        .theme-legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .theme-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 15px;
+        }
+
+        .theme-legend .theme-dot:first-child {
+            margin-left: 0;
+        }
+
+        .theme-dot.theme-a { background-color: #4a6fa5; }
+        .theme-dot.theme-b { background-color: #8e44ad; }
+
+        .tab.group-a {
+            background-color: #8aa3c9;
+        }
+
+        .tab.group-a:hover:not(.active) {
+            background-color: #5a7fb5;
+            color: white;
+        }
+
+        .tab.group-a.active {
+            background-color: #4a6fa5;
+        }
+
+        .tab.group-b {
+            background-color: #c9a3e0;
+            margin-left: 15px;
+        }
+
+        .tab.group-b:hover:not(.active) {
+            background-color: #a569bd;
+            color: white;
+        }
+
+        .tab.group-b.active {
+            background-color: #8e44ad;
+        }
+
+        @media (max-width: 768px) {
+            .tab.group-b {
+                margin-left: 0;
+                margin-top: 8px;
+            }
+        }
+
+        /* ===== Бонусна вкладка з коміксом (з'являється після проходження тесту) ===== */
+
+        .tab.reward-tab {
+            display: none;
+            background-color: #f39c12;
+            margin-left: 15px;
+        }
+
+        .tab.reward-tab.unlocked {
+            display: inline-block;
+            animation: rewardPulse 1s ease-in-out 3;
+        }
+
+        .tab.reward-tab:hover:not(.active) {
+            background-color: #e67e22;
+            color: white;
+        }
+
+        .tab.reward-tab.active {
+            background-color: #d35400;
+        }
+
+        @keyframes rewardPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .reward-unlock-note {
+            display: none;
+            margin-top: 20px;
+            padding: 14px 18px;
+            background-color: #fff8e1;
+            border-left: 4px solid #f39c12;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #8a6d00;
+        }
+
+        .reward-unlock-note.visible {
+            display: block;
+        }
+
+        .comic-wrap {
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        .comic-wrap img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .comic-caption {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
        
         
+        <div class="theme-legend">
+            <span class="theme-dot theme-a"></span> Тема 1: О-велике
+            <span class="theme-dot theme-b"></span> Тема 2: Класи складності (P / NP)
+        </div>
+
         <div class="tabs">
-            <button class="tab active" data-tab="simulator">Порівняння</button>
-            <button class="tab" data-tab="theory">Теорія</button>
-            <button class="tab" data-tab="test">Тест</button>
+            <button class="tab group-a active" data-tab="simulator">О-велике: Порівняння</button>
+            <button class="tab group-a" data-tab="theory">О-велике: Теорія</button>
+            <button class="tab group-a" data-tab="test">О-велике: Тест</button>
+            <button class="tab group-b" data-tab="classes-theory">Класи: Теорія</button>
+            <button class="tab group-b" data-tab="classes-examples">Класи: Приклади</button>
+            <button class="tab group-b" data-tab="classes-test">Класи: Тест</button>
+            <button class="tab reward-tab" data-tab="comic-reward" id="rewardTabButton">:)</button>
         </div>
         
         <div id="simulator" class="tab-content active">
@@ -638,6 +933,286 @@
                 <p id="resultMessage"></p>
             </div>
         </div>
+
+        <!-- ================= КЛАСИ СКЛАДНОСТІ: ТЕОРІЯ ================= -->
+        <div id="classes-theory" class="tab-content">
+            <h2>Класи обчислювальної складності</h2>
+            <p>О-нотація показує, як росте час виконання конкретного алгоритму. Але є задачі, для яких <strong>взагалі не відомо жодного швидкого алгоритму</strong> — і питання "чи існує він у принципі" є одним з найважливіших відкритих питань математики. Щоб говорити про це точно, задачі групують у класи складності.</p>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Задача рішення (decision problem) — з чим ми працюємо</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <p>Класи P, NP, co-NP, NP-hard, NP-complete визначаються для задач із відповіддю "так/ні" (задачі рішення). Наприклад, замість "знайти найкоротший маршрут" беруть "чи існує маршрут довжиною ≤ K?". Будь-яку оптимізаційну задачу легко звести до такої: якщо вмієш швидко відповідати на питання "так/ні" для будь-якого K, то бінарним пошуком по K знаходиш і оптимум.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Клас P — задачі, що швидко розв'язуються</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge p">P</span>
+                    <p>P (Polynomial) — множина задач, які можна <strong>розв'язати</strong> за час, що є поліномом від розміру входу n (O(n), O(n²), O(n³)...) на звичайному, "детермінованому" комп'ютері. Це задачі, які практично здійсненні навіть для великих n.</p>
+                    <p>Приклади: сортування масиву, пошук найкоротшого шляху в графі (Дейкстра), перевірка, чи число просте, 2-SAT, знаходження максимального потоку.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Недетермінована машина Тьюринга і клас NP</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <p><strong>Детермінована машина Тьюринга (ДМТ)</strong> — це формальна модель звичайного комп'ютера: у кожен момент часу вона перебуває в одному стані і робить рівно один можливий наступний крок. Це модель, якою ми реально можемо скористатись.</p>
+                    <p><strong>Недетермінована машина Тьюринга (НМТ)</strong> — уявна, гіпотетична модель. Якщо в якомусь стані можливо кілька наступних кроків, вона ніби виконує <strong>всі їх одночасно</strong>, розгалужуючись на паралельні "гілки" обчислення. Формула приймається, якщо <em>хоча б одна</em> з експоненційно багатьох гілок призводить до відповіді "так".</p>
+                    <p>Якщо на кожному з n кроків машина може розгалужуватись, скажімо, надвоє, то загальна кількість гілок росте як 2ⁿ — тобто <strong>експоненційно</strong>. Жоден реальний комп'ютер так не працює (паралелізм НМТ не можна побудувати фізично для довільної задачі) — це чисто теоретичний інструмент для класифікації складності.</p>
+                    <p><strong>NP (Nondeterministic Polynomial)</strong> означає не "недетермінований поліном", а множину задач, які <strong>недетермінована машина Тьюринга розв'язує за поліноміальний час</strong>. Еквівалентне і набагато практичніше формулювання: <strong>NP — це задачі, для яких дане "так"-рішення (сертифікат, підказку) можна перевірити за поліноміальний час</strong> на звичайному комп'ютері.</p>
+                    <p>Приклад: чи має граф гамільтонів цикл? Знайти такий цикл самостійно може бути дуже довго. Але якщо хтось вам <em>дав</em> послідовність вершин — перевірити, що це справді гамільтонів цикл, займає лінійний час O(n). Тому задача в NP.</p>
+                    <p>Звідси одразу видно: <strong>P ⊆ NP</strong>. Якщо задачу можна швидко розв'язати, то її "так"-відповідь можна і швидко перевірити (просто розв'яжи заново). Чи навпаки, чи P = NP — це і є знаменита відкрита проблема P vs NP (одна з 7 "задач тисячоліття" Математичного інституту Клея, $1 000 000 призу).</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>co-NP — дзеркальний клас</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge conp">co-NP</span>
+                    <p>co-NP — це клас задач, <strong>заперечення</strong> яких лежить у NP. Простіше: NP зручний для перевірки відповіді "так" (достатньо одного сертифіката-свідка). co-NP зручний для перевірки відповіді "ні".</p>
+                    <p>Приклад: "чи граф НЕ 3-розфарбовуваний?" — щоб довести "так, не розфарбовується", довести це одним маленьким прикладом складно (треба виключити взагалі всі варіанти розфарбування). А от "граф 3-розфарбовуваний" (NP) — досить пред'явити одну вдалу розфарбовку.</p>
+                    <p>Класичний приклад задачі з co-NP: перевірка, що булева формула є <strong>тавтологією</strong> (істинна за будь-яких значень змінних) — заперечення цього ("існує набір значень, при якому формула хибна") це майже SAT, тобто NP-повна задача.</p>
+                    <p>Невідомо, чи NP = co-NP (це теж відкрите питання, тісно пов'язане з P vs NP). Якщо P = NP, то автоматично і P = NP = co-NP, бо клас P замкнений відносно заперечення (якщо можеш швидко перевірити "так", можеш і швидко перевірити "ні" — просто інвертуй відповідь).</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>NP-важкість (NP-hard) — "принаймні настільки ж важка"</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge nph">NP-hard</span>
+                    <p>Задача X є NP-важкою, якщо <strong>будь-яку</strong> задачу з NP можна звести до X за поліноміальний час (поліноміальне зведення, "Karp reduction"). Неформально: якби ви навчились швидко розв'язувати X, ви б автоматично отримали швидкий розв'язок для <em>усіх</em> задач з NP. X — "не легша" за найважчі задачі NP.</p>
+                    <p>Важливий нюанс: <strong>NP-важка задача не зобов'язана сама належати до NP</strong>. Вона може бути ще важчою — наприклад, взагалі не мати сертифіката, який перевіряється швидко (оптимізаційні версії задач, або навіть нерозв'язні задачі на кшталт проблеми зупинки).</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>NP-повнота (NP-complete) — найважчі задачі всередині NP</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p>Задача є <strong>NP-повною</strong>, якщо вона одночасно (1) належить до NP <em>і</em> (2) є NP-важкою. Тобто це "найважчі" представники класу NP: якщо хоч одну NP-повну задачу вдасться розв'язати за поліноміальний час — <strong>усі</strong> задачі з NP теж розв'яжуться за поліноміальний час, а отже P = NP.</p>
+                    <p><strong>Теорема Кука — Левіна (1971)</strong> показала, що задача 3-SAT є NP-повною — вона стала першою доведеною NP-повною задачею й "еталоном", до якого зводять усі інші. Відтоді тисячі задач (включно з усіма прикладами на вкладці "Приклади задач") доведені NP-повними шляхом зведення до 3-SAT або одна до одної (ланцюжок зведень).</p>
+                    <p>Саме тому NP-повнота така потужна концепція: досить один раз довести NP-повноту нової задачі через зведення з уже відомої — і одразу відомо, що вона так само "важка", як і всі інші.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>Як усі класи співвідносяться між собою</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <div class="venn-wrap">
+                        <svg viewBox="0 0 600 380" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="450" height="300" rx="10" fill="#f5f7fa" stroke="#999" stroke-width="1.5"/>
+                            <text x="440" y="30" font-size="14" fill="#666" text-anchor="end">NP-важкі (NP-hard)</text>
+
+                            <ellipse cx="230" cy="180" rx="200" ry="120" fill="#3498db" fill-opacity="0.18" stroke="#3498db" stroke-width="2"/>
+                            <text x="230" y="60" font-size="16" fill="#2471a3" text-anchor="middle" font-weight="700">NP</text>
+
+                            <ellipse cx="150" cy="180" rx="90" ry="75" fill="#2ecc71" fill-opacity="0.35" stroke="#2ecc71" stroke-width="2"/>
+                            <text x="150" y="180" font-size="15" fill="#1e7e34" text-anchor="middle" font-weight="700">P</text>
+
+                            <ellipse cx="330" cy="180" rx="90" ry="75" fill="#e74c3c" fill-opacity="0.30" stroke="#e74c3c" stroke-width="2"/>
+                            <text x="345" y="180" font-size="13" fill="#a12a2a" text-anchor="middle" font-weight="700">NP-повні</text>
+
+                            <circle cx="150" cy="180" r="4" fill="#1e7e34"/>
+                            <text x="150" y="230" font-size="11" fill="#1e7e34" text-anchor="middle">(якщо P=NP, кола зіллються)</text>
+
+                            <rect x="480" y="40" width="110" height="90" rx="10" fill="#9b59b6" fill-opacity="0.22" stroke="#9b59b6" stroke-width="2"/>
+                            <text x="535" y="90" font-size="14" fill="#6c3483" text-anchor="middle" font-weight="700">co-NP</text>
+
+                            <text x="230" y="345" font-size="12" fill="#555" text-anchor="middle">NP-важкі задачі можуть виходити за межі NP (зовнішня зона на діаграмі)</text>
+                        </svg>
+                    </div>
+                    <p>Ключові включення (за умови, що P ≠ NP, у що вірить більшість дослідників, хоч це і не доведено):</p>
+                    <ul>
+                        <li><strong>P ⊆ NP</strong> — усе, що швидко розв'язується, швидко й перевіряється.</li>
+                        <li><strong>NP-complete = NP ∩ NP-hard</strong> — це "переріз" двох кіл: одночасно і в NP, і NP-важкі.</li>
+                        <li><strong>NP-hard</strong> виходить за межі NP — містить ще важчі задачі (наприклад, нерозв'язні).</li>
+                        <li>P і co-NP перетинаються рівно в P (усе, що в P, автоматично і в co-NP), але NP і co-NP, найімовірніше, різні класи.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= КЛАСИ СКЛАДНОСТІ: ПРИКЛАДИ ================= -->
+        <div id="classes-examples" class="tab-content">
+            <h2>Класичні NP-повні задачі</h2>
+            <p>Усі задачі нижче — NP-повні: (1) відповідь "так" легко перевірити за поліноміальний час, (2) до кожної з них можна поліноміально звести 3-SAT (або іншу вже доведену NP-повну задачу), тому всі вони однаково "найважчі" в класі NP.</p>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>1. 3-SAT — "дідусь" усіх NP-повних задач</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> дана логічна формула, що складається з блоків по три змінні в кожному, з'єднаних через "або" й "і" (наприклад: (A∨¬B∨C) ∧ (¬A∨D∨E) ∧ ...). Чи існує такий набір значень "істина/хибність" для всіх змінних, щоб уся формула стала істинною?</p>
+                    <p><strong>Чому важлива:</strong> перша задача, для якої офіційно доведена NP-повнота (теорема Кука — Левіна). Усі інші NP-повні задачі доводяться через зведення до неї.</p>
+                    <p><strong>Застосування:</strong> перевірка коректності мікросхем, верифікація софту, штучний інтелект.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>2. Розфарбування графа (Graph Coloring)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> чи можна розфарбувати вершини графа в K кольорів так, щоб жодне ребро не з'єднувало вершини одного кольору?</p>
+                    <p><strong>Метафора:</strong> розклад іспитів. Вершини — предмети, ребра — спільні студенти. Заданій мінімальній кількості "кольорів" (часових слотів) відповідає розклад без конфліктів.</p>
+                    <p><strong>Застосування:</strong> розподіл частот для веж стільникового зв'язку, розподіл регістрів у процесорі.</p>
+                    <p><em>Нюанс:</em> для K=2 (двокольорова розфарбовуваність) задача насправді в P — достатньо перевірити, чи граф двочастковий. NP-повнота починається з K≥3.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>3. Кліка та Незалежна множина (Clique / Independent Set)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p>Два "дзеркальних" брати-близнюки з теорії графів:</p>
+                    <p><strong>Кліка:</strong> знайти в графі групу з K вершин, де кожна з'єднана з кожною (у соцмережі — компанія людей, де всі знайомі одне з одним).</p>
+                    <p><strong>Незалежна множина:</strong> знайти групу з K вершин, де жодна не з'єднана з іншою (у соцмережі — компанія незнайомців).</p>
+                    <p><strong>Застосування:</strong> аналіз соціальних мереж, пошук комплексів білків у біоінформатиці.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>4. Покриття множини (Set Cover)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> є генеральна множина елементів і набір "підмножин". Чи можна вибрати не більше K підмножин так, щоб їхнє об'єднання містило абсолютно всі елементи?</p>
+                    <p><strong>Метафора:</strong> розміщення пожежних станцій. Є список районів міста (елементи) і можливі місця для станцій, кожна з яких покриває 3-4 райони (підмножини). Треба накрити все місто мінімальною кількістю станцій.</p>
+                    <p><strong>Застосування:</strong> логістика, найм співробітників із перетинними навичками для покриття проєкту.</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>5. Упаковка в контейнери (Bin Packing)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> є предмети різних розмірів і стандартні контейнери фіксованої ємності. Чи можна упакувати всі предмети в K контейнерів?</p>
+                    <p><strong>Метафора:</strong> завантаження вантажівок або розкладання файлів по флешках.</p>
+                    <p><strong>Застосування:</strong> хмарні обчислення (розміщення віртуальних машин на фізичних серверах), розкрій матеріалів у виробництві (метал, тканина, дерево).</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>6. Розріз графа / Max-Cut</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> розділити вершини графа на дві групи так, щоб кількість ребер між цими групами була максимальною (принаймні K).</p>
+                    <p><strong>Застосування:</strong> розводка друкованих плат (щоб провідники менше наводили завади одне одному), статистична фізика (модель Ізінга для магнетиків).</p>
+                </div>
+            </div>
+
+            <div class="spoiler">
+                <div class="spoiler-header">
+                    <span>7. Сума підмножин (Subset Sum)</span>
+                    <span>+</span>
+                </div>
+                <div class="spoiler-content">
+                    <span class="class-badge npc">NP-complete</span>
+                    <p><strong>Суть:</strong> спрощена версія задачі про рюкзак. Дано множину чисел. Чи існує серед них така підмножина, сума елементів якої точно дорівнює заданому числу T?</p>
+                    <p><strong>Застосування:</strong> взаєморозрахунки, складання точних фінансових транзакцій, криптографія (ранні алгоритми на основі рюкзака).</p>
+                    <p><em>Нюанс:</em> існує "псевдополіноміальний" алгоритм через динамічне програмування, що працює за O(n·T). Це не суперечить NP-повноті, бо T може бути експоненційно великим відносно довжини свого запису в бітах.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= КЛАСИ СКЛАДНОСТІ: ТЕСТ ================= -->
+        <div id="classes-test" class="tab-content">
+            <h2>Тест: класи складності</h2>
+            <p>Частина 1 — квіз на розуміння теорії. Частина 2 — розкладіть задачі по правильних класах.</p>
+
+            <div class="test-container" id="classesQuizContainer"></div>
+
+            <div class="test-controls">
+                <button id="checkClassesQuiz">Перевірити квіз</button>
+                <button id="resetClassesQuiz">Скинути квіз</button>
+            </div>
+
+            <div class="result" id="classesQuizResult">
+                <h2>Результат квізу</h2>
+                <p class="score">Ваш результат: <span id="classesQuizScore">0</span> з <span id="classesQuizTotal">0</span></p>
+                <p id="classesQuizMessage"></p>
+            </div>
+
+            <h2 class="quiz-section-title">Гра-класифікація: до якого класу належить задача?</h2>
+            <div class="classify-instructions">
+                Клацніть на картку задачі внизу, а потім клацніть на потрібний кошик, щоб перемістити її туди. Щоб повернути картку назад, клацніть на неї всередині кошика.
+            </div>
+
+            <div class="card-pool" id="classifyPool"></div>
+
+            <div class="baskets">
+                <div class="basket" data-basket="p">
+                    <div class="basket-title p">P</div>
+                    <div class="basket-cards" id="basket-p"></div>
+                </div>
+                <div class="basket" data-basket="npc">
+                    <div class="basket-title npc">NP-повна</div>
+                    <div class="basket-cards" id="basket-npc"></div>
+                </div>
+                <div class="basket" data-basket="nph">
+                    <div class="basket-title nph">NP-важка, поза NP</div>
+                    <div class="basket-cards" id="basket-nph"></div>
+                </div>
+            </div>
+
+            <div class="classify-controls">
+                <button id="checkClassify">Перевірити класифікацію</button>
+                <button id="resetClassify">Скинути</button>
+            </div>
+
+            <div class="classify-summary" id="classifySummary"></div>
+
+            <div class="reward-unlock-note" id="rewardUnlockNote">
+                🎉 Ви пройшли обидві частини тесту!
+            </div>
+        </div>
+
+        <!-- ================= БОНУСНА ВКЛАДКА: КОМІКС ================= -->
+        <div id="comic-reward" class="tab-content">
+           
+            <div class="comic-wrap">
+                <img src="np_complete.png" alt="NP-повні задачі">
+                <p class="comic-caption"></p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -737,6 +1312,8 @@
             initializeSpoilers();
             initializeTest();
             updateTimeCalculations();
+            initializeClassesQuiz();
+            initializeClassifyGame();
         });
 
         // Ініціалізація вкладок
@@ -1151,6 +1728,392 @@
                 `;
                 timeContainer.appendChild(card);
             }
+        }
+
+        // ============================================================
+        //   КЛАСИ СКЛАДНОСТІ: КВІЗ
+        // ============================================================
+
+        const classesQuizQuestions = [
+            {
+                question: "Що означає, що задача належить класу NP?",
+                options: [
+                    "Її можна розв'язати за поліноміальний час на звичайному комп'ютері",
+                    "Дане розв'язання ('так') можна перевірити за поліноміальний час",
+                    "Вона напевно не має розв'язку за поліноміальний час",
+                    "Вона взагалі нерозв'язна жодним алгоритмом"
+                ],
+                correct: 1,
+                explanation: "NP — це задачі, для яких можна перевірити правильність запропонованого розв'язку за поліноміальний час, навіть якщо самостійно знайти цей розв'язок може бути дуже довго."
+            },
+            {
+                question: "Навіщо в теорії складності вводять недетерміновану машину Тьюринга (НМТ)?",
+                options: [
+                    "Це реальна модель багатоядерного процесора",
+                    "Це теоретичний інструмент: на кожному розгалуженні вона ніби перевіряє всі варіанти одночасно, що дозволяє формально визначити клас NP",
+                    "Вона працює повільніше за звичайний комп'ютер",
+                    "Вона використовується лише для задач з класу P"
+                ],
+                correct: 1,
+                explanation: "НМТ — гіпотетична модель, яка на кожному кроці з кількома варіантами продовження ніби розгалужується на всі можливі гілки одночасно (експоненційна кількість гілок). Задача в NP, якщо хоча б одна гілка приймає за поліноміальну кількість кроків. Побудувати таку машину фізично не можна — це інструмент класифікації, а не реальний комп'ютер."
+            },
+            {
+                question: "Чому кількість гілок обчислення НМТ росте експоненційно?",
+                options: [
+                    "Бо на кожному з n кроків з кількома варіантами гілка подвоюється (або множиться), і після n кроків це дає щось на кшталт 2ⁿ",
+                    "Бо машина використовує n² пам'яті",
+                    "Бо кожна гілка виконується рекурсивно n разів поспіль",
+                    "Насправді кількість гілок росте лінійно"
+                ],
+                correct: 0,
+                explanation: "Якщо на кожному з n кроків можливо, скажімо, 2 варіанти продовження, і НМТ 'виконує' їх усі одночасно, то загальна кількість паралельних гілок обчислення — це 2 × 2 × ... × 2 (n разів) = 2ⁿ, тобто зростає експоненційно з розміром входу."
+            },
+            {
+                question: "Задача є NP-повною, якщо вона...",
+                options: [
+                    "Належить до NP і є NP-важкою одночасно",
+                    "Належить до P, але не до NP",
+                    "Є NP-важкою, але точно не належить до NP",
+                    "Розв'язується за O(log n)"
+                ],
+                correct: 0,
+                explanation: "NP-повна = NP ∩ NP-важка. Це задачі, які одночасно (1) лежать у NP (відповідь 'так' швидко перевіряється) і (2) настільки ж важкі, як і найважча задача в NP (до них зводиться будь-яка інша задача з NP)."
+            },
+            {
+                question: "Чим NP-важка (NP-hard) задача відрізняється від NP-повної?",
+                options: [
+                    "Нічим, це синоніми",
+                    "NP-важка задача обов'язково належить до NP, а NP-повна — ні",
+                    "NP-важка задача не зобов'язана сама належати до NP — вона може бути ще складнішою (наприклад, нерозв'язною)",
+                    "NP-важкі задачі завжди розв'язуються швидше за NP-повні"
+                ],
+                correct: 2,
+                explanation: "NP-важкість означає лише 'принаймні настільки ж важка, як будь-яка задача з NP' (до неї зводиться все з NP). Але сама вона може не мати швидко перевірюваного сертифіката і виходити за межі NP — наприклад, оптимізаційні або навіть нерозв'язні задачі."
+            },
+            {
+                question: "У чому суть теореми Кука — Левіна (1971)?",
+                options: [
+                    "Вона довела, що P = NP",
+                    "Вона довела, що 3-SAT є NP-повною задачею — першою офіційно доведеною NP-повною задачею",
+                    "Вона довела, що NP-повних задач не існує",
+                    "Вона довела, що всі задачі з NP розв'язуються за O(n log n)"
+                ],
+                correct: 1,
+                explanation: "Кук і Левін незалежно показали, що 3-SAT (булева виконуваність) є NP-повною. Це дало 'еталонну' задачу, до якої можна зводити інші задачі, доводячи їхню NP-повноту, не будуючи щоразу зведення з нуля до означення НМТ."
+            },
+            {
+                question: "Що таке клас co-NP?",
+                options: [
+                    "Задачі, заперечення яких лежить у NP (зручно перевіряти відповідь 'ні')",
+                    "Те саме, що й P",
+                    "Задачі, які неможливо перевірити за жоден час",
+                    "Підмножина NP-повних задач"
+                ],
+                correct: 0,
+                explanation: "co-NP — дзеркальний до NP клас: якщо NP зручний для швидкої перевірки відповіді 'так' (один свідок-приклад), то co-NP зручний для швидкої перевірки відповіді 'ні' (наприклад, перевірка, що формула — тавтологія)."
+            },
+            {
+                question: "Якби завтра хтось довів, що P = NP, що з цього випливало б?",
+                options: [
+                    "Нічого суттєвого не змінилося б",
+                    "Усі NP-повні задачі (включно з 3-SAT, розфарбуванням графа тощо) раптом розв'язувалися б за поліноміальний час",
+                    "co-NP перестав би існувати",
+                    "Клас P зник би"
+                ],
+                correct: 1,
+                explanation: "Оскільки будь-яка NP-задача зводиться до кожної NP-повної задачі за поліноміальний час, швидкий алгоритм для однієї NP-повної задачі автоматично дав би швидкий алгоритм для всіх задач з NP — тобто P = NP."
+            }
+        ];
+
+        let classesQuizAnswers = {};
+        let classesQuizCompleted = false;
+
+        function initializeClassesQuiz() {
+            const container = document.getElementById('classesQuizContainer');
+            container.innerHTML = '';
+
+            classesQuizQuestions.forEach((q, index) => {
+                const el = document.createElement('div');
+                el.className = 'question';
+                el.innerHTML = `
+                    <div class="question-text">${index + 1}. ${q.question}</div>
+                    <div class="options">
+                        ${q.options.map((opt, optIndex) => `
+                            <div class="option" data-cq="${index}" data-copt="${optIndex}">
+                                ${opt}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="answer-explanation" id="cq-explanation-${index}">
+                        <strong>Пояснення:</strong> ${q.explanation}
+                    </div>
+                `;
+                container.appendChild(el);
+
+                el.querySelectorAll('.option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        if (classesQuizCompleted) return;
+                        const qIndex = parseInt(this.getAttribute('data-cq'));
+                        const optIndex = parseInt(this.getAttribute('data-copt'));
+
+                        this.parentElement.querySelectorAll('.option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        this.classList.add('selected');
+                        classesQuizAnswers[qIndex] = optIndex;
+                    });
+                });
+            });
+
+            document.getElementById('checkClassesQuiz').addEventListener('click', checkClassesQuiz);
+            document.getElementById('resetClassesQuiz').addEventListener('click', resetClassesQuiz);
+        }
+
+        function checkClassesQuiz() {
+            classesQuizCompleted = true;
+            let correctCount = 0;
+
+            classesQuizQuestions.forEach((q, index) => {
+                const selected = classesQuizAnswers[index];
+                const options = document.querySelectorAll(`.option[data-cq="${index}"]`);
+                const explanationDiv = document.getElementById(`cq-explanation-${index}`);
+
+                options.forEach((option, optIndex) => {
+                    if (optIndex === q.correct) {
+                        option.classList.add('correct');
+                    } else if (optIndex === selected) {
+                        option.classList.add('incorrect');
+                    }
+                });
+
+                if (selected === q.correct) {
+                    correctCount++;
+                } else if (explanationDiv) {
+                    explanationDiv.style.display = 'block';
+                }
+            });
+
+            document.getElementById('classesQuizScore').textContent = correctCount;
+            document.getElementById('classesQuizTotal').textContent = classesQuizQuestions.length;
+
+            let message = '';
+            if (correctCount === classesQuizQuestions.length) {
+                message = 'Відмінно! Ви чудово розумієте класи складності.';
+            } else if (correctCount >= classesQuizQuestions.length * 0.7) {
+                message = 'Добре! Основи класів складності зрозумілі.';
+            } else if (correctCount >= classesQuizQuestions.length * 0.5) {
+                message = 'Задовільно. Варто ще раз переглянути вкладку "Класи складності".';
+            } else {
+                message = 'Рекомендуємо повернутися до теорії — перечитайте пояснення до помилок.';
+            }
+
+            document.getElementById('classesQuizMessage').textContent = message;
+            document.getElementById('classesQuizResult').style.display = 'block';
+            document.getElementById('checkClassesQuiz').disabled = true;
+
+            checkRewardUnlock();
+        }
+
+        function resetClassesQuiz() {
+            classesQuizCompleted = false;
+            classesQuizAnswers = {};
+            document.querySelectorAll('#classesQuizContainer .option').forEach(option => {
+                option.classList.remove('selected', 'correct', 'incorrect');
+            });
+            document.querySelectorAll('#classesQuizContainer .answer-explanation').forEach(div => {
+                div.style.display = 'none';
+            });
+            document.getElementById('classesQuizResult').style.display = 'none';
+            document.getElementById('checkClassesQuiz').disabled = false;
+            relockReward();
+        }
+
+        function relockReward() {
+            const btn = document.getElementById('rewardTabButton');
+            if (btn) btn.classList.remove('unlocked');
+            const note = document.getElementById('rewardUnlockNote');
+            if (note) note.classList.remove('visible');
+        }
+
+        // ============================================================
+        //   ГРА-КЛАСИФІКАЦІЯ ЗАДАЧ ПО КЛАСАХ
+        // ============================================================
+
+        const classifyItems = [
+            { id: 'sort', name: 'Сортування масиву (Quicksort)', correct: 'p',
+              explanation: "У P — сортування n елементів виконується за O(n log n)." },
+            { id: 'dijkstra', name: 'Найкоротший шлях (Дейкстра)', correct: 'p',
+              explanation: "У P — алгоритм Дейкстри знаходить найкоротший шлях за поліноміальний час." },
+            { id: '2sat', name: '2-SAT (з двома змінними в блоці)', correct: 'p',
+              explanation: "На відміну від 3-SAT, 2-SAT розв'язується за поліноміальний час і належить до P." },
+            { id: 'prime', name: 'Перевірка, чи число просте', correct: 'p',
+              explanation: "У P — існує поліноміальний AKS-тест на простоту." },
+            { id: '3sat', name: '3-SAT', correct: 'npc',
+              explanation: "Перша доведена NP-повна задача (теорема Кука — Левіна)." },
+            { id: 'coloring', name: 'Розфарбування графа (K≥3 кольори)', correct: 'npc',
+              explanation: "NP-повна: відповідь легко перевірити, і 3-SAT зводиться до неї." },
+            { id: 'clique', name: 'Кліка в графі', correct: 'npc',
+              explanation: "NP-повна: перевірити знайдену кліку легко, знайти — важко." },
+            { id: 'setcover', name: 'Покриття множини (Set Cover)', correct: 'npc',
+              explanation: "NP-повна класична задача покриття." },
+            { id: 'binpack', name: 'Упаковка в контейнери (Bin Packing)', correct: 'npc',
+              explanation: "NP-повна: перевірити готову упаковку легко, знайти оптимальну — важко." },
+            { id: 'subsetsum', name: 'Сума підмножин (Subset Sum)', correct: 'npc',
+              explanation: "NP-повна, хоча існує псевдополіноміальний алгоритм для малих T." },
+            { id: 'hamilton', name: 'Гамільтонів цикл (чи існує?)', correct: 'npc',
+              explanation: "NP-повна: даний цикл легко перевірити за O(n), знайти — важко." },
+            { id: 'tsp-opt', name: "Комівояжер — знайти найкоротший маршрут (оптимізаційна версія)", correct: 'nph',
+              explanation: "Це не задача 'так/ні', а задача пошуку конкретного числа-мінімуму, тому формально вона не належить до NP (немає короткого сертифіката 'це і є мінімум'). Але вона NP-важка, бо через неї легко розв'язати NP-повну версію 'чи є маршрут ≤ K?'." },
+            { id: 'halting', name: 'Проблема зупинки програми', correct: 'nph',
+              explanation: "Взагалі нерозв'язна жодним алгоритмом (доведено Тюрінгом), тому вона строго складніша за NP і не належить до NP. Але вона NP-важка (і навіть більше)." },
+
+            // --- задачі з іншим сюжетом, але тією самою структурою ---
+            { id: 'menu42', name: 'У ресторані обрати страви з меню так, щоб сума становила рівно 42 євро', correct: 'npc',
+              explanation: "Це замаскована Сума підмножин: кожна страва — число (ціна), потрібно знайти підмножину страв з точною сумою 42 — рівно та сама структура задачі, іншими словами." },
+            { id: 'inheritance', name: 'Розділити список коштовностей на дві купи так, щоб обидві важили порівну', correct: 'npc',
+              explanation: "Це задача Partition — окремий випадок Суми підмножин (шукаємо підмножину з сумою, що дорівнює рівно половині загальної ваги). NP-повна." },
+            { id: 'cabletv', name: 'Обрати мінімальну кількість телепакетів, що разом містять усі бажані канали клієнта', correct: 'npc',
+              explanation: "Це замаскований Set Cover: канали — елементи, пакети — підмножини, потрібно покрити всі елементи мінімальною кількістю підмножин." },
+            { id: 'postman', name: 'Листоноша має відвідати задані будинки по одному разу і вкластися в K кілометрів', correct: 'npc',
+              explanation: "Це задача рішення для комівояжера (чи існує маршрут довжиною ≤ K?) — на відміну від пошуку саме мінімального маршруту, тут відповідь 'так/ні' легко перевірити за даним маршрутом, тому задача в NP, а зведення з гамільтонового циклу робить її NP-повною." },
+            { id: 'phonebook', name: "Знайти прізвище в впорядкованому паперовому довіднику", correct: 'p',
+              explanation: "Це замаскований бінарний пошук по відсортованому списку — O(log n), клас P." },
+            { id: 'paidbills', name: "Перевірити, чи всі рахунки зі списку позначені «оплачено»", correct: 'p',
+              explanation: "Простий лінійний прохід по списку — O(n), клас P. Немає жодного «вгадування», яке потрібно перевіряти — все обчислюється напряму." }
+        ];
+
+        let classifyPlacements = {};
+        let classifySelected = null;
+        let classifyChecked = false;
+
+        function initializeClassifyGame() {
+            classifyPlacements = {};
+            classifySelected = null;
+            classifyChecked = false;
+
+            document.querySelectorAll('.basket').forEach(basket => {
+                basket.addEventListener('click', function() {
+                    if (classifyChecked) return;
+                    const basketKey = this.getAttribute('data-basket');
+                    if (classifySelected) {
+                        classifyPlacements[classifySelected] = basketKey;
+                        classifySelected = null;
+                        renderClassifyGame();
+                    }
+                });
+            });
+
+            document.getElementById('checkClassify').addEventListener('click', checkClassifyGame);
+            document.getElementById('resetClassify').addEventListener('click', function() {
+                classifyPlacements = {};
+                classifySelected = null;
+                classifyChecked = false;
+                document.getElementById('classifySummary').innerHTML = '';
+                document.getElementById('checkClassify').disabled = false;
+                relockReward();
+                renderClassifyGame();
+            });
+
+            renderClassifyGame();
+        }
+
+        function renderClassifyGame() {
+            const pool = document.getElementById('classifyPool');
+            pool.innerHTML = '';
+
+            const baskets = { p: document.getElementById('basket-p'), npc: document.getElementById('basket-npc'), nph: document.getElementById('basket-nph') };
+            Object.values(baskets).forEach(b => b.innerHTML = '');
+
+            classifyItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'prob-card';
+                card.textContent = item.name;
+                card.setAttribute('data-item', item.id);
+
+                if (item.id === classifySelected) {
+                    card.classList.add('selected');
+                }
+
+                card.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (classifyChecked) return;
+                    const placedIn = classifyPlacements[item.id];
+                    if (placedIn) {
+                        // клік на картку в кошику - повернути в пул
+                        delete classifyPlacements[item.id];
+                        classifySelected = null;
+                    } else {
+                        // клік на картку в пулі - вибрати/зняти вибір
+                        classifySelected = (classifySelected === item.id) ? null : item.id;
+                    }
+                    renderClassifyGame();
+                });
+
+                const placedIn = classifyPlacements[item.id];
+                if (placedIn && baskets[placedIn]) {
+                    baskets[placedIn].appendChild(card);
+                } else {
+                    pool.appendChild(card);
+                }
+            });
+        }
+
+        function checkClassifyGame() {
+            classifyChecked = true;
+            classifySelected = null;
+            let correctCount = 0;
+            const summary = document.getElementById('classifySummary');
+            summary.innerHTML = '';
+
+            classifyItems.forEach(item => {
+                const placedIn = classifyPlacements[item.id];
+                const cardEl = document.querySelector(`.prob-card[data-item="${item.id}"]`);
+
+                if (placedIn === item.correct) {
+                    correctCount++;
+                    if (cardEl) cardEl.classList.add('correct');
+                } else {
+                    if (cardEl) cardEl.classList.add('incorrect');
+                    const note = document.createElement('div');
+                    if (!placedIn) {
+                        note.className = 'classify-note missing';
+                        note.innerHTML = `<strong>${item.name}</strong> — не розкладено. Правильний кошик: <strong>${basketLabel(item.correct)}</strong>. ${item.explanation}`;
+                    } else {
+                        note.className = 'classify-note bad';
+                        note.innerHTML = `<strong>${item.name}</strong> — у кошику «${basketLabel(placedIn)}», а правильно: <strong>${basketLabel(item.correct)}</strong>. ${item.explanation}`;
+                    }
+                    summary.appendChild(note);
+                }
+            });
+
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'classify-score';
+            scoreEl.textContent = `Результат: ${correctCount} з ${classifyItems.length}`;
+            summary.prepend(scoreEl);
+
+            document.getElementById('checkClassify').disabled = true;
+
+            checkRewardUnlock();
+        }
+
+        function checkRewardUnlock() {
+            if (classesQuizCompleted && classifyChecked) {
+                const btn = document.getElementById('rewardTabButton');
+                if (btn && !btn.classList.contains('unlocked')) {
+                    btn.classList.add('unlocked');
+                }
+                const note = document.getElementById('rewardUnlockNote');
+                if (note) {
+                    note.classList.add('visible');
+                }
+            }
+        }
+
+        function basketLabel(key) {
+            if (key === 'p') return 'P';
+            if (key === 'npc') return 'NP-повна';
+            if (key === 'nph') return 'NP-важка, поза NP';
+            return key;
         }
     </script>
 </body>
