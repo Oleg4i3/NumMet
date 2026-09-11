@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>АМГ: рейтинг у мережі класів</title>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+    window.__mathReady = false;
+    window.__flushMath = function(){};
+    window.MathJax = {
+        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+        svg: { fontCache: 'global' },
+        startup: {
+            ready(){
+                MathJax.startup.defaultReady();
+                window.__mathReady = true;
+                window.__flushMath();
+            }
+        }
+    };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1320px; margin: 0 auto; padding: 20px; background-color: #f0f2f5; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .container { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .control-panel { flex: 1; min-width: 380px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-height: 90vh; overflow-y: auto; }
+    .viz-panel { flex: 1.3; min-width: 460px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+    button.btn-primary { background-color: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+    button.btn-primary:hover { background-color: #34495e; }
+    button.btn-nav { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    button.btn-nav:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+    button.btn-action { background-color: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-size: 0.9em; }
+    button.btn-action.alt { background-color: #7f8c8d; }
+    button.btn-action.warn { background-color: #e67e22; }
+    button.btn-action:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+    input[type="number"], input[type="text"] { padding: 5px; width: 90px; border: 1px solid #ccc; border-radius: 4px; }
+    input[type="range"] { width: 100%; }
+
+    .step-title { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+    .formula-box { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px 15px; margin: 15px 0; font-size: 0.95em; overflow-x: auto; }
+    .note-box { background: #fff8e1; border-left: 4px solid #f1c40f; padding: 10px 15px; margin: 15px 0; font-size: 0.92em; }
+    .interactive-box { background: #e8f6f3; border: 1px solid #d1f2eb; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .slider-group { margin-top: 15px; background: #ecf0f1; padding: 12px 15px; border-radius: 8px; }
+    .slider-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .stat-badge { background: #eef2f7; border: 1px solid #dce4ec; border-radius: 6px; padding: 6px 10px; font-size: 0.85em; }
+    .stat-badge b { color: #2c3e50; }
+    .radio-row label { display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; font-size: 0.92em; cursor: pointer; }
+    .legend-row { display:flex; gap:16px; align-items:center; font-size:0.82em; color:#555; margin-top:6px; flex-wrap: wrap; }
+    .legend-swatch { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+    canvas.matrix-canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; background: #fff; border: 1px solid #e0e5eb; border-radius: 6px; image-rendering: pixelated; cursor: crosshair; }
+    canvas.graph-canvas { width: 100%; height: 420px; background: #fbfcfe; border: 1px solid #e0e5eb; border-radius: 6px; }
+    .hover-readout { font-size: 0.85em; color: #555; margin-top: 6px; min-height: 1.4em; font-family: monospace; }
+    .gauge-wrap { background: #ecf0f1; border-radius: 8px; height: 22px; overflow: hidden; position: relative; margin: 8px 0; }
+    .gauge-fill { height: 100%; background: linear-gradient(90deg,#27ae60,#f1c40f,#c0392b); transition: width .2s; }
+    .warn-text { color: #c0392b; font-weight: 600; }
+    .ok-text { color: #27ae60; font-weight: 600; }
+    .two-col { display:flex; gap:10px; flex-wrap:wrap; }
+    .two-col > div { flex: 1; min-width: 160px; }
+    .viz-label { font-size:0.85em; color:#7f8c8d; text-align:center; margin-top:4px; }
+    ol.method-list { margin:6px 0 0 18px; padding:0; font-size: 0.92em; }
+    ol.method-list li { margin-bottom: 4px; }
+    details.spoiler { background:#f4f6f8; border:1px solid #dfe4ea; border-radius:8px; margin:10px 0; padding:0; }
+    details.spoiler > summary { cursor:pointer; padding:10px 14px; font-weight:600; color:#2c3e50; list-style:none; }
+    details.spoiler > summary::-webkit-details-marker { display:none; }
+    details.spoiler > summary::before { content:'▶ '; color:#3498db; }
+    details.spoiler[open] > summary::before { content:'▼ '; }
+    details.spoiler .spoiler-body { padding:2px 14px 14px 14px; font-size:0.92em; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1 style="margin:0;">Загрублення й згладжування (АМГ) на прикладі рейтингу "крутості"</h1>
+        <div style="color:#7f8c8d; font-size:0.9em;">Одна спільна мережа лайків на три класи, розріджена система рівнянь</div>
+    </div>
+    <div>
+        <button class="btn-primary" onclick="exportMatrixCSV()">📥 Зберегти матрицю (.csv)</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="control-panel">
+        <div id="controls-area">Завантаження…</div>
+        <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <button id="prevBtn" class="btn-nav" onclick="changeStep(-1)">⬅️ Назад</button>
+            <div id="step-indicator" style="align-self: center; font-weight: bold; color: #7f8c8d;">1 / 7</div>
+            <button id="nextBtn" class="btn-nav" onclick="changeStep(1)">Далі ➡️</button>
+        </div>
+    </div>
+
+    <div class="viz-panel">
+        <div id="viz-area">Завантаження…</div>
+    </div>
+</div>
+
+<script>
+/* =========================================================================
+   0. MATHJAX: типографіка формул незалежно від того, коли довантажиться
+      бібліотека (без setTimeout-опитувань; через офіційний startup.ready)
+   ========================================================================= */
+function typesetMath(){
+    if(!window.__mathReady || !window.MathJax || !MathJax.typesetPromise) return;
+    const c = document.getElementById('controls-area');
+    const v = document.getElementById('viz-area');
+    MathJax.typesetPromise([c, v]).catch(()=>{});
+}
+window.__flushMath = typesetMath;
+
+/* =========================================================================
+   1. МАТЕМАТИЧНЕ ЯДРО
+   ========================================================================= */
+
+function mulberry32(a){
+    return function(){
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// L[i*N+j] = 1, якщо учень i лайкнув учня j. ОДНА мережа на всіх; лайк
+// усередині класу і лайк між класами відрізняються лише ЙМОВІРНІСТЮ.
+function generateNetwork(classSizes, pIntra, pInter, seed, botFarm){
+    const N = classSizes.reduce((a,b)=>a+b,0);
+    const labels = new Int32Array(N);
+    { let idx=0; classSizes.forEach((s,c)=>{ for(let t=0;t<s;t++) labels[idx++]=c; }); }
+    const rng = mulberry32(seed >>> 0);
+    const L = new Uint8Array(N*N);
+    for(let i=0;i<N;i++){
+        for(let j=0;j<N;j++){
+            if(i===j) continue;
+            const p = labels[i]===labels[j] ? pIntra : pInter;
+            if(rng() < p) L[i*N+j] = 1;
+        }
+    }
+    let botFarmInfo = null;
+    if(botFarm && classSizes.length>0 && classSizes[0]>=2){
+        // Перший клас - "ботоферма": усі учасники, крім однієї "розкрученої" цілі,
+        // лайкають ЛИШЕ ціль і більше нікого й нікого зовні. Ціль отримує рівно
+        // один випадковий зовнішній лайк (щоб не бути тривіально ізольованою).
+        const farmSize = classSizes[0], target = 0;
+        for(let i=0;i<farmSize;i++) for(let j=0;j<N;j++) L[i*N+j]=0;
+        for(let i=1;i<farmSize;i++) L[i*N+target]=1;
+        for(let j=farmSize;j<N;j++) L[j*N+target]=0;
+        const outsiders=[]; for(let j=farmSize;j<N;j++) outsiders.push(j);
+        if(outsiders.length>0) L[outsiders[Math.floor(rng()*outsiders.length)]*N+target]=1;
+        botFarmInfo = {target, farmSize};
+    }
+    return {N, labels, L, k: classSizes.length, classSizes: classSizes.slice(), botFarmInfo};
+}
+
+// A_ij = 1/outdeg(j), якщо L_ji=1 (voter j лайкнув receiver i), інакше 0.
+// Нормування ЗА ГОЛОСУВАЛЬНИКОМ (класичний PageRank): кожен розподіляє свій
+// "бюджет" голосу на тих, кого лайкнув; отримувачі СУМУють ці частки (не
+// усереднюють). Стовпці A сумуються в 1 (P^T 1 = 1); рядки - НЕ обов'язково.
+// Голосувальники без жодного лайка ("dangling") просто не роблять внеску.
+function computeA(L, N){
+    const outdeg = new Int32Array(N);
+    for(let v=0;v<N;v++){
+        let s=0;
+        for(let r=0;r<N;r++) if(L[v*N+r]) s++;
+        outdeg[v]=s;
+    }
+    const A = new Float32Array(N*N);
+    const dangling = 1/N;
+    for(let v=0; v<N; v++){
+        const dg = outdeg[v];
+        if(dg===0){
+            // "зависаючий" голосувальник (нікого не лайкнув) - розподіляємо його
+            // умовний голос порівну на всіх, як у класичному PageRank. Це відновлює
+            // точну стовпцеву стохастичність (кожен стовпець суму = 1).
+            for(let r=0;r<N;r++) A[r*N+v] = dangling;
+            continue;
+        }
+        const inv = 1/dg;
+        for(let r=0;r<N;r++){
+            if(L[v*N+r]) A[r*N+v] = inv;
+        }
+    }
+    return {A, outdeg, indeg: outdeg};
+}
+
+function smoothSweep(A, N, r, d, base, mode, omega){
+    omega = (omega===undefined) ? 1 : omega;
+    if(mode === 'jacobi'){
+        const nr = new Float32Array(N);
+        for(let i=0;i<N;i++){
+            let s=0; const off=i*N;
+            for(let j=0;j<N;j++) s += A[off+j]*r[j];
+            const gs = (1-d)*base + d*s;
+            nr[i] = (omega===1) ? gs : (1-omega)*r[i] + omega*gs;
+        }
+        r.set(nr);
+    } else {
+        for(let i=0;i<N;i++){
+            let s=0; const off=i*N;
+            for(let j=0;j<N;j++) s += A[off+j]*r[j];
+            const gs = (1-d)*base + d*s;
+            r[i] = (omega===1) ? gs : (1-omega)*r[i] + omega*gs;
+        }
+    }
+}
+
+function residualNorm(A, N, r, d, base){
+    let s2=0;
+    for(let i=0;i<N;i++){
+        let s=0; const off=i*N;
+        for(let j=0;j<N;j++) s += A[off+j]*r[j];
+        const res = (1-d)*base - (r[i] - d*s);
+        s2 += res*res;
+    }
+    return Math.sqrt(s2/N);
+}
+
+function vecDiffNorm(a, b, N){
+    let s=0; for(let i=0;i<N;i++){ const dd=a[i]-b[i]; s+=dd*dd; }
+    return Math.sqrt(s/N);
+}
+
+// Гаусс із частковим вибором головного елемента; k=N -> точний розв'язок
+// повної системи, k=(кількість агрегатів) -> точний розв'язок грубої.
+function solveLinear(Mflat, f, k){
+    const A = []; for(let i=0;i<k;i++){ A.push(Array.from(Mflat.slice(i*k,(i+1)*k))); }
+    const b = f.slice();
+    for(let col=0; col<k; col++){
+        let piv = col;
+        for(let r=col+1;r<k;r++) if(Math.abs(A[r][col])>Math.abs(A[piv][col])) piv=r;
+        if(piv!==col){ const t=A[col];A[col]=A[piv];A[piv]=t; const tb=b[col];b[col]=b[piv];b[piv]=tb; }
+        const pv = A[col][col] || 1e-9;
+        for(let r=col+1;r<k;r++){
+            const factor = A[r][col]/pv;
+            if(factor===0) continue;
+            for(let c=col;c<k;c++) A[r][c] -= factor*A[col][c];
+            b[r] -= factor*b[col];
+        }
+    }
+    const x = new Array(k).fill(0);
+    for(let r=k-1;r>=0;r--){
+        let s=b[r];
+        for(let c=r+1;c<k;c++) s -= A[r][c]*x[c];
+        x[r] = s/(A[r][r] || 1e-9);
+    }
+    return x;
+}
+
+const DIRECT_LIMIT = 300; // за межами - Гаусс на повній N x N вимкнено (O(N^3))
+
+function solveFullDirect(A, N, d, base){
+    const M = new Float64Array(N*N);
+    for(let i=0;i<N;i++) for(let j=0;j<N;j++) M[i*N+j] = (i===j?1:0) - d*A[i*N+j];
+    const f = new Array(N).fill((1-d)*base);
+    return solveLinear(M, f, N);
+}
+
+// Оператор Гальоркіна: (Mc)_{cc'} = sum_{i in c, j in c'} M_ij,  M = I - dA
+// (fc)_c = sum_{i in c} f_i
+function buildCoarse(A, N, label, k, d, base){
+    const Mc = new Float64Array(k*k);
+    const size = new Int32Array(k);
+    for(let i=0;i<N;i++) size[label[i]]++;
+    for(let c=0;c<k;c++) Mc[c*k+c] += size[c];
+    for(let i=0;i<N;i++){
+        const li = label[i], off=i*N;
+        for(let j=0;j<N;j++){
+            const a = A[off+j];
+            if(a!==0) Mc[li*k+label[j]] -= d*a;
+        }
+    }
+    const fc = new Float64Array(k);
+    for(let c=0;c<k;c++) fc[c] = size[c]*(1-d)*base;
+    return {Mc, fc, size};
+}
+
+// Нев'язка як ВЕКТОР (не норма) - потрібна для реституції на грубу сітку
+// Лише для порівняння на кроці 0 (пісочниця): стара модель "усереднення за
+// отримувачем", яка давала дивні ранжування. НЕ використовується в основному
+// конвеєрі (кроки 1-7 працюють через підсумовування, computeA вище).
+function computeAvgA(L, N){
+    const indeg = new Int32Array(N);
+    for(let r=0;r<N;r++){ let s=0; for(let v=0;v<N;v++) if(L[v*N+r]) s++; indeg[r]=s; }
+    const A = new Float32Array(N*N);
+    for(let r=0;r<N;r++){
+        const dg = indeg[r]; if(dg===0) continue;
+        const inv = 1/dg;
+        for(let v=0;v<N;v++) if(L[v*N+r]) A[r*N+v]=inv;
+    }
+    return A;
+}
+
+function residualVec(A, N, r, d, base){
+    const res = new Float32Array(N);
+    for(let i=0;i<N;i++){
+        let s=0; const off=i*N;
+        for(let j=0;j<N;j++) s += A[off+j]*r[j];
+        res[i] = (1-d)*base - (r[i]-d*s);
+    }
+    return res;
+}
+
+// Один повний двосітковий цикл корекції: пресмуз -> нев'язка -> реституція
+// (сума по агрегату) -> точний розв'язок грубої поправки -> продовження
+// (розкидати назад) -> постсмуз. Це і є справжня ідея AMG (не лише старт).
+function twoGridCycle(A, N, r, d, base, label, k, Mc, nu1, nu2, smoother){
+    for(let s=0;s<nu1;s++) smoothSweep(A,N,r,d,base,smoother);
+    const res = residualVec(A,N,r,d,base);
+    const resc = new Float64Array(k);
+    for(let i=0;i<N;i++) resc[label[i]] += res[i];
+    const ec = solveLinear(Mc, Array.from(resc), k);
+    for(let i=0;i<N;i++) r[i] += ec[label[i]];
+    for(let s=0;s<nu2;s++) smoothSweep(A,N,r,d,base,smoother);
+}
+
+// Жадібна кластеризація за силою зв'язку S_ij = L_ij+L_ji (без підказок
+// про справжні класи). Спрощений аналог агрегаційного АМГ (Vaněk-Brezina).
+const DISCOVERY_LIMIT = 500;
+function discoverClusters(L, N, targetK){
+    targetK = Math.max(1, Math.min(targetK, N));
+    // Розміри кластерів рахуємо наперед так, щоб їх сума точно дорівнювала N
+    // (звичайний розподіл "N предметів на targetK груп якнайрівніше").
+    // Це гарантує, що вузли не скінчаться РАНІШЕ, ніж буде створено targetK кластерів.
+    const baseSize = Math.floor(N/targetK), extra = N % targetK;
+    const caps = Array.from({length:targetK}, (_,c)=> baseSize + (c<extra?1:0));
+    const assigned = new Int32Array(N).fill(-1);
+    const remaining = new Set(); for(let i=0;i<N;i++) remaining.add(i);
+    const clusters = [];
+    while(remaining.size>0 && clusters.length<targetK){
+        let seed=-1, best=-1;
+        for(const u of remaining){
+            let s=0; for(const v of remaining){ if(v!==u) s += L[u*N+v]+L[v*N+u]; }
+            if(s>best){ best=s; seed=u; }
+        }
+        remaining.delete(seed);
+        const cluster=[seed]; assigned[seed]=clusters.length;
+        const cap = caps[clusters.length];
+        while(cluster.length<cap && remaining.size>0){
+            let bestNode=-1, bestScore=-1;
+            for(const v of remaining){
+                let sc=0; for(const u of cluster) sc += L[u*N+v]+L[v*N+u];
+                if(sc>bestScore){ bestScore=sc; bestNode=v; }
+            }
+            if(bestScore<=0) break;
+            cluster.push(bestNode); assigned[bestNode]=clusters.length; remaining.delete(bestNode);
+        }
+        clusters.push(cluster);
+    }
+    // Рештки (без сильних зв'язків) - домерджуємо до найближчого з уже
+    // створених кластерів, а не відкриваємо новий. Разом із наперед
+    // порахованими розмірами вище це гарантує РІВНО targetK агрегатів.
+    for(const v of remaining){
+        let bestC=0, bestScore=-1;
+        for(let c=0;c<clusters.length;c++){
+            let sc=0; for(const u of clusters[c]) sc += L[u*N+v]+L[v*N+u];
+            if(sc>bestScore){ bestScore=sc; bestC=c; }
+        }
+        assigned[v]=bestC; clusters[bestC].push(v);
+    }
+    // Локальне уточнення: жорстка квота "порівну N/targetK" не завжди відповідає
+    // СПРАВЖНІМ (можливо нерівним) розмірам груп - через це вузол з сильними
+    // зв'язками інколи не влазить у квоту своєї групи й потрапляє в сусідню.
+    // Виправляємо: кілька проходів "чи не сильніше вузол пов'язаний з ІНШИМ
+    // кластером, ніж зі своїм?" - якщо так, переносимо (без жорсткої квоти тут).
+    const k = clusters.length;
+    const sizes = new Int32Array(k);
+    for(let v=0;v<N;v++) sizes[assigned[v]]++;
+    for(let pass=0; pass<5; pass++){
+        let moved = false;
+        for(let v=0; v<N; v++){
+            if(sizes[assigned[v]]<=1) continue; // не спустошуємо кластер повністю
+            const scores = new Array(k).fill(0);
+            for(let u=0; u<N; u++){ if(u===v) continue; scores[assigned[u]] += L[u*N+v]+L[v*N+u]; }
+            let bestC = assigned[v], bestScore = scores[assigned[v]];
+            for(let c=0;c<k;c++){ if(scores[c]>bestScore){ bestScore=scores[c]; bestC=c; } }
+            if(bestC!==assigned[v]){ sizes[assigned[v]]--; sizes[bestC]++; assigned[v]=bestC; moved=true; }
+        }
+        if(!moved) break;
+    }
+    const clusters2 = Array.from({length:k}, ()=>[]);
+    for(let v=0;v<N;v++) clusters2[assigned[v]].push(v);
+    clusters.length = 0; clusters.push(...clusters2);
+    return {assigned, numClusters: clusters.length};
+}
+
+// Перенумеровує ID знайдених кластерів так, щоб кластер, який найбільше
+// збігається зі справжнім класом c, отримав ID, що сортується поруч із c.
+// Це ЛИШЕ питання нумерації для порівняння матриць - на purity не впливає.
+function alignClusterLabels(assigned, trueLabels, N, numClusters){
+    const counts = Array.from({length:numClusters}, ()=>new Map());
+    for(let i=0;i<N;i++){
+        const m = counts[assigned[i]];
+        m.set(trueLabels[i], (m.get(trueLabels[i])||0)+1);
+    }
+    const majorityOf = counts.map(m=>{
+        let best=-1, bc=-1; m.forEach((v,kk)=>{ if(v>bc){bc=v; best=kk;} }); return best;
+    });
+    const order = Array.from({length:numClusters},(_,c)=>c);
+    order.sort((a,b)=> majorityOf[a]-majorityOf[b] || a-b);
+    const remap = new Array(numClusters);
+    order.forEach((origC, newC)=>{ remap[origC]=newC; });
+    const out = new Int32Array(N);
+    for(let i=0;i<N;i++) out[i] = remap[assigned[i]];
+    return out;
+}
+
+function clusterPurity(assigned, labels, N){
+    const byCluster = new Map();
+    for(let i=0;i<N;i++){
+        const c = assigned[i];
+        if(!byCluster.has(c)) byCluster.set(c, new Map());
+        const m = byCluster.get(c);
+        m.set(labels[i], (m.get(labels[i])||0)+1);
+    }
+    let correct=0;
+    byCluster.forEach(m=>{ let mx=0; m.forEach(v=>{ if(v>mx) mx=v; }); correct+=mx; });
+    return correct/N;
+}
+
+function orderFromLabels(labels, N){
+    const order = Array.from({length:N},(_,i)=>i);
+    order.sort((a,b)=> labels[a]-labels[b] || a-b);
+    const boundaries=[]; let last=-1;
+    for(let p=0;p<N;p++){ if(labels[order[p]]!==last){ if(p>0) boundaries.push(p); last=labels[order[p]]; } }
+    return {order, boundaries};
+}
+
+/* =========================================================================
+   2. РЕНДЕРИНГ (canvas)
+   ========================================================================= */
+
+function renderMatrixCanvas(canvas, getVal, N, order, boundaries, maxVal){
+    maxVal = maxVal || 1;
+    const off = document.createElement('canvas');
+    off.width = N; off.height = N;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(N,N);
+    for(let y=0;y<N;y++){
+        const oi = order ? order[y] : y;
+        const rowOff = y*N;
+        for(let x=0;x<N;x++){
+            const oj = order ? order[x] : x;
+            const v = getVal(oi,oj);
+            const idx = (rowOff+x)*4;
+            if(!v){
+                img.data[idx]=244; img.data[idx+1]=247; img.data[idx+2]=250; img.data[idx+3]=255;
+            } else {
+                const t = Math.min(1, Math.abs(v)/maxVal);
+                img.data[idx]   = Math.round(255 - t*215);
+                img.data[idx+1] = Math.round(255 - t*180);
+                img.data[idx+2] = 255;
+                img.data[idx+3] = 255;
+            }
+        }
+    }
+    octx.putImageData(img,0,0);
+    canvas.width = canvas.clientWidth || 480;
+    canvas.height = canvas.width;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(off,0,0,N,N,0,0,canvas.width,canvas.height);
+    if(boundaries && N<=250){
+        ctx.strokeStyle='rgba(44,62,80,0.6)'; ctx.lineWidth=1.2;
+        boundaries.forEach(b=>{
+            const p = b/N*canvas.width;
+            ctx.beginPath(); ctx.moveTo(p,0); ctx.lineTo(p,canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0,p); ctx.lineTo(canvas.width,p); ctx.stroke();
+        });
+    }
+    canvas._matrixMeta = {getVal, N, order};
+}
+
+function attachMatrixHover(canvas, readoutEl, rowLabel, colLabel){
+    canvas.onmousemove = (ev)=>{
+        const meta = canvas._matrixMeta; if(!meta) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((ev.clientX-rect.left)/rect.width*meta.N);
+        const y = Math.floor((ev.clientY-rect.top)/rect.height*meta.N);
+        if(x<0||y<0||x>=meta.N||y>=meta.N) return;
+        const oi = meta.order?meta.order[y]:y, oj = meta.order?meta.order[x]:x;
+        const v = meta.getVal(oi,oj);
+        readoutEl.textContent = (rowLabel||'рядок')+' '+oi+' × '+(colLabel||'стовпець')+' '+oj+':  '+(v.toFixed?v.toFixed(3):v);
+    };
+    canvas.onmouseleave = ()=>{ readoutEl.textContent=''; };
+}
+
+function renderSmallMatrixTable(container, M, k){
+    let maxAbs=0; for(let t=0;t<M.length;t++) maxAbs=Math.max(maxAbs, Math.abs(M[t]));
+    maxAbs = maxAbs||1;
+    let html = '<table style="border-collapse:collapse; font-size:0.85em;">';
+    html += '<tr><td></td>' + Array.from({length:k},(_,c)=>'<td style="padding:4px 8px; text-align:center; color:#7f8c8d;">'+c+'</td>').join('') + '</tr>';
+    for(let i=0;i<k;i++){
+        html += '<tr><td style="padding:4px 8px; color:#7f8c8d;">'+i+'</td>';
+        for(let j=0;j<k;j++){
+            const v = M[i*k+j];
+            const t = Math.min(1, Math.abs(v)/maxAbs);
+            const bg = v>=0 ? 'rgba(52,152,219,'+(0.12+0.7*t).toFixed(2)+')' : 'rgba(230,126,34,'+(0.12+0.7*t).toFixed(2)+')';
+            html += '<td style="padding:6px 10px; text-align:right; background:'+bg+'; border:1px solid #eee; font-family:monospace;">'+v.toFixed(3)+'</td>';
+        }
+        html += '</tr>';
+    }
+    html += '</table>';
+    container.innerHTML = html;
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color, nodeR1, headLen, nodeR2){
+    nodeR1 = nodeR1===undefined?7:nodeR1; headLen = headLen===undefined?7:headLen;
+    nodeR2 = nodeR2===undefined?nodeR1:nodeR2;
+    const dx=x2-x1, dy=y2-y1, dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/dist, uy=dy/dist;
+    // вкорочуємо КОЖЕН кінець на радіус ЙОГО ВЛАСНОГО вузла, щоб стрілка не ховалась під кружечком
+    const ex = x2 - ux*(nodeR2+2), ey = y2 - uy*(nodeR2+2);
+    const sx = x1 + ux*(nodeR1+2), sy = y1 + uy*(nodeR1+2);
+    ctx.strokeStyle = color; ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+    const angle = Math.atan2(dy,dx);
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - headLen*Math.cos(angle-Math.PI/7), ey - headLen*Math.sin(angle-Math.PI/7));
+    ctx.lineTo(ex - headLen*Math.cos(angle+Math.PI/7), ey - headLen*Math.sin(angle+Math.PI/7));
+    ctx.closePath(); ctx.fill();
+}
+
+function renderGraphCanvas(canvas, N, labels, L, k){
+    canvas.width = canvas.clientWidth || 480;
+    canvas.height = 420;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const cx=canvas.width/2, cy=canvas.height/2;
+    const classRadius = Math.min(cx,cy)*0.62;
+    const nodeRadiusSmall = Math.min(cx,cy)*0.30;
+    const classSizes = new Array(k).fill(0);
+    for(let i=0;i<N;i++) classSizes[labels[i]]++;
+    const classCenters=[];
+    for(let c=0;c<k;c++){
+        const angle = (2*Math.PI*c)/k - Math.PI/2;
+        classCenters.push({x: cx+classRadius*Math.cos(angle), y: cy+classRadius*Math.sin(angle)});
+    }
+    const positions = new Array(N);
+    const seenIdx = new Array(k).fill(0);
+    for(let i=0;i<N;i++){
+        const c = labels[i], cnt = classSizes[c];
+        const idxInClass = seenIdx[c]++;
+        const angle = (2*Math.PI*idxInClass)/Math.max(1,cnt) - Math.PI/2;
+        positions[i] = { x: classCenters[c].x + nodeRadiusSmall*Math.cos(angle),
+                          y: classCenters[c].y + nodeRadiusSmall*Math.sin(angle) };
+    }
+    ctx.lineWidth=1;
+    for(let i=0;i<N;i++){
+        for(let j=0;j<N;j++){
+            if(L[i*N+j]){
+                const color = labels[i]===labels[j] ? 'rgba(52,152,219,0.35)' : 'rgba(231,76,60,0.6)';
+                drawArrow(ctx, positions[i].x,positions[i].y, positions[j].x,positions[j].y, color, 6.5, 6);
+            }
+        }
+    }
+    const palette=['#2c3e50','#e67e22','#16a085','#8e44ad','#c0392b','#2980b9','#27ae60','#d35400','#7f8c8d','#f39c12'];
+    for(let i=0;i<N;i++){
+        ctx.beginPath();
+        ctx.fillStyle = palette[labels[i]%palette.length];
+        ctx.arc(positions[i].x, positions[i].y, 6.5, 0, 2*Math.PI);
+        ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+}
+
+// Граф-конспект агрегатів: кожен вузол = один клас/кластер, розмір кола ~ кількість
+// учнів у ньому, товщина стрілки c'->c ~ скільки лайків студенти c' дали студентам c.
+function drawCurvedArrow(ctx, x1, y1, x2, y2, color, nodeR, headLen, bend){
+    const dx=x2-x1, dy=y2-y1, dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/dist, uy=dy/dist;
+    const px=-uy, py=ux;
+    const offset = bend*dist*0.16;
+    const mx=(x1+x2)/2 + px*offset, my=(y1+y2)/2 + py*offset;
+    function shorten(x,y, towardX, towardY, amt){
+        const ddx=towardX-x, ddy=towardY-y, dd=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+        return {x: x+ddx/dd*amt, y: y+ddy/dd*amt};
+    }
+    const start = shorten(x1,y1, mx,my, nodeR+2);
+    const end = shorten(x2,y2, mx,my, nodeR+2);
+    ctx.strokeStyle=color; ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.quadraticCurveTo(mx,my, end.x,end.y);
+    ctx.stroke();
+    const angle = Math.atan2(end.y-my, end.x-mx);
+    ctx.beginPath();
+    ctx.moveTo(end.x, end.y);
+    ctx.lineTo(end.x - headLen*Math.cos(angle-Math.PI/7), end.y - headLen*Math.sin(angle-Math.PI/7));
+    ctx.lineTo(end.x - headLen*Math.cos(angle+Math.PI/7), end.y - headLen*Math.sin(angle+Math.PI/7));
+    ctx.closePath(); ctx.fill();
+}
+
+function renderSuperGraph(canvas, k, labels, L, N){
+    canvas.width = canvas.clientWidth || 420;
+    canvas.height = 380;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const counts = new Float64Array(k*k);
+    for(let i=0;i<N;i++){ const li=labels[i]; for(let j=0;j<N;j++){ if(L[i*N+j]) counts[li*k+labels[j]]++; } }
+    let maxCount=0;
+    for(let c1=0;c1<k;c1++) for(let c2=0;c2<k;c2++) if(c1!==c2) maxCount=Math.max(maxCount, counts[c1*k+c2]);
+    maxCount = maxCount||1;
+    const sizes = new Int32Array(k); for(let i=0;i<N;i++) sizes[labels[i]]++;
+    const maxSize = Math.max(...sizes)||1;
+    const cx=canvas.width/2, cy=canvas.height/2, R=Math.min(cx,cy)*0.65;
+    const pos=[];
+    for(let c=0;c<k;c++){ const a=(2*Math.PI*c)/k - Math.PI/2; pos.push({x:cx+R*Math.cos(a), y:cy+R*Math.sin(a)}); }
+    const palette=['#2c3e50','#e67e22','#16a085','#8e44ad','#c0392b','#2980b9','#27ae60','#d35400','#7f8c8d','#f39c12'];
+    // src -> tgt: вага = скільки разів учасники src лайкнули учасників tgt.
+    // Вигинаємо дугу (bend=+1 для src<tgt, -1 для src>tgt), щоб два напрямки
+    // одного ребра НЕ зливались в одну лінію і були розрізнювані.
+    for(let src=0;src<k;src++){
+        for(let tgt=0;tgt<k;tgt++){
+            if(src===tgt) continue;
+            const w = counts[src*k+tgt];
+            if(w<=0) continue;
+            const t = w/maxCount;
+            const rTgt = 14+22*Math.sqrt(sizes[tgt]/maxSize);
+            const bend = src<tgt ? 1 : -1;
+            ctx.lineWidth = 1+5*t;
+            drawCurvedArrow(ctx, pos[src].x,pos[src].y, pos[tgt].x,pos[tgt].y, 'rgba(52,73,94,'+(0.25+0.55*t).toFixed(2)+')', rTgt, 9, bend);
+        }
+    }
+    for(let c=0;c<k;c++){
+        const r = 14+22*Math.sqrt(sizes[c]/maxSize);
+        ctx.beginPath(); ctx.fillStyle=palette[c%palette.length];
+        ctx.arc(pos[c].x,pos[c].y,r,0,2*Math.PI); ctx.fill();
+        ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(String(c), pos[c].x, pos[c].y);
+    }
+}
+
+// Простий напрямлений граф із фіксованими позиціями - для розігрівного прикладу
+function renderSimpleDirectedGraph(canvas, nodeNames, positions, edges, radiiFrac){
+    canvas.width = canvas.clientWidth || 420;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const W=canvas.width, H=canvas.height;
+    const minDim = Math.min(W,H);
+    const rMin = minDim*0.07, rMax = minDim*0.16; // безпечний діапазон - не перекриває сусідні вузли
+    const fr = radiiFrac || nodeNames.map(()=>0.5);
+    const rad = fr.map(f => rMin + (rMax-rMin)*f);
+    const pts = positions.map(p=>({x:p.x*W, y:p.y*H}));
+    edges.forEach(([a,b])=>{
+        drawArrow(ctx, pts[a].x,pts[a].y, pts[b].x,pts[b].y, '#2980b9', rad[a], 10, rad[b]);
+    });
+    pts.forEach((p,i)=>{
+        ctx.beginPath(); ctx.fillStyle='#2c3e50';
+        ctx.arc(p.x,p.y,rad[i],0,2*Math.PI); ctx.fill();
+        ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font='bold '+Math.max(10,Math.round(rad[i]*0.7))+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(nodeNames[i], p.x, p.y);
+    });
+}
+
+/* =========================================================================
+   3. ГЛОБАЛЬНИЙ СТАН
+   ========================================================================= */
+
+let cfg = { classSizes:[5,7,6], pIntra:0.5, pInter:0.04, d:0.85, smoother:'seidel', targetK:3, seed:42, sweeps:25, botFarm:false };
+let net = null;
+let discovered = null; // {assigned, numClusters, purity}  (assigned вже вирівняно з класами)
+let currentStep = 0;
+const NUM_STEPS = 8;
+const MAX_N = 3000;
+const GRAPH_MAX_N = 60;
+
+function regenerate(){
+    let sizes = cfg.classSizes.slice();
+    let total = sizes.reduce((a,b)=>a+b,0);
+    if(total>MAX_N){
+        const scale = MAX_N/total;
+        sizes = sizes.map(s=>Math.max(1,Math.round(s*scale)));
+        cfg.classSizes = sizes;
+    }
+    const base = generateNetwork(sizes, cfg.pIntra, cfg.pInter, cfg.seed, cfg.botFarm);
+    const {A, outdeg} = computeA(base.L, base.N);
+    net = Object.assign(base, {A, outdeg});
+    discovered = null;
+}
+regenerate();
+
+function fillRatio(){
+    let nz=0; for(let i=0;i<net.L.length;i++) if(net.L[i]) nz++;
+    return nz/(net.N*net.N);
+}
+
+/* =========================================================================
+   4. ДОПОМІЖНІ UI-ФУНКЦІЇ
+   ========================================================================= */
+
+function classSizesText(){ return cfg.classSizes.join(', '); }
+
+function networkSummaryHTML(){
+    return '<div class="stat-row">'
+        + '<span class="stat-badge">N = <b>'+net.N+'</b></span>'
+        + '<span class="stat-badge">класів k = <b>'+net.k+'</b></span>'
+        + '<span class="stat-badge">розміри: <b>'+net.classSizes.join(', ')+'</b></span>'
+        + '<span class="stat-badge">заповненість матриці: <b>'+(fillRatio()*100).toFixed(1)+'%</b></span>'
+        + (net.botFarmInfo ? '<span class="stat-badge" style="background:#fdecea; border-color:#f5b7b1;">🤖 ботоферма: учень №'+net.botFarmInfo.target+' — ціль</span>' : '')
+        + '</div>';
+}
+
+function exportMatrixCSV(){
+    let csv = '';
+    for(let i=0;i<net.N;i++){
+        const row=[];
+        for(let j=0;j<net.N;j++) row.push(net.A[i*net.N+j].toFixed(4));
+        csv += row.join(',')+'\n';
+    }
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rating_matrix.csv';
+    a.click();
+}
+
+/* =========================================================================
+   5. КРОКИ
+   ========================================================================= */
+
+const STEPS = [
+/* ---------------- КРОК warm-up ---------------- */
+{
+title: '0. Розігрів: чотири учні на пальцях',
+mount(controls, viz){
+    // мережа "зміна лідера": 1->2, 3->1, 4->1. Другий нікого не лайкає
+    // (outdeg=0, "зависає") - активує правило рівномірного розподілу (крок 2).
+    const edges4 = [[0,1],[2,0],[3,0]];
+    const L4 = new Uint8Array(16);
+    edges4.forEach(([a,b])=>{ L4[a*4+b]=1; });
+    const {A:A4} = computeA(L4, 4);
+    const r4 = solveFullDirect(A4, 4, 0.5, 1/4);
+
+    controls.innerHTML = `
+    <h2 class="step-title">0. Розігрів: чотири учні на пальцях</h2>
+    <p>Перш ніж занурюватись у мережу з трьома класами — маленький приклад руками, щоб побачити, звідки в цій задачі береться СЛАР, і чому саме так влаштована формула.</p>
+    <p><b>Четверо учнів.</b> Лайки (дія напрямлена):</p>
+    <ul style="font-size:0.93em;">
+        <li>Перший лайкнув Другого;</li>
+        <li>Третій лайкнув Першого;</li>
+        <li>Четвертий лайкнув Першого;</li>
+        <li>Другий, Третій і Четвертий більше нікого не лайкають.</li>
+    </ul>
+    <p><b>Завдання.</b> Рейтинг учня $i$ визначаємо через СУМУ (не середнє) внесків тих, хто його лайкнув, де голос кожного голосувальника $j$ ділиться порівну між усіма, кого він лайкнув:</p>
+    <div class="formula-box">$$ r_i \\;=\\; (1-d)\\cdot\\frac{1}{N} \\;+\\; d\\sum_{j=1}^{N} L_{ji}\\cdot\\frac{r_j}{n_j} $$</div>
+    <p><b>Що таке $d$?</b> Тут це зручніше розуміти не як "імовірність телепортації" (як у класичному PageRank), а як ступінь "розмиття" голосу мережею. Доданок $(1-d)/N$ — це мінімальний гарантований рейтинг, який отримує КОЖЕН, незалежно від лайків. Якщо $d=0$ — мережа взагалі не враховується, і всі отримують рівно $1/N$ (жодних лайків "не видно"). Що ближче $d$ до $1$, то сильніше рейтинг залежить від того, хто саме лайкнув. А $d=1$ — це вже погано: гарантований мінімум $(1-d)/N$ зникає повністю, рівняння перетворюється на однорідне $r=Ar$, і (крок 6) розв'язок перестає бути єдиним — будь-яке кратне якогось вектора теж підходить.</p>
+    <ul style="font-size:0.93em;">
+        <li>$N=4$; $L_{ji}=1$, якщо $j$ лайкнув $i$;</li>
+        <li>$n_j=\\sum_i L_{ji}$ — скільки лайків $j$ РОЗДАВ (не отримав!). Знаменник стоїть саме під $r_j$: чим більше голосів роздав $j$, тим менша вага КОЖНОГО окремого його голосу — весь голос $j$ завжди в сумі дорівнює $1$, розкиданий на $n_j$ адресатів;</li>
+        <li>якщо $n_j=0$ (голосувальник нікого не лайкнув — "зависає"), домовляємось: він умовно розподіляє голос ПОРІВНУ на всіх $N$ учнів. Тут це станеться з Другим.</li>
+    </ul>
+    <p>Тут $d=1/2$ — щоб дроби виходили простими. Порахуйте вручну $r_1,r_2,r_3,r_4$. Перший і Другий не мають однакових лайків, тож на перший погляд не зрозуміло, хто "лідер" — спробуйте вгадати, а тоді перевірте.</p>
+
+    <details class="spoiler"><summary>Підказка</summary><div class="spoiler-body">
+        $n_1{=}1$ (Перший лайкнув лише Другого), $n_2{=}0$ (зависає!), $n_3{=}1$, $n_4{=}1$.
+        Через зависання Другого кожне з чотирьох рівнянь отримує доданок $\\tfrac{d}{4}r_2$ (він "трохи голосує" за всіх, включно із собою).
+        Порахуйте $r_3$ і $r_4$ першими (обидва залежать лише від $r_2$), тоді підставте в рівняння для $r_1$ і $r_2$ та розв'яжіть систему з двох рівнянь.
+    </div></details>
+
+    <details class="spoiler"><summary>Явна система і матриця</summary><div class="spoiler-body">
+        $(1-d)/4=1/8$. Кожне рівняння отримує доданок $\\tfrac12\\cdot\\tfrac14r_2=\\tfrac18r_2$ від зависання Другого (він трохи голосує за всіх, включно із собою):
+        $$ \\begin{aligned}
+        r_1 &= \\tfrac18 + \\tfrac18\\,r_2 + \\tfrac12\\,r_3 + \\tfrac12\\,r_4 \\\\
+        r_2 &= \\tfrac18 + \\tfrac12\\,r_1 + \\tfrac18\\,r_2 \\\\
+        r_3 &= \\tfrac18 + \\tfrac18\\,r_2 \\\\
+        r_4 &= \\tfrac18 + \\tfrac18\\,r_2
+        \\end{aligned} $$
+        Матриця ($A_{ij}=1/n_j$ при $L_{ji}=1$, стовпець Другого — суцільно $1/4$, бо він "зависає" і розподіляє голос порівну на всіх):
+        $$ A=\\begin{pmatrix}0&\\tfrac14&1&1\\\\ 1&\\tfrac14&0&0\\\\ 0&\\tfrac14&0&0\\\\ 0&\\tfrac14&0&0\\end{pmatrix} $$
+        Перевірте: сума КОЖНОГО СТОВПЦЯ дорівнює $1$ (голос повністю розподілено) — а не рядка. Це і є принципова відмінність від "класичної" матриці суміжності, де нормують рядки.
+    </div></details>
+
+    <details class="spoiler" id="answerSpoiler"><summary>Розв'язок і відповідь</summary><div class="spoiler-body">
+        $r_3=r_4=\\tfrac18+\\tfrac18r_2$ (однакові — обидва залежать лише від $r_2$).<br>
+        $r_1=\\tfrac18+\\tfrac18r_2+\\tfrac12r_3+\\tfrac12r_4=\\tfrac18+\\tfrac18r_2+r_3=\\tfrac18+\\tfrac18r_2+\\tfrac18+\\tfrac18r_2=\\tfrac14+\\tfrac14r_2$.<br>
+        $r_2=\\tfrac18+\\tfrac12r_1+\\tfrac18r_2 \\;\\Rightarrow\\; \\tfrac78r_2=\\tfrac18+\\tfrac12r_1 \\;\\Rightarrow\\; r_2=\\tfrac17+\\tfrac47r_1$.<br>
+        Підставляємо в $r_1=\\tfrac14+\\tfrac14r_2$: $r_1=\\tfrac14+\\tfrac14\\big(\\tfrac17+\\tfrac47r_1\\big)=\\tfrac14+\\tfrac1{28}+\\tfrac17r_1 \\;\\Rightarrow\\; \\tfrac67r_1=\\tfrac27 \\;\\Rightarrow\\; r_1=\\tfrac13$.<br>
+        Тоді $r_2=\\tfrac17+\\tfrac47\\cdot\\tfrac13=\\tfrac13$ (теж!), $r_3=r_4=\\tfrac18+\\tfrac18\\cdot\\tfrac13=\\tfrac16$.<br><br>
+        <b>Рівно при $d=1/2$ — точна нічия</b> $r_1=r_2=\\tfrac13\\approx0.333$, тоді як $r_3=r_4=\\tfrac16\\approx0.167$. Перший має 2 "сирі" голоси (від Третього й Четвертого), Другий — 1 голос, зате від самого Першого (та трішки від власного зависання). При $d<1/2$ вигравала кількість (Перший), при $d>1/2$ — вигравала якість голосу (Другий). Розкрийте пісочницю нижче й посуньте повзунок $d$, щоб побачити цей перетин наживо.
+    </details>
+
+    <div class="note-box">Демпфування — не косметичний параметр: він може міняти не лише числа, а й саме РАНЖУВАННЯ. Спробуйте це в пісочниці нижче.</div>
+
+    <div id="sandboxWrap" style="display:none; margin-top:16px;">
+        <div class="note-box"><b>Пісочниця.</b> Редагуйте матрицю лайків, рухайте $d$ — і дивіться, що станеться.</div>
+        <div class="two-col">
+            <div>
+                <label style="font-size:0.85em; color:#7f8c8d;">Хто (рядок) кого (стовпець) лайкнув:</label>
+                <div id="matrixEditor" style="margin-top:6px;"></div>
+            </div>
+            <div>
+                <div class="slider-row"><label>d</label><span id="d0val">0.500</span></div>
+                <input type="range" id="d0slider" min="0" max="0.99" step="0.01" value="0.5">
+                <div style="margin-top:8px;">
+                    <button class="btn-action alt" id="preset-swap">Зміна лідера</button>
+                    <button class="btn-action alt" id="preset-quality">Кількість проти якості</button>
+                    <button class="btn-action alt" id="preset-nonsense">Замкнена пара проти лідера</button>
+                </div>
+            </div>
+        </div>
+        <div id="rankingBox" class="interactive-box" style="margin-top:12px;"></div>
+    </div>
+    `;
+    viz.innerHTML = `<canvas class="graph-canvas" id="warmupGraph" style="height:300px;"></canvas>
+        <div class="viz-label">Стрілка йде від того, хто лайкнув, до того, кого лайкнули.</div>`;
+    const nodePositions = [{x:0.25,y:0.25},{x:0.75,y:0.25},{x:0.25,y:0.75},{x:0.75,y:0.75}];
+    const names = ['1','2','3','4'];
+    function edgesFromL(L){ const e=[]; for(let i=0;i<4;i++) for(let j=0;j<4;j++) if(L[i*4+j]) e.push([i,j]); return e; }
+    function ratingRadiiFrac(r){ let lo=Math.min(...r), hi=Math.max(...r); return Array.from(r, v=>(v-lo)/((hi-lo)||1)); }
+
+    function drawStatic(useRating){
+        renderSimpleDirectedGraph(viz.querySelector('#warmupGraph'), names, nodePositions, edges4, useRating?ratingRadiiFrac(r4):null);
+    }
+    drawStatic(false);
+    this._draw = ()=>drawStatic(controls.querySelector('#answerSpoiler') ? controls.querySelector('#answerSpoiler').open : false);
+    controls.querySelector('#answerSpoiler').addEventListener('toggle', function(){
+        drawStatic(this.open);
+        if(this.open) controls.querySelector('#sandboxWrap').style.display = 'block';
+    });
+
+    // --- Пісочниця (лише підсумовування - усереднення сюди не повертаємо) ---
+    const presets = {
+        swap:     [[0,1,0,0],[0,0,0,0],[1,0,0,0],[1,0,0,0]],
+        quality:  [[0,1,0,0],[1,0,0,0],[0,1,0,1],[0,1,0,0]],
+        nonsense: [[0,0,1,1],[0,0,1,0],[0,0,0,0],[1,0,1,0]]
+    };
+    let sb = { L: presets.swap.map(r=>r.slice()), d: 0.5 };
+
+    function renderMatrixEditor(){
+        let html = '<table style="border-collapse:collapse;">';
+        html += '<tr><td></td>' + names.map(n=>'<td style="text-align:center; padding:2px 6px; font-size:0.8em; color:#7f8c8d;">'+n+'</td>').join('') + '</tr>';
+        for(let i=0;i<4;i++){
+            html += '<tr><td style="font-size:0.8em; color:#7f8c8d; padding:2px 6px;">'+names[i]+'</td>';
+            for(let j=0;j<4;j++){
+                if(i===j){ html += '<td style="text-align:center;">—</td>'; continue; }
+                html += '<td style="text-align:center;"><input type="checkbox" data-i="'+i+'" data-j="'+j+'" '+(sb.L[i][j]?'checked':'')+'></td>';
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        controls.querySelector('#matrixEditor').innerHTML = html;
+        controls.querySelectorAll('#matrixEditor input[type=checkbox]').forEach(cb=>{
+            cb.addEventListener('change', e=>{
+                const i=+e.target.dataset.i, j=+e.target.dataset.j;
+                sb.L[i][j] = e.target.checked?1:0;
+                refreshSandbox();
+            });
+        });
+    }
+
+    function refreshSandbox(){
+        const L = new Uint8Array(16);
+        for(let i=0;i<4;i++) for(let j=0;j<4;j++) if(sb.L[i][j]) L[i*4+j]=1;
+        const A = computeA(L,4).A;
+        const r = solveFullDirect(A, 4, sb.d, 1/4);
+        const order = [0,1,2,3].slice().sort((a,b)=>r[b]-r[a]);
+        let rows = order.map((idx,pos)=>'<tr><td>'+(pos+1)+'</td><td>Учень '+names[idx]+'</td><td>'+r[idx].toFixed(4)+'</td></tr>').join('');
+        controls.querySelector('#rankingBox').innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.92em;">
+                <tr style="text-align:left; color:#7f8c8d;"><th>місце</th><th>учень</th><th>рейтинг</th></tr>
+                ${rows}
+            </table>`;
+        renderSimpleDirectedGraph(viz.querySelector('#warmupGraph'), names, nodePositions, edgesFromL(L), ratingRadiiFrac(r));
+    }
+
+    renderMatrixEditor();
+    refreshSandbox();
+    controls.querySelector('#d0slider').addEventListener('input', e=>{ sb.d=parseFloat(e.target.value); controls.querySelector('#d0val').textContent=sb.d.toFixed(3); refreshSandbox(); });
+    function loadPreset(key){ sb.L = presets[key].map(r=>r.slice()); renderMatrixEditor(); refreshSandbox(); }
+    controls.querySelector('#preset-swap').addEventListener('click', ()=>loadPreset('swap'));
+    controls.querySelector('#preset-quality').addEventListener('click', ()=>loadPreset('quality'));
+    controls.querySelector('#preset-nonsense').addEventListener('click', ()=>loadPreset('nonsense'));
+},
+onResize(){ if(this._draw) this._draw(); }
+},
+
+/* ---------------- КРОК 0 ---------------- */
+{
+title: '1. Сюжет: рейтинг у мережі трьох класів',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">1. Сюжет: рейтинг у мережі трьох класів</h2>
+    <p>У школі кілька класів, і в них — <b>одна спільна</b> соцмережа лайків на всіх (не окрема мережа для кожного класу). Лайкнути можна будь-кого незалежно від класу, але однокласників лайкають значно частіше, ніж учнів з інших класів. Тому мережа лайків виходить <b>розрідженою</b> і "кластеризованою" за класами, а не рівномірною.</p>
+    <p><b>Лайк — дія напрямлена</b> (як і на розігріві): те, що $i$ лайкнув $j$, не означає, що $j$ лайкнув $i$ у відповідь. Тому граф нижче — зі стрілками, а матриця $A$ (крок 2) несиметрична від самого початку, ще до жодного загрублення.</p>
+    <div id="net-summary"></div>
+    <div class="slider-group">
+        <label><b>Розміри класів</b> (через кому):</label><br>
+        <input type="text" id="inp-sizes" style="width:100%; margin-top:6px;" value="${classSizesText()}">
+        <div class="two-col" style="margin-top:10px;">
+            <div><label>k (кількість класів)</label><input type="number" id="inp-k" min="1" max="60" value="${cfg.classSizes.length}"></div>
+            <div><label>m (учнів/клас)</label><input type="number" id="inp-m" min="1" max="200" value="${Math.round(net.N/net.k)}"></div>
+        </div>
+        <button class="btn-action alt" id="btn-uniform" style="margin-top:8px;">Застосувати k×m рівномірно</button>
+        <div class="slider-row" style="margin-top:12px;"><label>Ймовірність лайка <i>в межах</i> класу</label><span id="pIntraVal">${cfg.pIntra.toFixed(2)}</span></div>
+        <input type="range" id="inp-pIntra" min="0.05" max="0.9" step="0.01" value="${cfg.pIntra}">
+        <div class="slider-row"><label>Ймовірність лайка <i>між</i> класами</label><span id="pInterVal">${cfg.pInter.toFixed(2)}</span></div>
+        <input type="range" id="inp-pInter" min="0" max="0.3" step="0.005" value="${cfg.pInter}">
+        <label style="display:flex; align-items:center; gap:6px; margin-top:12px; cursor:pointer;">
+            <input type="checkbox" id="inp-botfarm" ${cfg.botFarm?'checked':''}>
+            🤖 Ботоферма (перший клас лайкає лише одну "розкручену" ціль всередині себе, нікого зовні; ціль отримує рівно 1 випадковий зовнішній лайк)
+        </label>
+        <button class="btn-primary" id="btn-regen" style="margin-top:12px;">🔄 Згенерувати нову мережу</button>
+    </div>
+    <div class="note-box">Реальні системи (мільйони вузлів) саме такі: величезні й розріджені. Тут ми навмисно робимо маленьку, але структурно чесну копію такої системи — з тим самим "більшість зв'язків локальні" ефектом.</div>
+    `;
+    controls.querySelector('#net-summary').innerHTML = networkSummaryHTML();
+
+    function apply(regen){
+        if(regen) cfg.seed = (cfg.seed*1103515245+12345)>>>0;
+        regenerate();
+        renderViz();
+        controls.querySelector('#net-summary').innerHTML = networkSummaryHTML();
+    }
+    controls.querySelector('#inp-sizes').addEventListener('change', e=>{
+        const parts = e.target.value.split(',').map(s=>parseInt(s.trim(),10)).filter(n=>n>0);
+        if(parts.length>=2){ cfg.classSizes = parts; apply(false); }
+    });
+    controls.querySelector('#btn-uniform').addEventListener('click', ()=>{
+        const k = Math.max(1, parseInt(controls.querySelector('#inp-k').value,10)||3);
+        const m = Math.max(1, parseInt(controls.querySelector('#inp-m').value,10)||6);
+        cfg.classSizes = Array(k).fill(m);
+        controls.querySelector('#inp-sizes').value = classSizesText();
+        apply(false);
+    });
+    controls.querySelector('#inp-pIntra').addEventListener('input', e=>{
+        cfg.pIntra = parseFloat(e.target.value);
+        controls.querySelector('#pIntraVal').textContent = cfg.pIntra.toFixed(2);
+    });
+    controls.querySelector('#inp-pIntra').addEventListener('change', ()=>apply(false));
+    controls.querySelector('#inp-pInter').addEventListener('input', e=>{
+        cfg.pInter = parseFloat(e.target.value);
+        controls.querySelector('#pInterVal').textContent = cfg.pInter.toFixed(3);
+    });
+    controls.querySelector('#inp-pInter').addEventListener('change', ()=>apply(false));
+    controls.querySelector('#inp-botfarm').addEventListener('change', e=>{ cfg.botFarm = e.target.checked; apply(true); });
+    controls.querySelector('#btn-regen').addEventListener('click', ()=>apply(true));
+
+    function renderViz(){
+        if(net.N<=GRAPH_MAX_N){
+            viz.innerHTML = `<canvas class="graph-canvas" id="graphCanvas"></canvas>
+                <div class="legend-row">
+                    <span><span class="legend-swatch" style="background:rgba(52,152,219,0.6)"></span>лайк у межах класу</span>
+                    <span><span class="legend-swatch" style="background:rgba(231,76,60,0.7)"></span>лайк між класами</span>
+                </div>
+                <div class="viz-label">Кожен вузол — учень; колір — клас, розташування за класом лише для наочності (мережа одна, спільна). Більшість ребер лишається всередині "пелюстки" свого класу.</div>`;
+            renderGraphCanvas(viz.querySelector('#graphCanvas'), net.N, net.labels, net.L, net.k);
+        } else {
+            viz.innerHTML = `<div class="note-box">Мережа завелика для наочного графа (${net.N} вузлів). Перейдіть на крок 2, щоб побачити структуру через матрицю.</div>`;
+        }
+    }
+    this._renderViz = renderViz;
+    renderViz();
+},
+onResize(){ if(this._renderViz) this._renderViz(); }
+},
+
+/* ---------------- КРОК 1 ---------------- */
+{
+title: '2. Рівняння та матриця системи',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">2. Рівняння та матриця системи</h2>
+    <p><b>Позначення:</b> $N$ — загальна кількість учнів (усі класи разом, мережа одна на всіх); $d\\in(0,1)$ — коефіцієнт демпфування; $L_{ij}=1$, якщо учень $i$ лайкнув учня $j$ (інакше $0$); $n_j=\\sum_i L_{ji}$ — кількість лайків, які учень $j$ РОЗДАВ (вихідний степінь голосувальника).</p>
+    <p><b>Індивідуальне рівняння</b> для одного учня $i$ — базовий доданок плюс СУМА (не середнє!) внесків усіх, хто його лайкнув, де кожен голосувальник $j$ ділить свій "бюджет голосу" порівну між усіма, кого лайкнув:</p>
+    <div class="formula-box">$$ r_i \\;=\\; \\underbrace{(1-d)\\cdot\\frac{1}{N}}_{\\text{базовий доданок}} \\;+\\; d\\sum_{j=1}^{N} L_{ji}\\cdot\\frac{r_j}{n_j} $$</div>
+    <p><b>Що таке $d$?</b> Зручніше розуміти не як "імовірність телепортації" (як у класичному PageRank), а як ступінь "розмиття" голосу мережею. Доданок $(1-d)/N$ — мінімальний гарантований рейтинг, який отримує КОЖЕН незалежно від лайків. Якщо $d=0$ — мережа взагалі не враховується, усі рівно $1/N$. Що ближче $d$ до $1$, то сильніше рейтинг залежить від того, хто лайкнув. $d=1$ — погано: гарантований мінімум зникає, рівняння стає однорідним $r=Ar$, і (крок 6) розв'язок перестає бути єдиним.</p>
+    <p>Чому не просто "середнє серед тих, хто лайкнув"? Бо усереднення дає дивні ефекти (крок 0): рейтинг може ЗНИЖУВАТИСЬ від додаткових лайків, а замкнена пара з одним голосом одне на одного може обійти того, кого лайкнули всі. Тут кожен голосувальник розподіляє СВІЙ голос (сумарно завжди $1$, розкидано на $n_j$ адресатів — знаменник стоїть саме під $r_j$: чим більше голосів роздав $j$, тим менша вага кожного його окремого голосу), а отримувач сумує все, що отримав, — більше лайків ніколи не шкодить.</p>
+    <p>Це $N$ окремих скалярних рівнянь. Щоб записати їх усі одразу як ОДНЕ рівняння, вводимо матрицю ваг $A$ розміру $N\\times N$:</p>
+    <div class="formula-box">$$ A_{ij} = \\dfrac{1}{n_j}\\ \\text{, якщо } L_{ji}=1\\ (\\text{учень } j\\text{ лайкнув учня } i), \\quad \\text{інакше } A_{ij}=0 $$</div>
+    <p>Тоді сума в індивідуальному рівнянні — це $i$-та компонента добутку матриці на вектор: $\\sum_j A_{ij}r_j=(Ar)_i$. Підставивши, отримуємо для всіх $i$ одночасно:</p>
+    <div class="formula-box">$$ r = (1-d)\\cdot\\frac1N\\,\\mathbf{1} + d\\,A r \\qquad\\Longrightarrow\\qquad (I-dA)\\,r = (1-d)\\cdot\\frac1N\\,\\mathbf{1} $$</div>
+    <p>Тут три різні речі, які легко сплутати, бо всі "виглядають як одиниця":</p>
+    <ul style="font-size:0.93em;">
+        <li>скаляр $1$ у виразі $(1-d)$ — просто число;</li>
+        <li>вектор $\\mathbf{1}=(1,1,\\dots,1)^{\\mathsf T}\\in\\mathbb{R}^N$ — стовпець із $N$ одиниць;</li>
+        <li>матриця $I$ розміру $N\\times N$ — одинична матриця (одиниці лише на діагоналі).</li>
+    </ul>
+    <p>$r\\in\\mathbb{R}^N$ — вектор усіх невідомих рейтингів. Розв'язавши $(I-dA)r=(1-d)\\frac1N\\mathbf1$ (наприклад, методом Гаусса), отримуємо всі рейтинги одночасно, точно.</p>
+    <div class="note-box">Зверніть увагу, що саме сумується в 1: тут СТОВПЦІ $A$ (не рядки) додають рівно $1$ — $\\sum_i A_{ij}=1$ для кожного голосувальника $j$ (весь його голос розподілено). Рядки $A$ можуть сумувати до чого завгодно (залежно від того, скільки людей і з яким $n_j$ когось лайкнули). Це принципово інша структура, ніж якби ми ділили на ВЛАСНИЙ вхідний degree отримувача, — і саме тому умова збіжності на кроці 6 виглядає інакше, ніж "класичне" рядкове діагональне домінування.</div>
+    <div class="note-box">Доданок $(1-d)/N$ — це <b>не</b> "початкове наближення", а стала складова, що додається на <i>кожному</i> кроці (як "телепортація" у PageRank). Коли на кроці 5 запускатимемо ітераційний метод, знадобиться окремо задати <b>стартове наближення</b> $r^{(0)}$ — з чого починати ітерувати. Це інше поняття.</div>
+    <div id="net-summary"></div>
+    <div class="slider-group">
+        <label><b>Порядок рядків / стовпців матриці:</b></label>
+        <div class="radio-row" style="margin-top:8px;">
+            <label><input type="radio" name="order" value="raw" checked> як згенеровано</label>
+            <label><input type="radio" name="order" value="class"> за справжніми класами</label>
+            <label id="opt-discovered"><input type="radio" name="order" value="discovered" ${discovered?'':'disabled'}> за знайденими кластерами (крок 3)</label>
+        </div>
+    </div>
+    <div class="hover-readout" id="hover-info"></div>
+    `;
+    controls.querySelector('#net-summary').innerHTML = networkSummaryHTML();
+
+    viz.innerHTML = `<canvas class="matrix-canvas" id="matCanvas"></canvas>
+        <div class="viz-label">Матриця ваг $A$: білі клітинки — точні нулі (лайка немає), сині — вага голосу. Перемкніть порядок, щоб побачити блоки.</div>`;
+    const canvas = viz.querySelector('#matCanvas');
+    const hover = controls.querySelector('#hover-info');
+    attachMatrixHover(canvas, hover, 'отримувач i', 'голос j');
+
+    function draw(){
+        const orderMode = controls.querySelector('input[name=order]:checked').value;
+        let order=null, boundaries=null;
+        if(orderMode==='class'){ const o=orderFromLabels(net.labels, net.N); order=o.order; boundaries=o.boundaries; }
+        else if(orderMode==='discovered' && discovered){ const o=orderFromLabels(discovered.assigned, net.N); order=o.order; boundaries=o.boundaries; }
+        renderMatrixCanvas(canvas, (i,j)=>net.A[i*net.N+j], net.N, order, boundaries, 1);
+    }
+    controls.querySelectorAll('input[name=order]').forEach(r=>r.addEventListener('change', draw));
+    draw();
+    this._draw = draw;
+},
+onResize(){ if(this._draw) this._draw(); }
+},
+
+/* ---------------- КРОК 2 ---------------- */
+{
+title: '3. Виявлення агрегатів без підказок',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">3. Виявлення агрегатів без підказок</h2>
+    <p>Справжній АМГ <b>не знає</b> про існування класів. Він дивиться лише на коефіцієнти матриці і об'єднує вузли з найбільшою "силою зв'язку". Перевіримо, чи алгоритм сам відновить класи.</p>
+    <div class="formula-box">Сила зв'язку між учнями $i$ та $j$: $S_{ij}=L_{ij}+L_{ji}$ (кількість взаємних лайків).</div>
+    <div class="note-box"><b>Метод: жадібна кластеризація за силою зв'язку</b> (спрощений аналог агрегаційного АМГ, Vaněk–Brezina):
+        <ol class="method-list">
+            <li>Серед ще не розподілених учнів обираємо того, у кого сумарна сила зв'язку з рештою нерозподілених — найбільша. Він стає "зерном" нового агрегату.</li>
+            <li>Поки агрегат не досяг цільового розміру: додаємо нерозподіленого учня, найсильніше пов'язаного (сумарно) з тими, хто вже в агрегаті.</li>
+            <li>Якщо серед нерозподілених більше немає учнів зі зв'язком &gt;0 із поточним агрегатом — зупиняємось і починаємо новий, поки агрегатів не стане рівно стільки, скільки замовлено.</li>
+            <li>Усіх, хто лишився без сильних зв'язків після того, як цільову кількість агрегатів вже досягнуто, домерджуємо до найближчого (за сумою взаємних лайків) з уже створених — щоб на виході завжди було РІВНО стільки агрегатів, скільки задано в полі нижче.</li>
+            <li>Повторюємо, доки всі учні не розподілені.</li>
+        </ol>
+        Без порогів і вагових нюансів справжнього АМГ — лише щоб показати ідею.
+    </div>
+    <div class="note-box"><b>Як це співвідноситься з відомими методами кластеризації?</b>
+        <ul style="margin:6px 0 0 18px; padding:0; font-size:0.9em;">
+            <li>Найближче за духом — до <b>жадібної агрегації в АМГ</b> (Vaněk–Brezina) і до ПЕРШОГО (локального, жадібного) кроку <b>Louvain</b>: обидва греб'ями "приліплюють" вузол до сусіда з найсильнішим зв'язком. Але Louvain оптимізує модулярність і сам визначає кількість кластерів; тут кількість задана наперед і жодної цільової функції не оптимізується.</li>
+            <li><b>Спектральна кластеризація</b> — інший механізм: власні вектори лапласіана графа + k-means у цьому просторі. Тут власних чисел/векторів не рахуємо взагалі.</li>
+            <li><b>Infomap</b> — оптимізує опис випадкового блукання (map equation). Хоч наша $A$ й є матрицею випадкового блукання, ми не будуємо жодного інформаційного критерію.</li>
+            <li><b>k-means, k-NN, HDBSCAN</b> — працюють із точками в метричному просторі (векторами ознак), а не напряму з вагами ребер графа. Щоб їх застосувати тут, спершу треба булo бembed-нути учнів у вектори (наприклад, рядками $A$ чи спектральними координатами) — цей крок ми пропускаємо.</li>
+            <li>Реберна кластеризація (edge betweenness, Girvan–Newman) видаляє ребра з найбільшою "проміжністю" — теж інший обчислювальний механізм (тут проміжність не рахується).</li>
+        </ul>
+    </div>
+    <div class="slider-group">
+        <label>Цільова кількість агрегатів (кластерів)</label>
+        <input type="number" id="inp-targetk" min="1" max="60" value="${cfg.targetK||net.k}" style="margin-left:8px;">
+        <button class="btn-primary" id="btn-discover" style="margin-top:10px;" ${net.N>DISCOVERY_LIMIT?'disabled':''}>🔍 Запустити виявлення</button>
+        ${net.N>DISCOVERY_LIMIT?`<div class="note-box">Вимкнено в демо-цілях для N&gt;${DISCOVERY_LIMIT}: наївний перебір тут O(N²) на крок. У промислових АМГ використовують значно швидші порогові евристики сили зв'язку.</div>`:''}
+    </div>
+    <div id="purity-box"></div>
+    `;
+    function updatePurity(){
+        const box = controls.querySelector('#purity-box');
+        if(!discovered){ box.innerHTML=''; return; }
+        const pct = (discovered.purity*100).toFixed(1);
+        box.innerHTML = `<div class="interactive-box">Знайдено кластерів: <b>${discovered.numClusters}</b>.
+            Збіг зі справжніми класами (purity): <b class="${discovered.purity>0.9?'ok-text':'warn-text'}">${pct}%</b>.
+            <br><span style="font-size:0.85em; color:#555;">Номери кластерів переставлено так, щоб кластер із найбільшим збігом до класу отримав ТОЙ САМИЙ номер, що й цей клас — лише для зручного порівняння таблиць нижче; на сам результат кластеризації і на purity це не впливає.</span>
+            ${discovered.purity<1?'<br><span style="font-size:0.85em; color:#555;">Якщо purity нижче 100%: на вхідному графі (крок 4) невідповідний учень виглядатиме як "віяло" зв\'язків, що перетинає межу кольорів, — це не помилка рендеру, а його СПРАВЖНІ зв\'язки зі своїм справжнім класом, видимі саме тому, що алгоритм визначив клас неправильно.</span>':''}
+            </div>`;
+    }
+    updatePurity();
+
+    viz.innerHTML = `<div class="two-col">
+        <div><canvas class="matrix-canvas" id="matTrue"></canvas><div class="viz-label">За справжніми класами</div></div>
+        <div><canvas class="matrix-canvas" id="matFound"></canvas><div class="viz-label">За знайденими кластерами</div></div>
+    </div>`;
+    function draw(){
+        const oTrue = orderFromLabels(net.labels, net.N);
+        renderMatrixCanvas(viz.querySelector('#matTrue'), (i,j)=>net.A[i*net.N+j], net.N, oTrue.order, oTrue.boundaries, 1);
+        if(discovered){
+            const oFound = orderFromLabels(discovered.assigned, net.N);
+            renderMatrixCanvas(viz.querySelector('#matFound'), (i,j)=>net.A[i*net.N+j], net.N, oFound.order, oFound.boundaries, 1);
+        } else {
+            renderMatrixCanvas(viz.querySelector('#matFound'), ()=>0, net.N, null, null, 1);
+        }
+    }
+    draw();
+    controls.querySelector('#btn-discover').addEventListener('click', ()=>{
+        cfg.targetK = Math.max(1, parseInt(controls.querySelector('#inp-targetk').value,10)||net.k);
+        const res = discoverClusters(net.L, net.N, cfg.targetK);
+        const aligned = alignClusterLabels(res.assigned, net.labels, net.N, res.numClusters);
+        discovered = { assigned: aligned, numClusters: res.numClusters, purity: clusterPurity(aligned, net.labels, net.N) };
+        updatePurity(); draw(); typesetMath();
+    });
+    this._draw = draw;
+},
+onResize(){ if(this._draw) this._draw(); }
+},
+
+/* ---------------- КРОК 3 ---------------- */
+{
+title: '4. Загрублення: від N рівнянь до k',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">4. Загрублення: від N рівнянь до k</h2>
+    <p><b>Мета:</b> замість системи на всіх $N$ учнів окремо — побудувати набагато меншу систему, лише одне рівняння на КОЖЕН клас (агрегат).</p>
+    <p><b>Принцип простий.</b> У нас є повна матриця системи (з кроку 2) розміром $N\\times N$. Подивимось на неї як на сітку і розіб'ємо цю сітку на прямокутні блоки за класами: рядки й стовпці учнів класу 0 утворюють один блок, класу 1 — інший, і так для кожної пари класів.</p>
+    <div class="formula-box">Груба матриця будується так: <b>кожна її клітинка — це сума всіх чисел у відповідному блоці</b> повної матриці. Нічого складнішого — жодних нових формул, лише підсумовування шматків того, що вже маємо.</div>
+    <ul style="font-size:0.93em;">
+        <li>Клітинка "клас A рядок, клас A стовпець" (на діагоналі) = сума блоку "учні A × учні A" — наскільки клас самодостатній сам для себе;</li>
+        <li>клітинка "клас A рядок, клас B стовпець" (поза діагоналлю) = сума блоку "учні A × учні B" — скільки "уваги" клас B віддає класу A;</li>
+        <li>права частина рівняння для класу так само підсумовується — просто складаємо базові доданки всіх учнів цього класу.</li>
+    </ul>
+    <p>Ось і все загрублення. (Офіційна назва цього способу — <b>оператор Гальоркіна</b>, якщо десь зустрінете цей термін.)</p>
+    <div class="note-box">Груба матриця несиметрична — так само, як несиметрична повна матриця від самого початку (крок 1: лайк напрямлений).</div>
+    <div class="radio-row">
+        <label><input type="radio" name="agg" value="true" checked> справжні класи</label>
+        <label><input type="radio" name="agg" value="discovered" ${discovered?'':'disabled'}> знайдені кластери</label>
+    </div>
+    <div id="coarse-table"></div>
+    `;
+    viz.innerHTML = `<div id="matCoarseWrap" style="display:flex; justify-content:center; padding:20px 0;"></div>
+        <div class="viz-label">Груба матриця ($k\\times k$): синій — додатне значення, оранжевий — від'ємне, насиченість — величина. Порівняйте клітинку (A,B) з (B,A) — вони різні, бо потік лайків не симетричний.</div>
+        <div class="two-col" style="margin-top:14px;">
+            <div><div id="inputGraphWrap"></div><div class="viz-label">Вхідний граф, розфарбований за агрегатами</div></div>
+            <div><canvas class="graph-canvas" id="superGraph" style="height:300px;"></canvas><div class="viz-label">"Суперграф": вузол — агрегат, товщина дуги — кількість лайків у цьому напрямку. Дуги вигнуті в різні боки, щоб прямий і зворотний напрямки не зливались в одну лінію.</div></div>
+        </div>`;
+
+    function draw(){
+        const mode = controls.querySelector('input[name=agg]:checked').value;
+        const label = mode==='discovered' && discovered ? discovered.assigned : net.labels;
+        const k = mode==='discovered' && discovered ? discovered.numClusters : net.k;
+        const base = 1/net.N;
+        const {Mc, fc, size} = buildCoarse(net.A, net.N, label, k, cfg.d, base);
+        const rc = solveLinear(Mc, Array.from(fc), k);
+        renderSmallMatrixTable(viz.querySelector('#matCoarseWrap'), Mc, k);
+        let rows = '';
+        for(let c=0;c<k;c++) rows += `<tr><td>${c}</td><td>${size[c]}</td><td>${rc[c].toFixed(4)}</td></tr>`;
+        controls.querySelector('#coarse-table').innerHTML = `
+        <div class="interactive-box">
+            <table style="width:100%; border-collapse:collapse; font-size:0.92em;">
+                <tr style="text-align:left; color:#7f8c8d;"><th>агрегат</th><th>розмір</th><th>супер-рейтинг</th></tr>
+                ${rows}
+            </table>
+            <p style="margin-bottom:0; margin-top:8px;">Замість $N=${net.N}$ рівнянь — лише $k=${k}$.</p>
+        </div>`;
+        const inputWrap = viz.querySelector('#inputGraphWrap');
+        if(net.N<=GRAPH_MAX_N){
+            inputWrap.innerHTML = '<canvas class="graph-canvas" id="inputGraphC" style="height:300px;"></canvas>';
+            renderGraphCanvas(inputWrap.querySelector('#inputGraphC'), net.N, label, net.L, k);
+        } else {
+            inputWrap.innerHTML = '<div class="note-box" style="height:260px;">Мережа завелика для наочного графа (N='+net.N+').</div>';
+        }
+        renderSuperGraph(viz.querySelector('#superGraph'), k, label, net.L, net.N);
+        typesetMath();
+    }
+    draw();
+    controls.querySelectorAll('input[name=agg]').forEach(r=>r.addEventListener('change', draw));
+    this._draw = draw;
+},
+onResize(){ if(this._draw) this._draw(); }
+},
+
+/* ---------------- КРОК 4 ---------------- */
+{
+title: '5. Двосітковий цикл: справжня ідея AMG',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">5. Двосітковий цикл: справжня ідея AMG</h2>
+    <p><b>Яку систему розв'язуємо?</b> Ту саму ЄДИНУ систему з $N$ рівнянь $(I-dA)r=f$ із кроку 2 — для всіх учнів одночасно. Груба система з $k$ рівнянь (крок 4) — ІНША, допоміжна система для дешевого виправлення.</p>
+    <p><b>Що таке "згладжування"?</b> Один прохід Якобі/Зейделя використовує лише ЛОКАЛЬНУ інформацію (рейтинги тих, хто $i$ лайкнув) — тому миттєво прибирає локальні нестиковки, але дуже повільно виправляє ВЕЛИКОМАСШТАБНИЙ (наприклад, міжкласовий) перекіс.</p>
+    <div class="note-box"><b>Одноразовий старт — це лише половина ідеї.</b> Раніше ми розв'язували грубу систему ОДИН раз і використовували її як старт. Але грубу систему можна розв'язувати знову й знову — щоразу для НЕВ'ЯЗКИ поточного наближення, а не з нуля. Це і є двосітковий цикл (спрощена AMG-версія V-циклу):
+        <ol class="method-list">
+            <li><b>Пресмуз:</b> $\\nu_1$ проходів Якобі/Зейделя на повній системі.</li>
+            <li><b>Нев'язка:</b> $\\text{res}=f-(I-dA)r$ — наскільки поточне $r$ ще не задовольняє рівняння.</li>
+            <li><b>Реституція:</b> просумувати нев'язку в кожному класі: $\\text{res}_c=\\sum_{i\\in c}\\text{res}_i$.</li>
+            <li><b>Грубе виправлення:</b> точно розв'язати $M_c\\,e_c=\\text{res}_c$ (та сама $M_c$ з кроку 4).</li>
+            <li><b>Продовження:</b> $r_i \\mathrel{+}= e_{c(i)}$ — розкидати поправку класу на всіх його учнів.</li>
+            <li><b>Постсмуз:</b> ще $\\nu_2$ проходів.</li>
+        </ol>
+        Повторюємо кілька циклів. На відміну від одноразового старту, кожен цикл ЗНОВУ виправляє великомасштабну частину похибки, яка встигла накопичитись, — тому ефект накопичується, а не одноразовий.
+    </div>
+    <div class="radio-row">
+        <label><input type="radio" name="smoother" value="jacobi" ${cfg.smoother==='jacobi'?'checked':''}> Якобі</label>
+        <label><input type="radio" name="smoother" value="seidel" ${cfg.smoother==='seidel'?'checked':''}> Зейдель</label>
+    </div>
+    <div class="slider-group">
+        <div class="slider-row"><label>Бюджет проходів згладжування (спільний для обох)</label><span id="sweepsVal">${cfg.sweeps}</span></div>
+        <input type="range" id="inp-sweeps" min="2" max="40" step="1" value="${cfg.sweeps}">
+        <div class="slider-row" style="margin-top:8px;"><label>Демпфування d</label><span id="dVal4">${cfg.d.toFixed(3)}</span></div>
+        <input type="range" id="inp-d4" min="0.5" max="0.99" step="0.005" value="${cfg.d}">
+    </div>
+    <div id="run-result"></div>
+    `;
+    viz.innerHTML = `<div id="plotDiv4" style="width:100%; height:340px;"></div>
+        <div id="plotDiv4b" style="width:100%; height:320px; margin-top:10px;"></div>
+        <div class="viz-label">Знизу: похибка кожного учня відносно точного розв'язку — просте згладжування versus двосітковий цикл, при ОДНАКОВІЙ сумарній кількості проходів (лог-шкала: менший стовпчик = точніше).</div>`;
+
+    function run(){
+        const label = net.labels, k = net.k, base = 1/net.N;
+        const {Mc} = buildCoarse(net.A, net.N, label, k, cfg.d, base);
+        const budget = cfg.sweeps;
+        const cycles = Math.max(1, Math.floor(budget/2)); // 1 пре + 1 пост на цикл
+        const actualSweeps = cycles*2;
+
+        const rPlain = new Float32Array(net.N).fill(base);
+        const rVcycle = new Float32Array(net.N).fill(base);
+        const seriesPlain=[residualNorm(net.A,net.N,rPlain,cfg.d,base)];
+        const seriesVcycle=[residualNorm(net.A,net.N,rVcycle,cfg.d,base)];
+        for(let c=0;c<cycles;c++){
+            smoothSweep(net.A,net.N,rPlain,cfg.d,base,cfg.smoother);
+            smoothSweep(net.A,net.N,rPlain,cfg.d,base,cfg.smoother);
+            seriesPlain.push(residualNorm(net.A,net.N,rPlain,cfg.d,base));
+            twoGridCycle(net.A, net.N, rVcycle, cfg.d, base, label, k, Mc, 1, 1, cfg.smoother);
+            seriesVcycle.push(residualNorm(net.A,net.N,rVcycle,cfg.d,base));
+        }
+        const x = seriesPlain.map((_,i)=>i*2);
+        Plotly.newPlot('plotDiv4', [
+            {x, y:seriesPlain, mode:'lines+markers', name:'просте згладжування (наївний старт)', line:{color:'#c0392b'}},
+            {x, y:seriesVcycle, mode:'lines+markers', name:'двосітковий цикл', line:{color:'#27ae60'}}
+        ], {
+            yaxis:{title:'норма нев\'язки', type:'log'},
+            xaxis:{title:'сумарна кількість проходів згладжування'},
+            legend:{orientation:'h', y:-0.25},
+            margin:{l:60,r:20,t:10,b:70}
+        }, {responsive:true});
+
+        const rExact = net.N<=DIRECT_LIMIT ? solveFullDirect(net.A, net.N, cfg.d, base) : null;
+
+        const oLabels = orderFromLabels(net.labels, net.N);
+        const showN = Math.min(net.N, 40);
+        const idxShown = oLabels.order.slice(0, showN);
+        if(rExact){
+            Plotly.newPlot('plotDiv4b', [
+                {x: idxShown.map(i=>'№'+i), y: idxShown.map(i=>Math.abs(rPlain[i]-rExact[i])+1e-12), type:'bar', name:'похибка: просте згладжування', marker:{color:'#c0392b'}},
+                {x: idxShown.map(i=>'№'+i), y: idxShown.map(i=>Math.abs(rVcycle[i]-rExact[i])+1e-12), type:'bar', name:'похибка: двосітковий цикл', marker:{color:'#27ae60'}}
+            ], {
+                yaxis:{title:'|похибка| відносно точного', type:'log'}, xaxis:{title:'учні (згруповані за класом)'},
+                legend:{orientation:'h', y:-0.35}, margin:{l:60,r:20,t:10,b:90}, barmode:'group'
+            }, {responsive:true});
+        } else {
+            Plotly.newPlot('plotDiv4b', [
+                {x: idxShown.map(i=>'№'+i), y: idxShown.map(i=>rPlain[i]), type:'bar', name:'просте згладжування', marker:{color:'#c0392b'}},
+                {x: idxShown.map(i=>'№'+i), y: idxShown.map(i=>rVcycle[i]), type:'bar', name:'двосітковий цикл', marker:{color:'#27ae60'}}
+            ], {
+                yaxis:{title:'рейтинг учня'}, xaxis:{title:'учні (згруповані за класом)'},
+                legend:{orientation:'h', y:-0.35}, margin:{l:60,r:20,t:10,b:90}, barmode:'group'
+            }, {responsive:true});
+        }
+
+        let metricHtml;
+        if(rExact){
+            const eP = vecDiffNorm(rPlain, rExact, net.N);
+            const eV = vecDiffNorm(rVcycle, rExact, net.N);
+            const ratio = eP/eV;
+            metricHtml = `<div class="interactive-box">
+                Похибка проти точного розв'язку після <b>${actualSweeps}</b> проходів (${cycles} цикл${cycles===1?'':(cycles<5?'и':'ів')}):
+                <br>просте згладжування — <b>${eP.toExponential(2)}</b>,
+                двосітковий цикл — <b class="ok-text">${eV.toExponential(2)}</b>
+                ${ratio>1?` → цикл у <b class="ok-text">${ratio.toFixed(1)}×</b> точніший за ТУ САМУ кількість проходів.`:''}
+                <br><span style="font-size:0.85em; color:#555;">На відміну від одноразового старту, тут перевага не зникає з часом — кожен цикл знову виправляє великомасштабну похибку.</span>
+            </div>`;
+        } else {
+            metricHtml = `<div class="note-box">Порівняння з точним методом вимкнено для N&gt;${DIRECT_LIMIT} (демо-ліміт).</div>`;
+        }
+
+        controls.querySelector('#run-result').innerHTML = metricHtml +
+            (net.N>showN?'<div style="font-size:0.85em; color:#555; margin-top:6px;">Стовпчастий графік показує лише перших '+showN+' із '+net.N+' учнів (щоб не переобтяжити).</div>':'');
+        typesetMath();
+    }
+    controls.querySelectorAll('input[name=smoother]').forEach(r=>r.addEventListener('change', e=>{cfg.smoother=e.target.value; run();}));
+    controls.querySelector('#inp-sweeps').addEventListener('input', e=>{ cfg.sweeps=parseInt(e.target.value,10); controls.querySelector('#sweepsVal').textContent=cfg.sweeps; run(); });
+    controls.querySelector('#inp-d4').addEventListener('input', e=>{ cfg.d=parseFloat(e.target.value); controls.querySelector('#dVal4').textContent=cfg.d.toFixed(3); run(); });
+    run();
+},
+onResize(){}
+},
+
+/* ---------------- КРОК 5 ---------------- */
+{
+title: '6. Умови збіжності: спектральний радіус і демпфування',
+mount(controls, viz){
+    controls.innerHTML = `
+    <h2 class="step-title">6. Умови збіжності: спектральний радіус і демпфування</h2>
+    <div class="formula-box">Класична теорема: якщо матриця СТРОГО рядково діагонально домінантна —
+        $$ |a_{ii}| > \\sum_{j\\ne i}|a_{ij}| \\quad \\text{для КОЖНОГО рядка } i, $$
+        то Якобі й Зейдель збігаються з будь-якого старту. Але для довільної СЛАР такої властивості немає.</div>
+    <p>Ця теорема тут НЕ застосовується напряму: на кроці 2 ми зробили стохастичними СТОВПЦІ $A$ (кожен голосувальник розподіляє свій голос), а не рядки — рядкові суми $A$ можуть бути будь-якими. Потрібен інший, загальніший критерій.</p>
+    <div class="formula-box"><b>Загальний критерій:</b> ітерація $r^{(k+1)}=f+dAr^{(k)}$ (це і Якобі, і, по суті, "Метод степеневих ітерацій" із вашого курсу — та сама конструкція) збігається з БУДЬ-ЯКОГО старту тоді й лише тоді, коли спектральний радіус $\\rho(dA)<1$.</div>
+    <p>Оскільки стовпці $A$ стохастичні (сума кожного стовпця $=1$), за теоремою Перрона–Фробеніуса $\\rho(A)=1$ ЗАВЖДИ — незалежно від того, яка саме мережа лайків. Тому $\\rho(dA)=d\\cdot\\rho(A)=d$.</p>
+    <p><b>Скільки саме демпфування потрібно?</b> Будь-яке $d<1$ дає $\\rho(dA)=d<1$ — а отже, гарантовану збіжність, незалежно від конкретної мережі. Від значення $d$ залежить лише ШВИДКІСТЬ (менше $d$ — швидша збіжність, ближче до $1$ — повільніша):</p>
+    <div class="slider-group">
+        <div class="slider-row"><label>Демпфування d</label><span id="dVal5">${cfg.d.toFixed(3)}</span></div>
+        <input type="range" id="inp-d5" min="0.5" max="0.999" step="0.001" value="${cfg.d}">
+    </div>
+    <div id="margin-box"></div>
+    <div id="iters-readout" class="interactive-box"></div>
+    <div class="note-box">При $d=1$: $\\rho(A)=1$ рівно, тож $(I-A)$ — вироджена (сингулярна) матриця, розв'язок не єдиний (крок 0: там і побачили, що з чотирма учнями ранжування могло навіть змінюватися залежно від $d$ — тепер зрозуміло чому: ми проходимо через область, де запас $1-d$ малий, і навіть невеликі зміни $d$ можуть переставити близькі за вагою відповіді).</div>
+
+    <div class="note-box"><b>А релаксація (SOR), яку ви вже вивчали?</b> Це ІНШИЙ, незалежний важіль. Демпфування змінює саме РІВНЯННЯ (і його $\\rho$); SOR лишає рівняння тим самим і змінює лише КРОК ітерації — новий стан беруть як суміш старого і звичайного кроку Зейделя з вагою $\\omega$: $r_i\\leftarrow(1-\\omega)r_i+\\omega\\cdot(\\text{крок Зейделя})$. Спробуйте нижче — на тій самій $d$, що вище.</div>
+    <div class="slider-group">
+        <div class="slider-row"><label>Параметр релаксації ω (SOR)</label><span id="omegaVal">1.000</span></div>
+        <input type="range" id="inp-omega" min="0.1" max="1.95" step="0.05" value="1">
+        <button class="btn-action warn" id="btn-sor-d1" style="margin-top:8px;">Перевірити цей ω при d=1</button>
+    </div>
+    <div id="sor-readout" class="interactive-box"></div>
+    <div id="sor-d1-result"></div>
+
+    <div class="note-box">Ще одна ідея з курсу — <b>перестановка рядків</b>: у загальному випадку вона іноді допомагає знайти порядок, у якому матриця стає рядково-домінантною. Тут це не працює як "магічний прийом", бо наша матриця в принципі не будувалась під рядкове домінування (домінантні СТОВПЦІ, крок 2) — жодне перевпорядкування рядків/стовпців цього не змінить (сума стовпця — властивість самого стовпця, не залежить від того, в якому порядку записані рядки). Тут допомагає не пошук вдалого порядку, а спектральний аргумент вище — він працює для будь-якого порядку одразу.</div>
+    `;
+    viz.innerHTML = `<div id="plotDiv5" style="width:100%; height:340px;"></div>
+        <div class="viz-label">Вісь X зафіксована однаково для будь-якого d, щоб довжина кривої була прямим візуальним індикатором швидкості.</div>
+        <div id="plotDiv5sor" style="width:100%; height:320px; margin-top:14px;"></div>
+        <div class="viz-label">Ефект SOR при поточних d і ω (пунктир — звичайний Зейдель, ω=1, для порівняння).</div>`;
+
+    function adaptiveCap(){ return Math.min(500, Math.max(30, Math.floor(3e7/(net.N*net.N)))); }
+    function drawGauge(){
+        const margin = Math.max(0, 1-cfg.d);
+        controls.querySelector('#margin-box').innerHTML = `
+            <div class="gauge-wrap"><div class="gauge-fill" style="width:${(cfg.d*100).toFixed(1)}%"></div></div>
+            <div>d = ${cfg.d.toFixed(3)}, спектральний радіус $\\rho(dA)=d\\cdot\\rho(A)=$ <b class="${margin>0.05?'ok-text':'warn-text'}">${cfg.d.toFixed(3)}</b> (запас до 1: ${margin.toFixed(3)})</div>`;
+    }
+    function runCurve(d, startVal, thresh, maxIter, omega){
+        const base=1/net.N;
+        const r = new Float32Array(net.N).fill(startVal===undefined?base:startVal);
+        const series=[residualNorm(net.A,net.N,r,d,base)];
+        let iters=0;
+        while(iters<maxIter && series[series.length-1]>thresh && isFinite(series[series.length-1])){
+            smoothSweep(net.A,net.N,r,d,base,cfg.smoother,omega);
+            series.push(residualNorm(net.A,net.N,r,d,base));
+            iters++;
+        }
+        const mean = r.reduce((a,b)=>a+b,0)/net.N;
+        return {series, r, mean, converged: series[series.length-1]<=thresh, iters};
+    }
+    function draw(){
+        drawGauge();
+        const thresh = 1e-6, maxIter = adaptiveCap();
+        const {series, converged, iters} = runCurve(cfg.d, 1/net.N, thresh, maxIter, 1);
+        const x = series.map((_,i)=>i);
+        const xRange = Math.max(10, Math.ceil(iters*1.15));
+        Plotly.newPlot('plotDiv5', [{x, y:series, mode:'lines+markers', name:'d='+cfg.d.toFixed(3), line:{color:'#2980b9'}}], {
+            yaxis:{title:'норма нев\'язки', type:'log'},
+            xaxis:{title:'проходи Зейделя/Якобі', range:[0, xRange]},
+            margin:{l:60,r:20,t:10,b:50}
+        }, {responsive:true});
+        controls.querySelector('#iters-readout').innerHTML = converged
+            ? 'Поріг нев\'язки $10^{-6}$ досягнуто за <b class="ok-text">'+iters+'</b> проход(ів).'
+            : 'За '+maxIter+' проходів поріг $10^{-6}$ ще <b class="warn-text">НЕ досягнуто</b> (нев\'язка = '+series[series.length-1].toExponential(2)+') — рухайте повзунок ближче до 1 і подивіться, як росте кількість потрібних проходів.';
+        typesetMath();
+        drawSor();
+    }
+    function drawSor(){
+        const omega = parseFloat(controls.querySelector('#inp-omega').value);
+        const thresh=1e-6, maxIter=adaptiveCap();
+        const base1 = runCurve(cfg.d, 1/net.N, thresh, maxIter, 1);
+        const baseOmega = runCurve(cfg.d, 1/net.N, thresh, maxIter, omega);
+        const diverged = !isFinite(baseOmega.series[baseOmega.series.length-1]) || baseOmega.series[baseOmega.series.length-1] > base1.series[0]*10;
+        const xRangeSor = diverged ? Math.max(10, Math.ceil(Math.min(baseOmega.iters, 60)*1.15)) : Math.max(10, Math.ceil(Math.max(base1.iters, baseOmega.iters)*1.15));
+        Plotly.newPlot('plotDiv5sor', [
+            {x: base1.series.map((_,i)=>i), y: base1.series, mode:'lines', name:'ω=1 (звичайний Зейдель)', line:{color:'#bdc3c7', dash:'dot'}},
+            {x: baseOmega.series.map((_,i)=>i), y: baseOmega.series, mode:'lines+markers', name:'ω='+omega.toFixed(2), line:{color: diverged?'#c0392b':'#8e44ad'}}
+        ], {
+            yaxis:{title:'норма нев\'язки', type:'log'}, xaxis:{title:'проходи', range:[0,xRangeSor]},
+            margin:{l:60,r:20,t:10,b:50}, legend:{orientation:'h', y:-0.25}
+        }, {responsive:true});
+        controls.querySelector('#sor-readout').innerHTML = diverged
+            ? '<span class="warn-text">При такому ω метод РОЗХОДИТЬСЯ</span> (нев\'язка зростає) — SOR не завжди безпечний: занадто велике ω може зіпсувати навіть збіжний метод.'
+            : (baseOmega.converged
+                ? 'ω='+omega.toFixed(2)+' → поріг за <b>'+baseOmega.iters+'</b> проход(ів) (проти <b>'+base1.iters+'</b> при ω=1).'
+                : 'ще не збіглося за '+maxIter+' проходів.');
+    }
+    controls.querySelector('#inp-d5').addEventListener('input', e=>{ cfg.d=parseFloat(e.target.value); controls.querySelector('#dVal5').textContent=cfg.d.toFixed(3); draw(); });
+    controls.querySelector('#inp-omega').addEventListener('input', e=>{ controls.querySelector('#omegaVal').textContent=parseFloat(e.target.value).toFixed(3); drawSor(); });
+    controls.querySelector('#btn-sor-d1').addEventListener('click', ()=>{
+        const omega = parseFloat(controls.querySelector('#inp-omega').value);
+        const maxIter = adaptiveCap();
+        const res = runCurve(1.0, 1/net.N, 1e-9, maxIter, omega);
+        const trivial = Math.abs(res.mean) < (1/net.N)*0.01;
+        controls.querySelector('#sor-d1-result').innerHTML = `<div class="note-box">
+            При d=1 і ω=${omega.toFixed(2)}: нев'язка після ${res.iters<maxIter?res.iters:maxIter} проходів = <b>${res.series[res.series.length-1].toExponential(2)}</b>,
+            середній рейтинг = <b>${res.mean.toExponential(3)}</b>.
+            ${trivial
+                ? '<br><span class="warn-text">Це майже нуль — метод "збігся" до ТРИВІАЛЬНОГО розв\'язку (всі рейтинги ≈0), який формально задовольняє рівняння, але марний.</span> Швидка збіжність нев\'язки НЕ означає змістовний результат: без демпфування навіть вдалий ω не рятує від виродженості, лише змінює, до ЯКОЇ саме (можливо тривіальної) точки прийде ітерація.'
+                : 'Тут дійшло до не-тривіального значення — спробуйте більший ω, щоб побачити колапс до нуля.'}
+        </div>`;
+        typesetMath();
+    });
+    draw();
+},
+onResize(){}
+},
+
+/* ---------------- КРОК 6 ---------------- */
+{
+title: '7. Перевірка: наближений розв\'язок проти точного',
+mount(controls, viz){
+    let sweeps7 = 3;
+    controls.innerHTML = `
+    <h2 class="step-title">7. Перевірка: наближений розв'язок проти точного</h2>
+    <p>Весь конвеєр (кроки 3-5: загрублення → старт від "супер-рейтингу" → згладжування) дає лише НАБЛИЖЕНИЙ розв'язок. Порівняємо його з ТОЧНИМ — прямим розв'язком тієї самої повної системи $(I-dA)r=f$ методом Гаусса (крок 2), без жодних наближень.</p>
+    <div class="slider-group">
+        <div class="slider-row"><label>Проходів згладжування перед порівнянням</label><span id="sweepsVal7">${sweeps7}</span></div>
+        <input type="range" id="inp-sweeps7" min="0" max="30" step="1" value="${sweeps7}">
+    </div>
+    <div id="compare7-result"></div>
+    <div class="note-box">При МАЛІЙ кількості проходів переваги грубого старту добре видно. Якщо покрутити повзунок до великих значень — обидва підходи почнуть збігатися між собою: рано чи пізно вони прямують до ОДНОГО Й ТОГО Ж точного $r^*$ (крок 2 гарантує єдиність при $d{<}1$), тож різниця природно стирається. Це очікувано — саме так і МАЄ поводитись коректний метод, а не ознака якоїсь проблеми.</div>
+    <div class="note-box">Нагадаємо: тут $N=${net.N}$, і прямий метод Гаусса тут і сам працює миттєво — це порівняння не про швидкість, а про те, чи наближений конвеєр справді сходиться до ПРАВИЛЬНОЇ відповіді, а не до чогось іншого.</div>
+    `;
+    viz.innerHTML = `<div id="plotDiv7" style="width:100%; height:480px;"></div>
+        <div class="viz-label">Кожна точка — один учень: по осі X точний рейтинг, по осі Y наближений. Що ближче точки до пунктирної лінії $y=x$ — то краще наближення.</div>`;
+
+    function run(){
+        const sweeps = sweeps7;
+        if(net.N>DIRECT_LIMIT){
+            viz.innerHTML = `<div class="note-box">Прямий метод Гаусса вимкнено для N&gt;${DIRECT_LIMIT} (демо-ліміт, $O(N^3)$) — зменшіть мережу на кроці 1, щоб побачити це порівняння.</div>`;
+            controls.querySelector('#compare7-result').innerHTML='';
+            return;
+        }
+        const label = net.labels, k = net.k, base = 1/net.N;
+        const rExact = solveFullDirect(net.A, net.N, cfg.d, base);
+        const {Mc, fc} = buildCoarse(net.A, net.N, label, k, cfg.d, base);
+        const rc = solveLinear(Mc, Array.from(fc), k);
+        const rApprox = new Float32Array(net.N);
+        for(let i=0;i<net.N;i++) rApprox[i] = rc[label[i]];
+        const rNaive = new Float32Array(net.N).fill(base);
+        for(let s=0;s<sweeps;s++){
+            smoothSweep(net.A, net.N, rApprox, cfg.d, base, cfg.smoother);
+            smoothSweep(net.A, net.N, rNaive, cfg.d, base, cfg.smoother);
+        }
+        const errApprox = vecDiffNorm(rApprox, rExact, net.N);
+        const errNaive = vecDiffNorm(rNaive, rExact, net.N);
+        const maxDiffIdx = Array.from(rApprox).map((v,i)=>Math.abs(v-rExact[i])).reduce((best,v,i)=>v>best.v?{v,i}:best,{v:-1,i:-1}).i;
+
+        let lo=Infinity, hi=-Infinity;
+        for(let i=0;i<net.N;i++){ lo=Math.min(lo,rExact[i]); hi=Math.max(hi,rExact[i]); }
+        Plotly.newPlot('plotDiv7', [
+            {x:[lo,hi], y:[lo,hi], mode:'lines', name:'y = x (ідеальний збіг)', line:{color:'#bdc3c7', dash:'dot'}},
+            {x:Array.from(rExact), y:Array.from(rNaive), mode:'markers', name:'наївний старт + '+sweeps+' проходів', marker:{color:'#c0392b', symbol:'x', size:8}},
+            {x:Array.from(rExact), y:Array.from(rApprox), mode:'markers', name:'грубий старт + '+sweeps+' проходів', marker:{color:'#27ae60', size:9}}
+        ], {
+            xaxis:{title:'точний рейтинг r*'}, yaxis:{title:'наближений рейтинг'},
+            legend:{orientation:'h', y:-0.2}, margin:{l:60,r:20,t:10,b:70}
+        }, {responsive:true});
+
+        controls.querySelector('#compare7-result').innerHTML = `<div class="interactive-box">
+            Похибка $\\|r_{наближ}-r^*\\|$ після ${sweeps} проходів:
+            <br>з грубого старту — <b class="ok-text">${errApprox.toExponential(3)}</b>,
+            з наївного старту — <b class="${errApprox<errNaive?'':'warn-text'}">${errNaive.toExponential(3)}</b>.
+            <br><span style="font-size:0.85em; color:#555;">Найбільше відхилення (грубий старт) — в учня №${maxDiffIdx} (клас ${net.labels[maxDiffIdx]}): наближено ${rApprox[maxDiffIdx].toFixed(4)} проти точного ${rExact[maxDiffIdx].toFixed(4)}.</span>
+        </div>`;
+        typesetMath();
+    }
+    controls.querySelector('#inp-sweeps7').addEventListener('input', e=>{ sweeps7=parseInt(e.target.value,10); controls.querySelector('#sweepsVal7').textContent=sweeps7; run(); });
+    run();
+},
+onResize(){}
+}
+];
+
+/* =========================================================================
+   6. НАВІГАЦІЯ
+   ========================================================================= */
+
+function renderStep(){
+    const controls = document.getElementById('controls-area');
+    const viz = document.getElementById('viz-area');
+    controls.innerHTML=''; viz.innerHTML='';
+    const step = STEPS[currentStep];
+    step.mount(controls, viz);
+    document.getElementById('step-indicator').textContent = (currentStep+1)+' / '+NUM_STEPS;
+    document.getElementById('prevBtn').disabled = currentStep===0;
+    document.getElementById('nextBtn').disabled = currentStep===NUM_STEPS-1;
+    typesetMath();
+}
+
+function changeStep(dir){
+    const next = currentStep+dir;
+    if(next<0 || next>=NUM_STEPS) return;
+    currentStep = next;
+    renderStep();
+}
+
+window.addEventListener('resize', ()=>{
+    const step = STEPS[currentStep];
+    if(step.onResize) step.onResize.call(step);
+});
+
+renderStep();
+</script>
+
+</body>
+</html>
