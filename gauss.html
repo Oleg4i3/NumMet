@@ -84,32 +84,72 @@
     font-family:'JetBrains Mono'; font-size:0.85rem; margin:0 3px;
   }
   .desc-line .tag.violet{background:var(--violet-bg); color:#4d2e6b;}
-  table.matrix{border-collapse:separate; border-spacing:5px;}
-  table.matrix td{
-    width:60px; height:50px; text-align:center; vertical-align:middle;
+  /* div-based "matrix" grid: дозволяє абсолютне позиціювання рядка-копії
+     з частковим накладенням на сусідні рядки (замість <table>, де це неможливо) */
+  .matrix-grid{position:relative;}
+  .matrix-grid .mrows{display:flex; flex-direction:column; gap:4px;}
+  .matrix-grid .mrow{display:flex; gap:6px; transition:transform .1s linear;}
+  .matrix-grid .mcell{
+    width:60px; height:50px; display:flex; align-items:center; justify-content:center;
     font-family:'JetBrains Mono'; font-size:1.02rem;
     background:#fff; border:1.5px solid var(--border); border-radius:7px;
     transition:background .3s ease, border-color .3s ease;
     position:relative;
   }
-  table.matrix td.row-label{
+  .matrix-grid.matrix2 .mcell{width:64px;}
+  .matrix-grid .mcell.row-label{
     width:30px; background:transparent; border:none; color:var(--ink-soft); font-size:0.82rem; font-weight:600;
   }
-  table.matrix td.sep-left{border-left:3px solid var(--ink);}
-  table.matrix tr.row-pivot td:not(.row-label){background:var(--gold-bg); border-color:var(--gold);}
-  table.matrix td.cell-pivot{background:var(--gold)!important; color:#fff; font-weight:700; border-color:#8a631d!important;}
-  table.matrix tr.row-active td:not(.row-label){background:var(--teal-bg); border-color:var(--teal);}
-  table.matrix tr.row-solved td:not(.row-label){background:#eef1e9; color:#7b8073;}
-  table.matrix tr.row-compare td:not(.row-label){background:var(--blue-bg); border-color:var(--blue);}
-  table.matrix tr.row-compare-winner td:not(.row-label){background:var(--gold-bg); border-color:var(--gold); box-shadow:inset 0 0 0 2px var(--gold);}
-  table.matrix tr.row-swapping td:not(.row-label){background:var(--violet-bg); border-color:var(--violet);}
-  table.matrix td.col-identity{background:#FBF9F3;}
-  table.matrix tr.ghost-row td{background:var(--violet-bg)!important; border:1.5px dashed var(--violet)!important; color:#4d2e6b; font-style:italic;}
-  table.matrix tr.ghost-row td.row-label{font-style:normal; font-size:0.72rem;}
-  table.matrix tr{transition:transform .1s linear;}
+  .matrix-grid .mcell.sep-left{border-left:3px solid var(--ink);}
+  .matrix-grid .mrow.row-pivot .mcell:not(.row-label){background:var(--gold-bg); border-color:var(--gold);}
+  .matrix-grid .mcell.cell-pivot{background:var(--gold)!important; color:#fff; font-weight:700; border-color:#8a631d!important;}
+  .matrix-grid .mrow.row-active .mcell:not(.row-label){background:var(--teal-bg); border-color:var(--teal);}
+  .matrix-grid .mrow.row-solved .mcell:not(.row-label){background:#eef1e9; color:#7b8073;}
+  .matrix-grid .mrow.row-compare .mcell:not(.row-label){background:var(--blue-bg); border-color:var(--blue);}
+  .matrix-grid .mrow.row-compare-winner .mcell:not(.row-label){background:var(--gold-bg); border-color:var(--gold); box-shadow:inset 0 0 0 2px var(--gold);}
+  .matrix-grid .mrow.row-swapping .mcell:not(.row-label){background:var(--violet-bg); border-color:var(--violet);}
+  .matrix-grid .mcell.col-identity{background:#FBF9F3;}
+  /* елемент, що саме зануляється — виділяємо насиченіше за все інше */
+  /* елемент, що саме зануляється — виділяємо максимально насичено й додаємо пульс,
+     щоб він явно домінував над фоном рядка (teal/violet), а не губився в ньому */
+  .matrix-grid .mcell.cell-zeroing{
+    background:#7A1F15!important; color:#fff!important; font-weight:700;
+    border-color:#4A120C!important; box-shadow:0 0 0 3px rgba(122,31,21,0.5), 0 0 12px rgba(122,31,21,0.55);
+    animation:cellZeroPulse 1s ease-in-out infinite;
+    z-index:2;
+  }
+  @keyframes cellZeroPulse{ 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.28);} }
 
   @keyframes rowFlash{ 0%{filter:brightness(1);} 45%{filter:brightness(1.35);} 100%{filter:brightness(1);} }
-  table.matrix tr.row-flash td{animation:rowFlash .55s ease;}
+  .matrix-grid .mrow.row-flash .mcell{animation:rowFlash .55s ease;}
+
+  /* рядок-копія: звичайний рядок потоку (FLIP-анімація позиції працює як для будь-якого іншого
+     рядка), але з від'ємним верхнім відступом — він "накладається" на ~20% висоти сусіднього
+     рядка (над яким його щойно поставили), тому займає в сітці лише ~80% повноцінного рядка. */
+  .matrix-grid .mrow.ghost-row{
+    margin-top:-10px; opacity:0.88; position:relative; z-index:3;
+  }
+  .matrix-grid .mrow.ghost-row .mcell{
+    background:var(--violet-bg); border:1.5px dashed var(--violet); color:#4d2e6b; font-style:italic;
+  }
+  .matrix-grid .mrow.ghost-row .mcell.row-label{
+    width:auto; min-width:30px; flex-shrink:0; white-space:nowrap; padding:0 3px;
+    background:transparent; border:none; font-style:normal; font-size:0.66rem; font-weight:600; color:#4d2e6b;
+  }
+
+  /* рядок-індикатор віднімання: короткий "місток" зі стрілкою вниз і знаком мінус,
+     з'являється на мить у кроці subtract, показуючи, що копія щойно "втягнулась" у цільовий рядок */
+  .matrix-grid .mrow.minus-row{ margin-top:-8px; margin-bottom:-2px; z-index:4; pointer-events:none; }
+  .matrix-grid .mrow.minus-row .mcell{
+    height:22px; background:transparent; border:none;
+  }
+  .matrix-grid .mrow.minus-row .minus-badge{
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    width:100%; height:100%; border-radius:6px;
+    background:var(--brick-bg); border:1.5px solid var(--brick); color:var(--brick);
+    font-family:'JetBrains Mono'; font-weight:700; font-size:0.85rem;
+  }
+  .matrix-grid .mrow.minus-row .minus-badge .arrow{font-size:0.75rem; line-height:1;}
 
   .frac{display:inline-flex; flex-direction:column; align-items:center; line-height:1; font-size:0.8rem; vertical-align:middle;}
   .frac .fnum{padding-bottom:1px; border-bottom:1.5px solid currentColor;}
@@ -206,7 +246,7 @@
       <div>
         <div class="stage">
           <div class="desc-line" id="t1-desc"></div>
-          <div class="matrix-scroll"><table class="matrix" id="t1-matrix"></table></div>
+          <div class="matrix-scroll"><div class="matrix-grid" id="t1-matrix"></div></div>
         </div>
         <div class="controls" id="t1-controls"></div>
       </div>
@@ -239,7 +279,7 @@
       <div>
         <div class="stage">
           <div class="desc-line" id="t2det-desc"></div>
-          <div class="matrix-scroll"><table class="matrix" id="t2det-matrix"></table></div>
+          <div class="matrix-scroll"><div class="matrix-grid" id="t2det-matrix"></div></div>
         </div>
         <div class="controls" id="t2det-controls"></div>
       </div>
@@ -255,7 +295,7 @@
       <div>
         <div class="stage">
           <div class="desc-line" id="t2inv-desc"></div>
-          <div class="matrix-scroll"><table class="matrix" id="t2inv-matrix"></table></div>
+          <div class="matrix-scroll"><div class="matrix-grid" id="t2inv-matrix"></div></div>
         </div>
         <div class="controls" id="t2inv-controls"></div>
       </div>
@@ -282,7 +322,7 @@
 
     <div class="stage">
       <div class="desc-line" id="t3p-desc"></div>
-      <div class="matrix-scroll"><table class="matrix" id="t3p-matrix"></table></div>
+      <div class="matrix-scroll"><div class="matrix-grid" id="t3p-matrix"></div></div>
     </div>
     <div class="controls" id="t3p-controls"></div>
 
@@ -305,14 +345,14 @@
         <h3>Без вибору головного елемента <span class="badge err" id="t3-badge-no"></span></h3>
         <div class="stage">
           <div class="desc-line" id="t3no-desc" style="min-height:60px;"></div>
-          <div class="matrix-scroll"><table class="matrix matrix2" id="t3no-matrix"></table></div>
+          <div class="matrix-scroll"><div class="matrix-grid matrix2" id="t3no-matrix"></div></div>
         </div>
       </div>
       <div class="duo-col pivot">
         <h3>З вибором головного елемента <span class="badge ok" id="t3-badge-yes"></span></h3>
         <div class="stage">
           <div class="desc-line" id="t3yes-desc" style="min-height:60px;"></div>
-          <div class="matrix-scroll"><table class="matrix matrix2" id="t3yes-matrix"></table></div>
+          <div class="matrix-scroll"><div class="matrix-grid matrix2" id="t3yes-matrix"></div></div>
         </div>
       </div>
     </div>
@@ -364,26 +404,34 @@ function $(sel, ctx){ return (ctx||document).querySelector(sel); }
 function $all(sel, ctx){ return Array.from((ctx||document).querySelectorAll(sel)); }
 
 /* =========================================================================
-   Генератор FLIP-анімації для рядків таблиці-матриці.
+   Генератор FLIP-анімації для рядків div-матриці. Рядок-копія (ghost)
+   вбудований у той самий список як звичайний рядок зі стабільним ключем
+   'ghost' — тому та сама FLIP-логіка коректно анімує його переміщення
+   від ведучого рядка до цільового (a не через окрему ручну синхронізацію).
    rowSpecs: [{key, rowCls, labelHtml, cells:[{html,cls}]}]
    ========================================================================= */
-function renderMatrixRows(tableEl, rowSpecs){
+function renderMatrixGrid(containerEl, rowSpecs){
+  let mrowsEl = containerEl.querySelector(':scope > .mrows');
+  if (!mrowsEl){
+    containerEl.innerHTML = '<div class="mrows"></div>';
+    mrowsEl = containerEl.querySelector(':scope > .mrows');
+  }
   const keys = rowSpecs.map(r=>r.key);
   const firsts = {};
   keys.forEach(k=>{
-    const r = tableEl.querySelector(`tr[data-key="${k}"]`);
+    const r = mrowsEl.querySelector(`.mrow[data-key="${k}"]`);
     if (r) firsts[k] = r.getBoundingClientRect();
   });
   let html = '';
   rowSpecs.forEach(spec=>{
-    html += `<tr data-key="${spec.key}" class="${spec.rowCls||''}">`;
-    html += `<td class="row-label">${spec.labelHtml||''}</td>`;
-    spec.cells.forEach(c=>{ html += `<td class="${c.cls||''}">${c.html}</td>`; });
-    html += `</tr>`;
+    html += `<div class="mrow ${spec.rowCls||''}" data-key="${spec.key}">`;
+    html += `<div class="mcell row-label">${spec.labelHtml||''}</div>`;
+    spec.cells.forEach(c=>{ html += `<div class="mcell ${c.cls||''}">${c.html}</div>`; });
+    html += `</div>`;
   });
-  tableEl.innerHTML = html;
+  mrowsEl.innerHTML = html;
   keys.forEach(k=>{
-    const r = tableEl.querySelector(`tr[data-key="${k}"]`);
+    const r = mrowsEl.querySelector(`.mrow[data-key="${k}"]`);
     if (!r) return;
     if (firsts[k]){
       const last = r.getBoundingClientRect();
@@ -401,7 +449,7 @@ function renderMatrixRows(tableEl, rowSpecs){
       r.style.opacity = '0';
       requestAnimationFrame(()=>{
         r.style.transition = 'opacity 260ms ease';
-        r.style.opacity = '1';
+        r.style.opacity = k==='ghost' ? '0.88' : '1';
       });
     }
   });
@@ -501,6 +549,26 @@ function buildForwardEliminationSteps(rowsIn, opts={}){
           desc:`Найбільший за модулем елемент уже стоїть у ведучій позиції — перестановка не потрібна.` });
       }
     }
+    /* Окремий випадок: у ведучій позиції — нуль. У режимах без (повного) вибору
+       головного елемента звичайний порядок рядків міг лишити 0 на діагоналі —
+       ділити на нього не можна. Шукаємо нижче непорожній елемент і виконуємо
+       вимушену (аварійну) перестановку; якщо весь стовпець нижче теж нульовий —
+       ділити нема на що, і цей стовпець просто пропускаємо. */
+    if (!pivoting && p < n-1 && M[p][p].isZero()){
+      let swapRow = -1;
+      for (let r=p+1;r<n;r++){ if (!M[r][p].isZero()){ swapRow = r; break; } }
+      if (swapRow !== -1){
+        [M[p], M[swapRow]] = [M[swapRow], M[p]];
+        [order[p], order[swapRow]] = [order[swapRow], order[p]];
+        steps.push({ type:'zero-pivot-swap', matrix:cloneMatrix(M), rowOrder:[...order], rowA:p, rowB:swapRow, pivotRow:p,
+          desc:`Ведучий елемент a${p+1}${p+1} дорівнює 0 — ділити на нуль не можна. Навіть без вибору головного елемента тут потрібна вимушена (аварійна) перестановка рядків R${order[swapRow]+1} ↔ R${order[p]+1}, інакше метод не спрацює.` });
+      } else {
+        steps.push({ type:'zero-column', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p,
+          desc:`Ведучий елемент a${p+1}${p+1} і всі елементи під ним у стовпці ${p+1} дорівнюють нулю — стовпець уже занулений, ділити нема на що. Пропускаємо його й переходимо до наступного.` });
+        continue;
+      }
+    }
+
     if (p < n-1){
       steps.push({ type:'pivot-announce', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, pivotCol:p,
         desc:`Ведучий елемент: a${p+1}${p+1} = <span class="tag">${M[p][p]}</span>.` });
@@ -540,6 +608,20 @@ function buildGaussJordanSteps(rowsIn){
   const order = M.map((_,i)=>i);
   steps.push({ type:'init', matrix:cloneMatrix(M), rowOrder:[...order], desc:'Утворюємо розширену матрицю <span class="tag">[A | E]</span>.' });
   for (let p=0;p<n;p++){
+    if (M[p][p].isZero()){
+      let swapRow = -1;
+      for (let r=p+1;r<n;r++){ if (!M[r][p].isZero()){ swapRow = r; break; } }
+      if (swapRow !== -1){
+        [M[p], M[swapRow]] = [M[swapRow], M[p]];
+        [order[p], order[swapRow]] = [order[swapRow], order[p]];
+        steps.push({ type:'zero-pivot-swap', matrix:cloneMatrix(M), rowOrder:[...order], rowA:p, rowB:swapRow, pivotRow:p,
+          desc:`Ведучий елемент a${p+1}${p+1} дорівнює 0 — ділити на нуль не можна. Виконуємо вимушену (аварійну) перестановку рядків R${p+1} ↔ R${swapRow+1}, інакше метод не спрацює.` });
+      } else {
+        steps.push({ type:'zero-column', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p,
+          desc:`Ведучий елемент a${p+1}${p+1} і всі елементи під ним у стовпці ${p+1} дорівнюють нулю — матриця вироджена, обернену матрицю цим методом знайти не вдасться.` });
+        continue;
+      }
+    }
     const pv = M[p][p];
     if (!pv.isOne()){
       M[p] = M[p].map(v=> v.div(pv));
@@ -583,14 +665,14 @@ function buildEliminationRowSpecs(step, n, colsTotal, opts={}){
     const origId = order[pos];
     const r = pos;
     let rowCls = [];
-    if (['pivot-announce','divide','move','scale','subtract','skip','normalize'].includes(step.type) && r===step.pivotRow) rowCls.push('row-pivot');
+    if (['pivot-announce','divide','move','scale','subtract','skip','normalize','zero-column'].includes(step.type) && r===step.pivotRow) rowCls.push('row-pivot');
     if (['divide','move','scale','subtract','skip'].includes(step.type) && r===step.targetRow) rowCls.push('row-active');
     if (step.type==='subtract' && r===step.targetRow) rowCls.push('row-flash');
     if (step.type==='compare'){
       if (r===step.winner) rowCls.push('row-compare-winner');
       else if (step.candidates.some(c=>c.r===r)) rowCls.push('row-compare');
     }
-    if (step.type==='swap' && (r===step.rowA || r===step.rowB)) rowCls.push('row-swapping');
+    if ((step.type==='swap' || step.type==='zero-pivot-swap') && (r===step.rowA || r===step.rowB)) rowCls.push('row-swapping');
     if (step.type==='done' || step.type==='result') rowCls.push('row-solved');
     const cells = [];
     for (let c=0;c<colsTotal;c++){
@@ -599,6 +681,8 @@ function buildEliminationRowSpecs(step, n, colsTotal, opts={}){
       if (opts.identityFrom!==undefined && c>=opts.identityFrom) cls.push('col-identity');
       if (step.type==='pivot-announce' && r===step.pivotRow && c===step.pivotCol) cls.push('cell-pivot');
       if (step.type==='result' && r===c) cls.push('cell-pivot');
+      /* елемент, який саме зануляється у цьому кроці — виділяємо насиченим кольором */
+      if (['move','scale','subtract'].includes(step.type) && r===step.targetRow && c===step.pivotRow) cls.push('cell-zeroing');
       cells.push({ html: M[r][c].toHTML(), cls: cls.join(' ') });
     }
     specs.push({ key:'id'+origId, rowCls:rowCls.join(' '), labelHtml:`R${origId+1}`, cells });
@@ -611,13 +695,29 @@ function buildEliminationRowSpecs(step, n, colsTotal, opts={}){
       return { html:v.toHTML(), cls:cls.join(' ') };
     });
     const label = step.type==='divide' ? 'копія' : (step.type==='move' ? 'копія' : `копія·${step.coef}`);
+    /* копію завжди ставимо одразу під тим рядком, до якого вона зараз "прив'язана":
+       на divide — під ведучим (щойно скопійований), на move/scale — під цільовим
+       (уже перенесена і про неї йде мова). FLIP-ключ 'ghost' лишається тим самим,
+       тому перехід між цими двома позиціями анімується як плавне ковзання. */
     const insertAfterPos = step.type==='divide' ? step.pivotRow : step.targetRow;
     specs.splice(insertAfterPos+1, 0, { key:'ghost', rowCls:'ghost-row', labelHtml:label, cells:ghostCells });
+    /* на кроці scale копія вже домножена й стоїть точнісінько під цільовим рядком —
+       саме тут (за крок до фактичного subtract) показуємо підказку "−" між ними,
+       щоб було видно, які саме два рядки зараз віднімаються один від одного. */
+    if (step.type==='scale'){
+      const arrowCells = Array.from({length:colsTotal}, (_,c)=>{
+        let cls = [];
+        if (opts.sepAt!==undefined && c===opts.sepAt) cls.push('sep-left');
+        if (opts.identityFrom!==undefined && c>=opts.identityFrom) cls.push('col-identity');
+        return { html: c===0 ? `<span class="minus-badge"><span class="arrow">↓</span>−</span>` : '', cls: cls.join(' ') };
+      });
+      specs.splice(insertAfterPos+1, 0, { key:'minus-op', rowCls:'ghost-row minus-row', labelHtml:'', cells:arrowCells });
+    }
   }
   return specs;
 }
-function renderEliminationStep(tableEl, step, n, colsTotal, opts={}){
-  renderMatrixRows(tableEl, buildEliminationRowSpecs(step, n, colsTotal, opts));
+function renderEliminationStep(containerEl, step, n, colsTotal, opts={}){
+  renderMatrixGrid(containerEl, buildEliminationRowSpecs(step, n, colsTotal, opts));
 }
 
 /* =========================================================================
@@ -666,7 +766,7 @@ function renderT1Matrix(tableEl, step){
       }
       specs.push({ key:'id'+r, rowCls:rowCls.join(' '), labelHtml:`R${r+1}`, cells });
     }
-    renderMatrixRows(tableEl, specs);
+    renderMatrixGrid(tableEl, specs);
   } else {
     renderEliminationStep(tableEl, step, 4, 5, { sepAt:4 });
   }
@@ -872,7 +972,7 @@ function renderT3Matrix(tableEl, step){
       }
       specs.push({ key:'id'+origId, rowCls:rowCls.join(' '), labelHtml:`R${origId+1}`, cells });
     }
-    renderMatrixRows(tableEl, specs);
+    renderMatrixGrid(tableEl, specs);
   } else {
     renderEliminationStep(tableEl, step, 2, 3, { sepAt:2 });
   }
