@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>метод Гаусса</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --paper:#F7F4EC;
+    --paper-line:#E7E1D0;
+    --ink:#232323;
+    --ink-soft:#6B6459;
+    --gold:#C08A2E;
+    --gold-bg:#F3E3C2;
+    --teal:#2F6F62;
+    --teal-bg:#DCEBE6;
+    --brick:#B23A2E;
+    --brick-bg:#F6DEDA;
+    --violet:#7A4FA0;
+    --violet-bg:#EFE6F7;
+    --blue:#3E6C96;
+    --blue-bg:#E4EDF5;
+    --border:#D8D1BE;
+    --card:#FFFDF8;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 34px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; margin:0; font-weight:600;}
+  .page-title{font-size:2rem; letter-spacing:-0.01em;}
+  .page-sub{color:var(--ink-soft); margin-top:6px; max-width:64ch; font-size:0.98rem;}
+
+  .num, .mono{font-family:'JetBrains Mono','SFMono-Regular',Menlo,monospace; font-variant-numeric:tabular-nums;}
+
+  /* ---------- Tabs (fixed connective border) ---------- */
+  .tabbar{display:flex; gap:4px; border-bottom:2px solid var(--ink); flex-wrap:wrap; align-items:flex-end;}
+  .tabbtn{
+    font-family:'Fraunces',Georgia,serif; font-size:1.02rem; font-weight:600;
+    background:var(--paper); border:2px solid var(--ink); border-bottom:2px solid var(--ink);
+    border-radius:8px 8px 0 0; padding:10px 20px; cursor:pointer; color:var(--ink-soft);
+    margin-bottom:-2px; transition:color .15s ease, background .15s ease;
+  }
+  .tabbtn:hover{color:var(--ink);}
+  .tabbtn.active{background:var(--card); color:var(--ink); border-bottom-color:var(--card);}
+  .tabpanel{display:none; background:var(--card); border:2px solid var(--ink); border-top:none; border-radius:0 0 10px 10px; padding:26px 26px 30px;}
+  .tabpanel.active{display:block;}
+
+  /* ---------- Cards / sections ---------- */
+  .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin:18px 0;}
+  .note{font-size:0.92rem; color:var(--ink-soft);}
+  .section-title{font-size:1.15rem; margin-bottom:8px;}
+  hr.divider{border:none; border-top:2px dashed var(--border); margin:32px 0;}
+
+  /* ---------- Preset row ---------- */
+  .presets{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0 6px;}
+  .preset-btn{
+    font-family:'Inter'; font-size:0.85rem; padding:6px 13px; border-radius:20px;
+    border:1.5px solid var(--border); background:var(--paper); cursor:pointer; color:var(--ink-soft);
+  }
+  .preset-btn.active{border-color:var(--gold); background:var(--gold-bg); color:var(--ink); font-weight:600;}
+
+  /* ---------- Matrix ---------- */
+  .stage{display:flex; flex-direction:column; align-items:center; gap:14px; margin:18px 0;}
+  .desc-line{
+    min-height:48px; display:flex; align-items:center; justify-content:center; text-align:center;
+    font-size:1.02rem; padding:0 12px; max-width:74ch;
+  }
+  .desc-line .tag{
+    display:inline-block; background:var(--gold-bg); color:#7a5416; border-radius:6px; padding:1px 8px;
+    font-family:'JetBrains Mono'; font-size:0.85rem; margin:0 3px;
+  }
+  .desc-line .tag.violet{background:var(--violet-bg); color:#4d2e6b;}
+  table.matrix{border-collapse:separate; border-spacing:5px;}
+  table.matrix td{
+    width:60px; height:50px; text-align:center; vertical-align:middle;
+    font-family:'JetBrains Mono'; font-size:1.02rem;
+    background:#fff; border:1.5px solid var(--border); border-radius:7px;
+    transition:background .3s ease, border-color .3s ease;
+    position:relative;
+  }
+  table.matrix td.row-label{
+    width:30px; background:transparent; border:none; color:var(--ink-soft); font-size:0.82rem; font-weight:600;
+  }
+  table.matrix td.sep-left{border-left:3px solid var(--ink);}
+  table.matrix tr.row-pivot td:not(.row-label){background:var(--gold-bg); border-color:var(--gold);}
+  table.matrix td.cell-pivot{background:var(--gold)!important; color:#fff; font-weight:700; border-color:#8a631d!important;}
+  table.matrix tr.row-active td:not(.row-label){background:var(--teal-bg); border-color:var(--teal);}
+  table.matrix tr.row-solved td:not(.row-label){background:#eef1e9; color:#7b8073;}
+  table.matrix tr.row-compare td:not(.row-label){background:var(--blue-bg); border-color:var(--blue);}
+  table.matrix tr.row-compare-winner td:not(.row-label){background:var(--gold-bg); border-color:var(--gold); box-shadow:inset 0 0 0 2px var(--gold);}
+  table.matrix tr.row-swapping td:not(.row-label){background:var(--violet-bg); border-color:var(--violet);}
+  table.matrix td.col-identity{background:#FBF9F3;}
+  table.matrix tr.ghost-row td{background:var(--violet-bg)!important; border:1.5px dashed var(--violet)!important; color:#4d2e6b; font-style:italic;}
+  table.matrix tr.ghost-row td.row-label{font-style:normal; font-size:0.72rem;}
+  table.matrix tr{transition:transform .1s linear;}
+
+  @keyframes rowFlash{ 0%{filter:brightness(1);} 45%{filter:brightness(1.35);} 100%{filter:brightness(1);} }
+  table.matrix tr.row-flash td{animation:rowFlash .55s ease;}
+
+  .frac{display:inline-flex; flex-direction:column; align-items:center; line-height:1; font-size:0.8rem; vertical-align:middle;}
+  .frac .fnum{padding-bottom:1px; border-bottom:1.5px solid currentColor;}
+  .frac .fden{padding-top:1px;}
+  .fracminus{display:inline-block; margin-right:2px; vertical-align:middle;}
+
+  .matrix-scroll{max-width:100%; overflow-x:auto; padding:6px 4px 10px;}
+
+  /* ---------- Controls ---------- */
+  .controls{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:4px;}
+  .ctrl-btn{
+    font-family:'Inter'; font-weight:600; font-size:0.9rem; padding:8px 16px; border-radius:8px;
+    border:2px solid var(--ink); background:#fff; cursor:pointer; color:var(--ink);
+  }
+  .ctrl-btn:hover{background:var(--ink); color:#fff;}
+  .ctrl-btn:disabled{opacity:0.35; cursor:not-allowed;}
+  .ctrl-btn:disabled:hover{background:#fff; color:var(--ink);}
+  .ctrl-btn.primary{background:var(--teal); border-color:var(--teal); color:#fff;}
+  .ctrl-btn.primary:hover{background:#255349;}
+  .speed-wrap{display:flex; align-items:center; gap:6px; font-size:0.83rem; color:var(--ink-soft);}
+  input[type=range]{accent-color:var(--teal);}
+  .step-progress{font-size:0.82rem; color:var(--ink-soft); font-family:'JetBrains Mono';}
+
+  /* ---------- Log ---------- */
+  .log{max-height:260px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:10px 14px; background:#FCFAF4;}
+  .log-item{font-size:0.85rem; padding:5px 0; border-bottom:1px dashed var(--border); color:var(--ink-soft);}
+  .log-item:last-child{border-bottom:none; color:var(--ink); font-weight:600;}
+  .log-item .idx{font-family:'JetBrains Mono'; margin-right:6px; color:var(--gold);}
+
+  .grid2{display:grid; grid-template-columns:1.5fr 1fr; gap:22px;}
+  @media (max-width:760px){ .grid2{grid-template-columns:1fr;} }
+
+  .solution-panel{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .sol-chip{
+    font-family:'JetBrains Mono'; background:#fff; border:1.5px solid var(--border); border-radius:8px;
+    padding:8px 14px; font-size:0.95rem; min-width:64px; text-align:center; transition:all .3s ease;
+  }
+  .sol-chip.found{border-color:var(--teal); background:var(--teal-bg); font-weight:700;}
+
+  /* ---------- Legend ---------- */
+  .legend{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; font-size:0.8rem; color:var(--ink-soft); margin-top:2px;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend i{width:12px; height:12px; border-radius:3px; display:inline-block; border:1.5px solid;}
+  .legend i.lg-pivot{background:var(--gold-bg); border-color:var(--gold);}
+  .legend i.lg-active{background:var(--teal-bg); border-color:var(--teal);}
+  .legend i.lg-ghost{background:var(--violet-bg); border-color:var(--violet); border-style:dashed;}
+  .legend i.lg-compare{background:var(--blue-bg); border-color:var(--blue);}
+
+  /* ---------- Tab3 specific ---------- */
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:700px){ .duo{grid-template-columns:1fr;} }
+  .duo-col{border-radius:10px; padding:14px; border:2px solid var(--border);}
+  .duo-col.nopivot{border-color:var(--brick); background:#FEF9F7;}
+  .duo-col.pivot{border-color:var(--teal); background:#F8FCFA;}
+  .duo-col h3{font-size:1rem; margin-bottom:8px;}
+  .duo-col .desc-line{display:block; text-align:left; max-width:100%; font-size:0.94rem; padding:4px 2px; min-height:0;}
+  .duo-col .desc-line .mono{white-space:nowrap;}
+  table.matrix2 td{width:64px;}
+  .badge{display:inline-block; font-size:0.78rem; font-family:'JetBrains Mono'; padding:2px 8px; border-radius:12px; margin-left:6px;}
+  .badge.err{background:var(--brick-bg); color:var(--brick); font-weight:700;}
+  .badge.ok{background:var(--teal-bg); color:var(--teal); font-weight:700;}
+
+  footer.credit{text-align:center; color:var(--ink-soft); font-size:0.8rem; margin-top:34px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1 class="page-title">Метод Гаусса</h1>
+
+  </header>
+
+  <nav class="tabbar">
+    <button class="tabbtn active" data-tab="t1">1 · СЛАР</button>
+    <button class="tabbtn" data-tab="t2">2 · Обернена матриця і визначник</button>
+    <button class="tabbtn" data-tab="t3">3 · Вибір головного елемента</button>
+  </nav>
+
+  <!-- ======================= TAB 1 ======================= -->
+  <section class="tabpanel active" id="t1">
+    <h2 class="section-title">Розв'язання СЛАР методом Гаусса</h2>
+    <p class="note">Система 4×4. Кожне занулення показано в чотири етапи: беремо копію ведучого рядка → ділимо її на ведучий елемент → переносимо копію до потрібного рядка → домножуємо на потрібний коефіцієнт → віднімаємо. Усі числа — точні дроби.</p>
+
+    <div class="legend">
+      <span><i class="lg-pivot"></i>ведучий рядок</span>
+      <span><i class="lg-active"></i>рядок, що змінюється</span>
+      <span><i class="lg-ghost"></i>тимчасова копія</span>
+    </div>
+
+    <div class="presets" id="t1-presets"></div>
+
+    <div class="grid2">
+      <div>
+        <div class="stage">
+          <div class="desc-line" id="t1-desc"></div>
+          <div class="matrix-scroll"><table class="matrix" id="t1-matrix"></table></div>
+        </div>
+        <div class="controls" id="t1-controls"></div>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:8px;">Журнал кроків</h3>
+        <div class="log" id="t1-log"></div>
+        <h3 style="font-size:0.95rem;margin:16px 0 8px;">Знайдені невідомі</h3>
+        <div class="solution-panel" id="t1-solution"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= TAB 2 ======================= -->
+  <section class="tabpanel" id="t2">
+    <h2 class="section-title">Визначник та обернена матриця</h2>
+    <div class="card">
+      <p style="margin:0 0 8px;">Класичний спосіб знайти обернену матрицю — через матрицю <b>алгебраїчних доповнень</b>: кожен елемент обчислюється як мінор (визначник підматриці (n−1)×(n−1)) зі знаком. Але сам визначник (n−1)×(n−1) знову розкладається через (n−2) мінорів, і так далі рекурсивно. У підсумку для n×n матриці знадобиться порядку <span class="mono">n!</span> елементарних множень — уже для 10×10 це 10! = 3 628 800 операцій.</p>
+      <p style="margin:0;">Метод Гаусса натомість не розкладає нічого рекурсивно: він просто виконує n <b>стадій</b> елімінації, і на кожній стадії оновлює приблизно n² чисел (усі рядки й стовпці, що лишились). Разом це n · n² = <span class="mono">n³</span> дій — для 10×10 це лише 1000 операцій. Різниця між n! і n³ росте настільки швидко, що вже для матриць 15×15 метод мінорів практично неможливо порахувати навіть на комп'ютері, тоді як Гаусс впорається миттєво.</p>
+    </div>
+
+    <div class="presets" id="t2-presets"></div>
+
+    <h3 style="margin:22px 0 4px;font-size:1.05rem;">Крок 1. Визначник через приведення до трикутного вигляду</h3>
+    <p class="note">det(A) без розкладу за мінорами: приводимо матрицю до верхньотрикутної методом Гаусса (без перестановок — вони тут не знадобляться), тоді визначник — добуток елементів головної діагоналі.</p>
+    <div class="card" style="background:var(--blue-bg); border-color:var(--blue);">
+      <p style="margin:0 0 6px;"><b>Важливо для визначника:</b> дія «R<sub>i</sub> := R<sub>i</sub> − m · R<sub>j</sub>» (те саме занулення, яке ми тут робимо) <b>не змінює визначник</b> — на відміну від простого множення рядка на число (яке множить і визначник на те саме число). А от <b>перестановка двох рядків змінює знак визначника</b> на протилежний.</p>
+      <p style="margin:0;">Тому в цьому кроці ми навмисно обійшлись без перестановок (елемент завжди можна занулити без свопу) — інакше довелося б додатково стежити за кількістю перестановок і домножувати результат на (−1) за кожну з них. Саме це — головна причина, чому <b>вибір головного елемента</b> (вкладка 3) трохи ускладнює обчислення визначника, хоч і рятує точність розв'язку систем.</p>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="stage">
+          <div class="desc-line" id="t2det-desc"></div>
+          <div class="matrix-scroll"><table class="matrix" id="t2det-matrix"></table></div>
+        </div>
+        <div class="controls" id="t2det-controls"></div>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:8px;">Журнал кроків</h3>
+        <div class="log" id="t2det-log"></div>
+      </div>
+    </div>
+
+    <h3 style="margin:26px 0 4px;font-size:1.05rem;">Крок 2. Обернена матриця методом Гаусса–Жордана</h3>
+    <p class="note">Дописуємо праворуч одиничну матрицю E: <span class="mono">[A | E]</span>. На кожній стадії нормуємо ведучий рядок до 1, а тоді для кожного іншого рядка (і вище, і нижче!) виконуємо ту саму дію копіювання-перенесення-множення-віднімання. Коли ліва частина стане одиничною — права стане <span class="mono">A⁻¹</span>.</p>
+    <div class="grid2">
+      <div>
+        <div class="stage">
+          <div class="desc-line" id="t2inv-desc"></div>
+          <div class="matrix-scroll"><table class="matrix" id="t2inv-matrix"></table></div>
+        </div>
+        <div class="controls" id="t2inv-controls"></div>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:8px;">Журнал кроків</h3>
+        <div class="log" id="t2inv-log"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= TAB 3 ======================= -->
+  <section class="tabpanel" id="t3">
+    <h2 class="section-title">Вибір головного елемента</h2>
+
+    <h3 style="font-size:1.05rem;margin:4px 0;">Частина 1. Сам принцип</h3>
+    <p class="note">На кожній стадії елімінації дивимось не лише на елемент, що "мав би" бути ведучим за порядком, а на всі елементи цього стовпця нижче (включно з ним) — і обираємо той, що <b>найбільший за модулем</b>. Якщо це не поточний рядок — міняємо рядки місцями. Демонстрація на матриці 3×3.</p>
+
+    <div class="legend">
+      <span><i class="lg-compare"></i>кандидати на роль ведучого</span>
+      <span><i class="lg-pivot"></i>обраний ведучий / переможець</span>
+      <span><i class="lg-active"></i>рядок, що змінюється</span>
+      <span><i class="lg-ghost"></i>тимчасова копія</span>
+    </div>
+
+    <div class="stage">
+      <div class="desc-line" id="t3p-desc"></div>
+      <div class="matrix-scroll"><table class="matrix" id="t3p-matrix"></table></div>
+    </div>
+    <div class="controls" id="t3p-controls"></div>
+
+    <hr class="divider">
+
+    <h3 style="font-size:1.05rem;margin:4px 0;">Частина 2. Чому це критично: як "вибухає" похибка</h3>
+    <div class="card">
+      <p style="margin:0 0 8px;">Візьмемо систему, де перший коефіцієнт навмисно дуже малий:</p>
+      <p class="mono" style="text-align:center;font-size:1.05rem;margin:10px 0;">0.004·x₁ − 4·x₂ = −3.968 &nbsp;&nbsp;&nbsp; 6·x₁ − 5·x₂ = 43</p>
+      <p style="margin:0;">Точний розв'язок (без жодних округлень): <b>x₁ = 8</b>, <b>x₂ = 1</b>. Нижче — той самий метод Гаусса, виконаний "калькулятором", що після <b>кожної</b> арифметичної дії округлює результат до заданої кількості значущих цифр — так, як реально працює арифметика з обмеженою розрядністю.</p>
+      <p class="note" style="margin-top:8px;">Ведучий елемент першого рядка (0.004) у 1500 разів менший за елемент другого рядка (6) — саме такий "перекіс" і провокує вибух похибки, якщо його проігнорувати. І що менше значущих цифр тримає "калькулятор" — то катастрофічніша похибка.</p>
+    </div>
+
+    <div class="presets" id="t3-presets" style="justify-content:center;">
+      <span class="note" style="margin-right:6px;">Точність обчислень:</span>
+    </div>
+
+    <div class="duo">
+      <div class="duo-col nopivot">
+        <h3>Без вибору головного елемента <span class="badge err" id="t3-badge-no"></span></h3>
+        <div class="stage">
+          <div class="desc-line" id="t3no-desc" style="min-height:60px;"></div>
+          <div class="matrix-scroll"><table class="matrix matrix2" id="t3no-matrix"></table></div>
+        </div>
+      </div>
+      <div class="duo-col pivot">
+        <h3>З вибором головного елемента <span class="badge ok" id="t3-badge-yes"></span></h3>
+        <div class="stage">
+          <div class="desc-line" id="t3yes-desc" style="min-height:60px;"></div>
+          <div class="matrix-scroll"><table class="matrix matrix2" id="t3yes-matrix"></table></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" id="t3-controls" style="margin-top:18px;"></div>
+
+    <div class="card" style="margin-top:22px;">
+      <p style="margin:0;"><b>Важливо:</b> тут точність навмисно занижена (кілька значущих цифр), щоб ефект був видно на маленькій матриці за один крок. У реальних обчисленнях на комп'ютері розрядність значно вища (машинний епсилон ≈ 10⁻¹⁶ для чисел подвійної точності), але при великих системах (сотні й тисячі рівнянь) та довгих ланцюжках операцій ті самі похибки округлення накопичуються — і без вибору головного елемента результат може "вибухнути" так само, тільки непомітно для ока, поки хтось не звірить відповідь.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================================
+   ЗАГАЛЬНЕ: клас точних дробів (BigInt)
+   ========================================================================= */
+class Frac{
+  constructor(n, d=1n){
+    if (typeof n !== 'bigint') n = BigInt(n);
+    if (typeof d !== 'bigint') d = BigInt(d);
+    if (d < 0n){ n = -n; d = -d; }
+    const g = Frac.gcd(n<0n?-n:n, d) || 1n;
+    this.n = n / g; this.d = d / g;
+  }
+  static gcd(a,b){ a = a<0n?-a:a; b = b<0n?-b:b; while(b){ [a,b] = [b, a % b]; } return a; }
+  static from(x){ return x instanceof Frac ? x : new Frac(x); }
+  add(o){ o=Frac.from(o); return new Frac(this.n*o.d + o.n*this.d, this.d*o.d); }
+  sub(o){ o=Frac.from(o); return new Frac(this.n*o.d - o.n*this.d, this.d*o.d); }
+  mul(o){ o=Frac.from(o); return new Frac(this.n*o.n, this.d*o.d); }
+  div(o){ o=Frac.from(o); return new Frac(this.n*o.d, this.d*o.n); }
+  abs(){ return this.n < 0n ? new Frac(-this.n, this.d) : this; }
+  isZero(){ return this.n === 0n; }
+  isOne(){ return this.n === 1n && this.d === 1n; }
+  toString(){ return this.d === 1n ? `${this.n}` : `${this.n}/${this.d}`; }
+  toHTML(){
+    if (this.d === 1n) return `<span class="int">${this.n}</span>`;
+    const neg = this.n < 0n; const nAbs = neg ? -this.n : this.n;
+    return `${neg?'<span class="fracminus">−</span>':''}<span class="frac"><span class="fnum">${nAbs}</span><span class="fden">${this.d}</span></span>`;
+  }
+}
+function fracAbsCmp(a,b){ const aa=a.abs(), bb=b.abs(); const L=aa.n*bb.d, R=bb.n*aa.d; return L>R?1:(L<R?-1:0); }
+function cloneRow(row){ return [...row]; }
+function cloneMatrix(M){ return M.map(cloneRow); }
+function F(x){ return new Frac(x); }
+
+function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+function $(sel, ctx){ return (ctx||document).querySelector(sel); }
+function $all(sel, ctx){ return Array.from((ctx||document).querySelectorAll(sel)); }
+
+/* =========================================================================
+   Генератор FLIP-анімації для рядків таблиці-матриці.
+   rowSpecs: [{key, rowCls, labelHtml, cells:[{html,cls}]}]
+   ========================================================================= */
+function renderMatrixRows(tableEl, rowSpecs){
+  const keys = rowSpecs.map(r=>r.key);
+  const firsts = {};
+  keys.forEach(k=>{
+    const r = tableEl.querySelector(`tr[data-key="${k}"]`);
+    if (r) firsts[k] = r.getBoundingClientRect();
+  });
+  let html = '';
+  rowSpecs.forEach(spec=>{
+    html += `<tr data-key="${spec.key}" class="${spec.rowCls||''}">`;
+    html += `<td class="row-label">${spec.labelHtml||''}</td>`;
+    spec.cells.forEach(c=>{ html += `<td class="${c.cls||''}">${c.html}</td>`; });
+    html += `</tr>`;
+  });
+  tableEl.innerHTML = html;
+  keys.forEach(k=>{
+    const r = tableEl.querySelector(`tr[data-key="${k}"]`);
+    if (!r) return;
+    if (firsts[k]){
+      const last = r.getBoundingClientRect();
+      const dy = firsts[k].top - last.top;
+      if (Math.abs(dy) > 0.5){
+        r.style.transition = 'none';
+        r.style.transform = `translateY(${dy}px)`;
+        r.getBoundingClientRect();
+        requestAnimationFrame(()=>{
+          r.style.transition = 'transform 420ms cubic-bezier(.22,.8,.35,1)';
+          r.style.transform = 'translateY(0)';
+        });
+      }
+    } else {
+      r.style.opacity = '0';
+      requestAnimationFrame(()=>{
+        r.style.transition = 'opacity 260ms ease';
+        r.style.opacity = '1';
+      });
+    }
+  });
+}
+
+/* Reusable step-navigation controller. */
+function makeStepper(steps, renderFn, controlsContainer){
+  let idx = 0;
+  let timer = null;
+
+  const prevBtn = el(`<button class="ctrl-btn" title="Попередній крок">← Назад</button>`);
+  const nextBtn = el(`<button class="ctrl-btn primary" title="Наступний крок">Далі →</button>`);
+  const playBtn = el(`<button class="ctrl-btn" title="Автоматичне відтворення">▶ Авто</button>`);
+  const resetBtn = el(`<button class="ctrl-btn" title="Спочатку">⟲ Спочатку</button>`);
+  const progress = el(`<span class="step-progress"></span>`);
+  const speedWrap = el(`<span class="speed-wrap">Швидкість <input type="range" min="0" max="2" step="1" value="1"><span class="speed-label">звичайна</span></span>`);
+  const speedInput = $('input', speedWrap);
+  const speedLabel = $('.speed-label', speedWrap);
+  const speedNames = ['повільна','звичайна','швидка'];
+  const speedMs = [1500, 850, 420];
+
+  function updateSpeedLabel(){ speedLabel.textContent = speedNames[+speedInput.value]; }
+  speedInput.addEventListener('input', updateSpeedLabel);
+  updateSpeedLabel();
+
+  function render(){
+    renderFn(steps[idx], idx, steps.length);
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === steps.length - 1;
+    progress.textContent = `Крок ${idx+1} / ${steps.length}`;
+    playBtn.textContent = timer ? '⏸ Пауза' : '▶ Авто';
+    if (idx === steps.length - 1) stopPlay();
+  }
+  function stopPlay(){ if (timer){ clearInterval(timer); timer = null; playBtn.textContent = '▶ Авто'; } }
+  function startPlay(){
+    if (idx === steps.length - 1) idx = 0;
+    timer = setInterval(()=>{
+      if (idx < steps.length - 1){ idx++; render(); } else { stopPlay(); }
+    }, speedMs[+speedInput.value]);
+    playBtn.textContent = '⏸ Пауза';
+  }
+
+  prevBtn.addEventListener('click', ()=>{ stopPlay(); if (idx>0){ idx--; render(); } });
+  nextBtn.addEventListener('click', ()=>{ stopPlay(); if (idx<steps.length-1){ idx++; render(); } });
+  resetBtn.addEventListener('click', ()=>{ stopPlay(); idx = 0; render(); });
+  playBtn.addEventListener('click', ()=>{ timer ? stopPlay() : startPlay(); });
+  speedInput.addEventListener('change', ()=>{ if (timer){ stopPlay(); startPlay(); } });
+
+  controlsContainer.innerHTML = '';
+  controlsContainer.append(prevBtn, nextBtn, playBtn, resetBtn, speedWrap, progress);
+  render();
+
+  return { goto(i){ stopPlay(); idx = Math.max(0, Math.min(steps.length-1, i)); render(); }, reset(){ stopPlay(); idx=0; render(); } };
+}
+
+function renderLog(container, steps, uptoIdx){
+  container.innerHTML = '';
+  for (let i=0;i<=uptoIdx;i++){
+    const it = el(`<div class="log-item"><span class="idx">${String(i+1).padStart(2,'0')}</span>${steps[i].desc}</div>`);
+    container.appendChild(it);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+/* =========================================================================
+   ГЕНЕРИК-ДВИГУН: пряма елімінація (з опційним частковим піботингом)
+   Кожне занулення розкладене на 4 підкроки: divide → move → scale → subtract
+   ========================================================================= */
+function buildForwardEliminationSteps(rowsIn, opts={}){
+  const pivoting = !!opts.pivoting;
+  const forceNoSwap = !!opts.forceNoSwap;
+  const cmpAbs = opts.cmpAbs || fracAbsCmp;
+  const n = rowsIn.length;
+  let M = rowsIn.map(r=>[...r]);
+  let order = M.map((_,i)=>i);
+  const steps = [];
+  steps.push({ type:'init', matrix:cloneMatrix(M), rowOrder:[...order], desc: opts.initDesc || 'Початковий стан матриці.' });
+
+  for (let p=0;p<n;p++){
+    if ((pivoting || forceNoSwap) && (n - p) > 1){
+      const candidates = [];
+      for (let r=p;r<n;r++) candidates.push({ r, val:M[r][p] });
+      let winner = candidates[0];
+      for (const c of candidates) if (cmpAbs(c.val, winner.val) > 0) winner = c;
+      steps.push({ type:'compare', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, candidates, winner:winner.r,
+        desc:`Порівнюємо модулі елементів стовпця ${p+1} у рядках ${p+1}…${n}: ${candidates.map(c=>`|${c.val}|`).join(', ')}. Найбільший — у рядку R${order[winner.r]+1}.` });
+      if (winner.r !== p && !forceNoSwap){
+        [M[p], M[winner.r]] = [M[winner.r], M[p]];
+        [order[p], order[winner.r]] = [order[winner.r], order[p]];
+        steps.push({ type:'swap', matrix:cloneMatrix(M), rowOrder:[...order], rowA:p, rowB:winner.r,
+          desc:`Міняємо місцями рядки: тепер найбільший за модулем елемент стоїть у позиції ведучого рядка.` });
+      } else if (winner.r !== p && forceNoSwap){
+        steps.push({ type:'noswap', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p,
+          desc:`Рядок R${order[winner.r]+1} має більший за модулем елемент, але ми (навмисно) НЕ міняємо рядки місцями — природний порядок залишається як є.` });
+      } else {
+        steps.push({ type:'noswap', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p,
+          desc:`Найбільший за модулем елемент уже стоїть у ведучій позиції — перестановка не потрібна.` });
+      }
+    }
+    if (p < n-1){
+      steps.push({ type:'pivot-announce', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, pivotCol:p,
+        desc:`Ведучий елемент: a${p+1}${p+1} = <span class="tag">${M[p][p]}</span>.` });
+    }
+
+    for (let r=p+1;r<n;r++){
+      if (M[r][p].isZero()){
+        steps.push({ type:'skip', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r,
+          desc:`Елемент у рядку R${order[r]+1}, стовпці ${p+1} вже дорівнює 0 — рядок не змінюємо.` });
+        continue;
+      }
+      const normalized = M[p].map(v=> v.div(M[p][p]));
+      steps.push({ type:'divide', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r, ghost:normalized,
+        desc:`Копіюємо ведучий рядок R${order[p]+1} і ділимо кожен елемент на <span class="tag">${M[p][p]}</span> — отримуємо копію з одиничним ведучим елементом.` });
+      steps.push({ type:'move', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r, ghost:normalized,
+        desc:`Переносимо цю копію до рядка R${order[r]+1}, у якому потрібно занулити стовпець ${p+1}.` });
+      const coef = M[r][p];
+      const scaled = normalized.map(v=> v.mul(coef));
+      steps.push({ type:'scale', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r, ghost:scaled, coef,
+        desc:`Домножуємо копію на <span class="tag violet">${coef}</span> — стільки разів ведучий елемент міститься в елементі, який зануляємо.` });
+      M[r] = M[r].map((v,c)=> v.sub(scaled[c]));
+      steps.push({ type:'subtract', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r,
+        desc:`R${order[r]+1} := R${order[r]+1} − копія. Стовпець ${p+1} у цьому рядку тепер 0.` });
+    }
+  }
+  steps.push({ type:'done', matrix:cloneMatrix(M), rowOrder:[...order], desc: opts.doneDesc || 'Матриця приведена до трикутного вигляду.' });
+  return { steps, finalMatrix:M, order };
+}
+
+/* =========================================================================
+   ГЕНЕРИК-ДВИГУН: повний Гаусс–Жордан (для оберненої матриці, без піботингу)
+   ========================================================================= */
+function buildGaussJordanSteps(rowsIn){
+  const n = rowsIn.length;
+  let M = rowsIn.map(r=>[...r]);
+  const steps = [];
+  const order = M.map((_,i)=>i);
+  steps.push({ type:'init', matrix:cloneMatrix(M), rowOrder:[...order], desc:'Утворюємо розширену матрицю <span class="tag">[A | E]</span>.' });
+  for (let p=0;p<n;p++){
+    const pv = M[p][p];
+    if (!pv.isOne()){
+      M[p] = M[p].map(v=> v.div(pv));
+      steps.push({ type:'normalize', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, factor:pv,
+        desc:`Ділимо рядок R${p+1} на <span class="tag">${pv}</span>, щоб ведучий елемент став одиницею.` });
+    } else {
+      steps.push({ type:'pivot-announce', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, pivotCol:p,
+        desc:`Ведучий елемент рядка R${p+1} вже дорівнює 1.` });
+    }
+    for (let r=0;r<n;r++){
+      if (r===p) continue;
+      const coef = M[r][p];
+      if (coef.isZero()){
+        steps.push({ type:'skip', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r,
+          desc:`Елемент у рядку R${r+1}, стовпці ${p+1} вже дорівнює 0 — рядок не змінюємо.` });
+        continue;
+      }
+      steps.push({ type:'move', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r, ghost:M[p],
+        desc:`Переносимо (вже одиничний) ведучий рядок R${p+1} до рядка R${r+1}.` });
+      const scaled = M[p].map(v=> v.mul(coef));
+      steps.push({ type:'scale', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r, ghost:scaled, coef,
+        desc:`Домножуємо копію на <span class="tag violet">${coef}</span> — саме таке значення в a${r+1}${p+1}.` });
+      M[r] = M[r].map((v,c)=> v.sub(scaled[c]));
+      steps.push({ type:'subtract', matrix:cloneMatrix(M), rowOrder:[...order], pivotRow:p, targetRow:r,
+        desc:`R${r+1} := R${r+1} − копія.` });
+    }
+  }
+  steps.push({ type:'done', matrix:cloneMatrix(M), rowOrder:[...order], desc:`Ліва частина стала одиничною ⇒ права частина — це <span class="tag">A⁻¹</span>.` });
+  return steps;
+}
+
+/* =========================================================================
+   Спільний рендер кроку елімінації у таблицю (з рядком-копією та FLIP)
+   opts: { sepAt, identityFrom }
+   ========================================================================= */
+function buildEliminationRowSpecs(step, n, colsTotal, opts={}){
+  const M = step.matrix;
+  const order = step.rowOrder || Array.from({length:n},(_,i)=>i);
+  const specs = [];
+  for (let pos=0; pos<n; pos++){
+    const origId = order[pos];
+    const r = pos;
+    let rowCls = [];
+    if (['pivot-announce','divide','move','scale','subtract','skip','normalize'].includes(step.type) && r===step.pivotRow) rowCls.push('row-pivot');
+    if (['divide','move','scale','subtract','skip'].includes(step.type) && r===step.targetRow) rowCls.push('row-active');
+    if (step.type==='subtract' && r===step.targetRow) rowCls.push('row-flash');
+    if (step.type==='compare'){
+      if (r===step.winner) rowCls.push('row-compare-winner');
+      else if (step.candidates.some(c=>c.r===r)) rowCls.push('row-compare');
+    }
+    if (step.type==='swap' && (r===step.rowA || r===step.rowB)) rowCls.push('row-swapping');
+    if (step.type==='done' || step.type==='result') rowCls.push('row-solved');
+    const cells = [];
+    for (let c=0;c<colsTotal;c++){
+      let cls = [];
+      if (opts.sepAt!==undefined && c===opts.sepAt) cls.push('sep-left');
+      if (opts.identityFrom!==undefined && c>=opts.identityFrom) cls.push('col-identity');
+      if (step.type==='pivot-announce' && r===step.pivotRow && c===step.pivotCol) cls.push('cell-pivot');
+      if (step.type==='result' && r===c) cls.push('cell-pivot');
+      cells.push({ html: M[r][c].toHTML(), cls: cls.join(' ') });
+    }
+    specs.push({ key:'id'+origId, rowCls:rowCls.join(' '), labelHtml:`R${origId+1}`, cells });
+  }
+  if (['divide','move','scale'].includes(step.type) && step.ghost){
+    const ghostCells = step.ghost.map((v,c)=>{
+      let cls = [];
+      if (opts.sepAt!==undefined && c===opts.sepAt) cls.push('sep-left');
+      if (opts.identityFrom!==undefined && c>=opts.identityFrom) cls.push('col-identity');
+      return { html:v.toHTML(), cls:cls.join(' ') };
+    });
+    const label = step.type==='divide' ? 'копія' : (step.type==='move' ? 'копія' : `копія·${step.coef}`);
+    const insertAfterPos = step.type==='divide' ? step.pivotRow : step.targetRow;
+    specs.splice(insertAfterPos+1, 0, { key:'ghost', rowCls:'ghost-row', labelHtml:label, cells:ghostCells });
+  }
+  return specs;
+}
+function renderEliminationStep(tableEl, step, n, colsTotal, opts={}){
+  renderMatrixRows(tableEl, buildEliminationRowSpecs(step, n, colsTotal, opts));
+}
+
+/* =========================================================================
+   ВКЛАДКА 1 — СЛАР методом Гаусса
+   ========================================================================= */
+const T1_PRESETS = [
+  { name:'Приклад А', A:[[2,1,1,1],[4,3,1,4],[6,2,6,3],[2,3,0,7]], b:[5,9,26,10] },
+  { name:'Приклад Б', A:[[1,1,1,1],[2,3,1,2],[1,2,3,1],[3,1,2,4]], b:[10,15,13,20] }
+];
+
+function buildT1Steps(Ain, bin){
+  const n = 4;
+  const rows = Ain.map((row,i)=> [...row.map(F), F(bin[i])]);
+  const { steps, finalMatrix } = buildForwardEliminationSteps(rows, {
+    initDesc:'Початкова розширена матриця системи <span class="tag">[A | b]</span>.',
+    doneDesc:'Матриця приведена до верхньотрикутного вигляду. Починаємо обернений хід.'
+  });
+  const M = finalMatrix;
+  const x = new Array(n);
+  for (let i=n-1;i>=0;i--){
+    let sum = M[i][n];
+    let parts = [];
+    for (let j=i+1;j<n;j++){ sum = sum.sub(M[i][j].mul(x[j])); parts.push(`${M[i][j]}·x${j+1}`); }
+    x[i] = sum.div(M[i][i]);
+    const formula = parts.length
+      ? `x${i+1} = (${M[i][n]} − ${parts.join(' − ')}) / ${M[i][i]} = <span class="tag">${x[i]}</span>`
+      : `x${i+1} = ${M[i][n]} / ${M[i][i]} = <span class="tag">${x[i]}</span>`;
+    steps.push({ type:'backsub', matrix:cloneMatrix(M), rowOrder:[0,1,2,3], varIndex:i, value:x[i], xSoFar:[...x], desc:formula });
+  }
+  steps.push({ type:'solution', matrix:cloneMatrix(M), rowOrder:[0,1,2,3], x, desc:`Розв'язок системи знайдено: ${x.map((xi,i)=>`x${i+1}=${xi}`).join(', ')}.` });
+  return steps;
+}
+
+function renderT1Matrix(tableEl, step){
+  if (step.type==='backsub' || step.type==='solution'){
+    const specs = [];
+    for (let r=0;r<4;r++){
+      let rowCls = [];
+      if (step.type==='backsub' && r===step.varIndex) rowCls.push('row-active');
+      if (step.type==='backsub' && r>step.varIndex) rowCls.push('row-solved');
+      if (step.type==='solution') rowCls.push('row-solved');
+      const cells = [];
+      for (let c=0;c<=4;c++){
+        let cls = c===4 ? ['sep-left'] : [];
+        cells.push({ html: step.matrix[r][c].toHTML(), cls: cls.join(' ') });
+      }
+      specs.push({ key:'id'+r, rowCls:rowCls.join(' '), labelHtml:`R${r+1}`, cells });
+    }
+    renderMatrixRows(tableEl, specs);
+  } else {
+    renderEliminationStep(tableEl, step, 4, 5, { sepAt:4 });
+  }
+}
+
+function renderT1Solution(container, step){
+  const labels = ['x1','x2','x3','x4'];
+  let known = [null,null,null,null];
+  if (step.type === 'backsub') known = step.xSoFar.map(v=> v===undefined? null : v);
+  if (step.type === 'solution') known = step.x;
+  container.innerHTML = labels.map((lab,i)=>{
+    const found = known[i] !== null && known[i] !== undefined;
+    return `<div class="sol-chip${found?' found':''}">${lab} = ${found ? known[i].toString() : '?'}</div>`;
+  }).join('');
+}
+
+function initTab1(){
+  const presetsEl = $('#t1-presets');
+  const matrixEl = $('#t1-matrix');
+  const descEl = $('#t1-desc');
+  const controlsEl = $('#t1-controls');
+  const logEl = $('#t1-log');
+  const solEl = $('#t1-solution');
+
+  function load(presetIdx){
+    $all('.preset-btn', presetsEl).forEach((b,i)=> b.classList.toggle('active', i===presetIdx));
+    const preset = T1_PRESETS[presetIdx];
+    const steps = buildT1Steps(preset.A, preset.b);
+    makeStepper(steps, (step, idx)=>{
+      descEl.innerHTML = step.desc;
+      renderT1Matrix(matrixEl, step);
+      renderLog(logEl, steps, idx);
+      renderT1Solution(solEl, step);
+    }, controlsEl);
+  }
+
+  presetsEl.innerHTML = T1_PRESETS.map((p,i)=>`<button class="preset-btn${i===0?' active':''}" data-i="${i}">${p.name}</button>`).join('');
+  $all('.preset-btn', presetsEl).forEach(btn=> btn.addEventListener('click', ()=> load(+btn.dataset.i)));
+  load(0);
+}
+
+/* =========================================================================
+   ВКЛАДКА 2 — Визначник + Обернена матриця
+   ========================================================================= */
+const T2_PRESETS = [
+  { name:'Приклад А', A:[[2,1,1,1],[4,3,1,4],[6,2,6,3],[2,3,0,7]] },
+  { name:'Приклад Б', A:[[1,1,1,1],[2,3,1,2],[1,2,3,1],[3,1,2,4]] }
+];
+
+function buildT2DetSteps(Ain){
+  const rows = Ain.map(r=>r.map(F));
+  const { steps, finalMatrix } = buildForwardEliminationSteps(rows, {
+    initDesc:'Починаємо з вихідної матриці A.',
+    doneDesc:'Матриця трикутна — обчислюємо добуток діагоналі.'
+  });
+  let det = F(1);
+  for (let i=0;i<finalMatrix.length;i++) det = det.mul(finalMatrix[i][i]);
+  const diag = finalMatrix.map((row,i)=>row[i].toString()).join(' · ');
+  steps.push({ type:'result', matrix:cloneMatrix(finalMatrix), rowOrder:[0,1,2,3],
+    desc:`det(A) = добуток діагоналі = ${diag} = <span class="tag">${det}</span>` });
+  return steps;
+}
+
+function initTab2(){
+  const presetsEl = $('#t2-presets');
+  const detMatrixEl = $('#t2det-matrix');
+  const detDescEl = $('#t2det-desc');
+  const detControlsEl = $('#t2det-controls');
+  const detLogEl = $('#t2det-log');
+
+  const invMatrixEl = $('#t2inv-matrix');
+  const invDescEl = $('#t2inv-desc');
+  const invControlsEl = $('#t2inv-controls');
+  const invLogEl = $('#t2inv-log');
+
+  function load(presetIdx){
+    $all('.preset-btn', presetsEl).forEach((b,i)=> b.classList.toggle('active', i===presetIdx));
+    const A = T2_PRESETS[presetIdx].A;
+
+    const detSteps = buildT2DetSteps(A);
+    makeStepper(detSteps, (step, idx)=>{
+      detDescEl.innerHTML = step.desc;
+      renderEliminationStep(detMatrixEl, step, 4, 4, {});
+      renderLog(detLogEl, detSteps, idx);
+    }, detControlsEl);
+
+    const AF = A.map((row,i)=> [...row.map(F), ...Array.from({length:4},(_,j)=> F(i===j?1:0))]);
+    const invSteps = buildGaussJordanSteps(AF);
+    makeStepper(invSteps, (step, idx)=>{
+      invDescEl.innerHTML = step.desc;
+      renderEliminationStep(invMatrixEl, step, 4, 8, { sepAt:4, identityFrom:4 });
+      renderLog(invLogEl, invSteps, idx);
+    }, invControlsEl);
+  }
+
+  presetsEl.innerHTML = T2_PRESETS.map((p,i)=>`<button class="preset-btn${i===0?' active':''}" data-i="${i}">${p.name}</button>`).join('');
+  $all('.preset-btn', presetsEl).forEach(btn=> btn.addEventListener('click', ()=> load(+btn.dataset.i)));
+  load(0);
+}
+
+/* =========================================================================
+   ВКЛАДКА 3 / ЧАСТИНА 1 — Принцип вибору головного елемента (3×3)
+   ========================================================================= */
+const T3_PIVOT_MATRIX = [[2,[5,2],3],[-2,[1,2],1],[4,1,2]];
+function toFracVal(v){ return Array.isArray(v) ? new Frac(v[0], v[1]) : F(v); }
+
+function initTab3Part1(){
+  const matrixEl = $('#t3p-matrix');
+  const descEl = $('#t3p-desc');
+  const controlsEl = $('#t3p-controls');
+  const rows = T3_PIVOT_MATRIX.map(r=> r.map(toFracVal));
+  const { steps } = buildForwardEliminationSteps(rows, {
+    pivoting:true,
+    initDesc:'Початкова матриця 3×3. Стежимо, який елемент насправді найбільший у кожному стовпці.',
+    doneDesc:'Матриця приведена до трикутного вигляду — і жодного разу не ділили на маленьке число.'
+  });
+  makeStepper(steps, (step)=>{
+    descEl.innerHTML = step.desc;
+    renderEliminationStep(matrixEl, step, 3, 3, {});
+  }, controlsEl);
+}
+
+/* =========================================================================
+   ВКЛАДКА 3 / ЧАСТИНА 2 — Вибух похибки (симуляція обмеженої точності)
+   Використовує той самий generic-двигун buildForwardEliminationSteps,
+   але з "округленими" числами замість точних дробів — тому анімація
+   (копія → перенесення → множення → віднімання, своп рядків) та сама.
+   ========================================================================= */
+const T3_BASE_ROWS = [[0.004, -4, -3.968], [6, -5, 43]];
+const T3_PRECISIONS = [2,3,4];
+
+function roundSig(x, sig){
+  if (x === 0) return 0;
+  const d = Math.ceil(Math.log10(Math.abs(x)));
+  const power = sig - d;
+  const magnitude = Math.pow(10, power);
+  return Math.round(x*magnitude)/magnitude;
+}
+function exactSolve2x2(rows){
+  const [[a11,a12,b1],[a21,a22,b2]] = rows;
+  const det = a11*a22 - a12*a21;
+  return { x1:(b1*a22 - a12*b2)/det, x2:(a11*b2 - b1*a21)/det };
+}
+function fmt(x){
+  if (Object.is(x,-0)) x = 0;
+  return Number(x.toPrecision(10)).toString();
+}
+
+/* "Округлене" число: кожна арифметична дія одразу округлюється до sig значущих цифр —
+   так само, як реальний калькулятор з обмеженою розрядністю. */
+class RNum{
+  constructor(v, sig){ this.v = Object.is(v,-0)?0:v; this.sig = sig; }
+  _r(x){ return roundSig(x, this.sig); }
+  add(o){ return new RNum(this._r(this.v + o.v), this.sig); }
+  sub(o){ return new RNum(this._r(this.v - o.v), this.sig); }
+  mul(o){ return new RNum(this._r(this.v * o.v), this.sig); }
+  div(o){ return new RNum(this._r(this.v / o.v), this.sig); }
+  abs(){ return new RNum(Math.abs(this.v), this.sig); }
+  isZero(){ return this.v === 0; }
+  toString(){ return fmt(this.v); }
+  toHTML(){ return `<span class="mono">${fmt(this.v)}</span>`; }
+}
+function rNumAbsCmp(a,b){ return Math.abs(a.v) - Math.abs(b.v); }
+
+function buildT3Branch(rows, sigDigits, doPivot){
+  const n = 2;
+  const rIn = rows.map(row=> row.map(v=> new RNum(v, sigDigits)));
+  const { steps, finalMatrix, order } = buildForwardEliminationSteps(rIn, {
+    pivoting: doPivot, forceNoSwap: !doPivot, cmpAbs: rNumAbsCmp,
+    initDesc: 'Початковий стан системи.',
+    doneDesc: 'Матриця трикутна — переходимо до оберненого ходу.'
+  });
+  const M = finalMatrix;
+  const x = new Array(n);
+  for (let i=n-1;i>=0;i--){
+    let sum = M[i][n];
+    let parts = [];
+    for (let j=i+1;j<n;j++){ sum = sum.sub(M[i][j].mul(x[j])); parts.push(`${M[i][j]}·x${j+1}`); }
+    x[i] = sum.div(M[i][i]);
+    const formula = parts.length
+      ? `x${i+1} = (${M[i][n]} − ${parts.join(' − ')}) / ${M[i][i]} ≈ <span class="tag">${x[i]}</span>`
+      : `x${i+1} = ${M[i][n]} / ${M[i][i]} ≈ <span class="tag">${x[i]}</span>`;
+    steps.push({ type:'backsub', matrix:cloneMatrix(M), rowOrder:[...order], varIndex:i, x:[...x], desc:formula });
+  }
+  steps.push({ type:'solution', matrix:cloneMatrix(M), rowOrder:[...order], x:[...x],
+    desc:`Розв'язок: x1 ≈ ${x[0]}, x2 ≈ ${x[1]}.` });
+  return steps;
+}
+
+function renderT3Matrix(tableEl, step){
+  if (step.type==='backsub' || step.type==='solution'){
+    const order = step.rowOrder || [0,1];
+    const specs = [];
+    for (let pos=0; pos<2; pos++){
+      const origId = order[pos];
+      let rowCls = [];
+      if (step.type==='backsub' && pos===step.varIndex) rowCls.push('row-active');
+      if (step.type==='backsub' && pos>step.varIndex) rowCls.push('row-solved');
+      if (step.type==='solution') rowCls.push('row-solved');
+      const cells = [];
+      for (let c=0;c<=2;c++){
+        cells.push({ html: step.matrix[pos][c].toHTML(), cls: c===2 ? 'sep-left' : '' });
+      }
+      specs.push({ key:'id'+origId, rowCls:rowCls.join(' '), labelHtml:`R${origId+1}`, cells });
+    }
+    renderMatrixRows(tableEl, specs);
+  } else {
+    renderEliminationStep(tableEl, step, 2, 3, { sepAt:2 });
+  }
+}
+
+function initTab3Part2(){
+  const presetsEl = $('#t3-presets');
+  const noMatrixEl = $('#t3no-matrix'), noDescEl = $('#t3no-desc');
+  const yesMatrixEl = $('#t3yes-matrix'), yesDescEl = $('#t3yes-desc');
+  const badgeNo = $('#t3-badge-no'), badgeYes = $('#t3-badge-yes');
+  const controlsEl = $('#t3-controls');
+  const exact = exactSolve2x2(T3_BASE_ROWS);
+
+  presetsEl.insertAdjacentHTML('beforeend', T3_PRECISIONS.map(d=>`<button class="preset-btn${d===3?' active':''}" data-sig="${d}">${d} значущі цифри</button>`).join(''));
+
+  function loadUnified(sigDigits){
+    $all('.preset-btn', presetsEl).forEach(b=> b.classList.toggle('active', +b.dataset.sig===sigDigits));
+    const noSteps = buildT3Branch(T3_BASE_ROWS, sigDigits, false);
+    const yesSteps = buildT3Branch(T3_BASE_ROWS, sigDigits, true);
+    const len = Math.max(noSteps.length, yesSteps.length);
+    const combined = Array.from({length:len},(_,i)=>i);
+
+    makeStepper(combined, (_, idx)=>{
+      const s1 = noSteps[Math.min(idx, noSteps.length-1)];
+      const s2 = yesSteps[Math.min(idx, yesSteps.length-1)];
+      noDescEl.innerHTML = s1.desc; renderT3Matrix(noMatrixEl, s1);
+      yesDescEl.innerHTML = s2.desc; renderT3Matrix(yesMatrixEl, s2);
+      if (s1.type==='solution' || (s1.type==='backsub' && s1.varIndex===0)){
+        const x1no = s1.x[0].v, x1yes = s2.x[0].v;
+        const re1 = Math.abs((x1no-exact.x1)/exact.x1)*100;
+        badgeNo.textContent = `похибка x₁ ${re1<0.1?'<0.1':re1.toFixed(0)}%`;
+        badgeNo.className = 'badge ' + (re1>5?'err':'ok');
+        const re2 = Math.abs((x1yes-exact.x1)/exact.x1)*100;
+        badgeYes.textContent = `похибка x₁ ${re2<0.1?'<0.1':re2.toFixed(0)}%`;
+        badgeYes.className = 'badge ' + (re2>5?'err':'ok');
+      } else { badgeNo.textContent=''; badgeYes.textContent=''; badgeNo.className='badge'; badgeYes.className='badge'; }
+    }, controlsEl);
+  }
+
+  $all('.preset-btn', presetsEl).forEach(btn=> btn.addEventListener('click', ()=> loadUnified(+btn.dataset.sig)));
+  loadUnified(3);
+}
+
+/* =========================================================================
+   Ініціалізація та перемикання вкладок
+   ========================================================================= */
+initTab1();
+initTab2();
+initTab3Part1();
+initTab3Part2();
+
+$all('.tabbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $all('.tabbtn').forEach(b=>b.classList.remove('active'));
+    $all('.tabpanel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#'+btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
