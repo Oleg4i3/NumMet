@@ -213,6 +213,43 @@
   .badge.ok{background:var(--teal-bg); color:var(--teal); font-weight:700;}
 
   footer.credit{text-align:center; color:var(--ink-soft); font-size:0.8rem; margin-top:34px;}
+
+  /* ---------- Спойлер-застереження ---------- */
+  .spoiler{
+    border:2px solid var(--brick); background:var(--brick-bg); border-radius:10px;
+    margin:16px 0 22px;
+  }
+  .spoiler > summary{
+    cursor:pointer; list-style:none; padding:13px 18px; display:flex; align-items:center; gap:10px;
+    font-family:'Fraunces',Georgia,serif; font-weight:700; font-size:1.02rem; color:var(--brick);
+    -webkit-user-select:none; user-select:none;
+  }
+  .spoiler > summary::-webkit-details-marker{display:none;}
+  .spoiler > summary::marker{content:'';}
+  .spoiler > summary .spoiler-ico{
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:24px; height:24px; border-radius:50%; background:var(--brick); color:#fff;
+    font-family:'JetBrains Mono'; font-weight:700; font-size:0.95rem;
+  }
+  .spoiler > summary .spoiler-caret{
+    margin-left:auto; font-size:0.8rem; color:var(--brick); transition:transform .18s ease; flex-shrink:0;
+  }
+  .spoiler[open] > summary .spoiler-caret{transform:rotate(90deg);}
+  .spoiler[open] > summary{border-bottom:1.5px dashed var(--brick); padding-bottom:11px;}
+  .spoiler .spoiler-body{padding:14px 18px 18px; font-size:0.94rem;}
+  .spoiler .spoiler-body p{margin:0 0 10px;}
+  .spoiler .spoiler-body p:last-child{margin-bottom:0;}
+  .spoiler .spoiler-body .mono{background:#fff; border:1px solid var(--border); border-radius:5px; padding:1px 6px;}
+  .spoiler .spoiler-body .ref{
+    display:inline-block; font-size:0.82rem; font-weight:600; color:var(--brick);
+    background:#fff; border:1px solid var(--brick); border-radius:20px; padding:1px 10px; margin:0 2px;
+    text-decoration:none; cursor:pointer;
+  }
+  .spoiler .spoiler-body .ref:hover{background:var(--brick); color:#fff;}
+  .spoiler .spoiler-body a.term{color:var(--brick); font-weight:700; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; cursor:pointer;}
+  .spoiler .spoiler-body a.term:hover{text-decoration-style:solid;}
+  .spoiler .spoiler-body ul{margin:8px 0 10px; padding-left:22px;}
+  .spoiler .spoiler-body li{margin:4px 0;}
 </style>
 </head>
 <body>
@@ -309,6 +346,20 @@
   <!-- ======================= TAB 3 ======================= -->
   <section class="tabpanel" id="t3">
     <h2 class="section-title">Вибір головного елемента</h2>
+
+    <details class="spoiler">
+      <summary><span class="spoiler-ico">!</span> Важливо: обумовленість ≠ стійкість <span class="spoiler-caret">▶</span></summary>
+      <div class="spoiler-body">
+        <p>Півотінг (перестановка рядків) — це прийом, що покращує <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">стійкість</a> алгоритму, тобто те, наскільки метод Гаусса сам, у процесі своєї роботи, накопичує похибки округлення. Він <b>жодним чином не змінює</b> <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">обумовленість</a> задачі — властивість самої системи рівнянь, яка існує ще до того, як ми взагалі почали її розв'язувати.</p>
+        <p>Це дві принципово різні речі, і плутати їх — типова помилка. Рекомендуємо перед цією вкладкою повторити відповідні поняття у <a class="ref" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">вступі</a> посібника: там окремо визначені <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">число обумовленості</a> й <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">поняття стійкості</a>.</p>
+        <p><b>Приклад.</b> Уявімо систему двох прямих на площині, які майже паралельні (тобто система погано обумовлена). Якщо в коефіцієнтах цієї системи вже є похибка «на вході» (наприклад, вони виміряні приладом або округлені при введенні), то розв'язок буде дуже чутливим до цієї похибки — крихітна зміна коефіцієнта може сильно змістити точку перетину прямих. Жодна перестановка рядків тут не допоможе: яким би «вдалим» не був вибір ведучого елемента, алгоритм чесно розв'яже саме ту (вже неточну) систему, яку йому дали, і похибка на виході залишиться великою.</p>
+        <ul>
+          <li><b>Обумовленість</b> — властивість задачі (системи рівнянь) як такої. Задає, у скільки разів похибка вхідних даних може підсилитися у відповіді. Перестановками рядків не змінюється.</li>
+          <li><b>Стійкість алгоритму</b> — властивість конкретного методу обчислення. Показує, чи не «роздмухує» сам процес обчислень додаткові похибки округлення понад ті, що вже містились у вхідних даних. Саме на це впливає вибір головного елемента.</li>
+        </ul>
+        <p>Натомість похибки округлення, з якими бореться півотінг, — це зовсім інша природа похибки: вони виникають вже <i>під час</i> обчислень, на кожному кроці ділення й віднімання, і обмежені <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">машинним епсілон</a> (див. знову <a class="ref" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">вступ</a>). Для добре обумовленої системи вдалий вибір ведучого елемента дійсно не дає цим похибкам накопичуватися й «вибухати» — саме це демонструє приклад у Частині 2 нижче. Але якщо задача сама по собі погано обумовлена (майже паралельні прямі, як вище), то навіть ідеальний, чисельно стійкий алгоритм без похибок округлення все одно видасть чутливу, ненадійну відповідь — бо проблема закладена в самій задачі, а не в способі її розв'язання.</p>
+      </div>
+    </details>
 
     <h3 style="font-size:1.05rem;margin:4px 0;">Частина 1. Сам принцип</h3>
     <p class="note">На кожній стадії елімінації дивимось не лише на елемент, що "мав би" бути ведучим за порядком, а на всі елементи цього стовпця нижче (включно з ним) — і обираємо той, що <b>найбільший за модулем</b>. Якщо це не поточний рядок — міняємо рядки місцями. Демонстрація на матриці 3×3.</p>
