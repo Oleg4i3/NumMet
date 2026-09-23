@@ -1,178 +1,501 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Методи Якобі та Зейделя</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
-            svg: { fontCache: 'global' }
-        };
-    </script>
-    <script type="text/javascript" id="MathJax-script" async
-        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Якобі та Гаусс-Зейдель: ренесанс паралелізму</title>
 
-    <style>
-        :root {
-            --primary: #2563eb;
-            --secondary: #475569;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --border: #e2e8f0;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #d97706;
-        }
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: #1e293b;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-        }
+<script>
+    window.MathJax = {
+        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+        svg: { fontCache: 'global' }
+    };
+</script>
+<script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
 
-        .container { max-width: 1100px; margin: 0 auto; }
+<style>
+    :root {
+        --primary: #2563eb;
+        --secondary: #475569;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --border: #e2e8f0;
+        --success: #16a34a;
+        --danger: #dc2626;
+        --warning: #d97706;
+        --jacobi: #0d9488;
+        --seidel: #d97706;
+        --rbgs: #2563eb;
+        --rbsor: #7c3aed;
+    }
 
-        /* Grid Layout */
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    * { box-sizing: border-box; }
 
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
+    body {
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--bg);
+        color: #1e293b;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+    }
 
-        /* Inputs */
-        .matrix-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        input[type="number"] {
-            width: 60px; padding: 8px;
-            border: 1px solid #cbd5e1; border-radius: 4px;
-            text-align: center; font-size: 14px;
-        }
-        .vector-b { border-left: 2px solid #cbd5e1; padding-left: 10px; margin-left: 10px; }
+    .wrap { max-width: 1180px; margin: 0 auto; }
 
-        /* Controls */
-        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center; }
-        
-        button {
-            background-color: var(--primary); color: white; border: none;
-            padding: 10px 16px; border-radius: 6px; cursor: pointer;
-            font-weight: 600; transition: background 0.2s;
-        }
-        button:hover { background-color: #1d4ed8; }
-        button.reset { background-color: var(--secondary); }
-        
-        .checkbox-wrapper {
-            display: flex; align-items: center; gap: 8px;
-            background: #eff6ff; padding: 8px 12px;
-            border-radius: 6px; border: 1px solid #bfdbfe;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
+    /* ---------- Page header ---------- */
+    .page-head { margin-bottom: 22px; }
+    .page-head h1 { font-size: 1.55em; margin: 0 0 6px; color: #0f172a; }
+    .page-head p { margin: 0; color: #64748b; font-size: 0.95em; }
+    .breadcrumb { font-size: 0.8em; color: #94a3b8; margin-bottom: 8px; }
+    .breadcrumb a { color: #94a3b8; }
 
-        select { padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
+    /* ---------- Tabs ---------- */
+    .tabs-nav {
+        display: flex; gap: 4px; border-bottom: 2px solid var(--border);
+        margin-bottom: 22px; flex-wrap: wrap;
+    }
+    .tab-btn {
+        background: none; border: none; cursor: pointer;
+        padding: 12px 18px; font-size: 0.95em; font-weight: 600;
+        color: #64748b; border-bottom: 3px solid transparent;
+        margin-bottom: -2px; transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Logs */
-        #logArea {
-            height: 250px; overflow-y: auto; background: #1e293b; color: #f1f5f9;
-            padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px;
-        }
-        .log-entry { margin-bottom: 6px; border-bottom: 1px solid #334155; padding-bottom: 4px; }
-        .log-success { color: #4ade80; }
-        .log-warn { color: #facc15; }
-        .log-error { color: #f87171; font-weight: bold; }
-        .log-rec { 
-            background: #3f2c2c; border-left: 4px solid #f87171; 
-            padding: 8px; margin: 5px 0; color: #fca5a5;
-        }
+    /* ---------- Generic cards (basics / theory tabs) ---------- */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    @media (max-width: 768px) { .grid2 { grid-template-columns: 1fr; } }
 
-        /* Theory */
-        details { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin-top: 20px; }
-        summary { padding: 15px; font-weight: bold; cursor: pointer; background-color: #e0f2fe; border-radius: 8px; }
-        .theory-content { padding: 20px; }
-        .formula-box { background: #f8fafc; border-left: 4px solid var(--primary); padding: 10px; margin: 10px 0; }
-        
-        /* Result Box */
-        #finalResult {
-            margin-top:15px; padding:10px; background:#f0fdf4; 
-            border:1px solid #86efac; display:none; border-radius:6px;
-        }
-    </style>
+    .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
+    }
+    .card h3 { margin-top: 0; }
+
+    .matrix-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+    input[type="number"] {
+        width: 60px; padding: 8px;
+        border: 1px solid #cbd5e1; border-radius: 4px;
+        text-align: center; font-size: 14px;
+    }
+    .vector-b { border-left: 2px solid #cbd5e1; padding-left: 10px; margin-left: 10px; }
+
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center; }
+
+    .btn {
+        background-color: var(--primary); color: white; border: none;
+        padding: 10px 16px; border-radius: 6px; cursor: pointer;
+        font-weight: 600; transition: background 0.2s; font-size: 0.95em;
+    }
+    .btn:hover { background-color: #1d4ed8; }
+    .btn.reset { background-color: var(--secondary); }
+    .btn.reset:hover { background-color: #334155; }
+
+    .checkbox-wrapper {
+        display: flex; align-items: center; gap: 8px;
+        background: #eff6ff; padding: 8px 12px;
+        border-radius: 6px; border: 1px solid #bfdbfe;
+        cursor: pointer; font-size: 0.9em;
+    }
+
+    #presetSelect { padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9em; }
+
+    #logArea {
+        height: 230px; overflow-y: auto; background: #1e293b; color: #f1f5f9;
+        padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px;
+    }
+    .log-entry { margin-bottom: 6px; border-bottom: 1px solid #334155; padding-bottom: 4px; }
+    .log-success { color: #4ade80; }
+    .log-warn { color: #facc15; }
+    .log-error { color: #f87171; font-weight: bold; }
+    .log-rec {
+        background: #3f2c2c; border-left: 4px solid #f87171;
+        padding: 8px; margin: 5px 0; color: #fca5a5;
+    }
+
+    #finalResult {
+        margin-top:15px; padding:10px; background:#f0fdf4;
+        border:1px solid #86efac; display:none; border-radius:6px;
+    }
+
+    /* ---------- Prose blocks (parallelism / theory) ---------- */
+    .explain p { margin: 0 0 14px; }
+    .explain h3 { margin: 22px 0 10px; font-size: 1.08em; color: #0f172a; }
+    .explain h3:first-child { margin-top: 0; }
+    .explain ul, .explain ol { margin: 0 0 14px; padding-left: 22px; }
+    .explain li { margin-bottom: 6px; }
+    .explain a { color: var(--primary); text-decoration: underline; text-decoration-color: #bfdbfe; }
+    .explain a:hover { text-decoration-color: var(--primary); }
+    .formula-box { background: #f8fafc; border-left: 4px solid var(--primary); padding: 10px 14px; margin: 12px 0; }
+
+    .see-also {
+        background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+        padding: 16px 18px; margin-top: 18px;
+    }
+    .see-also h4 { margin: 0 0 8px; font-size: 0.9em; text-transform: none; color: #1e40af; }
+    .see-also ul { margin: 0; padding-left: 20px; }
+    .see-also li { margin-bottom: 6px; font-size: 0.92em; }
+    .see-also a { color: #1d4ed8; font-weight: 600; text-decoration: underline; }
+
+    /* ---------- Renaissance intro strip ---------- */
+    .hero-strip {
+        display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px;
+        align-items: center; margin-bottom: 24px;
+    }
+    @media (max-width: 800px) { .hero-strip { grid-template-columns: 1fr; } }
+    .hero-strip .txt h2 { margin: 0 0 10px; font-size: 1.25em; color: #0f172a; }
+    .hero-strip .txt p { margin: 0 0 10px; color: #334155; }
+    .era-badges { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .era-badge {
+        flex: 1; min-width: 150px; border-radius: 8px; padding: 12px 14px; font-size: 0.82em;
+        border: 1px solid var(--border); background: #fff;
+    }
+    .era-badge .era-year { font-weight: 700; font-size: 0.95em; color: #0f172a; }
+    .era-badge.old { border-left: 4px solid #94a3b8; }
+    .era-badge.new { border-left: 4px solid var(--jacobi); }
+
+    /* ---------- Dependency diagram ---------- */
+    .dep-diagrams { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0 4px; }
+    @media (max-width: 800px) { .dep-diagrams { grid-template-columns: 1fr; } }
+    .dep-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .dep-card h4 { margin: 0 0 4px; font-size: 0.95em; }
+    .dep-card .tag { font-size: 0.78em; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .tag.ok { background: #dcfce7; color: #166534; }
+    .tag.bad { background: #fee2e2; color: #991b1b; }
+
+    /* ---------- HPC dashboard (Tailwind-driven) ---------- */
+    input[type="range"] { accent-color: #2563eb; }
+    .dash-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,.05), 0 1px 2px 0 rgba(0,0,0,.03); }
+</style>
 </head>
 <body>
 
-<div class="container">
-    <h3>Методи Якобі та Зейделя розв'язання СЛАР</h3>
-    
-    <div class="card">
-        <div class="controls">
-            <label><strong>1. Виберіть пресет:</strong></label>
-            <select id="presetSelect" onchange="loadPreset()">
-                <option value="good">✅ Добре обумовлена (Збіжна)</option>
-                <option value="needsSwap">⚠️ Потребує перестановки (Прихована діагональ)</option>
-                <option value="bad">❌ Погано обумовлена (Розбіжна)</option>
-            </select>
-            
-            <label class="checkbox-wrapper">
-                <input type="checkbox" id="autoSwap" checked>
-                <span>Автоматична діагоналізація (Перестановка рядків)</span>
-            </label>
-        </div>
+<div class="wrap">
 
-        <div id="matrixInput"></div>
+    <div class="page-head">
+        <div class="breadcrumb"><a href="https://oleg4i3.github.io/NumMet/index.html">Посібник з чисельних методів</a> / Ітераційні методи</div>
+        <h1>Методи Якобі та Гаусс-Зейделя: ренесанс паралелізму</h1>
+        <p>Від ручного тренажера на маленькій системі — до питання, чому в епоху GPU та кластерів "гірший" за збіжністю метод Якобі раптом обганяє Зейделя.</p>
     </div>
 
-    <div class="grid">
+    <!-- ============ TABS NAV ============ -->
+    <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="basics" onclick="switchTab('basics')">1. Основи</button>
+        <button class="tab-btn" data-tab="parallel" onclick="switchTab('parallel')">2. Паралелізм</button>
+        <button class="tab-btn" data-tab="perf" onclick="switchTab('perf')">3. Продуктивність</button>
+        <button class="tab-btn" data-tab="theory" onclick="switchTab('theory')">4. Теорія</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: BASICS — hands-on 3x3 solver                          -->
+    <!-- ============================================================ -->
+    <div class="tab-panel active" id="tab-basics">
+
+        <div class="card" style="background:#f0f9ff; border-color:#bae6fd;">
+            <p style="margin:0;">Спробуйте на невеликій системі $3\times3$: обидва методи будуть збігатися практично за однакову кількість ітерацій. Різниця, яка тут <em>не</em> видна, — у тому, <strong>як саме</strong> ці ітерації можна виконати на реальному залізі. Про це — у вкладці <a href="#" onclick="switchTab('parallel'); return false;" style="color:var(--primary); font-weight:600;">«Паралелізм»</a>.</p>
+        </div>
+
         <div class="card">
-            <h3>2. Запуск</h3>
             <div class="controls">
-                <button onclick="solve('jacobi')">Метод Якобі</button>
-                <button onclick="solve('seidel')">Метод Зейделя</button>
-                <button class="reset" onclick="resetSim()">Очистити</button>
+                <label><strong>Виберіть пресет:</strong></label>
+                <select id="presetSelect" onchange="loadPreset()">
+                    <option value="good">✅ Добре обумовлена (Збіжна)</option>
+                    <option value="needsSwap">⚠️ Потребує перестановки (Прихована діагональ)</option>
+                    <option value="bad">❌ Погано обумовлена (Розбіжна)</option>
+                </select>
+
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="autoSwap" checked>
+                    <span>Автоматична діагоналізація (Перестановка рядків)</span>
+                </label>
             </div>
-            <div style="display:flex; gap:15px; margin-bottom:15px; font-size:0.9em;">
-                <div>
-                    <label>Точність $\epsilon$:</label>
-                    <input type="number" id="epsilon" value="0.001" step="0.0001" style="width: 70px;">
-                </div>
-                <div>
-                    <label>Ліміт ітерацій:</label>
-                    <input type="number" id="maxIter" value="50" style="width: 60px;">
-                </div>
-            </div>
-            
-            <h3>Журнал обчислень</h3>
-            <div id="logArea"></div>
+
+            <div id="matrixInput"></div>
         </div>
 
-        <div class="card">
-            <h3>Графік похибки $||x^{(k)} - x^{(k-1)}||$</h3>
-            <canvas id="convergenceChart"></canvas>
-            <div id="finalResult">
-                <strong>Результат:</strong> <span id="resultVector" style="font-family:monospace;"></span>
+        <div class="grid2">
+            <div class="card">
+                <h3>Запуск</h3>
+                <div class="controls">
+                    <button class="btn" onclick="solve('jacobi')">Метод Якобі</button>
+                    <button class="btn" onclick="solve('seidel')">Метод Зейделя</button>
+                    <button class="btn reset" onclick="resetSim()">Очистити</button>
+                </div>
+                <div style="display:flex; gap:15px; margin-bottom:15px; font-size:0.9em;">
+                    <div>
+                        <label>Точність $\epsilon$:</label>
+                        <input type="number" id="epsilon" value="0.001" step="0.0001" style="width: 70px;">
+                    </div>
+                    <div>
+                        <label>Ліміт ітерацій:</label>
+                        <input type="number" id="maxIter" value="50" style="width: 60px;">
+                    </div>
+                </div>
+
+                <h3>Журнал обчислень</h3>
+                <div id="logArea"></div>
+            </div>
+
+            <div class="card">
+                <h3>Графік похибки $||x^{(k)} - x^{(k-1)}||$</h3>
+                <canvas id="convergenceChart"></canvas>
+                <div id="finalResult">
+                    <strong>Результат:</strong> <span id="resultVector" style="font-family:monospace;"></span>
+                </div>
             </div>
         </div>
     </div>
 
-    <details>
-        <summary>📚 Теоретичні відомості (Натисніть, щоб розгорнути)</summary>
-        <div class="theory-content">
+    <!-- ============================================================ -->
+    <!-- TAB 2: PARALLELISM — the renaissance narrative                -->
+    <!-- ============================================================ -->
+    <div class="tab-panel" id="tab-parallel">
+
+        <div class="hero-strip">
+            <div class="txt">
+                <h2>Чому Якобі переживає ренесанс</h2>
+                <p>Півстоліття метод Якобі вважали "слабшим братом" Зейделя: на однопроцесорній машині він збігається повільніше за ту саму кількість ітерацій. Але збіжність за ітерацію — не єдине, що визначає реальний час роботи. З появою GPU та кластерів вирішальним стало інше: <strong>скільки ітерацій можна виконати одночасно, без очікування одна на одну</strong>.</p>
+                <p>Якобі виявився ідеально пристосованим до цього світу ще до того, як цей світ з'явився.</p>
+                <div class="era-badges">
+                    <div class="era-badge old">
+                        <div class="era-year">1960–1990-ті</div>
+                        Один процесор. Головне — мінімум ітерацій. Зейдель переможець.
+                    </div>
+                    <div class="era-badge new">
+                        <div class="era-year">2010-ті — тепер</div>
+                        Тисячі ядер GPU. Головне — мінімум бар'єрів синхронізації. Якобі переможець.
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="card" style="margin:0; background:#f8fafc;">
+                    <p style="margin:0 0 8px; font-size:0.85em; color:#64748b;">Наочно це видно у вкладці <a href="#" onclick="switchTab('perf'); return false;">«Продуктивність»</a>: збільшуйте кількість потоків — і графік чистого Якобі перетне графік Red-Black Зейделя.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card explain">
+            <h3>Чому Якобі тривіально розпаралелюється</h3>
+            <p>У методі Якобі кожна нова компонента обчислюється <strong>виключно</strong> зі значень попередньої ітерації $x^{(k)}$:</p>
+            <div class="formula-box">
+                $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right) $$
+            </div>
+            <p>Жодна компонента $x_i^{(k+1)}$ не залежить від іншої компоненти тієї ж ітерації. Це означає, що всі $n$ рівнянь можна обчислити <strong>одночасно, незалежними потоками</strong>, і жоден потік не мусить чекати результату сусіда. Для GPU це означає нуль бар'єрів синхронізації всередині ітерації та ідеальне об'єднання звернень до пам'яті (memory coalescing).</p>
+
+            <h3>Чому Зейделя важко розпаралелити</h3>
+            <p>У методі Гаусса-Зейделя нова компонента $x_i^{(k+1)}$ явно використовує вже перераховані сусідні компоненти <strong>тієї ж</strong> ітерації:</p>
+            <div class="formula-box">
+                $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j=1}^{i-1} a_{ij} x_j^{(k+1)} - \sum_{j=i+1}^{n} a_{ij} x_j^{(k)} \right) $$
+            </div>
+            <p>Це саме те, що прискорює збіжність — але воно ж вибудовує компонент $x_1, x_2, \dots, x_n$ у послідовний ланцюг залежностей всередині кожної ітерації, як доміно: щоб обчислити $x_3$, треба вже мати новий $x_2$, який потребував нового $x_1$. Розпаралелити ланцюг залежностей "у лоб" неможливо.</p>
+
+            <div class="dep-diagrams" id="depDiagram"></div>
+
+            <p>Практичний вихід — <strong>шахове впорядкування (Red-Black)</strong>: якщо перефарбувати вузли сітки в два кольори так, щоб сусіди завжди мали різний колір, усі вузли одного кольору перестають залежати одне від одного в межах ітерації. Тоді ітерацію можна розбити на дві незалежні паралельні фази ("червона", "чорна") замість повністю послідовного проходу. Це вже не зовсім класичний Гаусс-Зейдель — це компроміс: часткова паралельність ціною повернення бар'єру синхронізації між двома фазами. Детальніше цей прийом і підбір параметра релаксації $\omega$ розібрано в розділі <a href="https://oleg4i3.github.io/NumMet/index.html?sim=relax5.html">«Релаксація»</a>.</p>
+        </div>
+
+        <div class="card explain">
+            <h3>Де послідовність Зейделя насправді не заважає</h3>
+            <p>Ланцюг залежностей — проблема лише тоді, коли потрібно розпаралелити <em>кожну окрему ітерацію</em>. У двох інших розділах посібника Зейдель (чи його родич SOR) використовується так, що ця проблема просто не виникає:</p>
+            <ul>
+                <li>
+                    У демонстрації <a href="https://oleg4i3.github.io/NumMet/index.html?sim=AMG.html">AMG для аналізу соціальної мережі</a> Гаусс-Зейдель застосовують не як самостійний розв'язувач, а як <strong>згладжувач</strong> (smoother) всередині багатосіткового методу: там достатньо кількох "напівпаралельних" (Red-Black) проходів, щоб придушити високочастотну похибку, а решту роботи бере на себе грубша сітка. Швидкість збіжності за ітерацію тут важливіша за паралельність кожної окремої ітерації.
+                </li>
+                <li>
+                    У демонстрації <a href="https://oleg4i3.github.io/NumMet/index.html?sim=gauss-seidel-robot.html">дрона в лабіринті, що розв'язує рівняння Лапласа</a> застосовується <strong>теплий старт</strong>: на кожному новому кроці попередній розв'язок майже правильний (дрон трохи змістився), тож потрібно всього кілька ітерацій до збіжності. Коли ітерацій мало, а кожна — дешева, швидкість збіжності за ітерацію (перевага Зейделя) переважує втрату від відсутності паралельності всередині ітерації.
+                </li>
+            </ul>
+            <p>Іншими словами: Якобі виграє там, де ітерацій багато і кожна повинна бути максимально дешевою на паралельному залізі; Зейдель (і SOR) залишається кращим там, де ітерацій і так мало або паралельність не є вузьким місцем.</p>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: PERFORMANCE — HPC dashboard + live Laplace comparison  -->
+    <!-- ============================================================ -->
+    <div class="tab-panel" id="tab-perf">
+
+        <div class="card" style="background:#f0f9ff; border-color:#bae6fd;">
+            <p style="margin:0;">Модель нижче оцінює <em>реальний час виконання</em> (не кількість ітерацій) залежно від кількості паралельних потоків, розміру сітки та затримки бар'єру синхронізації. Пересувайте повзунки і спостерігайте за точкою перетину.</p>
+        </div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <aside class="lg:col-span-4 flex flex-col gap-5">
+                <div class="dash-card rounded-2xl p-5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-4 h-4 text-blue-600"></i> Параметри алгоритмів та заліза
+                    </h2>
+
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between text-xs font-medium mb-1.5">
+                                <span class="text-slate-700">Розмір сітки ($N \times N$):</span>
+                                <span id="val-grid" class="font-mono text-blue-600 font-bold">256 x 256</span>
+                            </div>
+                            <input type="range" id="slider-grid" min="32" max="512" step="32" value="256"
+                                   class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="flex justify-between text-[10px] text-slate-400 font-medium mt-1">
+                                <span>32x32</span><span>256x256</span><span>512x512</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium mb-1.5">
+                                <span class="text-slate-700">Пропускна здатність пам'яті:</span>
+                                <span id="val-bw" class="font-mono text-teal-600 font-bold">500 ГБ/с</span>
+                            </div>
+                            <input type="range" id="slider-bw" min="50" max="2000" step="50" value="500"
+                                   class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="flex justify-between text-[10px] text-slate-400 font-medium mt-1">
+                                <span>50 (DDR4)</span><span>500 (Mid GPU)</span><span>2000 ГБ/с (HBM3e)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium mb-1.5">
+                                <span class="text-slate-700">Затримка синхронізації (Barrier):</span>
+                                <span id="val-sync" class="font-mono text-amber-600 font-bold">1.5 мкс/ітер</span>
+                            </div>
+                            <input type="range" id="slider-sync" min="0.1" max="5.0" step="0.1" value="1.5"
+                                   class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-[10px] text-slate-400 mt-1">Оверхед між Red і Black фазами на GPU/кластері</div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-medium mb-1.5">
+                                <span class="text-slate-700">Оптимальний параметр SOR ($\omega_{opt}$):</span>
+                                <span id="val-omega" class="font-mono text-purple-600 font-bold">1.85</span>
+                            </div>
+                            <input type="range" id="slider-omega" min="1.0" max="1.95" step="0.01" value="1.85"
+                                   class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-[10px] text-slate-400 mt-1">Підбір цього параметра детально розглянуто в розділі <a href="https://oleg4i3.github.io/NumMet/index.html?sim=relax5.html" class="text-blue-600 underline">«Релаксація»</a></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="crossover-card" class="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 relative overflow-hidden">
+                    <h3 class="text-xs font-bold text-blue-900 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="zap" class="w-4 h-4 text-blue-600"></i> Аналіз точки перетину (Crossover)
+                    </h3>
+                    <p id="crossover-text" class="text-xs text-slate-700 leading-relaxed font-medium">Розрахунок точки перетину...</p>
+                </div>
+            </aside>
+
+            <section class="lg:col-span-8 flex flex-col gap-6">
+                <div class="dash-card rounded-2xl p-5 flex-1 flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i data-lucide="line-chart" class="w-5 h-5 text-blue-600"></i>
+                                Залежність часу від кількості паралельних потоків
+                            </h2>
+                            <p class="text-xs text-slate-500">Логарифмічна шкала X (потоки) та Y (час виконання в мс)</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-xs font-medium">
+                        <div class="flex items-center gap-2"><span class="w-4 h-1 bg-amber-600 rounded"></span><span class="text-slate-800">Послідовний Гаусс-Зейдель (No scaling)</span></div>
+                        <div class="flex items-center gap-2"><span class="w-4 h-1 bg-teal-600 rounded"></span><span class="text-slate-800">Чистий Якобі (Zero-sync, GPU friendly)</span></div>
+                        <div class="flex items-center gap-2"><span class="w-4 h-1 bg-blue-600 rounded"></span><span class="text-slate-800">Red-Black GS (Parallel, $\omega = 1.0$)</span></div>
+                        <div class="flex items-center gap-2"><span class="w-4 h-1 border-b-2 border-dashed border-purple-600"></span><span class="text-slate-800">Red-Black SOR (Parallel, $\omega = \omega_{opt}$)</span></div>
+                    </div>
+
+                    <div class="relative w-full flex-1 min-h-[320px]">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-12 dash-card rounded-2xl p-5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="flame" class="w-5 h-5 text-amber-500"></i>
+                            Жива симуляція теплопровідності (2D Лаплас, $50 \times 50$)
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Наочна перевірка реальної швидкості збіжності та похибки прямо в браузері</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-run-sim" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-2 transition cursor-pointer">
+                            <i data-lucide="play" class="w-4 h-4"></i> Запустити порівняльний тест
+                        </button>
+                        <button id="btn-reset-sim" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer">Скинути</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center">
+                        <div class="flex justify-between w-full mb-2 text-xs font-bold text-teal-700">
+                            <span>1. Чистий Якобі</span><span id="stat-jacobi-time" class="font-mono text-slate-500">0 ms</span>
+                        </div>
+                        <canvas id="canvas-jacobi" width="180" height="180" class="rounded-lg border border-slate-300 bg-white mb-3 shadow-inner"></canvas>
+                        <div class="w-full text-[11px] space-y-1 text-slate-600 border-t border-slate-200 pt-2 font-medium">
+                            <div class="flex justify-between"><span>Ітерацій:</span><span id="stat-jacobi-iters" class="font-mono text-slate-900">0</span></div>
+                            <div class="flex justify-between"><span>Похибка ($\epsilon$):</span><span id="stat-jacobi-err" class="font-mono text-slate-900">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center">
+                        <div class="flex justify-between w-full mb-2 text-xs font-bold text-blue-700">
+                            <span>2. Red-Black GS ($\omega=1.0$)</span><span id="stat-rbgs-time" class="font-mono text-slate-500">0 ms</span>
+                        </div>
+                        <canvas id="canvas-rbgs" width="180" height="180" class="rounded-lg border border-slate-300 bg-white mb-3 shadow-inner"></canvas>
+                        <div class="w-full text-[11px] space-y-1 text-slate-600 border-t border-slate-200 pt-2 font-medium">
+                            <div class="flex justify-between"><span>Ітерацій:</span><span id="stat-rbgs-iters" class="font-mono text-slate-900">0</span></div>
+                            <div class="flex justify-between"><span>Похибка ($\epsilon$):</span><span id="stat-rbgs-err" class="font-mono text-slate-900">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center">
+                        <div class="flex justify-between w-full mb-2 text-xs font-bold text-purple-700">
+                            <span>3. Red-Black SOR ($\omega_{opt}$)</span><span id="stat-rbsor-time" class="font-mono text-slate-500">0 ms</span>
+                        </div>
+                        <canvas id="canvas-rbsor" width="180" height="180" class="rounded-lg border border-slate-300 bg-white mb-3 shadow-inner"></canvas>
+                        <div class="w-full text-[11px] space-y-1 text-slate-600 border-t border-slate-200 pt-2 font-medium">
+                            <div class="flex justify-between"><span>Ітерацій:</span><span id="stat-rbsor-iters" class="font-mono text-slate-900">0</span></div>
+                            <div class="flex justify-between"><span>Похибка ($\epsilon$):</span><span id="stat-rbsor-err" class="font-mono text-slate-900">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="dash-card rounded-2xl p-5">
+                    <div class="flex items-center gap-2 text-blue-600 mb-2"><i data-lucide="grid" class="w-5 h-5"></i><h3 class="text-sm font-bold text-slate-900">Шахове впорядкування (Red-Black)</h3></div>
+                    <p class="text-xs text-slate-600 leading-relaxed">Розбиття сітки на «червоні» та «чорні» вузли усуває прямі залежності між сусідніми обчисленнями. Це дозволяє розпаралелити Гаусса-Зейделя на GPU за рахунок двох послідовних фаз — прийом докладно розібрано в розділі <a href="https://oleg4i3.github.io/NumMet/index.html?sim=relax5.html" class="text-blue-700 underline">«Релаксація»</a>.</p>
+                </div>
+
+                <div class="dash-card rounded-2xl p-5">
+                    <div class="flex items-center gap-2 text-purple-600 mb-2"><i data-lucide="rocket" class="w-5 h-5"></i><h3 class="text-sm font-bold text-slate-900">Супер-прискорення SOR ($\omega > 1$)</h3></div>
+                    <p class="text-xs text-slate-600 leading-relaxed">На відміну від Якобі, для якого $\omega > 1$ призводить до фатальної розбіжності, Гаусс-Зейдель завдяки зворотному зв'язку усередині ітерації прискорюється в десятки разів при підборі оптимального $\omega_{opt}$.</p>
+                </div>
+
+                <div class="dash-card rounded-2xl p-5">
+                    <div class="flex items-center gap-2 text-teal-600 mb-2"><i data-lucide="layers" class="w-5 h-5"></i><h3 class="text-sm font-bold text-slate-900">Чому Якобі рулить на GPU</h3></div>
+                    <p class="text-xs text-slate-600 leading-relaxed">Якобі вимагає нуль бар'єрів синхронізації усередині ітерації та ідеально об'єднує транзакції пам'яті (coalescing). На масивних GPU (1000+ потоків) це компенсує повільнішу математичну збіжність — той самий принцип, що лежить в основі згладжувача в демонстрації <a href="https://oleg4i3.github.io/NumMet/index.html?sim=AMG.html" class="text-teal-700 underline">AMG</a>.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 4: THEORY                                                  -->
+    <!-- ============================================================ -->
+    <div class="tab-panel" id="tab-theory">
+        <div class="card explain">
             <h3>1. Постановка задачі</h3>
             <p>Розглядається система лінійних алгебраїчних рівнянь вигляду $Ax=b$, де $A$ — квадратна матриця $n \times n$, $b$ — вектор вільних членів. Мета — знайти вектор $x$.</p>
 
@@ -181,40 +504,105 @@
             <div class="formula-box">
                 $$ |a_{ii}| > \sum_{j \neq i} |a_{ij}| \quad \text{для всіх } i = 1, \dots, n $$
             </div>
-            <p>Якщо ця умова не виконується, іноді достатньо переставити рядки матриці місцями (що робить функція "Автоматична діагоналізація").</p>
+            <p>Якщо ця умова не виконується, іноді достатньо переставити рядки матриці місцями (що робить функція "Автоматична діагоналізація" у вкладці <a href="#" onclick="switchTab('basics'); return false;">«Основи»</a>).</p>
 
             <h3>3. Метод Якобі</h3>
-            <p>В методі Якобі значення на $(k+1)$-й ітерації обчислюються використовуючи лише значення з попередньої $k$-ї ітерації. Це дозволяє проводити обчислення паралельно.</p>
+            <p>В методі Якобі значення на $(k+1)$-й ітерації обчислюються з використанням лише значень попередньої $k$-ї ітерації. Це дозволяє проводити обчислення паралельно — див. вкладку <a href="#" onclick="switchTab('parallel'); return false;">«Паралелізм»</a>.</p>
             <div class="formula-box">
                 $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right) $$
             </div>
 
-            <h3>4. Метод Гауса-Зейделя</h3>
-            <p>Це модифікація методу Якобі, де для обчислення $x_i^{(k+1)}$ використовуються вже знайдені на **поточній** ітерації нові значення $x_1^{(k+1)}, \dots, x_{i-1}^{(k+1)}$. Це часто пришвидшує збіжність.</p>
+            <h3>4. Метод Гаусса-Зейделя</h3>
+            <p>Це модифікація методу Якобі, де для обчислення $x_i^{(k+1)}$ використовуються вже знайдені на <strong>поточній</strong> ітерації нові значення $x_1^{(k+1)}, \dots, x_{i-1}^{(k+1)}$. Це часто пришвидшує збіжність за кількістю ітерацій, але ускладнює розпаралелення.</p>
             <div class="formula-box">
                 $$ x_i^{(k+1)} = \frac{1}{a_{ii}} \left( b_i - \sum_{j=1}^{i-1} a_{ij} x_j^{(k+1)} - \sum_{j=i+1}^{n} a_{ij} x_j^{(k)} \right) $$
             </div>
 
-            <h3>5. Що робити при розбіжності?</h3>
-            <p>Якщо матриця не задовольняє умовам збіжності (спектральний радіус $\rho(B) \ge 1$), ітерації будуть давати нескінченно великі значення. У такому разі слід використовувати:</p>
+            <h3>5. Метод верхньої релаксації (SOR)</h3>
+            <p>Узагальнення Гаусса-Зейделя з параметром $\omega$, що дозволяє суттєво прискорити збіжність при вдалому підборі $\omega_{opt}$. Повний розбір формули, впливу $\omega$ на швидкість та шаховий (Red-Black) варіант для паралельних обчислень — у розділі <a href="https://oleg4i3.github.io/NumMet/index.html?sim=relax5.html">«Релаксація»</a>.</p>
+
+            <h3>6. Що робити при розбіжності?</h3>
+            <p>Якщо матриця не задовольняє умовам збіжності (спектральний радіус $\rho(B) \ge 1$), ітерації даватимуть необмежено зростаючі значення. У такому разі варто скористатися:</p>
             <ul>
-                <li>Прямі методи (Гауса, LU-розклад).</li>
-                <li>Метод верхньої релаксації (SOR) з підбором параметру $\omega$.</li>
+                <li>Прямими методами (Гауса, LU-розклад).</li>
+                <li>Методом верхньої релаксації (SOR) з підбором параметра $\omega$.</li>
+                <li>Переставлянням рядків для досягнення діагонального домінування.</li>
             </ul>
+
+            <div class="see-also">
+                <h4>Пов'язані розділи посібника</h4>
+                <ul>
+                    <li><a href="https://oleg4i3.github.io/NumMet/index.html?sim=relax5.html">Релаксація</a> — теорія SOR, підбір $\omega_{opt}$, шахове впорядкування</li>
+                    <li><a href="https://oleg4i3.github.io/NumMet/index.html?sim=AMG.html">AMG для соціальної мережі</a> — Зейдель/Якобі як згладжувач у багатосітковому методі</li>
+                    <li><a href="https://oleg4i3.github.io/NumMet/index.html?sim=gauss-seidel-robot.html">Дрон у лабіринті</a> — розв'язання рівняння Лапласа з теплого старту в реальному часі</li>
+                </ul>
+            </div>
         </div>
-    </details>
+    </div>
+
 </div>
 
 <script>
-    // --- Config ---
+    /* ================= Tabs ================= */
+    let perfInited = false;
+    function switchTab(name) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
+        if (name === 'perf' && !perfInited) {
+            perfInited = true;
+            initPerfChart();
+            updateUI();
+            initSimGrids();
+            drawCanvasGrid(ctxJ, gJacobi);
+            drawCanvasGrid(ctxRBGS, gRBGS);
+            drawCanvasGrid(ctxRBSOR, gRBSOR);
+        }
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('tab-' + name)]).catch(()=>{});
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /* ================= Dependency diagram (inline SVG) ================= */
+    document.getElementById('depDiagram').innerHTML = `
+        <div class="dep-card">
+            <h4>Якобі: усі незалежні <span class="tag ok">паралельно</span></h4>
+            <svg viewBox="0 0 260 130" style="width:100%; height:auto;">
+                <text x="130" y="14" text-anchor="middle" font-size="10" fill="#64748b">ітерація k → k+1</text>
+                ${[0,1,2,3].map((i)=>{
+                    const x = 20 + i*65;
+                    return `
+                    <circle cx="${x}" cy="40" r="14" fill="#e2e8f0" stroke="#94a3b8"/>
+                    <text x="${x}" y="44" text-anchor="middle" font-size="10" fill="#334155">x${i+1}(k)</text>
+                    <line x1="${x}" y1="54" x2="${x}" y2="86" stroke="#0d9488" stroke-width="2" marker-end="url(#arrJ)"/>
+                    <circle cx="${x}" cy="100" r="14" fill="#ccfbf1" stroke="#0d9488"/>
+                    <text x="${x}" y="104" text-anchor="middle" font-size="10" fill="#134e4a">x${i+1}(k+1)</text>`;
+                }).join('')}
+                <defs><marker id="arrJ" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#0d9488"/></marker></defs>
+            </svg>
+        </div>
+        <div class="dep-card">
+            <h4>Зейдель: ланцюг залежностей <span class="tag bad">послідовно</span></h4>
+            <svg viewBox="0 0 260 130" style="width:100%; height:auto;">
+                <text x="130" y="14" text-anchor="middle" font-size="10" fill="#64748b">всередині однієї ітерації k+1</text>
+                ${[0,1,2,3].map((i)=>{
+                    const x = 20 + i*65;
+                    return `
+                    <circle cx="${x}" cy="70" r="14" fill="#fef3c7" stroke="#d97706"/>
+                    <text x="${x}" y="74" text-anchor="middle" font-size="10" fill="#78350f">x${i+1}(k+1)</text>`;
+                }).join('')}
+                ${[0,1,2].map((i)=>{
+                    const x1 = 34 + i*65, x2 = 20 + (i+1)*65 - 14;
+                    return `<line x1="${x1}" y1="70" x2="${x2}" y2="70" stroke="#d97706" stroke-width="2" marker-end="url(#arrS)"/>`;
+                }).join('')}
+                <defs><marker id="arrS" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d97706"/></marker></defs>
+            </svg>
+        </div>
+    `;
+
+    /* ================= TAB 1: 3x3 solver (from Zeydel-Jacobi.html) ================= */
     const size = 3;
     let chartInstance = null;
-
-    window.onload = function() {
-        createInputs();
-        loadPreset();
-        initChart();
-    };
 
     function createInputs() {
         const container = document.getElementById('matrixInput');
@@ -234,16 +622,14 @@
     function loadPreset() {
         const type = document.getElementById('presetSelect').value;
         let A, b;
-        
+
         if (type === 'good') {
             A = [[10, 2, 1], [1, 10, 2], [1, 1, 10]];
-            b = [7, 13, 12]; // Sol: ~[0.4, 1.16, 1.04]
+            b = [7, 13, 12];
         } else if (type === 'needsSwap') {
-            // Row 1 <-> Row 2 swapped compared to diagonal dominance
-            A = [[1, 10, 2], [10, 2, 1], [1, 1, 10]]; 
+            A = [[1, 10, 2], [10, 2, 1], [1, 1, 10]];
             b = [13, 7, 12];
         } else {
-            // Bad: Spectral radius > 1
             A = [[1, 5, 1], [5, 1, 5], [1, 5, 1]];
             b = [9, 11, 7];
         }
@@ -252,55 +638,43 @@
         resetSim();
         log(`Завантажено пресет: ${type}`, 'info');
 
-        if(type === 'needsSwap') {
+        if (type === 'needsSwap') {
             log("💡 Підказка: Спробуйте вимкнути 'Автоматичну діагоналізацію', щоб побачити розбіжність!", 'warn');
         }
     }
 
     function fillMatrix(A, b) {
-        for(let i=0; i<size; i++){
-            for(let j=0; j<size; j++) document.getElementById(`a_${i}_${j}`).value = A[i][j];
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) document.getElementById(`a_${i}_${j}`).value = A[i][j];
             document.getElementById(`b_${i}`).value = b[i];
         }
     }
 
     function getMatrix() {
         let A = [], b = [];
-        for(let i=0; i<size; i++){
+        for (let i = 0; i < size; i++) {
             let row = [];
-            for(let j=0; j<size; j++) row.push(parseFloat(document.getElementById(`a_${i}_${j}`).value) || 0);
+            for (let j = 0; j < size; j++) row.push(parseFloat(document.getElementById(`a_${i}_${j}`).value) || 0);
             A.push(row);
             b.push(parseFloat(document.getElementById(`b_${i}`).value) || 0);
         }
-        return {A, b};
+        return { A, b };
     }
 
-    // --- Core Logic with MathJax Logs ---
-
-    function log(msg, type='normal') {
+    function log(msg, type = 'normal') {
         const area = document.getElementById('logArea');
         const div = document.createElement('div');
-        
-        // Set content
         div.innerHTML = type === 'rec' ? `⚠️ ${msg}` : `> ${msg}`;
-        
-        // Styling
-        if (type === 'rec') div.className = 'log-rec';
-        else div.className = `log-entry log-${type}`;
-        
+        div.className = type === 'rec' ? 'log-rec' : `log-entry log-${type}`;
         area.appendChild(div);
         area.scrollTop = area.scrollHeight;
-
-        // IMPORTANT: Trigger MathJax to render formulas in this new element
-        if (window.MathJax) {
-            MathJax.typesetPromise([div]).catch((err) => console.log('MathJax error:', err));
-        }
+        if (window.MathJax) MathJax.typesetPromise([div]).catch(() => {});
     }
 
     function resetSim() {
         document.getElementById('logArea').innerHTML = '';
         document.getElementById('finalResult').style.display = 'none';
-        if(chartInstance) {
+        if (chartInstance) {
             chartInstance.data.labels = [];
             chartInstance.data.datasets[0].data = [];
             chartInstance.update();
@@ -312,8 +686,7 @@
         let swapped = false;
         let warning = false;
 
-        // 1. Check Conditions
-        for(let i=0; i<n; i++) {
+        for (let i = 0; i < n; i++) {
             let diag = Math.abs(A[i][i]);
             let sum = A[i].reduce((acc, val, idx) => idx !== i ? acc + Math.abs(val) : acc, 0);
             if (diag <= sum) warning = true;
@@ -323,18 +696,12 @@
             log("УВАГА: Умова $|a_{ii}| > \\sum |a_{ij}|$ порушена, авто-перестановка вимкнена. Ризик розбіжності!", 'error');
         }
 
-        // 2. Swap if enabled
         if (autoSwap) {
             for (let i = 0; i < n; i++) {
-                let maxVal = Math.abs(A[i][i]);
                 let maxIdx = i;
-                
                 for (let k = i + 1; k < n; k++) {
-                    if (Math.abs(A[k][i]) > Math.abs(A[maxIdx][i])) {
-                        maxIdx = k;
-                    }
+                    if (Math.abs(A[k][i]) > Math.abs(A[maxIdx][i])) maxIdx = k;
                 }
-
                 if (maxIdx !== i) {
                     [A[i], A[maxIdx]] = [A[maxIdx], A[i]];
                     [b[i], b[maxIdx]] = [b[maxIdx], b[i]];
@@ -350,14 +717,14 @@
             }
         }
 
-        return {A, b};
+        return { A, b };
     }
 
     function solve(method) {
         resetSim();
-        let {A, b} = getMatrix();
+        let { A, b } = getMatrix();
         const autoSwap = document.getElementById('autoSwap').checked;
-        
+
         const processed = processMatrix(A, b, autoSwap);
         A = processed.A;
         b = processed.b;
@@ -373,7 +740,7 @@
 
         while (iterations < maxIter) {
             let x_new = [...x];
-            
+
             for (let i = 0; i < n; i++) {
                 let sigma = 0;
                 for (let j = 0; j < n; j++) {
@@ -382,29 +749,26 @@
                         sigma += A[i][j] * val;
                     }
                 }
-                
                 if (Math.abs(A[i][i]) < 1e-10) {
                     log(`Критична помилка: $a_{${i+1}${i+1}} \\approx 0$`, 'error');
-                    recommendAlternatives("zero_diag");
+                    recommendAlternatives();
                     return;
                 }
-                
                 x_new[i] = (b[i] - sigma) / A[i][i];
             }
 
             let error = 0;
-            for(let i=0; i<n; i++) error += (x_new[i] - x[i])**2;
+            for (let i = 0; i < n; i++) error += (x_new[i] - x[i]) ** 2;
             error = Math.sqrt(error);
 
-            // Safety Break
             if (error > 1000000 || isNaN(error)) {
-                updateChart(iterations+1, 1000000);
+                updateChart(iterations + 1, 1000000);
                 log(`💥 РОЗБІЖНІСТЬ! $||x^{(k)} - x^{(k-1)}|| > 10^6$`, 'error');
                 diverged = true;
                 break;
             }
 
-            updateChart(iterations+1, error);
+            updateChart(iterations + 1, error);
             x = x_new;
             iterations++;
 
@@ -417,14 +781,14 @@
 
         if (diverged || iterations >= maxIter) {
             if (!diverged) log(`⏳ Ліміт ітерацій. Фінальна похибка: $${chartInstance.data.datasets[0].data.slice(-1)[0].toExponential(2)}$`, 'warn');
-            recommendAlternatives("diverged");
+            recommendAlternatives();
         }
     }
 
-    function recommendAlternatives(reason) {
+    function recommendAlternatives() {
         log("РЕКОМЕНДАЦІЯ:", 'rec');
         log("1. Прямі методи: $Ax=b$ через Гауса або LU.", 'rec');
-        log("2. Метод SOR (Successive Over-Relaxation).", 'rec');
+        log("2. Метод SOR (Successive Over-Relaxation) — див. вкладку «Теорія».", 'rec');
     }
 
     function showResult(x) {
@@ -433,30 +797,15 @@
         document.getElementById('resultVector').innerText = `[ ${x.map(v => v.toFixed(5)).join(', ')} ]`;
     }
 
-    // --- Charts ---
     function initChart() {
         const ctx = document.getElementById('convergenceChart').getContext('2d');
         chartInstance = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Похибка (Error)',
-                    data: [],
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
+            data: { labels: [], datasets: [{ label: 'Похибка (Error)', data: [], borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', tension: 0.1, fill: true }] },
             options: {
-                responsive: true,
-                animation: false,
+                responsive: true, animation: false,
                 scales: {
-                    y: {
-                        type: 'logarithmic',
-                        title: { display: true, text: 'Log(Error)' }
-                    },
+                    y: { type: 'logarithmic', title: { display: true, text: 'Log(Error)' } },
                     x: { title: { display: true, text: 'Ітерація (k)' } }
                 }
             }
@@ -468,6 +817,261 @@
         chartInstance.data.datasets[0].data.push(val);
         chartInstance.update();
     }
+
+    /* ================= TAB 3: HPC dashboard (from hpc_iterative_solvers_dashboard.html) ================= */
+    const THREAD_COUNTS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384];
+    let perfChart = null;
+
+    function calculatePerformanceData() {
+        const N = parseInt(document.getElementById('slider-grid').value);
+        const BW = parseFloat(document.getElementById('slider-bw').value);
+        const syncPenaltyUs = parseFloat(document.getElementById('slider-sync').value);
+        const omega = parseFloat(document.getElementById('slider-omega').value);
+
+        const M = N * N;
+        const baseJacobiIters = Math.round(0.22 * M);
+        const baseGSIters = Math.round(baseJacobiIters / 2.0);
+        const sorAccel = Math.max(1.2, (2.0 / (1.0 + Math.sin(Math.PI / N))) * (omega / 1.85));
+        const baseSORIters = Math.max(15, Math.round(baseGSIters / sorAccel));
+
+        const bytesPerIter = M * 8;
+        const memLimitIterTimeMs = (bytesPerIter / (BW * 1e9)) * 1000;
+
+        const seqGSData = [], pureJacobiData = [], rbGSData = [], rbSORData = [];
+        let crossoverThreads = null;
+
+        THREAD_COUNTS.forEach((P) => {
+            const compTimeIterMs = (M * 5) / (P * 3e9) * 1000;
+            const idealIterTimeMs = Math.max(compTimeIterMs, memLimitIterTimeMs);
+
+            const seqIterTimeMs = Math.max((M * 5) / (1 * 3e9) * 1000, memLimitIterTimeMs);
+            seqGSData.push(baseGSIters * seqIterTimeMs);
+
+            const jacobiTotalMs = baseJacobiIters * idealIterTimeMs;
+            pureJacobiData.push(jacobiTotalMs);
+
+            const syncCostMs = (2 * syncPenaltyUs / 1000.0) * (1 + 0.05 * Math.log2(P));
+            const rbGSIterTimeMs = idealIterTimeMs + syncCostMs;
+            const rbGSTotalMs = baseGSIters * rbGSIterTimeMs;
+            rbGSData.push(rbGSTotalMs);
+
+            const rbSORTotalMs = baseSORIters * rbGSIterTimeMs;
+            rbSORData.push(rbSORTotalMs);
+
+            if (crossoverThreads === null && jacobiTotalMs < rbGSTotalMs && P >= 32) crossoverThreads = P;
+        });
+
+        return { seqGSData, pureJacobiData, rbGSData, rbSORData, crossoverThreads };
+    }
+
+    function initPerfChart() {
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        perfChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: THREAD_COUNTS.map(t => t >= 1024 ? `${t/1024}K` : t.toString()),
+                datasets: [
+                    { label: 'Послідовний GS (No scaling)', data: [], borderColor: '#d97706', backgroundColor: 'transparent', borderWidth: 2, borderDash: [6, 6], pointRadius: 0, tension: 0 },
+                    { label: 'Чистий Якобі (Zero-sync)', data: [], borderColor: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.05)', borderWidth: 2.5, pointRadius: 3, tension: 0.3 },
+                    { label: 'Red-Black GS (w = 1.0)', data: [], borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.05)', borderWidth: 2.5, pointRadius: 3, tension: 0.3 },
+                    { label: 'Red-Black SOR (w = w_opt)', data: [], borderColor: '#7c3aed', backgroundColor: 'transparent', borderWidth: 2.5, borderDash: [5, 4], pointRadius: 3, tension: 0.3 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'Кількість паралельних потоків', color: '#475569', font: { size: 11, weight: '600' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } },
+                    y: { type: 'logarithmic', title: { display: true, text: 'Час виконання (Wall-Clock, мс)', color: '#475569', font: { size: 11, weight: '600' } }, grid: { color: '#e2e8f0' },
+                        ticks: { color: '#64748b', callback: function(value) { return value >= 1000 ? (value/1000).toFixed(1) + 's' : value + 'ms'; } } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a', titleColor: '#38bdf8', bodyColor: '#f8fafc', borderColor: '#334155', borderWidth: 1, padding: 10,
+                        callbacks: { label: function(context) { let val = context.raw; let timeStr = val >= 1000 ? (val/1000).toFixed(2) + ' сек' : val.toFixed(1) + ' мс'; return `${context.dataset.label}: ${timeStr}`; } }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateUI() {
+        const gridVal = document.getElementById('slider-grid').value;
+        const bwVal = document.getElementById('slider-bw').value;
+        const syncVal = document.getElementById('slider-sync').value;
+        const omegaVal = document.getElementById('slider-omega').value;
+
+        document.getElementById('val-grid').innerText = `${gridVal} x ${gridVal}`;
+        document.getElementById('val-bw').innerText = `${bwVal} ГБ/с`;
+        document.getElementById('val-sync').innerText = `${syncVal} мкс/ітер`;
+        document.getElementById('val-omega').innerText = parseFloat(omegaVal).toFixed(2);
+
+        const perf = calculatePerformanceData();
+        if (!perfChart) return;
+
+        perfChart.data.datasets[0].data = perf.seqGSData;
+        perfChart.data.datasets[1].data = perf.pureJacobiData;
+        perfChart.data.datasets[2].data = perf.rbGSData;
+        perfChart.data.datasets[3].data = perf.rbSORData;
+        perfChart.update();
+
+        const crossoverText = document.getElementById('crossover-text');
+        if (perf.crossoverThreads) {
+            crossoverText.innerHTML = `При <strong>${perf.crossoverThreads} потоках</strong> (рівень GPU Warp/Block)
+                <span class="text-teal-700 font-bold">чистий Якобі обганяє звичайний Red-Black GS</span>!
+                Затримки бар'єрів синхронізації з'їдають перевагу GS. Проте прискорений
+                <span class="text-purple-700 font-bold">Red-Black SOR</span> утримує лідерство за рахунок наднизької кількості ітерацій.`;
+        } else {
+            crossoverText.innerHTML = `На даній конфігурації затримка синхронізації мала, тому Red-Black рішення випереджають Якобі. Збільште затримку бар'єра або розмір сітки.`;
+        }
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('tab-perf')]).catch(()=>{});
+    }
+
+    ['slider-grid', 'slider-bw', 'slider-sync', 'slider-omega'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateUI);
+    });
+
+    /* ================= Live 2D Laplace comparison ================= */
+    const SIM_SIZE = 50;
+    const cvsJ = document.getElementById('canvas-jacobi');
+    const cvsRBGS = document.getElementById('canvas-rbgs');
+    const cvsRBSOR = document.getElementById('canvas-rbsor');
+    const ctxJ = cvsJ.getContext('2d');
+    const ctxRBGS = cvsRBGS.getContext('2d');
+    const ctxRBSOR = cvsRBSOR.getContext('2d');
+
+    function createGrid() { return Array(SIM_SIZE).fill(0).map(() => Array(SIM_SIZE).fill(0)); }
+
+    let gJacobi = createGrid(), gJacobiNext = createGrid(), gRBGS = createGrid(), gRBSOR = createGrid();
+
+    function initSimGrids() {
+        gJacobi = createGrid(); gJacobiNext = createGrid(); gRBGS = createGrid(); gRBSOR = createGrid();
+        for (let j = 0; j < SIM_SIZE; j++) {
+            gJacobi[0][j] = 100; gJacobiNext[0][j] = 100; gRBGS[0][j] = 100; gRBSOR[0][j] = 100;
+        }
+    }
+
+    function drawCanvasGrid(ctx, grid) {
+        const cellW = ctx.canvas.width / SIM_SIZE;
+        const cellH = ctx.canvas.height / SIM_SIZE;
+        for (let i = 0; i < SIM_SIZE; i++) {
+            for (let j = 0; j < SIM_SIZE; j++) {
+                const temp = grid[i][j];
+                const norm = Math.min(100, Math.max(0, temp)) / 100;
+                const r = Math.floor(255 * Math.sin(norm * Math.PI / 2));
+                const g = Math.floor(180 * Math.sin(norm * Math.PI));
+                const b = Math.floor(240 * Math.cos(norm * Math.PI / 2));
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(j * cellW, i * cellH, cellW, cellH);
+            }
+        }
+    }
+
+    let isRunningSim = false;
+
+    async function runComparison() {
+        if (isRunningSim) return;
+        isRunningSim = true;
+
+        initSimGrids();
+        const targetErr = 0.02;
+        const maxIters = 800;
+        const omegaOpt = parseFloat(document.getElementById('slider-omega').value);
+
+        let jIters = 0, jErr = 1.0;
+        const t0J = performance.now();
+        while (jErr > targetErr && jIters < maxIters) {
+            jErr = 0;
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) {
+                gJacobiNext[i][j] = 0.25 * (gJacobi[i-1][j] + gJacobi[i+1][j] + gJacobi[i][j-1] + gJacobi[i][j+1]);
+                const d = Math.abs(gJacobiNext[i][j] - gJacobi[i][j]);
+                if (d > jErr) jErr = d;
+            }
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) gJacobi[i][j] = gJacobiNext[i][j];
+            jIters++;
+        }
+        const t1J = performance.now();
+
+        let rbIters = 0, rbErr = 1.0;
+        const t0RB = performance.now();
+        while (rbErr > targetErr && rbIters < maxIters) {
+            rbErr = 0;
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) if ((i + j) % 2 === 0) {
+                const oldV = gRBGS[i][j];
+                gRBGS[i][j] = 0.25 * (gRBGS[i-1][j] + gRBGS[i+1][j] + gRBGS[i][j-1] + gRBGS[i][j+1]);
+                const d = Math.abs(gRBGS[i][j] - oldV);
+                if (d > rbErr) rbErr = d;
+            }
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) if ((i + j) % 2 !== 0) {
+                const oldV = gRBGS[i][j];
+                gRBGS[i][j] = 0.25 * (gRBGS[i-1][j] + gRBGS[i+1][j] + gRBGS[i][j-1] + gRBGS[i][j+1]);
+                const d = Math.abs(gRBGS[i][j] - oldV);
+                if (d > rbErr) rbErr = d;
+            }
+            rbIters++;
+        }
+        const t1RB = performance.now();
+
+        let sorIters = 0, sorErr = 1.0;
+        const t0SOR = performance.now();
+        while (sorErr > targetErr && sorIters < maxIters) {
+            sorErr = 0;
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) if ((i + j) % 2 === 0) {
+                const oldV = gRBSOR[i][j];
+                const gsVal = 0.25 * (gRBSOR[i-1][j] + gRBSOR[i+1][j] + gRBSOR[i][j-1] + gRBSOR[i][j+1]);
+                gRBSOR[i][j] = oldV + omegaOpt * (gsVal - oldV);
+                const d = Math.abs(gRBSOR[i][j] - oldV);
+                if (d > sorErr) sorErr = d;
+            }
+            for (let i = 1; i < SIM_SIZE - 1; i++) for (let j = 1; j < SIM_SIZE - 1; j++) if ((i + j) % 2 !== 0) {
+                const oldV = gRBSOR[i][j];
+                const gsVal = 0.25 * (gRBSOR[i-1][j] + gRBSOR[i+1][j] + gRBSOR[i][j-1] + gRBSOR[i][j+1]);
+                gRBSOR[i][j] = oldV + omegaOpt * (gsVal - oldV);
+                const d = Math.abs(gRBSOR[i][j] - oldV);
+                if (d > sorErr) sorErr = d;
+            }
+            sorIters++;
+        }
+        const t1SOR = performance.now();
+
+        drawCanvasGrid(ctxJ, gJacobi);
+        drawCanvasGrid(ctxRBGS, gRBGS);
+        drawCanvasGrid(ctxRBSOR, gRBSOR);
+
+        document.getElementById('stat-jacobi-time').innerText = `${(t1J - t0J).toFixed(2)} ms`;
+        document.getElementById('stat-jacobi-iters').innerText = jIters;
+        document.getElementById('stat-jacobi-err').innerText = jErr.toFixed(4);
+
+        document.getElementById('stat-rbgs-time').innerText = `${(t1RB - t0RB).toFixed(2)} ms`;
+        document.getElementById('stat-rbgs-iters').innerText = rbIters;
+        document.getElementById('stat-rbgs-err').innerText = rbErr.toFixed(4);
+
+        document.getElementById('stat-rbsor-time').innerText = `${(t1SOR - t0SOR).toFixed(2)} ms`;
+        document.getElementById('stat-rbsor-iters').innerText = sorIters;
+        document.getElementById('stat-rbsor-err').innerText = sorErr.toFixed(4);
+
+        isRunningSim = false;
+    }
+
+    document.getElementById('btn-run-sim').addEventListener('click', runComparison);
+    document.getElementById('btn-reset-sim').addEventListener('click', () => {
+        initSimGrids();
+        drawCanvasGrid(ctxJ, gJacobi);
+        drawCanvasGrid(ctxRBGS, gRBGS);
+        drawCanvasGrid(ctxRBSOR, gRBSOR);
+        ['stat-jacobi-time', 'stat-rbgs-time', 'stat-rbsor-time'].forEach(id => document.getElementById(id).innerText = '0 ms');
+        ['stat-jacobi-iters', 'stat-rbgs-iters', 'stat-rbsor-iters'].forEach(id => document.getElementById(id).innerText = '0');
+        ['stat-jacobi-err', 'stat-rbgs-err', 'stat-rbsor-err'].forEach(id => document.getElementById(id).innerText = '-');
+    });
+
+    /* ================= Init on load ================= */
+    window.onload = function () {
+        createInputs();
+        loadPreset();
+        initChart();
+        if (window.lucide) lucide.createIcons();
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('tab-basics'), document.getElementById('tab-parallel')]).catch(()=>{});
+    };
 </script>
 
 </body>
