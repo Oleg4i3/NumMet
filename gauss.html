@@ -216,14 +216,16 @@
 
   /* ---------- Спойлер-застереження ---------- */
   .spoiler{
-    border:2px solid var(--brick); background:var(--brick-bg); border-radius:10px;
-    margin:16px 0 22px;
+    border:1.5px solid var(--brick); background:var(--card); border-radius:10px;
+    margin:16px 0 22px; border-left-width:5px;
   }
   .spoiler > summary{
     cursor:pointer; list-style:none; padding:13px 18px; display:flex; align-items:center; gap:10px;
     font-family:'Fraunces',Georgia,serif; font-weight:700; font-size:1.02rem; color:var(--brick);
-    -webkit-user-select:none; user-select:none;
+    -webkit-user-select:none; user-select:none; background:#FBF3F0;
+    border-radius:8px 8px 0 0;
   }
+  .spoiler:not([open]) > summary{border-radius:8px;}
   .spoiler > summary::-webkit-details-marker{display:none;}
   .spoiler > summary::marker{content:'';}
   .spoiler > summary .spoiler-ico{
@@ -235,7 +237,7 @@
     margin-left:auto; font-size:0.8rem; color:var(--brick); transition:transform .18s ease; flex-shrink:0;
   }
   .spoiler[open] > summary .spoiler-caret{transform:rotate(90deg);}
-  .spoiler[open] > summary{border-bottom:1.5px dashed var(--brick); padding-bottom:11px;}
+  .spoiler[open] > summary{border-bottom:1px solid var(--border); padding-bottom:11px;}
   .spoiler .spoiler-body{padding:14px 18px 18px; font-size:0.94rem;}
   .spoiler .spoiler-body p{margin:0 0 10px;}
   .spoiler .spoiler-body p:last-child{margin-bottom:0;}
@@ -250,6 +252,51 @@
   .spoiler .spoiler-body a.term:hover{text-decoration-style:solid;}
   .spoiler .spoiler-body ul{margin:8px 0 10px; padding-left:22px;}
   .spoiler .spoiler-body li{margin:4px 0;}
+
+  /* ---------- Вкладений спойлер (формальні викладки) ---------- */
+  .spoiler-nested{
+    border:1.5px dashed var(--border); background:var(--card); border-radius:10px;
+    margin:16px 0 2px;
+  }
+  .spoiler-nested > summary{
+    cursor:pointer; list-style:none; padding:11px 16px; display:flex; align-items:center; gap:10px;
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.92rem; color:var(--brick);
+    -webkit-user-select:none; user-select:none;
+  }
+  .spoiler-nested > summary::-webkit-details-marker{display:none;}
+  .spoiler-nested > summary::marker{content:'';}
+  .spoiler-nested > summary .spoiler-ico{
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:22px; height:22px; border-radius:6px; border:1.5px solid var(--brick); color:var(--brick);
+    font-family:'JetBrains Mono'; font-weight:700; font-size:0.9rem;
+  }
+  .spoiler-nested > summary .spoiler-caret{
+    margin-left:auto; font-size:0.78rem; color:var(--brick); transition:transform .18s ease; flex-shrink:0;
+  }
+  .spoiler-nested[open] > summary .spoiler-caret{transform:rotate(90deg);}
+  .spoiler-nested[open] > summary{border-bottom:1.5px dashed var(--border); padding-bottom:9px;}
+  .spoiler-nested .spoiler-body{padding:13px 16px 16px; font-size:0.9rem;}
+  .spoiler-nested .spoiler-body p{margin:0 0 9px;}
+  .spoiler-nested .spoiler-body p:last-child{margin-bottom:0;}
+  .spoiler-nested .formula-box{
+    background:#fff; border:1.5px solid var(--border); border-radius:8px; padding:12px 16px;
+    margin:10px 0; text-align:center; font-family:'JetBrains Mono'; font-size:1rem; overflow-x:auto;
+  }
+  .spoiler-nested .formula-box .flabel{
+    display:block; font-family:'Inter'; font-size:0.72rem; color:var(--ink-soft); font-weight:600;
+    text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;
+  }
+  .spoiler-nested table.termtbl{width:100%; border-collapse:collapse; margin:8px 0 10px; font-size:0.86rem;}
+  .spoiler-nested table.termtbl td{padding:5px 8px; border-bottom:1px dashed var(--border); vertical-align:top;}
+  .spoiler-nested table.termtbl td:first-child{font-family:'JetBrains Mono'; font-weight:700; color:var(--ink); white-space:nowrap;}
+  .spoiler-nested .spoiler-body a.term{color:var(--brick); font-weight:700; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; cursor:pointer;}
+  .spoiler-nested .spoiler-body a.term:hover{text-decoration-style:solid;}
+  .spoiler-nested .spoiler-body .ref{
+    display:inline-block; font-size:0.78rem; font-weight:600; color:var(--brick);
+    background:#fff; border:1px solid var(--brick); border-radius:20px; padding:1px 9px; margin:0 2px;
+    text-decoration:none; cursor:pointer;
+  }
+  .spoiler-nested .spoiler-body .ref:hover{background:var(--brick); color:#fff;}
 </style>
 </head>
 <body>
@@ -358,6 +405,30 @@
           <li><b>Стійкість алгоритму</b> — властивість конкретного методу обчислення. Показує, чи не «роздмухує» сам процес обчислень додаткові похибки округлення понад ті, що вже містились у вхідних даних. Саме на це впливає вибір головного елемента.</li>
         </ul>
         <p>Натомість похибки округлення, з якими бореться півотінг, — це зовсім інша природа похибки: вони виникають вже <i>під час</i> обчислень, на кожному кроці ділення й віднімання, і обмежені <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">машинним епсілон</a> (див. знову <a class="ref" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">вступ</a>). Для добре обумовленої системи вдалий вибір ведучого елемента дійсно не дає цим похибкам накопичуватися й «вибухати» — саме це демонструє приклад у Частині 2 нижче. Але якщо задача сама по собі погано обумовлена (майже паралельні прямі, як вище), то навіть ідеальний, чисельно стійкий алгоритм без похибок округлення все одно видасть чутливу, ненадійну відповідь — бо проблема закладена в самій задачі, а не в способі її розв'язання.</p>
+
+        <details class="spoiler-nested">
+          <summary><span class="spoiler-ico">Σ</span> Формальні викладки: звідки береться похибка <span class="spoiler-caret">▶</span></summary>
+          <div class="spoiler-body">
+            <p>Метод Гаусса на комп'ютері з округленнями насправді не розв'язує вихідну систему A·x = b точно — він точно розв'язує <i>трохи іншу</i> систему з деякою збуреною матрицею (A + δA)·x̂ = b. Це стандартний прийом аналізу — <b>backward error analysis</b>: замість «наскільки x̂ відрізняється від x» питають «яку саме систему x̂ розв'язує точно», а тоді оцінюють δA.</p>
+            <div class="formula-box">
+              <span class="flabel">похибка збурення матриці (класична оцінка Вілкінсона)</span>
+              ‖δA‖ ≲ n³ · u · ρₙ · ‖A‖
+            </div>
+            <p>А похибка вже самої відповіді отримується домноженням на <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=condNumber.html" target="_blank" rel="noopener">число обумовленості</a> κ(A):</p>
+            <div class="formula-box">
+              <span class="flabel">відносна похибка розв'язку</span>
+              ‖x̂ − x‖ / ‖x‖ ≲ κ(A) · n³ · u · ρₙ
+            </div>
+            <table class="termtbl">
+              <tr><td>n</td><td>порядок системи (кількість рівнянь).</td></tr>
+              <tr><td>u</td><td><a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=intro.html" target="_blank" rel="noopener">машинне епсілон</a> — одиниця округлення (для double ≈ 10⁻¹⁶).</td></tr>
+              <tr><td>κ(A)</td><td><a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=condNumber.html" target="_blank" rel="noopener">число обумовленості</a> матриці A — властивість <b>задачі</b>, обчислюється через <a class="term" href="https://oleg4i3.github.io/NumMet/index.html?sim=MatrixNorm_SVD_Spectral_Decomposition.html" target="_blank" rel="noopener">норми матриць</a> (κ(A) = ‖A‖·‖A⁻¹‖), не залежить від алгоритму й не змінюється півотінгом.</td></tr>
+              <tr><td>ρₙ</td><td><b>growth factor</b> (коефіцієнт росту) — властивість самого <b>алгоритму</b>: у скільки разів «розпухають» елементи матриці в процесі елімінації порівняно з початковими. Саме цю величину контролює вибір головного елемента.</td></tr>
+            </table>
+            <p><b>ρₙ і є формальним втіленням «стійкості».</b> Без півотінгу ρₙ нічим не обмежений — у прикладі з коефіцієнтом 0.004 проти 6 він миттєво «вибухає» приблизно в 1500 разів. З частковим півотінгом у найгіршому теоретичному випадку ρₙ ≤ 2ⁿ⁻¹ (існують спеціально підібрані патологічні матриці, де ця межа справджується), але на практиці для реальних матриць ρₙ майже завжди лишається дуже малим (рідко перевищує n чи навіть √n) — тому півотінг «просто працює» у переважній більшості задач, хоча строгої математичної гарантії немає.</p>
+            <p>Головний висновок з формули: κ(A) і ρₙ входять у похибку <b>множниками одне на одне</b>, тому «погано обумовлена задача» і «нестійкий алгоритм» на виході дають однаковий симптом — велику похибку відповіді. Розрізнити їх на око неможливо: потрібен саме такий контрольований експеримент, як демонструють дві колонки нижче.</p>
+          </div>
+        </details>
       </div>
     </details>
 
