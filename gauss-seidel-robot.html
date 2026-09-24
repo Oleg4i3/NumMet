@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Гаусс-Зейдель на борту: поле як розв'язок СЛАР</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<!-- Без цього стилю KaTeX рендерить «наполовину»: символи є, а розкладка (дроби, індекси) розвалюється -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+
+<style>
+  :root{
+    --bg:#f5f7f5;
+    --panel:#ffffff;
+    --ink:#1c2320;
+    --muted:#5c6b64;
+    --line:#d7ded9;
+    --cold:#0f6e74;
+    --hot:#d99a2b;
+    --wall:#33363a;
+    --drone:#2e3fa0;
+    --good:#1f7a45;
+    --warn:#b24c1d;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:inherit;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:28px 20px 48px;}
+  header h1{font-size:1.45rem; font-weight:600; margin:0 0 6px; letter-spacing:-0.01em;}
+  header p{color:var(--muted); margin:0 0 12px; max-width:80ch; font-size:0.96rem;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:20px; border-bottom:1px solid var(--line);}
+  .tabs button{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.92rem; font-weight:500;
+    padding:9px 4px 11px;
+    background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--muted); cursor:pointer; margin-right:14px;
+  }
+  .tabs button.active{color:var(--ink); border-bottom-color:var(--drone);}
+
+  main{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,1fr); gap:20px; align-items:start;}
+  @media (max-width:820px){ main{grid-template-columns:1fr;} }
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px;}
+  .stage canvas{width:100%; display:block; border-radius:6px; background:#eef1ee;}
+  #grid{touch-action:none;}
+  #mathStage{
+    position: sticky;
+    top: calc(env(safe-area-inset-top,0px) + 12px);
+    align-self: start;
+    max-height: calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 24px);
+    overflow-y: auto;
+  }
+  @media (max-width:820px){
+    #mathStage{ max-height: 46vh; }
+  }
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:0.83rem; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:12px; height:12px; border-radius:3px; display:inline-block;}
+  .swatch.round{border-radius:50%;}
+  .controls{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  button.act{
+    font:inherit; font-family:'IBM Plex Sans', sans-serif; font-size:0.88rem; font-weight:500;
+    padding:8px 14px; border-radius:7px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  button.act:hover{border-color:var(--drone);}
+  button.act.primary{background:var(--drone); color:#fff; border-color:var(--drone);}
+  button.act:disabled{opacity:0.45; cursor:not-allowed;}
+  .toggle-row{display:flex; align-items:center; gap:8px; margin-top:12px; font-size:0.85rem; color:var(--muted);}
+  h2{font-size:0.98rem; font-weight:600; margin:0 0 10px;}
+  .stat-grid{display:grid; grid-template-columns:1fr auto; row-gap:8px; column-gap:10px; font-size:0.88rem;}
+  .stat-grid dt{color:var(--muted);}
+  .stat-grid dd{margin:0; font-family:'IBM Plex Mono', ui-monospace, monospace; text-align:right;}
+  .speedup{margin-top:12px; padding:10px 12px; background:#eef6f0; border:1px solid #cfe6d5; border-radius:7px; font-size:0.86rem;}
+  .speedup b{font-family:'IBM Plex Mono', ui-monospace, monospace; color:var(--good);}
+  .formula-block{margin:12px 0; overflow-x:auto;}
+  .formula-note{font-size:0.82rem; color:var(--muted); margin:4px 0 0;}
+  .msg{font-size:0.86rem; margin-top:10px; min-height:1.2em; color:var(--good); font-weight:500;}
+  footer{margin-top:26px; font-size:0.8rem; color:var(--muted); max-width:80ch;}
+
+  .steps{display:flex; flex-direction:column; gap:10px; margin-top:6px;}
+  .step-row{display:flex; align-items:flex-start; gap:10px;}
+  .step-num{
+    flex:0 0 auto; width:22px; height:22px; border-radius:50%; background:var(--bg);
+    border:1px solid var(--line); font-family:'IBM Plex Mono', monospace; font-size:0.78rem;
+    display:flex; align-items:center; justify-content:center; color:var(--muted);
+  }
+  .step-body{flex:1;}
+  .step-body p{margin:0 0 8px; font-size:0.87rem; color:var(--muted);}
+  #lidarReadout{display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; font-family:'IBM Plex Mono', monospace; font-size:0.82rem; margin:8px 0 0; padding:10px 12px; background:var(--bg); border-radius:7px;}
+  #lidarReadout div span.dir{color:var(--muted);}
+  #decisionNote{font-size:0.86rem; margin-top:8px; padding:10px 12px; background:var(--bg); border-radius:7px; min-height:1.2em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Гаусс-Зейдель на борту: поле як розв'язок СЛАР</h1>
+    <p>Дрон не зберігає карту і не прокладає маршрут заздалегідь — він рухається <b>по градієнту потенціального поля</b>: на кожному кроці порівнює значення φ у чотирьох сусідніх клітинках і переходить у ту, де φ найменше. Саме поле влаштоване як <b>потік у бік цілі</b>: потенціал цілі найнижчий (φ = 0), і значення зростають із віддаленням від неї, тож градієнт скрізь «вказує» на ціль. Значення φ не задані заздалегідь, а обчислюються: кожна вільна клітинка дорівнює середньому своїх вільних сусідів плюс стала вартість кроку; стіни виключаються з рівнянь, ціль зафіксована нулем. Це і є система лінійних алгебраїчних рівнянь, а метод Гаусса—Зейделя — ітераційний спосіб її розв'язування, за якого значення оновлюються на місці, поки не збіжаться.</p>
+    <p class="formula-note">Матеріал до дисципліни «Чисельні методи»: ілюстрація ітераційних методів розв'язування СЛАР (метод Гаусса—Зейделя, теплий і холодний старт, властивість розрідженості) на задачі планування руху дрона.</p>
+  </header>
+
+  <div class="tabs">
+    <button id="tabBtnMath" class="active">Математика</button>
+    <button id="tabBtnFlight">Політ</button>
+  </div>
+
+  <!-- ===================== ВКЛАДКА: МАТЕМАТИКА ===================== -->
+  <section id="mathTab">
+    <main>
+      <div class="panel stage" id="mathStage">
+        <canvas id="miniGrid" width="490" height="490"></canvas>
+        <div class="legend">
+          <span><span class="swatch round" style="background:var(--cold); box-shadow: inset 0 0 0 3px #fff;"></span>ціль (φ = 0)</span>
+          <span><span class="swatch round" style="background:var(--drone);"></span>дрон</span>
+          <span><span class="swatch" style="background:var(--wall)"></span>стіна</span>
+          <span><span class="swatch" style="background:#c9cfca; opacity:0.9"></span>ще не розвідано</span>
+        </div>
+        <div class="msg" id="miniMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Один цикл дрона крок за кроком</h2>
+        <div class="steps">
+          <div class="step-row">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <p>Лідар обмацує клітинку дрона і 8 сусідніх (по сторонах і по діагоналях) — визначає, де вільно, де стіна, де ціль.</p>
+              <button class="act primary" id="btnScan">Сканувати лідаром</button>
+              <div id="lidarReadout"></div>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <p>Для клітинки дрона (і для кожної іншої вільної клітинки) записуємо рівняння: значення дорівнює середньому чотирьох сусідів по сторонах плюс стала K. Відоме (стіна, ціль) підставляємо числом, невідоме лишаємо як φ.</p>
+              <button class="act" id="btnEquation">Побудувати СЛАР</button>
+              <div class="formula-block" id="eqConcrete"></div>
+              <p class="formula-note" id="slarNote"></p>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <p>Саме по собі одне рівняння нічого не дає — невідомі в різних рівняннях пов'язані одне з одним. Розв'язуємо всю систему проходами Гаусса-Зейделя: числа оновлюються на місці, поки не збіжаться.</p>
+              <button class="act" id="btnSolve">Розв'язати (Зейдель)</button>
+              <span id="sweepCount" style="font-family:'IBM Plex Mono',monospace; font-size:0.85rem; color:var(--muted); margin-left:8px;"></span>
+              <div class="formula-block" id="eqVerify"></div>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <p>Дрон дивиться на 4 сусіди по сторонах і летить у той, де поле найменше — це і є «прийняття рішення» (рух проти градієнта, тобто «низом» до цілі).</p>
+              <button class="act" id="btnDecide">Рішення і крок</button>
+              <div id="decisionNote"></div>
+            </div>
+          </div>
+        </div>
+        <div class="controls" style="margin-top:16px;">
+          <button class="act" id="btnMiniReset">Скинути приклад</button>
+        </div>
+
+        <h2 style="margin-top:22px;">Загальне правило оновлення</h2>
+        <div class="formula-block" id="eqGeneric"></div>
+        <p class="formula-note">Верхній і лівий сусід беруться вже оновленими в цьому ж проході — звідси економія пам'яті (один масив, а не два, як у Якобі) і швидша збіжність.</p>
+
+        <div class="formula-block" id="eqMaxPrinciple"></div>
+        <p class="formula-note">Значення у вільній клітинці завжди між мінімумом і максимумом сусідів — екстремуми можливі лише в стінах і в цілі. Це властивість самого розв'язку СЛАР, а не методу, яким його знаходять.</p>
+
+        <h2 style="margin-top:22px;">Звідки в кожному рівнянні сталий доданок +0.02</h2>
+        <div class="formula-block" id="eqPoisson"></div>
+        <p class="formula-note">Без доданка (K = 0) система — це рівняння Лапласа з єдиною умовою φ<sub>цілі</sub> = 0; його розв'язок тривіальний, φ ≡ 0, і поле не містило б жодного напрямку. Доданок K = 0.02 перетворює систему на рівняння Пуассона й має точну інтерпретацію. Нехай τ<sub>i</sub> — очікувана кількість кроків, за яку випадковий блукач, стартувавши з клітинки i, уперше досягне цілі. Аналіз першого кроку дає: τ<sub>i</sub> = 1 + (середнє τ по сусідах) — сталий доданок «1» з'являється тому, що з будь-якої клітинки перший крок усе одно доведеться зробити. Помноживши обидві частини на K (φ = K·τ), отримуємо рівно нашу систему: у правій частині кожного рівняння стоїть +0.02 — «вартість одного кроку», однакова для всіх клітинок. Наслідок: φ у клітинці = 0.02 × очікувану кількість кроків до цілі, тому поле зростає з віддаленням від цілі й утворює схил, уздовж якого дрон летить проти градієнта.</p>
+
+        <p class="formula-note" style="margin-top:14px;">Лідар «намацує» усі 8 сусідів, щоб знати, де стіни. Але в самому рівнянні і в русі дрона беруть участь лише 4 сусіди по сторонах — це стандартна 5-точкова схема дискретного рівняння Лапласа; діагоналі потрібні лише для розвідки, а не для розрахунку поля.</p>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===================== ВКЛАДКА: ПОЛІТ ===================== -->
+  <section id="flightTab" style="display:none;">
+    <main>
+      <div class="panel stage">
+        <canvas id="grid" width="880" height="560"></canvas>
+        <div class="legend">
+          <span><span class="swatch round" style="background:var(--cold); box-shadow: inset 0 0 0 3px #fff;"></span>ціль (φ = 0)</span>
+          <span><span class="swatch round" style="background:var(--drone);"></span>дрон</span>
+          <span><span class="swatch" style="background:var(--wall)"></span>стіна, виявлена лідаром</span>
+          <span><span class="swatch" style="background:#e8e2d0; border:1px solid #a8a290"></span>відрізано від цілі</span>
+          <span><span class="swatch" style="background:#c9cfca; opacity:0.9"></span>ще не розвідано</span>
+        </div>
+        <div class="controls">
+          <button class="act primary" id="btnStep">Крок дрона</button>
+          <button class="act" id="btnAuto">Безперервний рух</button>
+          <button class="act" id="btnReset">Скинути</button>
+          <button class="act primary" id="btnFly" style="display:none;">Готово — літати</button>
+          <select class="act" id="mapSelect" style="cursor:pointer;">
+            <option value="s">Карта: S-подібна (змійка)</option>
+            <option value="cup">Карта: спіральний коридор (пастка)</option>
+            <option value="random">Карта: випадкова (пісочниця)</option>
+            <option value="custom">Карта: власна (малюйте на сітці)</option>
+          </select>
+        </div>
+        <div id="randomControls" style="display:none; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <label style="font-size:0.85rem; color:var(--muted);">Щільність перешкод:</label>
+          <input type="range" id="densitySlider" min="3" max="18" value="9" step="1">
+          <span id="densityValue" style="font-family:'IBM Plex Mono',monospace; font-size:0.82rem;">9</span>
+          <button class="act" id="btnRegenMaze">Згенерувати новий лабіринт</button>
+        </div>
+        <div class="controls" style="margin-top:10px;">
+          <span style="font-size:0.83rem; color:var(--muted); align-self:center;">Малювання: оберіть «Карта: власна» або просто клацніть по сітці —</span>
+          <button class="act" id="btnSaveMaze">Зберегти карту (.json)</button>
+          <button class="act" id="btnLoadMaze">Завантажити карту (.json)</button>
+          <input type="file" id="loadMazeInput" accept=".json,application/json" style="display:none;">
+        </div>
+        <div class="toggle-row">
+          <input type="checkbox" id="chkAnimate" checked>
+          <label for="chkAnimate">показувати процес збіжності по проходах</label>
+        </div>
+        <div class="msg" id="msg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Показники</h2>
+        <dl class="stat-grid">
+          <dt>крок дрона</dt><dd id="stStep">0</dd>
+          <dt>розвідано клітинок</dt><dd id="stSeen">0 / 0</dd>
+          <dt>проходів Зейделя (теплий старт)</dt><dd id="stWarm">—</dd>
+          <dt>проходів з нуля (для порівняння)</dt><dd id="stCold">—</dd>
+        </dl>
+        <div class="speedup" id="speedup">Зробіть перший крок — порівняння з'явиться тут.</div>
+
+        <h2 style="margin-top:22px;">Холодний і теплий старт</h2>
+        <p class="formula-note">Кожен крок дрона відкриває лідаром нові стіни, тож систему доводиться перерозв'язувати; різниця між способами — лише в початковому наближенні. <b>Холодний старт</b>: усім невідомим присвоюється нуль. Інформація від єдиної відомої точки (цілі, φ = 0) поширюється сіткою повільно — за один прохід Зейделя «вплив» цілі зміщується лише на одну клітинку, тому потрібно кілька сотень проходів. <b>Теплий старт</b>: як початкове наближення береться розв'язок попереднього кроку. Між кроками карта змінюється лише локально (нові стіни в околі дрона), тобто перерозв'язується «майже та сама система», і збіжність настає за десятки проходів. Два останні рядки показників і зелене порівняння — саме цей експеримент; обидва розв'язки збігаються з точністю до порогу зупинки ε.</p>
+
+        <h2>Розмірність і розрідженість системи</h2>
+        <p class="formula-note">Система велика: по одному рівнянню на кожну вільну розвідану клітинку, з'єднану з ціллю, — для сітки 22×14 це до 240 невідомих (кілька сотень рівнянь). Водночас вона гранично <b>розріджена</b>: рівняння клітинки зв'язує не більше п'яти невідомих — саму клітинку та її сусідів угору, вниз, ліворуч і праворуч (стіни виключаються з рівняння, тому доданків буває й менше). Нульові «позасмужні» зв'язки не зберігаються і не обчислюються: один прохід Гаусса—Зейделя коштує O(N) операцій, а весь стан поля — це один масив із N чисел. Саме поєднання «багато рівнянь — мало зв'язків у кожному» робить ітераційні методи природним вибором для таких задач.</p>
+
+        <p class="formula-note" style="margin-top:14px;">Формули та пояснення побудови СЛАР — на вкладці «Математика».</p>
+
+        <footer>
+          Спрощення демо: лідар — кругова дальність (пунктирне коло на малюнку), промінь зупиняється на першій перешкоді (проста версія трасування променів, без урахування нюансів по діагоналях впритул до кутів); нерозвіданий простір до виявлення вважається прохідним (оптимістична розвідка); зв'язність 4 (без діагоналей) у самому рівнянні. Ділянки, які виявлені стіни повністю відрізали від цілі, виключаються з рівняння — без хоча б однієї відомої точки (цілі) задача там розв'язку не має, і саме це раніше давало «вічні» проходи; такі ділянки позначені штриховкою, і дрон туди не летить. Карта «спіральний коридор» — ілюстрація переваги розв'язку СЛАР над наївним адитивним полем («притягання до цілі + відштовхування від стін»): наївне поле заводить дрона вглиб спіралі й застрягає в тупику (локальний мінімум), тоді як розв'язок системи локальних мінімумів не має — значення вглиб коридору лише зростають, і градієнт скрізь веде до виходу.
+        </footer>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- перемикач вкладок ----------
+  const tabBtnMath = document.getElementById('tabBtnMath');
+  const tabBtnFlight = document.getElementById('tabBtnFlight');
+  const mathTab = document.getElementById('mathTab');
+  const flightTab = document.getElementById('flightTab');
+  function showTab(which){
+    tabBtnMath.classList.toggle('active', which==='math');
+    tabBtnFlight.classList.toggle('active', which==='flight');
+    mathTab.style.display = which==='math' ? '' : 'none';
+    flightTab.style.display = which==='flight' ? '' : 'none';
+    // перерахунок розміру канваса після показу вкладки: поки вкладка прихована,
+    // ширина батьківського блока нульова, і розмір треба ставити саме зараз
+    if(which==='math') mResize();
+    if(which==='flight') resizeCanvas();
+  }
+  tabBtnMath.addEventListener('click', function(){ showTab('math'); });
+  tabBtnFlight.addEventListener('click', function(){ showTab('flight'); });
+
+  const EPS = 1e-3;
+  const MAX_ITER = 8000;
+  const K_SOURCE = 0.02; // стала «вартість кроку» рівняння Пуассона (див. розділ на вкладці «Математика»)
+  // Поріг для порівнянь "чи справді краще": розв'язувач гарантує точність лише порядку EPS
+  // (зупиняється, коли НАЙБІЛЬША зміна по всій сітці за прохід < EPS) — порівнювати сусідів
+  // з допуском на порядки жорсткішим за це безпідставно: це порівняння точності,
+  // якої розв'язувач не обіцяв. Беремо з запасом (5×EPS).
+  const DECIDE_EPS = 5*EPS;
+
+  // KaTeX підтягується з CDN; якщо сторінку відкрито без інтернету,
+  // показуємо сирі формули замість того, щоб помирала вся сторінка.
+  function renderTex(tex, el){
+    if(window.katex){ katex.render(tex, el, {displayMode:true, throwOnError:false}); }
+    else { el.textContent = tex; }
+  }
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function heatColor(v){
+    v = Math.max(0, Math.min(1, v));
+    const cCold=[15,110,116], cHot=[217,154,43];
+    const r = Math.round(lerp(cCold[0], cHot[0], v));
+    const g = Math.round(lerp(cCold[1], cHot[1], v));
+    const b = Math.round(lerp(cCold[2], cHot[2], v));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // ================================================================
+  //  ВКЛАДКА "МАТЕМАТИКА" — мінісітка 7x7
+  // ================================================================
+  const MC = 7, MR = 7;
+  function mIdx(r,c){ return r*MC+c; }
+  const mGoal = {r:5,c:5};
+  const mWalls = [{r:1,c:1},{r:3,c:2}];
+  function mIsWall(r,c){ return mWalls.some(w=>w.r===r&&w.c===c); }
+  function mIsBorder(r,c){ return r===0||r===MR-1||c===0||c===MC-1; }
+
+  let mRevealed, mPhi, mComputed, mDrone, mTrail, mStep;
+
+  function mIsWallCell(r,c){
+    if(r<0||r>=MR||c<0||c>=MC) return true;
+    if(mIsBorder(r,c)) return true;
+    const i = mIdx(r,c);
+    return !!(mRevealed[i] && mIsWall(r,c));
+  }
+
+  function mFixed(r,c){
+    if(r===mGoal.r && c===mGoal.c) return {fixed:true, val:0};
+    if(mIsWallCell(r,c)) return {fixed:true, val:null};
+    return {fixed:false};
+  }
+
+  function mReveal(cr,cc){
+    for(let r=cr-1;r<=cr+1;r++) for(let c=cc-1;c<=cc+1;c++){
+      if(r>=0&&r<MR&&c>=0&&c<MC) mRevealed[mIdx(r,c)]=1;
+    }
+  }
+
+  function mSweep(arr){
+    let maxDelta=0;
+    for(let r=0;r<MR;r++) for(let c=0;c<MC;c++){
+      const i=mIdx(r,c);
+      if(r===mGoal.r && c===mGoal.c){ const d=Math.abs(arr[i]-0); if(d>maxDelta) maxDelta=d; arr[i]=0; mComputed[i]=1; continue; }
+      if(mIsWallCell(r,c)) continue;
+      let sum=0, cnt=0;
+      for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        const nr=r+dr, nc=c+dc;
+        if(mIsWallCell(nr,nc)) continue;
+        sum += arr[mIdx(nr,nc)]; cnt++;
+      }
+      if(cnt===0) continue;
+      const val = sum/cnt + K_SOURCE;
+      const d=Math.abs(val-arr[i]); if(d>maxDelta) maxDelta=d;
+      arr[i]=val;
+      mComputed[i]=1;
+    }
+    return maxDelta;
+  }
+
+  function mSolveInstant(arr){
+    let iters=0;
+    while(iters<MAX_ITER){ iters++; const d=mSweep(arr); if(d<EPS) break; }
+    return iters;
+  }
+
+  const mCanvas = document.getElementById('miniGrid');
+  const mCtx = mCanvas.getContext('2d');
+  let mCell = 0;
+
+  function mResize(){
+    const cssWidth = mCanvas.parentElement.clientWidth;
+    if(cssWidth<=0) return; // вкладка зараз прихована — не затираємо вже готовий розмір
+    mCell = Math.floor(Math.min(cssWidth, 520) / MC);
+    const dpr = window.devicePixelRatio||1;
+    mCanvas.width = mCell*MC*dpr; mCanvas.height = mCell*MR*dpr;
+    mCanvas.style.width=(mCell*MC)+"px"; mCanvas.style.height=(mCell*MR)+"px";
+    mCtx.setTransform(dpr,0,0,dpr,0,0);
+    mDraw();
+  }
+
+  let mHighlightMoore = false, mHighlightNeighborsMin = null;
+
+  function mDraw(){
+    mCtx.clearRect(0,0,mCanvas.width,mCanvas.height);
+    let rngLo=Infinity, rngHi=-Infinity;
+    for(let r=0;r<MR;r++) for(let c=0;c<MC;c++){
+      const i=mIdx(r,c);
+      if(!mComputed[i]) continue;
+      if(mFixed(r,c).fixed) continue;
+      if(mPhi[i]<rngLo) rngLo=mPhi[i];
+      if(mPhi[i]>rngHi) rngHi=mPhi[i];
+    }
+    if(!isFinite(rngLo) || rngHi-rngLo<1e-6){ rngLo=0; rngHi=1; }
+    for(let r=0;r<MR;r++) for(let c=0;c<MC;c++){
+      const i=mIdx(r,c), x=c*mCell, y=r*mCell;
+      const fi = mFixed(r,c);
+      if(fi.fixed && (mIsBorder(r,c) || (mRevealed[i]&&mIsWall(r,c)))){
+        mCtx.fillStyle = "#33363a";
+      } else {
+        mCtx.fillStyle = heatColor((mPhi[i]-rngLo)/(rngHi-rngLo));
+      }
+      mCtx.fillRect(x,y,mCell,mCell);
+        if(!mComputed[i] && !mIsBorder(r,c) && !(mRevealed[i]&&mIsWall(r,c))){
+        mCtx.fillStyle="rgba(220,224,220,0.6)";
+        mCtx.fillRect(x,y,mCell,mCell);
+      }
+      // числа: лише в цілі (0.00) і в уже порахованих вільних клітинках.
+      // У стін власного значення немає (fi.val === null) — спроба намалювати
+      // число в стіну ламала канвас, щойно лідар відкривав першу стіну.
+      if(!mIsBorder(r,c)){
+        mCtx.fillStyle="rgba(255,255,255,0.95)";
+        mCtx.font = Math.round(mCell*0.22)+"px 'IBM Plex Mono', monospace";
+        mCtx.textAlign="center"; mCtx.textBaseline="middle";
+        const showable = fi.fixed
+          ? (fi.val!=null && (mRevealed[i] || (r===mGoal.r&&c===mGoal.c)))
+          : !!mComputed[i];
+        if(showable){
+          const label = fi.fixed ? fi.val.toFixed(2) : mPhi[i].toFixed(2);
+          mCtx.fillText(label, x+mCell/2, y+mCell/2);
+        }
+      }
+    }
+    // сітка
+    mCtx.strokeStyle="rgba(255,255,255,0.25)";
+    for(let r=0;r<=MR;r++){ mCtx.beginPath(); mCtx.moveTo(0,r*mCell); mCtx.lineTo(MC*mCell,r*mCell); mCtx.stroke(); }
+    for(let c=0;c<=MC;c++){ mCtx.beginPath(); mCtx.moveTo(c*mCell,0); mCtx.lineTo(c*mCell,MR*mCell); mCtx.stroke(); }
+
+    // підсвітка Moore (крок 1)
+    if(mHighlightMoore){
+      mCtx.strokeStyle = "#2e3fa0"; mCtx.lineWidth = 3;
+      for(let r=mDrone.r-1;r<=mDrone.r+1;r++) for(let c=mDrone.c-1;c<=mDrone.c+1;c++){
+        if(r===mDrone.r&&c===mDrone.c) continue;
+        if(r<0||r>=MR||c<0||c>=MC) continue;
+        mCtx.strokeRect(c*mCell+2, r*mCell+2, mCell-4, mCell-4);
+      }
+    }
+    // підсвітка мінімального сусіда (крок 4)
+    if(mHighlightNeighborsMin){
+      mCtx.strokeStyle = "#1f7a45"; mCtx.lineWidth = 4;
+      mCtx.strokeRect(mHighlightNeighborsMin.c*mCell+3, mHighlightNeighborsMin.r*mCell+3, mCell-6, mCell-6);
+    }
+
+    // слід
+    mCtx.fillStyle="rgba(46,63,160,0.3)";
+    mTrail.forEach(p=>{ mCtx.beginPath(); mCtx.arc(p.c*mCell+mCell/2,p.r*mCell+mCell/2,mCell*0.12,0,Math.PI*2); mCtx.fill(); });
+
+    // ціль
+    mCtx.strokeStyle="#ffffff"; mCtx.lineWidth=2;
+    mCtx.beginPath(); mCtx.arc(mGoal.c*mCell+mCell/2, mGoal.r*mCell+mCell/2, mCell*0.34, 0, Math.PI*2); mCtx.stroke();
+
+    // дрон
+    mCtx.fillStyle="#2e3fa0";
+    mCtx.beginPath(); mCtx.arc(mDrone.c*mCell+mCell/2, mDrone.r*mCell+mCell/2, mCell*0.3, 0, Math.PI*2); mCtx.fill();
+  }
+
+  function dirName(dr,dc){
+    if(dr===-1&&dc===-1) return "↖ вгору-ліворуч";
+    if(dr===-1&&dc===0) return "↑ вгору";
+    if(dr===-1&&dc===1) return "↗ вгору-праворуч";
+    if(dr===0&&dc===-1) return "← ліворуч";
+    if(dr===0&&dc===1) return "→ праворуч";
+    if(dr===1&&dc===-1) return "↙ вниз-ліворуч";
+    if(dr===1&&dc===0) return "↓ вниз";
+    if(dr===1&&dc===1) return "↘ вниз-праворуч";
+  }
+
+  document.getElementById('btnScan').addEventListener('click', function(){
+    mReveal(mDrone.r, mDrone.c);
+    mHighlightMoore = true; mHighlightNeighborsMin = null;
+    const readout = document.getElementById('lidarReadout');
+    readout.innerHTML = "";
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const r=mDrone.r+dr, c=mDrone.c+dc;
+      if(r<0||r>=MR||c<0||c>=MC) continue;
+      let status;
+      if(r===mGoal.r&&c===mGoal.c) status="ціль";
+      else if(mIsBorder(r,c)||mIsWall(r,c)) status="стіна";
+      else status="вільно";
+      const row=document.createElement('div');
+      row.innerHTML = "<span class='dir'>"+dirName(dr,dc)+"</span>: "+status;
+      readout.appendChild(row);
+    }
+    setMiniMsg("Лідар просканував клітинку дрона та 8 сусідів.");
+    mDraw();
+  });
+
+  function texTerm(r,c){
+    if(r===mGoal.r && c===mGoal.c) return "0.00";
+    return `\\varphi_{${r},${c}}`;
+  }
+
+  function eqStringFor(r,c){
+    const terms=[];
+    for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+      const nr=r+dr, nc=c+dc;
+      if(mIsWallCell(nr,nc)) continue;
+      terms.push(texTerm(nr,nc));
+    }
+    const n = terms.length;
+    return `\\varphi_{${r},${c}} = \\tfrac{1}{${n}}\\big(${terms.join(' + ')}\\big) + ${K_SOURCE}`;
+  }
+
+  function pickSecondCell(r0,c0){
+    const cand = [[r0-1,c0],[r0+1,c0],[r0,c0-1],[r0,c0+1]];
+    for(const [r,c] of cand){
+      if(r<0||r>=MR||c<0||c>=MC) continue;
+      if(!mFixed(r,c).fixed) return [r,c];
+    }
+    return null;
+  }
+
+  function slarBreakdown(){
+    let borderCount=0, interiorCount=0, known=0;
+    for(let r=0;r<MR;r++) for(let c=0;c<MC;c++){
+      if(mIsBorder(r,c)) borderCount++;
+      else { interiorCount++; if(mFixed(r,c).fixed) known++; }
+    }
+    return {total:MC*MR, borderCount, interiorCount, known, free:interiorCount-known};
+  }
+
+  function phiSpan(r,c){
+    const tex = `\\varphi_{${r},${c}}`;
+    return window.katex ? katex.renderToString(tex, {throwOnError:false}) : tex;
+  }
+
+  document.getElementById('btnEquation').addEventListener('click', function(){
+    mHighlightMoore = false;
+    const r0=mDrone.r, c0=mDrone.c;
+    const eq1 = eqStringFor(r0,c0);
+    const second = pickSecondCell(r0,c0);
+    const bd = slarBreakdown();
+    const breakdown = `Сітка ${MR}×${MC} = ${bd.total} клітинок; ${bd.borderCount} з них — межа (відома завжди, лідар для неї не потрібен). Серед ${bd.interiorCount} внутрішніх клітинок відомо ${bd.known} (ціль і вже виявлені лідаром стіни) — залишається ${bd.free} невідомих. Отже, система містить ${bd.free} рівнянь із ${bd.free} невідомими — це і є СЛАР. Стала +${K_SOURCE.toFixed(2)} у правій частині кожного рівняння — «вартість одного кроку»; її походження розібрано в однойменному розділі нижче.`;
+    let tex, note;
+    if(second){
+      const eq2 = eqStringFor(second[0], second[1]);
+      tex = `\\begin{aligned} ${eq1} \\\\ ${eq2} \\end{aligned}`;
+      note = `Це два рівняння з системи (стіни просто виключені з суми — не рахуються як «1.00», а взагалі відсутні як доданок; ціль — єдине відоме число 0.00; φ — невідомі). Зверніть увагу: ${phiSpan(second[0],second[1])} входить у перше рівняння, а ${phiSpan(r0,c0)} — у друге: невідомі пов'язані одне з одним, тому їх не можна знайти окремо.<br><br>${breakdown}`;
+    } else {
+      tex = eq1;
+      note = `Одне рівняння з системи (стіни виключені з суми, ціль — єдине відоме число 0.00, φ — невідомі).<br><br>${breakdown}`;
+    }
+    renderTex(tex, document.getElementById('eqConcrete'));
+    document.getElementById('slarNote').innerHTML = note;
+    setMiniMsg("Записано (частину) системи лінійних рівнянь — з невідомими, ще не розв'язану.");
+    mDraw();
+  });
+
+  document.getElementById('btnSolve').addEventListener('click', function(){
+    let iters=0;
+    while(iters<MAX_ITER){
+      iters++;
+      const d = mSweep(mPhi);
+      if(d<EPS) break;
+    }
+    document.getElementById('sweepCount').textContent = "проходів до збіжності: "+iters;
+    const r0=mDrone.r, c0=mDrone.c;
+    // Перевірка має збігатися з рівнянням, а в рівнянні беруть участь лише
+    // вільні сусіди — стіна власного значення не має і в середнє не входить.
+    const freeN = [[-1,0],[1,0],[0,-1],[0,1]]
+      .map(([dr,dc])=>[r0+dr, c0+dc])
+      .filter(([r,c])=>!mIsWallCell(r,c));
+    const terms = freeN.map(([r,c])=>mPhi[mIdx(r,c)]);
+    let texV;
+    if(terms.length>0){
+      const avg = terms.reduce((a,b)=>a+b,0)/terms.length;
+      const rhs = terms.map(v=>v.toFixed(2)).join('+');
+      texV = `\\varphi_{${r0},${c0}} = ${mPhi[mIdx(r0,c0)].toFixed(2)} \\qquad \\tfrac{1}{${terms.length}}\\big(${rhs}\\big) = ${avg.toFixed(2)}`;
+    } else {
+      texV = `\\varphi_{${r0},${c0}} = ${mPhi[mIdx(r0,c0)].toFixed(2)}`;
+    }
+    renderTex(texV, document.getElementById('eqVerify'));
+    setMiniMsg("Систему розв'язано — перевірте: ліва і права частини рівняння клітинки дрона тепер збігаються (з точністю до похибки методу).");
+    mDraw();
+  });
+
+  document.getElementById('btnDecide').addEventListener('click', function(){
+    const cand = [[mDrone.r-1,mDrone.c],[mDrone.r+1,mDrone.c],[mDrone.r,mDrone.c-1],[mDrone.r,mDrone.c+1]]
+      .filter(([r,c])=>r>=0&&r<MR&&c>=0&&c<MC)
+      .filter(([r,c])=>{ const fi=mFixed(r,c); return !(fi.fixed && (mIsBorder(r,c)||(mRevealed[mIdx(r,c)]&&mIsWall(r,c)))); });
+    if(cand.length===0){ setMiniMsg("Немає прохідних сусідів.", true); return; }
+    let best=cand[0], bestVal=mPhi[mIdx(cand[0][0],cand[0][1])];
+    for(const [r,c] of cand){ const v=mPhi[mIdx(r,c)]; if(v<bestVal){bestVal=v; best=[r,c];} }
+    document.getElementById('decisionNote').textContent =
+      "Найменше значення серед сусідів по сторонах — φ = "+bestVal.toFixed(2)+" у клітинці ("+best[0]+", "+best[1]+"). Туди й летимо: рух проти градієнта, «низом» до цілі.";
+    mHighlightNeighborsMin = {r:best[0], c:best[1]};
+    mDraw();
+    setTimeout(function(){
+      mTrail.push({r:mDrone.r, c:mDrone.c});
+      mDrone = {r:best[0], c:best[1]};
+      mHighlightNeighborsMin = null;
+      mStep++;
+      document.getElementById('lidarReadout').innerHTML="";
+      document.getElementById('eqConcrete').innerHTML="";
+      document.getElementById('slarNote').textContent="";
+      document.getElementById('sweepCount').textContent="";
+      document.getElementById('eqVerify').innerHTML="";
+      if(mDrone.r===mGoal.r && mDrone.c===mGoal.c){ setMiniMsg("Дрон досяг цілі."); }
+      else { setMiniMsg("Крок "+mStep+" виконано. Натисніть «Сканувати лідаром» для нової позиції."); }
+      mDraw();
+    }, 550);
+  });
+
+  document.getElementById('btnMiniReset').addEventListener('click', mReset);
+
+  function setMiniMsg(t, warn){
+    const el=document.getElementById('miniMsg');
+    el.textContent=t; el.style.color = warn ? "var(--warn)" : "var(--good)";
+  }
+
+  function mReset(){
+    mRevealed = new Uint8Array(MC*MR);
+    mComputed = new Uint8Array(MC*MR);
+    mPhi = new Float64Array(MC*MR).fill(0.5);
+    mDrone = {r:2,c:2};
+    mTrail = [];
+    mStep = 0;
+    mHighlightMoore=false; mHighlightNeighborsMin=null;
+    document.getElementById('lidarReadout').innerHTML="";
+    document.getElementById('eqConcrete').innerHTML="";
+    document.getElementById('slarNote').textContent="";
+    document.getElementById('sweepCount').textContent="";
+    document.getElementById('eqVerify').innerHTML="";
+    document.getElementById('decisionNote').textContent="";
+    setMiniMsg("Приклад скинуто. Натисніть «Сканувати лідаром», щоб почати.");
+    mResize();
+  }
+
+  window.addEventListener('resize', function(){ mResize(); if(flightTab.style.display!=='none') resizeCanvas(); });
+
+  // ================================================================
+  //  ВКЛАДКА "ПОЛІТ" — велика сітка 22x14
+  // ================================================================
+  const COLS=22, ROWS=14, RADIUS=3;
+  function idx(r,c){ return r*COLS+c; }
+
+  // Змійка: три горизонтальні коридори (ряди 1–3, 5–8, 10–12), розділені
+  // стінами НА ВСЮ ширину поля; єдиний прохід кожної стіни — то в одного
+  // краю, то в протилежного. Траєкторія: праворуч → через усе поле
+  // ліворуч → знову праворуч.
+  function buildWallsS(){
+    const wall = new Uint8Array(COLS*ROWS);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      if(r===0||r===ROWS-1||c===0||c===COLS-1) wall[idx(r,c)]=1;
+    }
+    for(let c=1;c<=COLS-2;c++){ if(c!==COLS-4) wall[idx(4,c)]=1; } // прохід справа
+    for(let c=1;c<=COLS-2;c++){ if(c!==3)       wall[idx(9,c)]=1; } // прохід зліва
+    return wall;
+  }
+
+  // Спіральний коридор: вхід знизу ліворуч, два оберти, глухий кут у центрі.
+  // Наївне адитивне поле веде дрона вглиб спіралі й застрягає в тупику;
+  // розв'язок СЛАР локальних мінімумів не має — вглиб коридору значення φ
+  // лише зростають, тож градієнт виводить дрона назовні.
+  function buildWallsCup(){
+    const wall = new Uint8Array(COLS*ROWS);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      if(r===0||r===ROWS-1||c===0||c===COLS-1) wall[idx(r,c)]=1;
+    }
+    const R0=3, R1=11, C0=3, C1=17; // межі прямокутника спіралі
+    for(let r=R0;r<=R1;r++) for(let c=C0;c<=C1;c++) wall[idx(r,c)]=1;
+    const path=[];
+    function seg(r0,c0,r1,c1){ // відрізок коридору, обидва кінці включно
+      const dr=Math.sign(r1-r0), dc=Math.sign(c1-c0);
+      let r=r0, c=c0;
+      for(;;){ path.push([r,c]); if(r===r1&&c===c1) break; r+=dr; c+=dc; }
+    }
+    seg(11,3,11,17);  // нижня зовнішня — праворуч
+    seg(10,17,3,17);  // права зовнішня — вгору
+    seg(3,16,3,5);    // верхня зовнішня — ліворуч
+    seg(4,5,9,5);     // кільцем усередину: ліва — вниз
+    seg(9,6,9,15);    // нижня внутрішня — праворуч
+    seg(8,15,5,15);   // права внутрішня — вгору
+    seg(5,14,5,7);    // верхня внутрішня — ліворуч
+    seg(6,7,7,7);     // ліва внутрішня — вниз
+    seg(7,8,7,13);    // центр — праворуч, тупик
+    for(const [r,c] of path) wall[idx(r,c)]=0;
+    return wall;
+  }
+
+  const START={r:1,c:1}, GOAL={r:ROWS-2,c:COLS-2};
+
+  function rotateOffsets(offsets, times){
+    let out = offsets;
+    for(let t=0;t<times;t++) out = out.map(([r,c])=>[c,-r]);
+    const minR = Math.min(...out.map(p=>p[0])), minC = Math.min(...out.map(p=>p[1]));
+    return out.map(([r,c])=>[r-minR, c-minC]);
+  }
+  function pieceBBox(offsets){ return { h: Math.max(...offsets.map(p=>p[0]))+1, w: Math.max(...offsets.map(p=>p[1]))+1 }; }
+  function randInt(n){ return Math.floor(Math.random()*n); }
+  function makeMazePiece(){
+    const type = ['line','corner','cup','t'][randInt(4)];
+    if(type==='line'){
+      const len=3+randInt(3), horiz=randInt(2)===0, cells=[];
+      for(let i=0;i<len;i++) cells.push(horiz?[0,i]:[i,0]);
+      return cells;
+    }
+    if(type==='corner'){
+      const a=2+randInt(3), b=2+randInt(3), cells=[];
+      for(let i=0;i<a;i++) cells.push([0,i]);
+      for(let i=0;i<b;i++) cells.push([i,a-1]);
+      return cells;
+    }
+    if(type==='cup'){
+      const w=3+randInt(3), h=2+randInt(3), cells=[];
+      for(let c=0;c<w;c++) cells.push([0,c]);
+      for(let r=0;r<h;r++) cells.push([r,0]);
+      for(let r=0;r<h;r++) cells.push([r,w-1]);
+      return cells;
+    }
+    const len=3+randInt(3), stem=2+randInt(2), mid=Math.floor(len/2), cells=[];
+    for(let i=0;i<len;i++) cells.push([0,i]);
+    for(let i=1;i<=stem;i++) cells.push([i,mid]);
+    return cells;
+  }
+  function tooCloseTo(r,c,pt,clear){ return Math.abs(r-pt.r)<=clear && Math.abs(c-pt.c)<=clear; }
+  function buildWallsRandom(targetPieces){
+    const wall = new Uint8Array(COLS*ROWS);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){ if(r===0||r===ROWS-1||c===0||c===COLS-1) wall[idx(r,c)]=1; }
+    let placed=0, attempts=0;
+    while(placed<targetPieces && attempts<targetPieces*25){
+      attempts++;
+      let offs = rotateOffsets(makeMazePiece(), randInt(4));
+      const bb = pieceBBox(offs);
+      if(bb.h>ROWS-2 || bb.w>COLS-2) continue;
+      const ar=1+randInt(ROWS-1-bb.h), ac=1+randInt(COLS-1-bb.w);
+      const cells = offs.map(([dr,dc])=>[ar+dr,ac+dc]);
+      if(cells.some(([r,c])=>tooCloseTo(r,c,START,2)||tooCloseTo(r,c,GOAL,2))) continue;
+      cells.forEach(([r,c])=>{ if(r>0&&r<ROWS-1&&c>0&&c<COLS-1) wall[idx(r,c)]=1; });
+      placed++;
+    }
+    return wall;
+  }
+  function isSolvableMap(wall){
+    const seen = new Uint8Array(COLS*ROWS);
+    const stack=[[START.r,START.c]];
+    seen[idx(START.r,START.c)]=1;
+    while(stack.length){
+      const [r,c]=stack.pop();
+      if(r===GOAL.r&&c===GOAL.c) return true;
+      for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+        if(seen[idx(nr,nc)]||wall[idx(nr,nc)]) continue;
+        seen[idx(nr,nc)]=1; stack.push([nr,nc]);
+      }
+    }
+    return false;
+  }
+
+  const MAP_BUILDERS = {s: buildWallsS, cup: buildWallsCup};
+  let currentMapId = 's';
+  let wallTrue = MAP_BUILDERS[currentMapId]();
+
+  let revealed, phi, drone, trail, step, seenCount, lastWarm, lastCold, finished, autoTimer, animToken, reach;
+  let editMode = false;
+
+  function isBorder(r,c){ return r===0||r===ROWS-1||c===0||c===COLS-1; }
+  function isGoal(r,c){ return r===GOAL.r && c===GOAL.c; }
+  // Стіна (межа світу або вже виявлена лідаром перешкода) — умова Неймана:
+  // немає власного значення, просто виключається із сусідів. Єдина умова Діріхле — ціль (=0).
+  function isWallCell(r,c){
+    if(r<0||r>=ROWS||c<0||c>=COLS) return true;
+    if(isBorder(r,c)) return true;
+    const i=idx(r,c);
+    return !!(revealed[i] && wallTrue[i]);
+  }
+
+  // Клітинки, з'єднані з ціллю крізь вільні (у моделі) клітинки, зв'язність 4.
+  // Усе, що сюди не потрапило, — «відрізано» виявленими стінами. У такій кишені
+  // система не має розв'язку: єдине відоме значення (ціль = 0) по той бік стін,
+  // а доданок K_SOURCE піднімає значення на кожному проході — рівняння там просто
+  // розбігається. Тому відрізане виключаємо з рівняння, руху і підсвітки.
+  function computeReach(){
+    reach = new Uint8Array(COLS*ROWS);
+    const stack = [[GOAL.r, GOAL.c]];
+    reach[idx(GOAL.r, GOAL.c)] = 1;
+    while(stack.length){
+      const [r,c] = stack.pop();
+      for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+        const i = idx(nr,nc);
+        if(reach[i] || isWallCell(nr,nc)) continue;
+        reach[i] = 1;
+        stack.push([nr,nc]);
+      }
+    }
+  }
+
+  function bresenhamPath(r0,c0,r1,c1){
+    const cells=[];
+    let dr=Math.abs(r1-r0), dc=Math.abs(c1-c0);
+    const sr = r0<r1?1:-1, sc = c0<c1?1:-1;
+    let err = dr-dc, r=r0, c=c0;
+    while(true){
+      if(!(r===r0 && c===c0)) cells.push([r,c]);
+      if(r===r1 && c===c1) break;
+      const e2 = 2*err;
+      if(e2>-dc){ err-=dc; r+=sr; }
+      if(e2<dr){ err+=dr; c+=sc; }
+    }
+    return cells;
+  }
+
+  function reveal(cr,cc){
+    revealed[idx(cr,cc)] = 1;
+    for(let r=Math.max(0,cr-RADIUS); r<=Math.min(ROWS-1,cr+RADIUS); r++){
+      for(let c=Math.max(0,cc-RADIUS); c<=Math.min(COLS-1,cc+RADIUS); c++){
+        const dr=r-cr, dc=c-cc;
+        if(dr*dr+dc*dc>RADIUS*RADIUS) continue;
+        if(r===cr && c===cc) continue;
+        const path = bresenhamPath(cr,cc,r,c);
+        let blocked=false;
+        for(let k=0;k<path.length-1;k++){
+          const [pr,pc]=path[k];
+          if(wallTrue[idx(pr,pc)]){ blocked=true; break; }
+        }
+        if(!blocked) revealed[idx(r,c)]=1;
+      }
+    }
+  }
+
+  // Рівняння Пуассона: φ = середнє ВІЛЬНИХ сусідів + K.
+  // K — стала «вартість кроку» (φ = K × очікувана кількість кроків до цілі).
+  // Стіни — Нейман, просто виключені; ціль — єдина умова Діріхле (=0).
+  // Клітинки, відрізані стінами від цілі, пропускаються (див. computeReach).
+  function sweep(arr){
+    let maxDelta=0;
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const i=idx(r,c);
+        if(isGoal(r,c)){ const d=Math.abs(arr[i]-0); if(d>maxDelta) maxDelta=d; arr[i]=0; continue; }
+        if(isWallCell(r,c)) continue;
+        if(!reach[i]) continue;
+        let sum=0, cnt=0;
+        for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+          const nr=r+dr, nc=c+dc;
+          if(isWallCell(nr,nc)) continue;
+          sum += arr[idx(nr,nc)]; cnt++;
+        }
+        if(cnt===0) continue;
+        const val = sum/cnt + K_SOURCE;
+        const d=Math.abs(val-arr[i]); if(d>maxDelta) maxDelta=d;
+        arr[i]=val;
+      }
+    }
+    return maxDelta;
+  }
+
+  function solveInstant(arr){
+    let iters=0;
+    while(iters<MAX_ITER){ iters++; const d=sweep(arr); if(d<EPS) break; }
+    return iters;
+  }
+
+  function coldCount(){
+    const tmp = new Float64Array(COLS*ROWS).fill(0);
+    return solveInstant(tmp);
+  }
+
+  const canvas = document.getElementById('grid');
+  const ctx = canvas.getContext('2d');
+  let cell=0;
+
+  function resizeCanvas(){
+    const cssWidth = canvas.parentElement.clientWidth;
+    if(cssWidth<=0) return; // вкладка зараз прихована — не затираємо вже готовий розмір
+    cell = Math.floor(cssWidth/COLS);
+    const cssHeight = cell*ROWS;
+    const dpr = window.devicePixelRatio||1;
+    canvas.width = cell*COLS*dpr; canvas.height = cssHeight*dpr;
+    canvas.style.width=(cell*COLS)+"px"; canvas.style.height=cssHeight+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(editMode){ drawEditMode(); return; }
+
+    // Шкалу кольорів будуємо лише по клітинках, з'єднаних із ціллю:
+    // значення у відрізаних кишенях нічого не означають.
+    let rngLo=Infinity, rngHi=-Infinity;
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const i=idx(r,c);
+      if(!revealed[i]) continue;
+      if(isWallCell(r,c)) continue;
+      if(!reach[i]) continue;
+      if(phi[i]<rngLo) rngLo=phi[i];
+      if(phi[i]>rngHi) rngHi=phi[i];
+    }
+    if(!isFinite(rngLo) || rngHi-rngLo<1e-6){ rngLo=0; rngHi=1; }
+
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const i=idx(r,c), x=c*cell, y=r*cell;
+        if(isWallCell(r,c)){
+          ctx.fillStyle = "#33363a";
+        } else if(!reach[i]){
+          ctx.fillStyle = "#e8e2d0"; // відрізано від цілі
+        } else {
+          ctx.fillStyle = heatColor((phi[i]-rngLo)/(rngHi-rngLo));
+        }
+        ctx.fillRect(x,y,cell,cell);
+        if(!isWallCell(r,c) && !reach[i]){
+          ctx.strokeStyle = "rgba(51,54,58,0.5)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x+3, y+cell-3);
+          ctx.lineTo(x+cell-3, y+3);
+          ctx.stroke();
+        }
+        if(!revealed[i] && !isBorder(r,c)){
+          ctx.fillStyle = "rgba(220,224,220,0.55)";
+          ctx.fillRect(x,y,cell,cell);
+        }
+      }
+    }
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    for(let r=0;r<=ROWS;r++){ ctx.beginPath(); ctx.moveTo(0,r*cell); ctx.lineTo(COLS*cell,r*cell); ctx.stroke(); }
+    for(let c=0;c<=COLS;c++){ ctx.beginPath(); ctx.moveTo(c*cell,0); ctx.lineTo(c*cell,ROWS*cell); ctx.stroke(); }
+
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle = "rgba(46,63,160,0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(drone.c*cell+cell/2, drone.r*cell+cell/2, RADIUS*cell, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "rgba(46,63,160,0.35)";
+    trail.forEach(p=>{ ctx.beginPath(); ctx.arc(p.c*cell+cell/2, p.r*cell+cell/2, cell*0.14, 0, Math.PI*2); ctx.fill(); });
+
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(GOAL.c*cell+cell/2, GOAL.r*cell+cell/2, cell*0.32, 0, Math.PI*2); ctx.stroke();
+
+    ctx.fillStyle = "#2e3fa0";
+    ctx.beginPath(); ctx.arc(drone.c*cell+cell/2, drone.r*cell+cell/2, cell*0.28, 0, Math.PI*2); ctx.fill();
+
+    if(!finished){
+      const preview = bestNeighborOf(drone.r, drone.c);
+      if(preview && preview.bestVal < phi[idx(drone.r,drone.c)] - DECIDE_EPS){
+        const fx = drone.c*cell+cell/2, fy = drone.r*cell+cell/2;
+        const tx = preview.best[1]*cell+cell/2, ty = preview.best[0]*cell+cell/2;
+        const px = fx + (tx-fx)*0.7, py = fy + (ty-fy)*0.7;
+        ctx.strokeStyle = "#1f7a45"; ctx.fillStyle = "#1f7a45"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(px,py); ctx.stroke();
+        const ang = Math.atan2(py-fy, px-fx), headLen = Math.max(6, cell*0.22);
+        ctx.beginPath();
+        ctx.moveTo(px,py);
+        ctx.lineTo(px-headLen*Math.cos(ang-Math.PI/6), py-headLen*Math.sin(ang-Math.PI/6));
+        ctx.lineTo(px-headLen*Math.cos(ang+Math.PI/6), py-headLen*Math.sin(ang+Math.PI/6));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+
+  // Режим малювання: показуємо карту цілою (без туману) — інакше намальовану стіну
+  // не видно, бо стіни в польоті малюються лише там, де вже пройшов лідар.
+  function drawEditMode(){
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const x=c*cell, y=r*cell;
+        const wall = isBorder(r,c) || !!wallTrue[idx(r,c)];
+        ctx.fillStyle = wall ? "#33363a" : "#edf0ed";
+        ctx.fillRect(x,y,cell,cell);
+      }
+    }
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(28,35,32,0.15)";
+    for(let r=0;r<=ROWS;r++){ ctx.beginPath(); ctx.moveTo(0,r*cell); ctx.lineTo(COLS*cell,r*cell); ctx.stroke(); }
+    for(let c=0;c<=COLS;c++){ ctx.beginPath(); ctx.moveTo(c*cell,0); ctx.lineTo(c*cell,ROWS*cell); ctx.stroke(); }
+
+    // ціль (кільце — у кольорі «холодного» краю, бо біле на світлому фоні не видно)
+    ctx.strokeStyle = "#0f6e74"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(GOAL.c*cell+cell/2, GOAL.r*cell+cell/2, cell*0.32, 0, Math.PI*2); ctx.stroke();
+
+    // дрон у стартовій позиції
+    ctx.fillStyle = "#2e3fa0";
+    ctx.beginPath(); ctx.arc(START.c*cell+cell/2, START.r*cell+cell/2, cell*0.28, 0, Math.PI*2); ctx.fill();
+  }
+
+  function bestNeighborOf(r,c){
+    const cand = neighbors(r,c).filter(([rr,cc])=>passable(rr,cc));
+    if(cand.length===0) return null;
+    let best=cand[0], bestVal=phi[idx(cand[0][0],cand[0][1])];
+    for(const [rr,cc] of cand){ const v=phi[idx(rr,cc)]; if(v<bestVal){ bestVal=v; best=[rr,cc]; } }
+    return {best, bestVal};
+  }
+
+  function neighbors(r,c){
+    return [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([rr,cc])=>rr>=0&&rr<ROWS&&cc>=0&&cc<COLS);
+  }
+  // Прохідне = вільне І з'єднане з ціллю. Летіти у відрізану кишеню дрона не відправляємо:
+  // поле там не містить інформації про шлях (його не існує).
+  function passable(r,c){
+    return !isWallCell(r,c) && !!reach[idx(r,c)];
+  }
+
+  function animatedSolveThenContinue(cb){
+    const animate = document.getElementById('chkAnimate').checked;
+    if(!animate){ const iters=solveInstant(phi); cb(iters); return; }
+    const BATCH = 20; // кілька проходів на кадр — інакше повільна анімація при тисячах проходів
+    let iters=0;
+    function frame(){
+      let d=0;
+      for(let k=0;k<BATCH;k++){ iters++; d=sweep(phi); if(d<EPS || iters>=MAX_ITER) break; }
+      draw();
+      if(d<EPS || iters>=MAX_ITER){ cb(iters); }
+      else { animToken = requestAnimationFrame(frame); }
+    }
+    animToken = requestAnimationFrame(frame);
+  }
+
+  let isSolving = false;
+
+  function stepDrone(){
+    if(finished || isSolving || editMode) return;
+    if(!reach[idx(drone.r,drone.c)]){
+      setMsg("Виявлені стіни відрізали дрона від цілі — шляху до неї не існує.", true);
+      stopAuto(); return;
+    }
+    const res = bestNeighborOf(drone.r, drone.c);
+    if(!res){ setMsg("Глухий кут — прохідних сусідніх клітинок немає.", true); stopAuto(); return; }
+    const best = res.best, bestVal = res.bestVal;
+    if(bestVal >= phi[idx(drone.r,drone.c)] - DECIDE_EPS){
+      setMsg("Глухий кут: усі досяжні звідси клітинки не ведуть до цілі (рівняння Пуассона гарантує це напевно, не як здогад).", true);
+      stopAuto(); return;
+    }
+    trail.push({r:drone.r, c:drone.c});
+    drone = {r:best[0], c:best[1]};
+    reveal(drone.r, drone.c);
+    computeReach();
+    isSolving = true;
+    document.getElementById('btnStep').disabled = true;
+    document.getElementById('btnAuto').disabled = true;
+    animatedSolveThenContinue(function(warmIters){
+      lastWarm = warmIters;
+      lastCold = coldCount();
+      step++;
+      seenCount = revealed.reduce((a,b)=>a+b,0);
+      updateStats();
+      draw();
+      isSolving = false;
+      document.getElementById('btnStep').disabled = false;
+      document.getElementById('btnAuto').disabled = false;
+      if(drone.r===GOAL.r && drone.c===GOAL.c){ finished=true; setMsg("Дрон досяг цілі."); stopAuto(); }
+      else {
+        setMsg("");
+        if(autoRunning) autoTimer = setTimeout(stepDrone, 250);
+      }
+    });
+  }
+
+  function setMsg(text, isWarn){
+    const el=document.getElementById('msg');
+    el.textContent=text; el.style.color = isWarn ? "var(--warn)" : "var(--good)";
+  }
+
+  function updateStats(){
+    document.getElementById('stStep').textContent = step;
+    document.getElementById('stSeen').textContent = seenCount+" / "+(COLS*ROWS);
+    document.getElementById('stWarm').textContent = lastWarm==null?"—":lastWarm;
+    document.getElementById('stCold').textContent = lastCold==null?"—":lastCold;
+    const su = document.getElementById('speedup');
+    if(lastWarm!=null && lastCold!=null){
+      const ratio = lastCold/Math.max(1,lastWarm);
+      su.innerHTML = "Теплий старт зійшовся за <b>"+lastWarm+"</b> проходів проти <b>"+lastCold+"</b> з нуля для тієї самої карти — швидше у <b>×"+ratio.toFixed(1)+"</b>.";
+    }
+  }
+
+  let autoRunning=false;
+  function stopAuto(){
+    autoRunning=false;
+    clearTimeout(autoTimer); clearInterval(autoTimer);
+    document.getElementById('btnAuto').textContent="Безперервний рух";
+  }
+
+  document.getElementById('btnStep').addEventListener('click', stepDrone);
+  document.getElementById('btnAuto').addEventListener('click', function(){
+    if(autoRunning){ stopAuto(); return; }
+    autoRunning=true; this.textContent="Зупинити";
+    if(!isSolving) stepDrone();
+  });
+
+  // ---------- режим малювання власної карти ----------
+  function cellFromEvent(e){
+    if(cell<=0) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const c = Math.floor(x/cell), r = Math.floor(y/cell);
+    if(r<0||r>=ROWS||c<0||c>=COLS) return null;
+    return [r,c];
+  }
+  function isEditableCell(r,c){
+    if(isBorder(r,c)) return false;
+    if((r===START.r&&c===START.c) || (r===GOAL.r&&c===GOAL.c)) return false;
+    return true;
+  }
+  function enterEditMode(){
+    stopAuto();
+    if(animToken) cancelAnimationFrame(animToken);
+    isSolving = false;
+    editMode = true;
+    document.getElementById('btnStep').disabled = true;
+    document.getElementById('btnAuto').disabled = true;
+    document.getElementById('btnFly').style.display = '';
+    updateEditMsg();
+    draw();
+  }
+  function exitEditMode(){
+    editMode = false;
+    document.getElementById('btnFly').style.display = 'none';
+  }
+  function updateEditMsg(){
+    if(!editMode) return;
+    if(isSolvableMap(wallTrue)){
+      setMsg("Режим малювання: клацайте або проведіть по сітці, щоб додати/прибрати стіни (межа, старт і ціль не змінюються). Шлях від старту до цілі є — натисніть «Готово — літати».");
+    } else {
+      setMsg("Режим малювання: клацайте або проведіть по сітці, щоб додати/прибрати стіни. Поки що шляху від старту до цілі немає — приберіть частину стін.", true);
+    }
+  }
+  function afterEdit(){
+    if(!editMode) return;
+    updateEditMsg();
+    draw();
+  }
+
+  let painting=false, paintVal=1;
+  canvas.addEventListener('pointerdown', function(e){
+    const rc = cellFromEvent(e); if(!rc) return;
+    const [r,c] = rc;
+    if(!editMode){
+      if(!isEditableCell(r,c)) return;
+      // клацнули по сітці під час польоту — переходимо до малювання цієї ж карти
+      currentMapId = 'custom';
+      document.getElementById('mapSelect').value = 'custom';
+      document.getElementById('randomControls').style.display = 'none';
+      enterEditMode();
+    }
+    if(!isEditableCell(r,c)) return;
+    paintVal = wallTrue[idx(r,c)] ? 0 : 1;
+    wallTrue[idx(r,c)] = paintVal;
+    painting = true;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+    afterEdit();
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if(!painting || !editMode) return;
+    const rc = cellFromEvent(e); if(!rc) return;
+    const [r,c] = rc;
+    if(!isEditableCell(r,c)) return;
+    if(wallTrue[idx(r,c)] !== paintVal){
+      wallTrue[idx(r,c)] = paintVal;
+      afterEdit();
+    }
+  });
+  function stopPainting(){ painting = false; }
+  window.addEventListener('pointerup', stopPainting);
+  window.addEventListener('pointercancel', stopPainting);
+
+  document.getElementById('btnFly').addEventListener('click', function(){
+    exitEditMode();
+    resetFlight();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if(editMode){
+      wallTrue = buildWallsEmpty();
+      afterEdit();
+      return;
+    }
+    resetFlight();
+  });
+
+  function buildWallsEmpty(){
+    const wall = new Uint8Array(COLS*ROWS);
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){ if(r===0||r===ROWS-1||c===0||c===COLS-1) wall[idx(r,c)]=1; }
+    return wall;
+  }
+  MAP_BUILDERS.custom = buildWallsEmpty;
+
+  document.getElementById('mapSelect').addEventListener('change', function(){
+    currentMapId = this.value;
+    document.getElementById('randomControls').style.display = (currentMapId==='random') ? 'flex' : 'none';
+    if(currentMapId==='custom'){
+      wallTrue = buildWallsEmpty();
+      enterEditMode();
+      return;
+    }
+    exitEditMode();
+    wallTrue = MAP_BUILDERS[currentMapId]();
+    resetFlight();
+  });
+  document.getElementById('densitySlider').addEventListener('input', function(){
+    document.getElementById('densityValue').textContent = this.value;
+  });
+  document.getElementById('btnRegenMaze').addEventListener('click', function(){
+    wallTrue = buildWallsRandom(parseInt(document.getElementById('densitySlider').value,10));
+    resetFlight();
+  });
+
+  // ---------- збереження / завантаження карти у .json ----------
+  document.getElementById('btnSaveMaze').addEventListener('click', function(){
+    const walls = [];
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      if(isBorder(r,c)) continue;
+      if(wallTrue[idx(r,c)]) walls.push([r,c]);
+    }
+    const data = { cols:COLS, rows:ROWS, start:[START.r,START.c], goal:[GOAL.r,GOAL.c], walls };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'labyrinth.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('btnLoadMaze').addEventListener('click', function(){
+    document.getElementById('loadMazeInput').click();
+  });
+  document.getElementById('loadMazeInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      let data;
+      try { data = JSON.parse(ev.target.result); }
+      catch(err){ setMsg("Не вдалося прочитати файл — це не коректний JSON.", true); return; }
+      if(data.cols!==COLS || data.rows!==ROWS || !Array.isArray(data.walls)){
+        setMsg("Файл не підходить: розмір сітки має бути "+COLS+"×"+ROWS+".", true);
+        return;
+      }
+      const wall = buildWallsEmpty();
+      for(const [r,c] of data.walls){
+        if(r<=0||r>=ROWS-1||c<=0||c>=COLS-1) continue;
+        if((r===START.r&&c===START.c)||(r===GOAL.r&&c===GOAL.c)) continue;
+        wall[idx(r,c)] = 1;
+      }
+      wallTrue = wall;
+      currentMapId = 'custom';
+      document.getElementById('mapSelect').value = 'custom';
+      document.getElementById('randomControls').style.display = 'none';
+      // завантажену карту показуємо цілою в режимі малювання:
+      // можна оглянути, підправити і потім летіти
+      enterEditMode();
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // щоб можна було завантажити той самий файл повторно
+  });
+
+  function resetFlight(){
+    stopAuto();
+    if(animToken) cancelAnimationFrame(animToken);
+    isSolving = false;
+    editMode = false;
+    document.getElementById('btnFly').style.display = 'none';
+    document.getElementById('btnStep').disabled = false;
+    document.getElementById('btnAuto').disabled = false;
+    revealed = new Uint8Array(COLS*ROWS);
+    phi = new Float64Array(COLS*ROWS).fill(0);
+    drone = {r:START.r, c:START.c};
+    trail = []; step=0; lastWarm=null; lastCold=null; finished=false;
+    reveal(drone.r, drone.c);
+    computeReach();
+    solveInstant(phi);
+    seenCount = revealed.reduce((a,b)=>a+b,0);
+    updateStats();
+    if(!isSolvableMap(wallTrue)){
+      setMsg("Ця карта фізично непрохідна (перевірено обходом у ширину) — дрон не зможе дійти до цілі.", true);
+    } else {
+      setMsg("");
+    }
+    resizeCanvas();
+  }
+
+  // ---------- статичні формули ----------
+  renderTex(
+    "\\varphi_{i,j}^{(k+1)}=\\tfrac14\\Big(\\varphi_{i-1,j}^{(k+1)}+\\varphi_{i+1,j}^{(k)}+\\varphi_{i,j-1}^{(k+1)}+\\varphi_{i,j+1}^{(k)}\\Big)",
+    document.getElementById('eqGeneric')
+  );
+  renderTex(
+    "\\min_{j\\,\\in\\,N(i)}\\varphi_j \\;\\le\\; \\varphi_i \\;\\le\\; \\max_{j\\,\\in\\,N(i)}\\varphi_j",
+    document.getElementById('eqMaxPrinciple')
+  );
+  renderTex(
+    "\\tau_i \\;=\\; 1 + \\tfrac{1}{|N(i)|}\\sum_{j\\in N(i)}\\tau_j \\qquad\\Longrightarrow\\qquad \\varphi_i \\;=\\; \\tfrac{1}{|N(i)|}\\sum_{j\\in N(i)}\\varphi_j + K,\\quad K = 0.02",
+    document.getElementById('eqPoisson')
+  );
+
+  mReset();
+  resetFlight();
+})();
+</script>
+</body>
+</html>
