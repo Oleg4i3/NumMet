@@ -251,7 +251,7 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
     </div>
   </div>
 </header>
-
+<!--
 <nav class="stepnav">
   <div class="wrap">
     <a href="#s1">1. Вектор</a>
@@ -259,9 +259,9 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
     <a href="#s3">3. Зображення</a>
     <a href="#faq">Питання</a>
   </div>
-</nav>
+</nav> 
 
-<main class="wrap">
+<main class="wrap"> -->
 
 <!-- ============ SECTION 1 ============ -->
 <section class="block" id="s1">
@@ -700,14 +700,15 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     /* ---------- АТОМ ВОДНЮ: електрон скаче на n=2, випромінюючи фотони (Бальмер) ---------- */
+    /* ---------- АТОМ ВОДНЮ: стрибки на n=2 + впізнаваний спектр (серія Бальмера) ---------- */
     const atomCanvas=document.getElementById('sb-atom');
     if (atomCanvas){
       const ac=atomCanvas.getContext('2d');
       const W=atomCanvas.width, H=atomCanvas.height;
       // драбина енергій — умовна (не в масштабі); довжини хвиль — справжні лінії Бальмера
-      const levels=[{n:1,y:178},{n:2,y:145},{n:3,y:117},{n:4,y:92},{n:5,y:70}];
+      const levels=[{n:1,y:176},{n:2,y:150},{n:3,y:126},{n:4,y:103},{n:5,y:82},{n:6,y:63}];
       const yOf=function(n){ return levels.find(function(l){return l.n===n;}).y; };
-      const BALMER={3:656.3,4:486.1,5:434.0};
+      const BALMER={3:656.3, 4:486.1, 5:434.0, 6:410.2};
       function wavelengthToRGB(nm){
         let r=0,g=0,b=0;
         if (nm>=380&&nm<440){ r=-(nm-440)/60; g=0; b=1; }
@@ -723,36 +724,64 @@ document.addEventListener('DOMContentLoaded', function(){
         r=Math.round(255*Math.pow(r*factor,0.8)); g=Math.round(255*Math.pow(g*factor,0.8)); b=Math.round(255*Math.pow(b*factor,0.8));
         return 'rgb('+r+','+g+','+b+')';
       }
-      const LADDER_X0=22, LADDER_X1=W*0.47, EL_X=W*0.42, SPEC_X=W*0.5, SPEC_W=W-SPEC_X;
-      const xOfNm=function(nm){ return Math.max(SPEC_X+2,Math.min(W-2,SPEC_X+((700-nm)/300)*SPEC_W)); };
-      const ease=function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; };
-      const emission=[]; let photon=null;
-      let elN=3+Math.floor(Math.random()*3), elY=yOf(elN);
+      // --- геометрія: драбина зліва, спектр справа ---
+      const SPEC_X=Math.round(W*0.5), SPEC_W=W-SPEC_X;
+      const PANEL_T=16, PANEL_B=148, BAR_T=154, BAR_B=164;
+      const LADDER_X0=22, LADDER_X1=SPEC_X-8, EL_X=Math.round(W*0.42);
+      const xOfNm=function(nm){ return SPEC_X+(nm-400)/300*SPEC_W; };
+      // лінії Бальмера видно завжди (довідковий спектр); спалах — коли фотон «долетів»
+      const LINES=[656.3,486.1,434.0,410.2].map(function(nm){
+        return {nm:nm, color:wavelengthToRGB(nm), glow:0};
+      });
+      // радужна шкала 400–700 нм — малюємо один раз у позаекранний canvas
+      const barCv=document.createElement('canvas');
+      barCv.width=SPEC_W; barCv.height=BAR_B-BAR_T;
+      (function(){
+        const bc=barCv.getContext('2d');
+        for(let px=0;px<SPEC_W;px++){
+          bc.fillStyle=wavelengthToRGB(400+300*px/(SPEC_W-1));
+          bc.fillRect(px,0,1,barCv.height);
+        }
+      })();
+
+      let photon=null;
+      let elN=3+Math.floor(Math.random()*4), elY=yOf(elN);
       let phase='wait', phaseT0=performance.now(), phaseDur=600+Math.random()*1200;
+      const ease=function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; };
+
       function drawLadder(){
-        ac.fillStyle='#f5f6fa'; ac.fillRect(0,0,SPEC_X,H);
         for (const lvl of levels){
           ac.strokeStyle='#8888aa'; ac.lineWidth=1.2;
           ac.beginPath(); ac.moveTo(LADDER_X0,lvl.y); ac.lineTo(LADDER_X1,lvl.y); ac.stroke();
           ac.fillStyle='#333344'; ac.font='10px monospace'; ac.fillText('n='+lvl.n,3,lvl.y-4);
         }
       }
-      function drawEmissionSpectrum(){
-        ac.fillStyle='#f5f6fa'; ac.fillRect(SPEC_X,0,SPEC_W,H);
-        const grad=ac.createLinearGradient(SPEC_X,0,W,0);
-        for (let i=0;i<=10;i++) grad.addColorStop(i/10,'hsla('+((i/10)*280)+',60%,85%,0.3)');
-        ac.fillStyle=grad; ac.fillRect(SPEC_X,18,SPEC_W,H-36);
-        for (const line of emission){
-          line.alpha-=0.0008;
-          if (line.alpha<=0) continue;
-          ac.fillStyle=line.color; ac.globalAlpha=line.alpha;
-          ac.shadowColor=line.color; ac.shadowBlur=4;
-          ac.fillRect(xOfNm(line.nm)-1,18,2,H-36);
-          ac.globalAlpha=1; ac.shadowBlur=0;
+      function drawSpectrumPanel(){
+        ac.fillStyle='#0B0F1C';                                   // темне полотно спектра
+        ac.fillRect(SPEC_X,PANEL_T,SPEC_W,PANEL_B-PANEL_T);
+        for (const L of LINES){
+          const x=xOfNm(L.nm), g=Math.min(1,L.glow);
+          ac.save();
+          ac.globalAlpha=0.9;
+          ac.shadowColor=L.color; ac.shadowBlur=5+9*g;
+          ac.fillStyle=L.color;
+          ac.fillRect(x-1-g,PANEL_T+2,2+2*g,PANEL_B-PANEL_T-4);   // ядро лінії
+          if (g>0.05){                                            // білий центр під час спалаху
+            ac.globalAlpha=0.6*g; ac.shadowBlur=0; ac.fillStyle='#ffffff';
+            ac.fillRect(x-0.5,PANEL_T+2,1,PANEL_B-PANEL_T-4);
+          }
+          ac.restore();
+          if (L.glow>0) L.glow=Math.max(0,L.glow-0.012);          // затухання спалаху
         }
-        ac.font='9px monospace'; ac.fillStyle='#8a93a6'; ac.textAlign='center';
-        [400,500,600,700].forEach(function(nm){ ac.fillText(nm+' нм',xOfNm(nm),H-3); });
+        ac.drawImage(barCv,SPEC_X,BAR_T);                          // радужна шкала
+        ac.strokeStyle='#8a93a6'; ac.lineWidth=1;
+        ac.beginPath(); ac.moveTo(SPEC_X,BAR_B+0.5); ac.lineTo(W,BAR_B+0.5); ac.stroke();
+        ac.font='9px monospace'; ac.fillStyle='#5B6478'; ac.textAlign='center';
+        [400,500,600,700].forEach(function(nm){
+          ac.fillText(String(nm),Math.max(SPEC_X+14,Math.min(W-14,xOfNm(nm))),BAR_B+13);
+        });
         ac.textAlign='left';
+        ac.fillText('λ, нм',SPEC_X,BAR_B+27);
       }
       function updateElectron(now){
         if (phase==='fall'){
@@ -765,11 +794,11 @@ document.addEventListener('DOMContentLoaded', function(){
           if (t>=1){ elY=yOf(elN); phase='wait'; phaseT0=now; phaseDur=900+Math.random()*1800; }
         } else {
           if (elN===2 && now-phaseT0>phaseDur){          // накачка нагору (без фотона)
-            elN=3+Math.floor(Math.random()*3);
+            elN=3+Math.floor(Math.random()*4);
             phase='rise'; phaseT0=now; phaseDur=220;
           } else if (elN>=3 && now-phaseT0>phaseDur){    // стрибок вниз → фотон
             phase='fall'; phaseT0=now; phaseDur=260;
-            photon={nm:BALMER[elN],color:wavelengthToRGB(BALMER[elN]),x0:EL_X,y0:elY,t0:now,dur:750};
+            photon={nm:BALMER[elN],color:wavelengthToRGB(BALMER[elN]),x0:EL_X,y0:elY,t0:now,dur:900};
           }
         }
       }
@@ -787,26 +816,28 @@ document.addEventListener('DOMContentLoaded', function(){
       function drawPhoton(now){
         if (!photon) return;
         const t=Math.min(1,(now-photon.t0)/photon.dur);
-        const x=photon.x0+(xOfNm(photon.nm)-photon.x0)*t;
-        const y=photon.y0+(95-photon.y0)*t+Math.sin(t*Math.PI*3)*4;
+        const xT=xOfNm(photon.nm), yT=(PANEL_T+PANEL_B)/2;
+        const x=photon.x0+(xT-photon.x0)*t, y=photon.y0+(yT-photon.y0)*t+Math.sin(t*Math.PI*3)*4;
         ac.save(); ac.shadowColor=photon.color; ac.shadowBlur=6;
-        ac.fillStyle=photon.color; ac.globalAlpha=0.9;
+        ac.fillStyle=photon.color; ac.globalAlpha=0.95;
         ac.beginPath(); ac.arc(x,y,2.6,0,Math.PI*2); ac.fill(); ac.restore();
         ac.font='9px monospace'; ac.fillStyle=photon.color;
-        ac.fillText(photon.nm.toFixed(0),Math.min(x+4,W-34),y-6);
-        if (t>=1){                                     // фотон «долетів» → лінія у спектрі
-          emission.push({nm:photon.nm,color:photon.color,alpha:1});
-          if (emission.length>12) emission.shift();
+        ac.fillText(photon.nm.toFixed(0),Math.min(x+4,W-30),y-6);
+        if (t>=1){                                     // фотон «долетів» → спалах відповідної лінії
+          const L=LINES.find(function(q){ return q.nm===photon.nm; });
+          if (L) L.glow=1;
           photon=null;
         }
       }
       function animateAtom(now){
-        drawLadder(); drawEmissionSpectrum(); drawPhoton(now);
+        ac.fillStyle='#f5f6fa'; ac.fillRect(0,0,W,H);
+        drawLadder(); drawSpectrumPanel(); drawPhoton(now);
         updateElectron(now); drawElectron();
         requestAnimationFrame(animateAtom);
       }
       requestAnimationFrame(animateAtom);
     }
+	
   })(); } catch(e){ reportError('Банер (спектри) не запустився', e); }
   
     // ============ SHARED UTILITIES ============
