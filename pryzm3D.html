@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Дисперсія білого променя — призма з циркону</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  #no3d { position: fixed; inset: 0; display: none; place-items: center;
+          color: #777; font: 15px/1.6 system-ui, sans-serif; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="no3d">WebGL недоступний у цьому браузері.</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- фізика: циркон, апроксимація Коши ---------- */
+const CAUCHY_A = 1.9012, CAUCHY_B = 0.02041;
+const nOf = wl => CAUCHY_A + CAUCHY_B / (wl * 1e-3) ** 2;
+const DEG = Math.PI / 180;
+
+/* ---------- геометрія призми ---------- */
+const APEX_ANG = 40 * DEG, HALF = APEX_ANG / 2;
+const SIDE = 3.0, DEPTH = 1.3, Z = 0;
+
+const V_TOP = { x: 0,                      y: SIDE * Math.cos(HALF) };
+const V_L   = { x: -SIDE * Math.sin(HALF), y: 0 };
+const V_R   = { x:  SIDE * Math.sin(HALF), y: 0 };
+
+const ANG_N_IN  = -HALF;
+const ANG_N_OUT =  HALF;
+
+const THETA1   = 32 * DEG;
+const ALPHA_IN = ANG_N_IN + THETA1;
+
+const P0 = { x: (V_TOP.x + V_L.x) / 2, y: (V_TOP.y + V_L.y) / 2 };
+const LEN_IN = 6.4;
+const S0 = { x: P0.x - LEN_IN * Math.cos(ALPHA_IN),
+             y: P0.y - LEN_IN * Math.sin(ALPHA_IN) };
+
+/* ---------- трасування променів (Снелліус) ---------- */
+function faceHit(P, d, Qa, Qb) {
+  const ex = Qb.x - Qa.x, ey = Qb.y - Qa.y;
+  const t = ((Qa.x - P.x) * ey - (Qa.y - P.y) * ex) / (d.x * ey - d.y * ex);
+  return { x: P.x + d.x * t, y: P.y + d.y * t };
+}
+
+const WL_MIN = 400, WL_MAX = 700, N_WL = 64;
+const rays = [];
+for (let i = 0; i < N_WL; i++) {
+  const wl = WL_MIN + (WL_MAX - WL_MIN) * i / (N_WL - 1);
+  const n  = nOf(wl);
+  const r1 = Math.asin(Math.sin(THETA1) / n);
+  const a1 = ANG_N_IN + r1;
+  const d1 = { x: Math.cos(a1), y: Math.sin(a1) };
+  const P1 = faceHit(P0, d1, V_TOP, V_R);
+  const r2 = APEX_ANG - r1;
+  const s2 = n * Math.sin(r2);
+  const a2 = ANG_N_OUT - Math.asin(Math.min(1, s2));
+  const d2 = { x: Math.cos(a2), y: Math.sin(a2) };
+  rays.push({ wl, n, d1, P1, d2 });
+}
+
+/* ---------- кольори спектра ---------- */
+const s2l = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+function spectral(wl) {
+  let r = 0, g = 0, b = 0;
+  if      (wl < 440) { r = (440 - wl) / 60; b = 1; }
+  else if (wl < 490) { g = (wl - 440) / 50; b = 1; }
+  else if (wl < 510) { g = 1; b = (510 - wl) / 20; }
+  else if (wl < 580) { r = (wl - 510) / 70; g = 1; }
+  else if (wl < 645) { r = 1; g = (645 - wl) / 65; }
+  else               { r = 1; }
+  let f = 1;
+  if      (wl < 420) f = 0.35 + 0.65 * (wl - 400) / 20;
+  else if (wl > 680) f = 0.35 + 0.65 * (700 - wl) / 20;
+  return [s2l(r * f), s2l(g * f), s2l(b * f)];
+}
+const specCol = rays.map(R => spectral(R.wl));
+
+const FAN_LEN = 6.8, FADE = 0.55;
+const env = s => {
+  const t = Math.min(Math.max((s - FADE) / (1 - FADE), 0), 1);
+  return 1 - t * t * (3 - 2 * t);
+};
+
+/* ---------- стрічкова геометрія ---------- */
+function beamMat() {
+  return new THREE.MeshBasicMaterial({
+    vertexColors: true, blending: THREE.AdditiveBlending,
+    transparent: true, depthWrite: false, depthTest: false,
+    side: THREE.DoubleSide
+  });
+}
+function ribbon(pointAt, colorAt, rows) {
+  const pos = [], col = [], idx = [];
+  for (let m = 0; m <= rows; m++) {
+    const s = m / rows;
+    for (let i = 0; i < N_WL; i++) {
+      const p = pointAt(i, s), c = colorAt(i, s);
+      pos.push(p.x, p.y, Z);
+      col.push(c[0], c[1], c[2]);
+    }
+  }
+  for (let m = 0; m < rows; m++)
+    for (let i = 0; i < N_WL - 1; i++) {
+      const a = m * N_WL + i;
+      idx.push(a, a + N_WL, a + 1,  a + 1, a + N_WL, a + N_WL + 1);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color',    new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  return new THREE.Mesh(g, beamMat());
+}
+
+const fan = ribbon(
+  (i, s) => { const R = rays[i];
+    return { x: R.P1.x + R.d2.x * s * FAN_LEN,
+             y: R.P1.y + R.d2.y * s * FAN_LEN }; },
+  (i, s) => { const c = specCol[i], e = env(s);
+    return [c[0] * e, c[1] * e, c[2] * e]; },
+  28
+);
+
+const inside = ribbon(
+  (i, s) => { const R = rays[i];
+    const L = Math.hypot(R.P1.x - P0.x, R.P1.y - P0.y);
+    return { x: P0.x + R.d1.x * s * L, y: P0.y + R.d1.y * s * L }; },
+  (i) => { const c = specCol[i]; return [c[0] * 0.95, c[1] * 0.95, c[2] * 0.95]; },
+  6
+);
+
+function beam(len, width, k, rgb) {
+  const g = new THREE.PlaneGeometry(len, width, 1, 10);
+  const pa = g.attributes.position, col = [];
+  for (let i = 0; i < pa.count; i++) {
+    const t = 1 - Math.abs(pa.getY(i)) / (width / 2);
+    const a = k * t * t;
+    col.push(rgb[0] * a, rgb[1] * a, rgb[2] * a);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const mesh = new THREE.Mesh(g, beamMat());
+  mesh.position.set((S0.x + P0.x) / 2, (S0.y + P0.y) / 2, Z);
+  mesh.rotation.z = ALPHA_IN;
+  return mesh;
+}
+const whiteCore = beam(LEN_IN, 0.055, 1.7, [1, 1, 1]);
+const whiteHalo = beam(LEN_IN, 0.55,  0.16, [0.9, 0.95, 1]);
+
+/* ---------- кристал: щільніше тіло + лаковий блиск ---------- */
+const shape = new THREE.Shape([
+  new THREE.Vector2(V_TOP.x, V_TOP.y),
+  new THREE.Vector2(V_R.x, V_R.y),
+  new THREE.Vector2(V_L.x, V_L.y)
+]);
+const prismGeo = new THREE.ExtrudeGeometry(shape, {
+  depth: DEPTH, steps: 1,
+  bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3
+});
+prismGeo.translate(0, 0, -DEPTH / 2);
+
+const prism = new THREE.Mesh(prismGeo, new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, metalness: 0, roughness: 0.01,
+  transparent: true, opacity: 0.18, depthWrite: false,   // тіло щільніше
+  ior: 1.97,
+  clearcoat: 1.0, clearcoatRoughness: 0.05,              // дзеркальний лак
+  envMapIntensity: 2.4, specularIntensity: 5.3,
+  side: THREE.DoubleSide
+}));
+prism.renderOrder = 0;
+
+/* світлі ребра — як на обкладинці (тепер м'якші, бо тіло теж світиться) */
+const ez = DEPTH / 2, corners = [V_TOP, V_R, V_L], ep = [];
+corners.forEach(p => ep.push(p.x, p.y, -ez, p.x, p.y, ez));
+[-ez, ez].forEach(zs => {
+  for (let i = 0; i < 3; i++) {
+    const a = corners[i], b = corners[(i + 1) % 3];
+    ep.push(a.x, a.y, zs, b.x, b.y, zs);
+  }
+});
+const eg = new THREE.BufferGeometry();
+eg.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
+const edges = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+  color: 0xffffff, transparent: true, opacity: 0.15,
+  depthWrite: false, depthTest: false
+}));
+edges.renderOrder = 1;
+
+/* ---------- сцена ---------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+catch (e) { document.getElementById('no3d').style.display = 'grid'; throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+renderer.setSize(innerWidth, innerHeight);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+pmrem.dispose();
+
+/* спрямовані світла — дають вузькі спекулярні «зайчики» на гранях */
+const key = new THREE.DirectionalLight(0xffffff, 2.6);
+key.position.set(-5, 7, 4);
+const rim = new THREE.DirectionalLight(0xbfd9ff, 1.4);
+rim.position.set(5, 3, -5);
+const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+fill.position.set(0, -4, 6);
+scene.add(key, rim, fill);
+
+/* порядок рендера: призма → ребра → промені */
+whiteHalo.renderOrder = 2;
+whiteCore.renderOrder = 3;
+inside.renderOrder    = 4;
+fan.renderOrder       = 5;
+scene.add(prism, edges, whiteHalo, whiteCore, inside, fan);
+
+/* ---------- камера: ширший кут = глибша перспектива ---------- */
+const camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.1, 100);
+const LOOK = new THREE.Vector3(0.6, 0.25, 0.9);
+
+function fitDistance(aspect) {
+  const t = Math.tan(camera.fov * DEG / 2);
+  return Math.max(3.1 / t, 6.9 / (t * aspect)) + 1.2;
+}
+camera.position.set(2.4, -0.9, fitDistance(camera.aspect));
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(LOOK);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+controls.minDistance = 2;
+controls.maxDistance = 30;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+(function tick() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

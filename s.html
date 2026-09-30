@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ортонормований базис і спектр</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" media="print" onload="this.media='all'">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+function reportError(where,e){
+  console.error(where,e);
+  var b=document.getElementById('errbar');
+  if(b){ b.style.display='block'; b.textContent=where+': '+((e&&e.message)?e.message:e); }
+}
+window.addEventListener('error',function(ev){ reportError('Помилка скрипта',ev.error||ev.message); });
+</script>
+<style>
+:root{
+  --bg:#F6F7FA;
+  --panel:#FFFFFF;
+  --ink:#1D2433;
+  --ink-soft:#5B6478;
+  --line:#DDE1E8;
+  --accent:#2C5FE0;
+  --accent-soft:#E7EDFC;
+  --good:#1E824C;
+  --b1:#7C3AED;
+  --b2:#EA580C;
+  --dash:#94A3B8;
+  --neg:#2563EB;
+  --pos:#DC2626;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{
+  font-family:'PT Serif',serif;
+  font-weight:700;
+  color:var(--ink);
+  margin:0 0 .4em 0;
+}
+h1{font-size:1.9rem;}
+h2{font-size:1.5rem;}
+h3{font-size:1.15rem;margin-top:1.4em;}
+p{max-width:68ch;color:var(--ink-soft);}
+p.tight{margin:.3em 0;}
+.mono{font-family:'JetBrains Mono',monospace;}
+a{color:var(--accent);}
+
+.wrap{max-width:1020px;margin:0 auto;padding:0 20px 80px;}
+
+header.hero{
+  padding:38px 20px 26px;
+  border-bottom:1px solid var(--line);
+  background:
+    linear-gradient(90deg,#7C3AED,#2563EB,#0891B2,#16A34A,#CA8A04,#EA580C,#DC2626);
+  background-size:100% 4px;
+  background-repeat:no-repeat;
+  background-position:top center;
+}
+header.hero .wrap{padding-top:14px;}
+header.hero .eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.8rem;
+  color:var(--ink-soft);
+  margin-bottom:6px;
+}
+.spectra-banner{
+  display:flex; flex-wrap:wrap; gap:0; align-items:stretch;
+  margin-top:22px; background:#fff; border:1px solid var(--line); border-radius:12px;
+  padding:14px 18px; box-shadow:0 2px 10px rgba(29,36,51,0.04);
+}
+.sb-scene{flex:1 1 220px; display:flex; flex-direction:column; align-items:center; min-width:200px;}
+.sb-scene:not(:last-child){border-right:1px solid var(--line); margin-right:14px; padding-right:14px;}
+@media (max-width:700px){ .sb-scene:not(:last-child){border-right:none; margin-right:0; padding-right:0;} }
+.sb-scene svg, .sb-scene canvas{display:block; max-width:100%; height:auto; border-radius:8px; background:#f5f6fa;}
+.sb-cap{font-size:.74rem; color:var(--ink-soft); margin-top:6px; text-align:center;}
+nav.stepnav{
+  position:sticky; top:0; z-index:20;
+  background:rgba(246,247,250,.92);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+nav.stepnav .wrap{
+  display:flex; gap:6px; padding:10px 20px; flex-wrap:wrap;
+}
+nav.stepnav a{
+  text-decoration:none;
+  color:var(--ink-soft);
+  font-size:.92rem;
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid transparent;
+}
+nav.stepnav a:hover{border-color:var(--line); color:var(--ink);}
+
+section.block{padding:44px 0; border-bottom:1px solid var(--line);}
+section.block:last-of-type{border-bottom:none;}
+.step-mark{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:30px;height:30px;border-radius:50%;
+  background:var(--accent-soft); color:var(--accent);
+  font-family:'JetBrains Mono',monospace; font-weight:600; font-size:.95rem;
+  margin-right:10px; vertical-align:middle;
+}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px 22px;
+  margin-top:18px;
+}
+
+.controls-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:12px 0;}
+.btn{
+  font-family:'Inter',sans-serif; font-size:.9rem; font-weight:500;
+  padding:7px 14px; border-radius:8px;
+  border:1px solid var(--line); background:#fff; color:var(--ink);
+  cursor:pointer;
+}
+.btn:hover{border-color:var(--accent);}
+.btn.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+.btn.small{padding:5px 10px; font-size:.82rem;}
+.slider-row{display:flex; align-items:center; gap:10px; margin:8px 0; flex-wrap:wrap;}
+.slider-row label{font-size:.88rem; color:var(--ink-soft); min-width:180px;}
+input[type=range]{accent-color:var(--accent); flex:1; min-width:140px;}
+input[type=number]{
+  width:56px; padding:4px 6px; border:1px solid var(--line); border-radius:6px;
+  font-family:'JetBrains Mono',monospace; font-size:.85rem;
+}
+
+.figure-row{display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start;}
+.canvas-box canvas{
+  border:1px solid var(--line); border-radius:8px; background:#fff;
+  max-width:100%; height:auto; touch-action:none;
+}
+.canvas-caption{font-size:.82rem; color:var(--ink-soft); margin-top:6px; max-width:340px;}
+
+.canvas-stack{position:relative; display:inline-block; max-width:100%;}
+.canvas-stack canvas{display:block;}
+.canvas-stack canvas.overlay{
+  position:absolute; top:1px; left:1px; pointer-events:none;
+  width:calc(100% - 2px); height:calc(100% - 2px);
+  background:transparent; border:none; border-radius:0;
+}
+
+.readout{
+  font-family:'JetBrains Mono',monospace; font-size:.92rem;
+  background:#FAFBFD; border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; min-width:260px;
+}
+.readout .line{margin:3px 0;}
+.readout .b1{color:var(--b1); font-weight:600;}
+.readout .b2{color:var(--b2); font-weight:600;}
+.readout .warn{color:#B45309;}
+.readout .ok{color:var(--good);}
+
+.spectrum-bars{display:flex; gap:8px; margin-top:10px; height:70px; align-items:flex-end;}
+.spectrum-bars .bar{width:34px; border-radius:4px 4px 0 0; position:relative; transition:height .15s;}
+.spectrum-bars .bar span{
+  position:absolute; top:-20px; left:0; right:0; text-align:center;
+  font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--ink-soft);
+}
+
+details.derivation{
+  margin-top:16px; border:1px solid var(--line); border-radius:8px;
+  background:#FAFBFD; padding:10px 16px;
+}
+details.derivation summary{cursor:pointer; font-weight:600; color:var(--accent); padding:4px 0;}
+details.derivation .body{padding:8px 4px 4px;}
+
+.note{
+  font-size:.86rem; color:var(--ink-soft); background:var(--accent-soft);
+  border-radius:8px; padding:10px 14px; margin-top:12px; max-width:60ch;
+}
+
+.matrix-display{font-family:'JetBrains Mono',monospace; font-size:.95rem; display:inline-block;}
+
+/* ---- Section 2 widget ---- */
+.s2-grid{display:grid; grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr); gap:22px; margin-top:16px; align-items:start;}
+@media (max-width:760px){ .s2-grid{grid-template-columns:1fr;} }
+.s2-canvas-wrap{width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; overflow:hidden;}
+.s2-canvas-wrap canvas{display:block; width:100%; height:100%; touch-action:none;}
+.s2-legend{display:flex; flex-wrap:wrap; gap:10px 14px; font-size:.78rem; color:var(--ink-soft); margin-top:8px;}
+.s2-legend span{display:inline-flex; align-items:center; gap:5px;}
+.s2-legend i{width:10px; height:10px; border-radius:50%; display:inline-block;}
+.s2-nav{justify-content:center; margin-top:10px;}
+.s2-steps{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
+.s2-step{border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; background:#fff; transition:background .15s, border-color .15s;}
+.s2-step:hover{border-color:var(--accent);}
+.s2-step h4{margin:0 0 3px 0; font-size:.86rem; font-family:'Inter',sans-serif; font-weight:600; color:var(--ink-soft);}
+.s2-step p{margin:0; font-size:.82rem; color:var(--ink-soft); max-width:none;}
+.s2-step.active{background:var(--accent-soft); border-color:var(--accent);}
+.s2-step.active h4{color:var(--accent);}
+.s2-step.done h4{color:var(--good);}
+.s2-step h4.c-q1{color:var(--b1);} .s2-step h4.c-q2{color:var(--b2);}
+.s2-step h4.c-out{color:var(--good);} .s2-step h4.c-warn{color:#B45309;}
+.side-label{font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin-bottom:6px;}
+.s2-mat{display:grid; grid-template-columns:repeat(2,64px); gap:6px;}
+.s2-mat input{width:64px; padding:6px; border:1px solid var(--line); border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:.88rem; text-align:center;}
+.s2-mat input:disabled{background:#F1F3F7; color:var(--ink-soft);}
+.s2-vec{display:grid; grid-template-columns:auto 64px auto 64px; gap:6px; align-items:center; font-size:.85rem; color:var(--ink-soft);}
+.s2-vec input{width:64px; padding:6px; border:1px solid var(--line); border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:.88rem; text-align:center;}
+.chk{display:flex; align-items:center; gap:6px; font-size:.85rem; color:var(--ink-soft); cursor:pointer;}
+.badge{display:inline-block; font-size:.72rem; font-family:'JetBrains Mono',monospace; padding:2px 9px; border-radius:999px; margin-left:4px; vertical-align:middle;}
+.badge-real{background:#E7EDFC; color:var(--accent);}
+.badge-complex{background:#FCE7F3; color:#BE185D;}
+.badge-defective{background:#FEF3C7; color:#B45309;}
+.badge-scalar{background:#DCFCE7; color:var(--good);}
+.info-card{background:#FAFBFD; border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin-bottom:6px; font-size:.88rem;}
+
+footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:center;}
+</style>
+</head>
+<body>
+<div id="errbar" style="display:none;background:#FEE2E2;color:#991B1B;padding:8px 14px;font:14px monospace;"></div>
+
+<header class="hero">
+  <div class="wrap">
+       <h3>[Ортонормований] базис × об'єки = спектр</h3>
+    <p>«Спектр» у широкому сенсі — просто набір компонент, як веселка: біле світло саме по собі,
+    поки його не розкласти. Вид компонент залежить від того, який базис узяли для розкладу —
+    а базис іноді обираємо ми, іноді природа, іноді диктує матриця. Три спектрального розкладу в базисі: на векторі, на матриці, на зображенні.</p>
+
+    <div class="spectra-banner" id="spectra-banner">
+      <div class="sb-scene">
+        <iframe src="pryzm3D.html" title="Дисперсія: призма (three.js)" loading="lazy"
+          style="width:100%;height:200px;border:0;border-radius:8px;background:#000;display:block;"></iframe>
+        <div class="sb-cap">Дисперсія світла: видимий спектр (веселка)</div>
+      </div>
+      <div class="sb-scene">
+        <canvas id="sb-wave" width="260" height="200" style="cursor:pointer;" title="клік — увімкнути/вимкнути звук"></canvas>
+        <div class="sb-cap">Звуковий спектр</div>
+      </div>
+      <div class="sb-scene">
+        <canvas id="sb-atom" width="260" height="200"></canvas>
+        <div class="sb-cap">Спектр атома Гідрогена</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="stepnav">
+  <div class="wrap">
+    <a href="#s1">1. Вектор</a>
+    <a href="#s2">2. Матриця</a>
+    <a href="#s3">3. Зображення</a>
+    <a href="#faq">Питання</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ============ SECTION 1 ============ -->
+<section class="block" id="s1">
+  <h2><span class="step-mark">1</span>Розклад вектора: спектр як список компонент</h2>
+  <p>Довільний базис — це два (для площини) незалежні напрями. Щоб знайти координати вектора
+  в такому базисі, треба розв'язати систему лінійних рівнянь. Якщо ж базис ортонормований —
+  довжина кожного вектора базису дорівнює 1, а самі вони перпендикулярні — координата рахується
+  без жодної системи, просто скалярним добутком.</p>
+
+  <div class="panel">
+    <div class="controls-row">
+      <button class="btn active" id="s1-mode-ortho">Ортонормований базис</button>
+      <button class="btn" id="s1-mode-oblique">Довільний (косий) базис</button>
+    </div>
+
+    <div class="figure-row">
+      <div class="canvas-box">
+        <canvas id="s1-canvas" width="360" height="360"></canvas>
+        <div class="canvas-caption">Перетягніть вістря чорного вектора <span class="mono">v</span>.
+        Повзунки нижче обертають базис.</div>
+      </div>
+      <div style="flex:1;min-width:260px;">
+        <div id="s1-sliders"></div>
+        <div class="readout" id="s1-readout"></div>
+        <div class="spectrum-bars" id="s1-bars"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 2 ============ -->
+<section class="block" id="s2">
+  <h2><span class="step-mark">2</span>Спектральний розклад матриці</h2>
+  <p>Тепер базис вибирає не хтось довільно, а сама матриця: власні вектори — це напрями,
+  які матриця лише розтягує, не повертаючи. Для <b>симетричної</b> матриці власні вектори можна
+  обрати ортонормованими (спектральна теорема), тоді <span class="mono">Q<sup>-1</sup>=Q<sup>T</sup></span>
+  і координати — скалярні добутки, а кожна складова спектра — ортогональний проєктор
+  <span class="mono">qq<sup>T</sup></span> (стовпець на рядок). Для несиметричної матриці власні
+  вектори не ортогональні: <span class="mono">Q<sup>-1</sup></span> доводиться шукати (знову СЛАР), і проєктори стають косокутними.
+  А якщо власні значення комплексні, дійсних проєкторів нема взагалі — лишається поворот.</p>
+
+  <div class="panel">
+    <h3 style="margin-top:0;">2.1 Дія матриці на вектор — крок за кроком</h3>
+    <p class="tight" style="max-width:70ch;">\(A\vec v=\lambda_1\,(\vec q_1\vec q_1^{\,T}\vec v)+\lambda_2\,(\vec q_2\vec q_2^{\,T}\vec v)\):
+    проєктуємо вектор на вісь \(\vec q_1\), розтягуємо в \(\lambda_1\) разів, так само для осі \(\vec q_2\), і додаємо результати.
+    Оберіть матрицю (або введіть свою) і листайте кроки; вістря вектора \(\vec v\) можна тягнути мишею.</p>
+
+    <div class="s2-grid">
+      <div class="s2-view">
+        <div class="s2-canvas-wrap" id="s2-canvas-wrap"><canvas id="s2-canvas"></canvas></div>
+        <div class="controls-row">
+          <button class="btn small" id="s2-zoom-in" title="Збільшити">＋</button>
+          <button class="btn small" id="s2-zoom-out" title="Зменшити">−</button>
+          <button class="btn small" id="s2-zoom-reset" title="Підігнати масштаб">↺ масштаб</button>
+          <label class="chk"><input type="checkbox" id="s2-chk-image" checked> показати дію на всю площину (смайл)</label>
+        </div>
+        <div class="s2-legend" id="s2-legend"></div>
+        <div class="controls-row s2-nav">
+          <button class="btn small" id="s2-prev">← Назад</button>
+          <span class="mono" style="font-size:.85rem;">Крок <b id="s2-counter">0 / 5</b></span>
+          <button class="btn small" id="s2-next">Далі →</button>
+          <button class="btn small" id="s2-replay" title="Повторити анімацію кроку">↻</button>
+        </div>
+        <div class="s2-steps" id="s2-steps"></div>
+      </div>
+
+      <div class="s2-side">
+        <div class="side-label">Матриця A</div>
+        <div class="s2-mat">
+          <input type="number" id="s2-in-a" value="2" step="0.5">
+          <input type="number" id="s2-in-b" value="1" step="0.5">
+          <input type="number" id="s2-in-b2" value="1" step="0.5" disabled>
+          <input type="number" id="s2-in-c" value="2" step="0.5">
+        </div>
+        <label class="chk" style="margin-top:8px;"><input type="checkbox" id="s2-chk-sym" checked> симетрична (нижній лівий елемент = верхньому правому)</label>
+        <div class="controls-row" style="margin-top:10px;">
+          <button class="btn small" data-s2preset="sym">Симетрична</button>
+          <button class="btn small" data-s2preset="nonsym">Несиметрична</button>
+          <button class="btn small" data-s2preset="cx-skew">Комплексна (косокутна)</button>
+          <button class="btn small" data-s2preset="cx-normal">Поворот + розтяг</button>
+          <button class="btn small" data-s2preset="jordan">Жорданова клітина</button>
+        </div>
+        <div class="side-label" style="margin-top:12px;">Вектор v</div>
+        <div class="s2-vec">
+          <span>x</span><input type="number" id="s2-in-vx" value="1" step="0.5">
+          <span>y</span><input type="number" id="s2-in-vy" value="2" step="0.5">
+        </div>
+        <div class="side-label" style="margin-top:14px;">Спектр матриці <span id="s2-badge" class="badge badge-real">—</span></div>
+        <div id="s2-eigen-info"></div>
+        <div class="readout" id="s2-vec-readout" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <h3>2.2 Матриця = сума своїх спектральних складових</h3>
+    <p class="tight" style="max-width:70ch;">Це той самий розклад, але вже для самої матриці, без вектора. Проєктори в сумі дають одиницю
+    (кожен вектор — сума своїх проєкцій), а помножені на \(\lambda_i\) — відновлюють \(A\). Отже спектр
+    (числа \(\lambda_i\) і напрями) можна вважати повним записом матриці: як складну хвилю збирають із гармонік.</p>
+    <div class="figure-row" id="s2-synth-id-row" style="align-items:center;gap:14px;margin:14px 0 6px;"></div>
+    <div class="figure-row" id="s2-synth-row" style="align-items:center;gap:14px;margin:10px 0 14px;"></div>
+    <div class="readout" id="s2-synth-readout" style="max-width:640px;"></div>
+
+    <h3>2.3 Змішувач спектра: крутимо гармоніки — отримуємо матрицю</h3>
+    <p class="tight" style="max-width:70ch;">Симетрична матриця 2×2. Базис (напрями <span class="mono">q₁, q₂</span>) —
+    «набір гармонік»; числа <span class="mono">λ₁, λ₂</span> — їхні амплітуди, тобто спектр. Змініть їх — і матриця
+    зміниться цілком. Знизу її спектр знову зчитується з готової матриці: обидва записи — той самий об'єкт.</p>
+    <div class="slider-row"><label for="s2-mix-l1">λ₁ (амплітуда 1-ї складової)</label>
+      <input type="range" id="s2-mix-l1" min="-4" max="4" step="0.1" value="3"><span class="mono" id="s2-mix-l1-val">3.0</span></div>
+    <div class="slider-row"><label for="s2-mix-l2">λ₂ (амплітуда 2-ї складової)</label>
+      <input type="range" id="s2-mix-l2" min="-4" max="4" step="0.1" value="1"><span class="mono" id="s2-mix-l2-val">1.0</span></div>
+    <div class="slider-row"><label for="s2-mix-phi">φ (поворот базису q₁, q₂)</label>
+      <input type="range" id="s2-mix-phi" min="0" max="180" step="1" value="45"><span class="mono" id="s2-mix-phi-val">45°</span></div>
+    <div class="figure-row" id="s2-mix-row" style="align-items:center;gap:14px;margin:14px 0;"></div>
+    <div class="readout" id="s2-mix-readout" style="max-width:520px;"></div>
+
+    <details class="derivation">
+      <summary>Звідки береться A = QΛQ<sup>T</sup> і чому складові — проєктори</summary>
+      <div class="body">
+        <p class="tight">Для кожного власного вектора окремо: \(Aq_i=\lambda_i q_i\).</p>
+        <p class="tight">Складемо всі рівняння в стовпці однієї матричної рівності:
+        \(AQ=Q\Lambda\), де стовпці \(Q\) — вектори \(q_i\), а \(\Lambda\) — діагональ із \(\lambda_i\).</p>
+        <p class="tight">Домножимо праворуч на \(Q^{-1}\): \(A=Q\Lambda Q^{-1}\).
+        Якщо \(Q\) ортогональна (стовпці ортонормовані), \(Q^{-1}=Q^{T}\) — і жодної системи розв'язувати не треба:
+        \(A=Q\Lambda Q^{T}\).</p>
+        <p class="tight"><b>Проєктори.</b> Розпишемо добуток за стовпцями \(Q\) і рядками \(Q^{T}\):
+        \(A=\lambda_1\,q_1q_1^{T}+\lambda_2\,q_2q_2^{T}\). Матриця \(P_i=q_iq_i^{T}\) — це <i>стовпець на рядок</i>
+        (а \(q_i^{T}q_i\) — просто число 1). Вона проєктує на вісь \(q_i\):
+        \(P_iP_j=q_i(q_i^{T}q_j)q_j^{T}=\delta_{ij}P_i\), а \(P_1+P_2=QQ^{T}=I\).</p>
+        <p class="tight"><b>Несиметричний випадок.</b> З \(A=Q\Lambda Q^{-1}\) виходить те саме, але
+        \(A=\sum\lambda_i\,q_i\,w_i^{T}\), де \(w_i^{T}\) — \(i\)-й рядок \(Q^{-1}\), і \(w_i^{T}q_j=\delta_{ij}\).
+        Проєктори \(P_i=q_iw_i^{T}\) лишаються проєкторами (\(P_i^2=P_i\), \(P_1P_2=0\), \(\sum P_i=I\)), але \(P_i^{T}\ne P_i\): косокутні.
+        Спектральні проєктори існують для <i>будь-якої діагоналізовної</i> матриці; ортогональними вони є, тільки коли матриця нормальна
+        (для дійсних власних значень це рівно симетричні матриці).</p>
+        <p class="tight"><b>Комплексні власні значення.</b> Проєктори \(P,\bar P\) комплексні; у дійсному вигляді
+        \(A=\alpha I+\beta J\), \(J^2=-I\).</p>
+      </div>
+    </details>
+
+    <div class="note">Множення на <span class="mono">Q<sup>T</sup></span> — це рівно те саме,
+    що розклад вектора в ортонормованому базисі з пункту 1: рядок помножити на вектор — це
+    скалярний добуток. Матричне множення тут — просто «багато скалярних добутків одночасно».</div>
+  </div>
+</section>
+<!-- ============ SECTION 3 ============ -->
+<section class="block" id="s3">
+  <h2><span class="step-mark">3</span>Базис, який обираємо ми: вейвлет Хаара і зображення</h2>
+  <p>Іноді базис диктує матриця (п. 2). Іноді базис обираємо ми самі — тому що він нам зручний:
+  наприклад, добре виявляє контури. Ортонормований вейвлет Хаара — приклад такого «готового»
+  базису: рівно <span class="mono">N</span> базисних векторів на <span class="mono">N</span> вимірів,
+  від найгрубішого (середнє) до найдетальнішого.</p>
+
+  <div class="panel">
+    <h3>3.1 Базисні вейвлети та їхня ортогональність</h3>
+    <div class="controls-row" id="s3-size-buttons">
+      <span style="font-size:.88rem;color:var(--ink-soft);margin-right:4px;">Розмір N:</span>
+      <button class="btn small" data-n="8">8</button>
+      <button class="btn small active" data-n="16">16</button>
+      <button class="btn small" data-n="32">32</button>
+    </div>
+    <div id="s3-basis-gallery" style="max-height:260px; overflow-y:auto; overflow-x:hidden; padding:8px; border:1px solid var(--line); border-radius:8px; background:#FAFBFD;"></div>
+    <div class="slider-row">
+      <label>Перевірити ортогональність: вейвлет №</label>
+      <input type="number" id="s3-orth-r1" min="0" value="0" style="width:44px;">
+      <span>і №</span>
+      <input type="number" id="s3-orth-r2" min="0" value="1" style="width:44px;">
+    </div>
+    <div class="readout" id="s3-orth-readout"></div>
+
+    <details class="derivation">
+      <summary>Матриця ядра перетворення Хаара H (N×N)</summary>
+      <div class="body">
+        <p class="tight">Кожен <b>стовпець</b> H — один базисний вейвлет зі списку вище (стовпець №r тут = рядок №r там).
+        Колір — величина елемента: синій від'ємний, червоний додатний, білий — нуль (для дрібних вейвлетів це майже вся матриця).</p>
+        <canvas id="s3-kernel-canvas" width="320" height="320" style="border:1px solid var(--line); border-radius:6px; background:#fff; max-width:100%; height:auto;"></canvas>
+      </div>
+    </details>
+
+    <h3>3.2 Зображення</h3>
+    <div class="controls-row" id="s3-preset-buttons">
+      <button class="btn small active" data-preset="edge-h">Горизонтальний край</button>
+      <button class="btn small" data-preset="edge-v">Вертикальний край</button>
+      <button class="btn small" data-preset="checker">Шахівниця</button>
+      <button class="btn small" data-preset="gradient">Градієнт</button>
+      <button class="btn small" data-preset="noise">Шум</button>
+      <button class="btn small" data-preset="paint">Малювати самому</button>
+      <button class="btn small" id="s3-upload-btn">Завантажити фото…</button>
+      <input type="file" id="s3-upload-input" accept="image/*" style="display:none;">
+    </div>
+    <div class="controls-row" id="s3-paint-tools" style="display:none;">
+      <span style="font-size:.85rem;color:var(--ink-soft);">Пензлі:</span>
+      <button class="btn small" data-brush="1">білий</button>
+      <button class="btn small" data-brush="0.66">світло-сірий</button>
+      <button class="btn small" data-brush="0.33">темно-сірий</button>
+      <button class="btn small active" data-brush="0">чорний</button>
+    </div>
+
+    <div class="figure-row">
+      <div class="canvas-box">
+        <div class="canvas-stack">
+          <canvas id="s3-image-canvas" width="320" height="320"></canvas>
+          <canvas id="s3-image-overlay" class="overlay" width="320" height="320"></canvas>
+        </div>
+        <div class="canvas-caption">Зображення X (квадрат N×N). Під час анімації тут «плаває» поточний 2D-паттерн.</div>
+      </div>
+      <div class="canvas-box">
+        <div class="canvas-stack">
+          <canvas id="s3-heatmap-canvas" width="320" height="320"></canvas>
+          <canvas id="s3-heatmap-overlay" class="overlay" width="320" height="320"></canvas>
+        </div>
+        <div class="canvas-caption">Матриця спектра S = H<sup>T</sup>·X·H (синій = від'ємне, червоний = додатне).</div>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <button class="btn" id="s3-animate-btn">▶ Анімувати сканування</button>
+    </div>
+    <p class="tight" id="s3-anim-caption" style="min-height:1.4em;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--ink-soft);"></p>
+    <div class="note">Кожен крок — це один доданок з S = H<sup>T</sup>XH: 2D-паттерн (один вертикальний
+    вейвлет × один горизонтальний) накладається на зображення напівпрозоро (синє = від'ємні клітинки
+    паттерна, біле = додатні; де паттерн точно нуль — прозоро). Скалярний добуток цього паттерна
+    із зображенням і є число в клітинці спектра праворуч — коли він за модулем великий, паттерн
+    спалахує, а клітинка спектра засвічується. Порядок обходу — рівно ті самі N×N пар (вейвлет-рядок,
+    вейвлет-стовпець), без жодних додаткових позицій: жодного «зайвого» ковзання поза цим набором нема.</div>
+
+    <h3>3.3 Стиснення і відтворення</h3>
+    <p class="tight" style="max-width:60ch;">Реконструкція — це той самий перехід у зворотний бік:
+    <span class="mono">X ≈ H·S·H<sup>T</sup></span>. Якщо занулити дрібні за модулем коефіцієнти
+    спектра, зображення відтворюється не точно — але для «зручних» зображень (градієнт) це майже непомітно,
+    а для шуму — помітно одразу.</p>
+    <div class="slider-row">
+      <label for="s3-compress">Залишити найбільших за модулем коефіцієнтів:</label>
+      <input type="range" id="s3-compress" min="1" max="100" value="100">
+      <span class="mono" id="s3-compress-val">100%</span>
+    </div>
+    <div class="readout" id="s3-compress-readout"></div>
+
+    <div class="figure-row">
+      <div class="canvas-box">
+        <canvas id="s3-heatmap-compressed" width="320" height="320"></canvas>
+        <div class="canvas-caption">Стиснений спектр (сірим — занулені коефіцієнти).</div>
+      </div>
+      <div class="canvas-box">
+        <canvas id="s3-recon-canvas" width="320" height="320"></canvas>
+        <div class="canvas-caption">Відтворене зображення H·S<sub>стиснений</sub>·H<sup>T</sup>.</div>
+      </div>
+    </div>
+    <div class="note">Порівняйте градієнт і шум при однаковому відсотку стиснення — це і є
+    відповідь на питання «навіщо взагалі цей розклад».</div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="block" id="faq">
+  <h2>Питання, які виникали</h2>
+  <p>Короткі уточнення до плутанини, яка трапляється найчастіше. Список поповнюється.</p>
+
+  <div class="panel">
+    <details class="derivation">
+      <summary>Якщо Q<sup>-1</sup> застосувати до кожного стовпця матриці V — це вже «спектр матриці V»?</summary>
+      <div class="body">
+        <p class="tight"><b>Питання.</b> Беремо вектор \(v_1\) і ортонормований базис \(Q\)
+        (наприклад, ядро ДКП, Хаара чи Фур'є), рахуємо \(Q^{-1}v_1\) — координати в новому базисі.
+        Повторюємо для \(v_2, v_3,\dots\) Складаємо матрицю \(V=[v_1,v_2,\dots]\) зі стовпців
+        і рахуємо \(Q^{-1}V\). Це вже «спектр матриці V»?</p>
+
+        <p class="tight"><b>Ні</b>, хоча саме обчислення правильне:
+        \(Q^{-1}V=[Q^{-1}v_1,\,Q^{-1}v_2,\dots]\) — кожен стовпець незалежно переведений у нові
+        координати. Для обробки сигналів це абсолютно нормально (кожен стовпець — окремий сигнал),
+        але «спектром матриці» це не називають — з двох причин.</p>
+
+        <p class="tight">1. <b>Термінологічний конфлікт.</b> «Спектр матриці» в лінійній алгебрі —
+        строго зафіксований термін: множина власних значень, коренів рівняння \(\det(A-\lambda I)=0\).
+        Те, що порахували вище, — це зміна базису для набору векторів, а не пошук власних значень \(V\).
+        Більше того, власні значення взагалі визначені лише для квадратних матриць: якщо стовпців \(V\)
+        не \(N\), а \(M\neq N\) (скажімо, \(M\) аудіосемплів довжини \(N\)), «спектр матриці V»
+        у строгому сенсі не існує ще до жодних інших міркувань.</p>
+
+        <p class="tight">2. <b>Це лише «вертикальний» прохід.</b> Якщо \(V\) — двовимірний сигнал
+        (зображення), \(Q^{-1}V\) перетворює тільки стовпці; рядки лишаються не зачепленими.
+        Щоб отримати повноцінний двовимірний спектр (саме це робить п. 3 вище), базис треба
+        застосувати з обох боків: \(Q^{-1}V(Q^{-1})^T\).</p>
+
+        <p class="tight">Ця формула коректна тільки для дійсної <b>ортогональної</b> \(Q\)
+        (ДКП, Хаар) — там \(Q^{-1}=Q^T\), і вона перетворюється на вже знайому з п. 3 формулу
+        \(Q^TVQ\) (= H<sup>T</sup>·зображення·H). Для комплексного базису Фур'є \(Q\) —
+        <b>унітарна</b>, а не ортогональна матриця: \(Q^{-1}=\bar{Q}^T\) (спряжено-транспонована),
+        і просте транспонування без спряження тут дасть неправильний результат.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer>Ортонормований базис → спектр. Один факт, показаний тричі.</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  try { (function(){
+    /* ---------- ЗВУК: loop.mp3 → осцилограф + 16 смуг (власний FFT Кулі-Тьюки) ---------- */
+    const waveCanvas=document.getElementById('sb-wave');
+    if (waveCanvas){
+      const wctx=waveCanvas.getContext('2d');
+      const W=waveCanvas.width, H=waveCanvas.height;
+      const BANDS=16, FFT_N=2048;
+      let actx=null, analyser=null, srcNode=null;
+      let state='idle';                     // idle | loading | playing | paused | error
+      let errMsg='', timeData=null, re=null, im=null, bandEdges=null;
+      const bandVals=new Array(BANDS).fill(0);
+      // ітеративне radix-2 БПФ з проріджуванням за часом — це і є Кулі-Тьюки
+      function fftInPlace(){
+        const n=re.length;
+        for(let i=1,j=0;i<n;i++){
+          let bit=n>>1;
+          for(;j&bit;bit>>=1) j^=bit;
+          j^=bit;
+          if(i<j){ const tr=re[i]; re[i]=re[j]; re[j]=tr; const ti=im[i]; im[i]=im[j]; im[j]=ti; }
+        }
+        for(let len=2;len<=n;len<<=1){
+          const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang), half=len>>1;
+          for(let i=0;i<n;i+=len){
+            let cr=1, ci=0;
+            for(let k=0;k<half;k++){
+              const i1=i+k, i2=i1+half;
+              const vr=re[i2]*cr-im[i2]*ci, vi=re[i2]*ci+im[i2]*cr;
+              re[i2]=re[i1]-vr; im[i2]=im[i1]-vi;
+              re[i1]+=vr;       im[i1]+=vi;
+              const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+            }
+          }
+        }
+      }
+      function makeBandEdges(){
+        const lo=2, hi=FFT_N/2, e=[];
+        for(let b=0;b<=BANDS;b++) e.push(Math.round(lo*Math.pow(hi/lo,b/BANDS)));
+        return e;
+      }
+      async function startAudio(){
+        state='loading';
+        try{
+          actx=new (window.AudioContext||window.webkitAudioContext)();
+          const resp=await fetch('loop.mp3');
+          if(!resp.ok) throw new Error('HTTP '+resp.status);
+          const buf=await actx.decodeAudioData(await resp.arrayBuffer());
+          const gain=actx.createGain(); gain.gain.value=0.5;      // пів гучності
+          analyser=actx.createAnalyser(); analyser.fftSize=FFT_N;
+          srcNode=actx.createBufferSource();
+          srcNode.buffer=buf; srcNode.loop=true;
+          srcNode.connect(gain); gain.connect(analyser); analyser.connect(actx.destination);
+          timeData=new Float32Array(analyser.fftSize);
+          re=new Float32Array(FFT_N); im=new Float32Array(FFT_N);
+          bandEdges=makeBandEdges();
+          srcNode.start();
+          state='playing';
+        }catch(e){
+          errMsg=(e&&e.message)?e.message:String(e);
+          state='error';
+          if(actx){ try{actx.close();}catch(_e){} actx=null; }
+        }
+      }
+      waveCanvas.addEventListener('click',function(){
+        if (state==='loading') return;
+        if (state==='idle'||state==='error'){ startAudio(); return; }
+        if (state==='playing'){ actx.suspend(); state='paused'; }
+        else { actx.resume(); state='playing'; }
+      });
+      function computeBands(){
+        analyser.getFloatTimeDomainData(timeData);
+        for(let i=0;i<FFT_N;i++){
+          re[i]=timeData[i]*0.5*(1-Math.cos(2*Math.PI*i/(FFT_N-1)));   // вікно Ханна
+          im[i]=0;
+        }
+        fftInPlace();
+        for(let b=0;b<BANDS;b++){
+          let m=0;
+          for(let k=bandEdges[b];k<Math.max(bandEdges[b]+1,bandEdges[b+1]);k++){
+            const mag=Math.hypot(re[k],im[k]); if (mag>m) m=mag;
+          }
+          const db=20*Math.log10((m+1e-6)/FFT_N);
+          bandVals[b]+=(Math.max(0,Math.min(1,(db+72)/54))-bandVals[b])*0.4;
+        }
+      }
+      function gridAndWave(fromData){
+        const waveH=H*0.5, midY=waveH/2;
+        wctx.fillStyle='#f5f6fa'; wctx.fillRect(0,0,W,waveH);
+        wctx.strokeStyle='#dde0ea'; wctx.lineWidth=0.5;
+        for (let y=12;y<waveH;y+=12){ wctx.beginPath(); wctx.moveTo(0,y); wctx.lineTo(W,y); wctx.stroke(); }
+        wctx.beginPath(); wctx.strokeStyle='#3040a0'; wctx.lineWidth=1.6;
+        if (fromData){
+          const step=Math.max(1,Math.floor(timeData.length/W));
+          for (let x=0;x<W;x++){
+            const y=midY - timeData[Math.min(timeData.length-1,x*step)]*midY*0.92;
+            if (x===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+          }
+        } else {
+          const t=performance.now()*0.001;
+          for (let x=0;x<W;x++){
+            let y=midY;
+            y+=Math.sin(x*0.08+t*0.9)*14; y+=Math.sin(x*0.15+t*1.3)*8; y+=Math.sin(x*0.4+t*2.1)*3;
+            if (x===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+          }
+        }
+        wctx.stroke();
+      }
+      function drawBars(vals){
+        const topY=H*0.5, specH=H-topY-8, gap=3, barW=(W-gap*(BANDS+1))/BANDS;
+        wctx.fillStyle='#f5f6fa'; wctx.fillRect(0,topY,W,specH+8);
+        for(let i=0;i<BANDS;i++){
+          const h=Math.max(2,vals[i]*specH), x=gap+i*(barW+gap), y=topY+specH-h;
+          const grad=wctx.createLinearGradient(0,y,0,topY+specH);
+          grad.addColorStop(0,'rgba(120,220,140,0.95)'); grad.addColorStop(1,'rgba(80,180,100,0.55)');
+          wctx.fillStyle=grad; wctx.fillRect(x,y,barW,h);
+        }
+      }
+      function drawHint(text){
+        wctx.font='11px Inter, sans-serif'; wctx.textAlign='center'; wctx.textBaseline='middle';
+        wctx.fillStyle='rgba(29,36,51,0.6)'; wctx.fillText(text,W/2,H-14);
+      }
+      function idleVals(){
+        const t=performance.now()*0.001;
+        return bandVals.map(function(v,i){ return 0.12+0.14*Math.abs(Math.sin(t*1.6+i*1.3)); });
+      }
+      function animateWave(){
+        if (state==='playing'){
+          computeBands(); gridAndWave(true); drawBars(bandVals);
+          wctx.font='10px Inter, sans-serif'; wctx.textAlign='right'; wctx.textBaseline='alphabetic';
+          wctx.fillStyle='#7a8496'; wctx.fillText('▶ 50%',W-6,H-4);
+        } else {
+          gridAndWave(false); drawBars(idleVals());
+          drawHint(state==='paused'?'⏸ пауза':state==='loading'?'завантаження loop.mp3…':
+                   state==='error'?'loop.mp3: '+errMsg:'клікніть, щоб увімкнути звук');
+        }
+        requestAnimationFrame(animateWave);
+      }
+      animateWave();
+    }
+
+    /* ---------- АТОМ ВОДНЮ: електрон скаче на n=2, випромінюючи фотони (Бальмер) ---------- */
+    const atomCanvas=document.getElementById('sb-atom');
+    if (atomCanvas){
+      const ac=atomCanvas.getContext('2d');
+      const W=atomCanvas.width, H=atomCanvas.height;
+      // драбина енергій — умовна (не в масштабі); довжини хвиль — справжні лінії Бальмера
+      const levels=[{n:1,y:178},{n:2,y:145},{n:3,y:117},{n:4,y:92},{n:5,y:70}];
+      const yOf=function(n){ return levels.find(function(l){return l.n===n;}).y; };
+      const BALMER={3:656.3,4:486.1,5:434.0};
+      function wavelengthToRGB(nm){
+        let r=0,g=0,b=0;
+        if (nm>=380&&nm<440){ r=-(nm-440)/60; g=0; b=1; }
+        else if (nm>=440&&nm<490){ r=0; g=(nm-440)/50; b=1; }
+        else if (nm>=490&&nm<510){ r=0; g=1; b=-(nm-510)/20; }
+        else if (nm>=510&&nm<580){ r=(nm-510)/70; g=1; b=0; }
+        else if (nm>=580&&nm<645){ r=1; g=-(nm-645)/65; b=0; }
+        else if (nm>=645&&nm<=780){ r=1; g=0; b=0; }
+        let factor=1.0;
+        if (nm>=380&&nm<420) factor=0.3+0.7*(nm-380)/40;
+        else if (nm>=645&&nm<=780) factor=0.3+0.7*(780-nm)/135;
+        else if (nm<380||nm>780) factor=0;
+        r=Math.round(255*Math.pow(r*factor,0.8)); g=Math.round(255*Math.pow(g*factor,0.8)); b=Math.round(255*Math.pow(b*factor,0.8));
+        return 'rgb('+r+','+g+','+b+')';
+      }
+      const LADDER_X0=22, LADDER_X1=W*0.47, EL_X=W*0.42, SPEC_X=W*0.5, SPEC_W=W-SPEC_X;
+      const xOfNm=function(nm){ return Math.max(SPEC_X+2,Math.min(W-2,SPEC_X+((700-nm)/300)*SPEC_W)); };
+      const ease=function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; };
+      const emission=[]; let photon=null;
+      let elN=3+Math.floor(Math.random()*3), elY=yOf(elN);
+      let phase='wait', phaseT0=performance.now(), phaseDur=600+Math.random()*1200;
+      function drawLadder(){
+        ac.fillStyle='#f5f6fa'; ac.fillRect(0,0,SPEC_X,H);
+        for (const lvl of levels){
+          ac.strokeStyle='#8888aa'; ac.lineWidth=1.2;
+          ac.beginPath(); ac.moveTo(LADDER_X0,lvl.y); ac.lineTo(LADDER_X1,lvl.y); ac.stroke();
+          ac.fillStyle='#333344'; ac.font='10px monospace'; ac.fillText('n='+lvl.n,3,lvl.y-4);
+        }
+      }
+      function drawEmissionSpectrum(){
+        ac.fillStyle='#f5f6fa'; ac.fillRect(SPEC_X,0,SPEC_W,H);
+        const grad=ac.createLinearGradient(SPEC_X,0,W,0);
+        for (let i=0;i<=10;i++) grad.addColorStop(i/10,'hsla('+((i/10)*280)+',60%,85%,0.3)');
+        ac.fillStyle=grad; ac.fillRect(SPEC_X,18,SPEC_W,H-36);
+        for (const line of emission){
+          line.alpha-=0.0008;
+          if (line.alpha<=0) continue;
+          ac.fillStyle=line.color; ac.globalAlpha=line.alpha;
+          ac.shadowColor=line.color; ac.shadowBlur=4;
+          ac.fillRect(xOfNm(line.nm)-1,18,2,H-36);
+          ac.globalAlpha=1; ac.shadowBlur=0;
+        }
+        ac.font='9px monospace'; ac.fillStyle='#8a93a6'; ac.textAlign='center';
+        [400,500,600,700].forEach(function(nm){ ac.fillText(nm+' нм',xOfNm(nm),H-3); });
+        ac.textAlign='left';
+      }
+      function updateElectron(now){
+        if (phase==='fall'){
+          const t=Math.min(1,(now-phaseT0)/phaseDur);
+          elY=yOf(elN)+(yOf(2)-yOf(elN))*ease(t);
+          if (t>=1){ elN=2; elY=yOf(2); phase='wait'; phaseT0=now; phaseDur=500+Math.random()*1000; }
+        } else if (phase==='rise'){
+          const t=Math.min(1,(now-phaseT0)/phaseDur);
+          elY=yOf(2)+(yOf(elN)-yOf(2))*ease(t);
+          if (t>=1){ elY=yOf(elN); phase='wait'; phaseT0=now; phaseDur=900+Math.random()*1800; }
+        } else {
+          if (elN===2 && now-phaseT0>phaseDur){          // накачка нагору (без фотона)
+            elN=3+Math.floor(Math.random()*3);
+            phase='rise'; phaseT0=now; phaseDur=220;
+          } else if (elN>=3 && now-phaseT0>phaseDur){    // стрибок вниз → фотон
+            phase='fall'; phaseT0=now; phaseDur=260;
+            photon={nm:BALMER[elN],color:wavelengthToRGB(BALMER[elN]),x0:EL_X,y0:elY,t0:now,dur:750};
+          }
+        }
+      }
+      function drawElectron(){
+        ac.save();
+        ac.shadowColor='rgba(37,99,235,0.9)'; ac.shadowBlur=7;
+        ac.beginPath(); ac.arc(EL_X,elY,4.2,0,Math.PI*2); ac.fillStyle='#1d4ed8'; ac.fill();
+        ac.restore();
+        if (phase==='rise'){
+          ac.strokeStyle='rgba(29,36,51,0.45)'; ac.setLineDash([3,3]); ac.lineWidth=1.2;
+          ac.beginPath(); ac.moveTo(EL_X,yOf(2)); ac.lineTo(EL_X,yOf(elN)); ac.stroke();
+          ac.setLineDash([]);
+        }
+      }
+      function drawPhoton(now){
+        if (!photon) return;
+        const t=Math.min(1,(now-photon.t0)/photon.dur);
+        const x=photon.x0+(xOfNm(photon.nm)-photon.x0)*t;
+        const y=photon.y0+(95-photon.y0)*t+Math.sin(t*Math.PI*3)*4;
+        ac.save(); ac.shadowColor=photon.color; ac.shadowBlur=6;
+        ac.fillStyle=photon.color; ac.globalAlpha=0.9;
+        ac.beginPath(); ac.arc(x,y,2.6,0,Math.PI*2); ac.fill(); ac.restore();
+        ac.font='9px monospace'; ac.fillStyle=photon.color;
+        ac.fillText(photon.nm.toFixed(0),Math.min(x+4,W-34),y-6);
+        if (t>=1){                                     // фотон «долетів» → лінія у спектрі
+          emission.push({nm:photon.nm,color:photon.color,alpha:1});
+          if (emission.length>12) emission.shift();
+          photon=null;
+        }
+      }
+      function animateAtom(now){
+        drawLadder(); drawEmissionSpectrum(); drawPhoton(now);
+        updateElectron(now); drawElectron();
+        requestAnimationFrame(animateAtom);
+      }
+      requestAnimationFrame(animateAtom);
+    }
+  })(); } catch(e){ reportError('Банер (спектри) не запустився', e); }
+  
+    // ============ SHARED UTILITIES ============
+  function dot(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=a[i]*b[i]; return s; }
+  function fmt(x,d){ d = (d===undefined)?2:d; if (Math.abs(x)<1e-9) x=0; return x.toFixed(d); }
+
+  function solve2x2(b1,b2,v){
+    const a=b1[0], b=b2[0], c=b1[1], d=b2[1];
+    const det = a*d - b*c;
+    const c1 = (v[0]*d - b*v[1])/det;
+    const c2 = (a*v[1] - c*v[0])/det;
+    return {c1:c1, c2:c2, det:det};
+  }
+  function matVec2(A,v){ return [A[0][0]*v[0]+A[0][1]*v[1], A[1][0]*v[0]+A[1][1]*v[1]]; }
+  function matMul2(A,B){
+    return [
+      [A[0][0]*B[0][0]+A[0][1]*B[1][0], A[0][0]*B[0][1]+A[0][1]*B[1][1]],
+      [A[1][0]*B[0][0]+A[1][1]*B[1][0], A[1][0]*B[0][1]+A[1][1]*B[1][1]]
+    ];
+  }
+  function matPow2(A,n){
+    let R=[[1,0],[0,1]];
+    for(let i=0;i<n;i++) R=matMul2(R,A);
+    return R;
+  }
+  function inv2x2(M){
+    const a=M[0][0], b=M[0][1], c=M[1][0], d=M[1][1];
+    const det=a*d-b*c;
+    return [[d/det,-b/det],[-c/det,a/det]];
+  }
+  function outer2(u,v){ return [[u[0]*v[0],u[0]*v[1]],[u[1]*v[0],u[1]*v[1]]]; }
+  function scaleMat2(M,s){ return [[M[0][0]*s,M[0][1]*s],[M[1][0]*s,M[1][1]*s]]; }
+  function addMat2(A,B){ return [[A[0][0]+B[0][0],A[0][1]+B[0][1]],[A[1][0]+B[1][0],A[1][1]+B[1][1]]]; }
+
+  // ---- spectral analysis of a real 2x2 matrix (used by section 2) ----
+  function det2x2(M){ return M[0][0]*M[1][1]-M[0][1]*M[1][0]; }
+  function rotMat2(phi){ return [[Math.cos(phi),-Math.sin(phi)],[Math.sin(phi),Math.cos(phi)]]; }
+  function subMat2(A,B){ return [[A[0][0]-B[0][0],A[0][1]-B[0][1]],[A[1][0]-B[1][0],A[1][1]-B[1][1]]]; }
+  function transpose2(M){ return [[M[0][0],M[1][0]],[M[0][1],M[1][1]]]; }
+  function maxAbsMat2(M){ return Math.max(Math.abs(M[0][0]),Math.abs(M[0][1]),Math.abs(M[1][0]),Math.abs(M[1][1])); }
+  function unitVec2(v){ const n=Math.hypot(v[0],v[1])||1; return [v[0]/n,v[1]/n]; }
+  function canonSign2(q){ return (q[0]<-1e-12 || (Math.abs(q[0])<=1e-12 && q[1]<0)) ? [-q[0],-q[1]] : q; }
+
+  // unit eigenvector of A for a real eigenvalue l: null vector of A-lI (take the better-conditioned candidate)
+  function eigVecReal2(l,A){
+    const r1=[A[0][1], l-A[0][0]], r2=[l-A[1][1], A[1][0]];
+    const n1=Math.hypot(r1[0],r1[1]), n2=Math.hypot(r2[0],r2[1]);
+    if (Math.max(n1,n2)<1e-12) return Math.abs(l-A[0][0])<Math.abs(l-A[1][1]) ? [1,0] : [0,1];
+    return unitVec2(n1>=n2 ? r1 : r2);
+  }
+
+  // Spectrum of A = [[a,b],[b2,c]]: mode 'real' (two real eigenvalues, spectral projectors P1,P2),
+  // 'complex' (alpha±i·beta, real form A = alpha·I + beta·J, J^2 = -I), 'defective' (A = lam·I + N, N^2 = 0), 'scalar'.
+  function spectrum2(A){
+    const a=A[0][0], b=A[0][1], b2=A[1][0], c=A[1][1];
+    const T=a+c, D=a*c-b*b2, disc=T*T-4*D;
+    const tol=1e-9*(1+T*T+Math.abs(4*D));
+    const I=[[1,0],[0,1]];
+    const E={A:A, T:T, D:D, disc:disc, I:I};
+    const AAt=matMul2(A,transpose2(A)), AtA=matMul2(transpose2(A),A);
+    E.symmetric = Math.abs(b-b2) <= 1e-12*(1+Math.abs(b)+Math.abs(b2));
+    E.normal = maxAbsMat2(subMat2(AAt,AtA)) <= 1e-9*(1+maxAbsMat2(AAt));
+    if (Math.abs(disc)<=tol){
+      const lam=T/2;
+      if (Math.abs(b)<=tol && Math.abs(b2)<=tol && Math.abs(a-c)<=tol){ E.mode='scalar'; E.lam=lam; return E; }
+      E.mode='defective'; E.lam=lam; E.q=canonSign2(eigVecReal2(lam,A)); E.N=subMat2(A,scaleMat2(I,lam));
+      return E;
+    }
+    if (disc>0){
+      const sq=Math.sqrt(disc);
+      E.mode='real'; E.l1=(T+sq)/2; E.l2=(T-sq)/2;
+      E.q1=canonSign2(eigVecReal2(E.l1,A)); E.q2=canonSign2(eigVecReal2(E.l2,A));
+      E.Q=[[E.q1[0],E.q2[0]],[E.q1[1],E.q2[1]]]; E.Qinv=inv2x2(E.Q);
+      E.w1=E.Qinv[0]; E.w2=E.Qinv[1];                  // dual vectors = rows of Q^-1
+      E.P1=outer2(E.q1,E.w1); E.P2=outer2(E.q2,E.w2);  // spectral projectors
+      return E;
+    }
+    const alpha=T/2, beta=Math.sqrt(-disc)/2;
+    let u,w;
+    const n1=Math.hypot(b,(c-a)/2), n2=Math.hypot((a-c)/2,b2);
+    if (n1>=n2){ u=[b,(c-a)/2]; w=[0,beta]; } else { u=[(a-c)/2,b2]; w=[beta,0]; }
+    const n=Math.hypot(u[0],u[1]);
+    u=[u[0]/n,u[1]/n]; w=[w[0]/n,w[1]/n];             // q = u + i·w is an eigenvector for alpha + i·beta
+    if (u[0]<-1e-12 || (Math.abs(u[0])<=1e-12 && u[1]<0)){ u=[-u[0],-u[1]]; w=[-w[0],-w[1]]; }
+    E.mode='complex'; E.alpha=alpha; E.beta=beta; E.r=Math.hypot(alpha,beta); E.theta=Math.atan2(beta,alpha);
+    E.u=u; E.w=w; E.Q=[[u[0],w[0]],[u[1],w[1]]]; E.Qinv=inv2x2(E.Q);
+    E.J=scaleMat2(subMat2(A,scaleMat2(I,alpha)),1/beta);
+    return E;
+  }
+
+  // vector-dependent quantities for the step-by-step picture
+  function vectorData2(E,v){
+    const D={final:matVec2(E.A,v)};
+    if (E.mode==='real'){
+      D.d1=dot(E.w1,v); D.d2=dot(E.w2,v);
+      D.p1=[D.d1*E.q1[0],D.d1*E.q1[1]]; D.p2=[D.d2*E.q2[0],D.d2*E.q2[1]];
+      D.s1=[E.l1*D.p1[0],E.l1*D.p1[1]]; D.s2=[E.l2*D.p2[0],E.l2*D.p2[1]];
+    } else if (E.mode==='complex'){
+      D.c=matVec2(E.Qinv,v);
+    } else if (E.mode==='defective'){
+      D.lv=[E.lam*v[0],E.lam*v[1]]; D.nv=matVec2(E.N,v);
+    }
+    return D;
+  }
+
+  // the linear map shown on the plane (smiley) at step k of the animation, progress t in [0,1]
+  function imageMap2(E,k,t){
+    const I=[[1,0],[0,1]];
+    if (E.mode==='real'){
+      if (k<=0) return I;
+      let ca,cb;
+      if (k===1){ ca=1; cb=1-t; }
+      else if (k===2){ ca=1+t*(E.l1-1); cb=0; }
+      else if (k===3){ ca=E.l1; cb=t; }
+      else if (k===4){ ca=E.l1; cb=1+t*(E.l2-1); }
+      else { ca=E.l1; cb=E.l2; }
+      return addMat2(scaleMat2(E.P1,ca),scaleMat2(E.P2,cb));
+    }
+    if (E.mode==='complex'){
+      if (k<=1) return I;
+      if (k===2){ const s=1+t*(E.r-1); return [[s,0],[0,s]]; }
+      if (k===3) return scaleMat2(matMul2(matMul2(E.Q,rotMat2(-E.theta*t)),E.Qinv),E.r);
+      return E.A;
+    }
+    if (E.mode==='defective'){
+      if (k<=0) return I;
+      if (k===1){ const s=1+t*(E.lam-1); return [[s,0],[0,s]]; }
+      return addMat2([[E.lam,0],[0,E.lam]],scaleMat2(E.N,t));
+    }
+    if (k<=0) return I;
+    const s=1+t*(E.lam-1); return [[s,0],[0,s]];
+  }
+
+
+  // one diverging colormap for the whole page: blue = negative, white = 0, red = positive
+  function heatColor(v,maxAbs){
+    const t = maxAbs>1e-9 ? Math.max(-1,Math.min(1,v/maxAbs)) : 0;
+    if (t>=0){
+      const g=Math.round(255*(1-t));
+      return 'rgb(255,'+g+','+g+')';
+    } else {
+      const rg=Math.round(255*(1+t));
+      return 'rgb('+rg+','+rg+',255)';
+    }
+  }
+
+  function getCanvasPos(canvas, evt){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width/rect.width;
+    const scaleY = canvas.height/rect.height;
+    const cx = (evt.touches ? evt.touches[0].clientX : evt.clientX);
+    const cy = (evt.touches ? evt.touches[0].clientY : evt.clientY);
+    return [(cx-rect.left)*scaleX, (cy-rect.top)*scaleY];
+  }
+
+  function drawArrowPx(ctx,x0,y0,x1,y1,color,width){
+    width = width || 2.5;
+    ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=width;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    const angle=Math.atan2(y1-y0,x1-x0);
+    const headLen=9;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x1-headLen*Math.cos(angle-Math.PI/6), y1-headLen*Math.sin(angle-Math.PI/6));
+    ctx.lineTo(x1-headLen*Math.cos(angle+Math.PI/6), y1-headLen*Math.sin(angle+Math.PI/6));
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawGridAxes(ctx,W,H,originX,originY,scale,range){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='#E5E8EE'; ctx.lineWidth=1;
+    for(let k=-range;k<=range;k++){
+      ctx.beginPath(); ctx.moveTo(originX+k*scale,0); ctx.lineTo(originX+k*scale,H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,originY+k*scale); ctx.lineTo(W,originY+k*scale); ctx.stroke();
+    }
+    ctx.strokeStyle='#B7BEC9'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,originY); ctx.lineTo(W,originY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(originX,0); ctx.lineTo(originX,H); ctx.stroke();
+  }
+
+  function drawDashedLinePx(ctx,x0,y0,x1,y1,color){
+    ctx.save();
+    ctx.strokeStyle=color; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ============ SECTION 1: vector decomposition ============
+  try { (function(){
+    const canvas = document.getElementById('s1-canvas');
+    const ctx = canvas.getContext('2d');
+    const W=360,H=360, originX=W/2, originY=H/2, scale=52;
+    function toPx(x,y){ return [originX+x*scale, originY-y*scale]; }
+    function toWorld(px,py){ return [(px-originX)/scale, -(py-originY)/scale]; }
+
+    let mode='ortho';
+    let v=[2.0,1.0];
+    let phi = 25*Math.PI/180;
+    let theta1 = 10*Math.PI/180, theta2 = 95*Math.PI/180;
+    let dragging=false;
+
+    const slidersDiv = document.getElementById('s1-sliders');
+
+    function renderSliders(){
+      if (mode==='ortho'){
+        slidersDiv.innerHTML =
+          '<div class="slider-row"><label for="s1-phi">Кут повороту базису φ</label>'+
+          '<input type="range" id="s1-phi" min="0" max="360" value="'+Math.round(phi*180/Math.PI)+'">'+
+          '<span class="mono" id="s1-phi-val">'+Math.round(phi*180/Math.PI)+'°</span></div>';
+        document.getElementById('s1-phi').addEventListener('input', function(e){
+          phi = +e.target.value*Math.PI/180;
+          document.getElementById('s1-phi-val').textContent = e.target.value+'°';
+          draw();
+        });
+      } else {
+        slidersDiv.innerHTML =
+          '<div class="slider-row"><label for="s1-t1">Кут b1</label>'+
+          '<input type="range" id="s1-t1" min="0" max="360" value="'+Math.round(theta1*180/Math.PI)+'">'+
+          '<span class="mono" id="s1-t1-val">'+Math.round(theta1*180/Math.PI)+'°</span></div>'+
+          '<div class="slider-row"><label for="s1-t2">Кут b2</label>'+
+          '<input type="range" id="s1-t2" min="0" max="360" value="'+Math.round(theta2*180/Math.PI)+'">'+
+          '<span class="mono" id="s1-t2-val">'+Math.round(theta2*180/Math.PI)+'°</span></div>';
+        document.getElementById('s1-t1').addEventListener('input', function(e){
+          theta1 = +e.target.value*Math.PI/180;
+          document.getElementById('s1-t1-val').textContent = e.target.value+'°';
+          draw();
+        });
+        document.getElementById('s1-t2').addEventListener('input', function(e){
+          theta2 = +e.target.value*Math.PI/180;
+          document.getElementById('s1-t2-val').textContent = e.target.value+'°';
+          draw();
+        });
+      }
+    }
+
+    function basisVectors(){
+      if (mode==='ortho'){
+        return [[Math.cos(phi),Math.sin(phi)],[-Math.sin(phi),Math.cos(phi)]];
+      } else {
+        return [[Math.cos(theta1),Math.sin(theta1)],[Math.cos(theta2),Math.sin(theta2)]];
+      }
+    }
+
+    function draw(){
+      drawGridAxes(ctx,W,H,originX,originY,scale,3);
+      const basis = basisVectors();
+      const b1=basis[0], b2=basis[1];
+      const [ox,oy]=toPx(0,0);
+
+      let [p1x,p1y]=toPx(b1[0],b1[1]); drawArrowPx(ctx,ox,oy,p1x,p1y,'#7C3AED',2.5);
+      let [p2x,p2y]=toPx(b2[0],b2[1]); drawArrowPx(ctx,ox,oy,p2x,p2y,'#EA580C',2.5);
+
+      let c1,c2,det=1, degen=false;
+      if (mode==='ortho'){
+        c1=dot(v,b1); c2=dot(v,b2);
+      } else {
+        const sol=solve2x2(b1,b2,v); c1=sol.c1; c2=sol.c2; det=sol.det;
+        if (Math.abs(det)<1e-9 || !isFinite(c1) || !isFinite(c2)){ degen=true; c1=0; c2=0; }
+      }
+
+      const part1=[c1*b1[0], c1*b1[1]];
+      const part2=[c2*b2[0], c2*b2[1]];
+      const [pp1x,pp1y]=toPx(part1[0],part1[1]);
+      const [pp2x,pp2y]=toPx(part2[0],part2[1]);
+      const [vpx,vpy]=toPx(v[0],v[1]);
+
+      if (!degen){
+        // parallelogram O–P1–v–P2: v is the diagonal, sides are copies of c1·b1 and c2·b2
+        ctx.beginPath();
+        ctx.moveTo(ox,oy); ctx.lineTo(pp1x,pp1y); ctx.lineTo(vpx,vpy); ctx.lineTo(pp2x,pp2y);
+        ctx.closePath();
+        ctx.fillStyle='rgba(44,95,224,0.08)';
+        ctx.fill();
+        drawDashedLinePx(ctx,ox,oy,pp1x,pp1y,'#7C3AED');   // c1·b1
+        drawDashedLinePx(ctx,pp2x,pp2y,vpx,vpy,'#7C3AED'); // parallel copy of c1·b1
+        drawDashedLinePx(ctx,ox,oy,pp2x,pp2y,'#EA580C');   // c2·b2
+        drawDashedLinePx(ctx,pp1x,pp1y,vpx,vpy,'#EA580C'); // parallel copy of c2·b2
+      }
+
+      const [vx,vy]=toPx(v[0],v[1]);
+      drawArrowPx(ctx,ox,oy,vx,vy,'#1D2433',3);
+      ctx.fillStyle='#1D2433';
+      ctx.beginPath(); ctx.arc(vx,vy,5,0,Math.PI*2); ctx.fill();
+
+      updateReadout(b1,b2,c1,c2,det);
+      updateBars(degen?NaN:c1, degen?NaN:c2);
+    }
+
+    function updateReadout(b1,b2,c1,c2,det){
+      const r = document.getElementById('s1-readout');
+      let html = '';
+      html += '<div class="line">v = ('+fmt(v[0])+', '+fmt(v[1])+')</div>';
+      html += '<div class="line"><span class="b1">b1</span> = ('+fmt(b1[0])+', '+fmt(b1[1])+')'
+            + '&nbsp;&nbsp;<span class="b2">b2</span> = ('+fmt(b2[0])+', '+fmt(b2[1])+')</div>';
+      html += '<div class="line">b1·b2 = '+fmt(dot(b1,b2))+'</div>';
+      if (mode==='ortho'){
+        html += '<div class="line ok">c1 = v·b1 = '+fmt(c1)+'&nbsp;&nbsp;(просто скалярний добуток)</div>';
+        html += '<div class="line ok">c2 = v·b2 = '+fmt(c2)+'</div>';
+      } else if (Math.abs(det)<1e-9){
+        html += '<div class="line warn">det[b1 b2] = 0 → b1 ∥ b2: базис вироджений, координат не існує</div>';
+      } else {
+        html += '<div class="line warn">det[b1 b2] = '+fmt(det)+' → розв\'язуємо СЛАР</div>';
+        html += '<div class="line">c1 = '+fmt(c1)+', c2 = '+fmt(c2)+' (через обернену 2×2, не скалярний добуток)</div>';
+      }
+      if (mode!=='oblique' || Math.abs(det)>=1e-9)
+        html += '<div class="line">перевірка: c1·b1 + c2·b2 = ('+fmt(c1*b1[0]+c2*b2[0])+', '+fmt(c1*b1[1]+c2*b2[1])+')</div>';
+      r.innerHTML = html;
+    }
+
+    function updateBars(c1,c2){
+      const bars = document.getElementById('s1-bars');
+      if (!isFinite(c1)||!isFinite(c2)){ bars.innerHTML=''; return; }
+      const maxH=60;
+      const m = Math.max(1, Math.abs(c1), Math.abs(c2));
+      bars.innerHTML =
+        '<div class="bar" style="height:'+(Math.abs(c1)/m*maxH)+'px;background:#7C3AED;"><span>'+fmt(c1,1)+'</span></div>'+
+        '<div class="bar" style="height:'+(Math.abs(c2)/m*maxH)+'px;background:#EA580C;"><span>'+fmt(c2,1)+'</span></div>';
+    }
+
+    function nearV(px,py){
+      const [vx,vy]=toPx(v[0],v[1]);
+      return Math.hypot(px-vx,py-vy) < 16;
+    }
+    canvas.addEventListener('pointerdown', function(e){
+      const [px,py]=getCanvasPos(canvas,e);
+      if (nearV(px,py)) dragging=true;
+    });
+    canvas.addEventListener('pointermove', function(e){
+      if (!dragging) return;
+      const [px,py]=getCanvasPos(canvas,e);
+      v = toWorld(px,py);
+      draw();
+    });
+    window.addEventListener('pointerup', function(){ dragging=false; });
+
+    document.getElementById('s1-mode-ortho').addEventListener('click', function(){
+      mode='ortho';
+      this.classList.add('active');
+      document.getElementById('s1-mode-oblique').classList.remove('active');
+      renderSliders(); draw();
+    });
+    document.getElementById('s1-mode-oblique').addEventListener('click', function(){
+      mode='oblique';
+      this.classList.add('active');
+      document.getElementById('s1-mode-ortho').classList.remove('active');
+      renderSliders(); draw();
+    });
+
+    renderSliders();
+    draw();
+  })(); } catch(e) { reportError('Розділ 1 (вектор) не запустився', e); }
+
+  // ============ SECTION 2: spectral decomposition of a matrix ============
+  try { (function(){
+    const canvas=document.getElementById('s2-canvas');
+    const wrap=document.getElementById('s2-canvas-wrap');
+    const ctx=canvas.getContext('2d');
+    const FONT='Inter, ui-sans-serif, system-ui, sans-serif';
+    const CL={ink:'#1D2433', q1:'#7C3AED', q2:'#EA580C', q1l:'#B79CF5', q2l:'#F5A97A', out:'#1E824C', acc:'#2C5FE0', grey:'#94A3B8', mute:'#64748B'};
+
+    const st={ A:[[2,1],[1,2]], v:[1,2], E:null, D:null, step:0, maxSteps:5, showImage:true, img:{R:1,C:[0,0],d:[0,0]} };
+    const V={scale:40, fit:40, ox:0, oy:0, w:0, h:0, maxCoord:5};
+    const anim={t:1, raf:null};
+    let labels=[];
+    const stepT=function(k){ return k<st.step ? 1 : (k===st.step ? anim.t : 0); };
+    const toPx=function(x,y){ return [V.ox+x*V.scale, V.oy-y*V.scale]; };
+    const f=function(x,d){
+      if (!isFinite(x)) return '—';
+      if (Math.abs(x)<1e-12) x=0;
+      return (d===undefined) ? (Number.isInteger(x) ? String(x) : x.toFixed(2).replace(/\.?0+$/,'')) : x.toFixed(d);
+    };
+
+    function renderMath(el){
+      if (!window.renderMathInElement) return;
+      try {
+        renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}], throwOnError:false});
+      } catch(e){ console.error('KaTeX:',e); }
+    }
+
+    // ---------- view / canvas ----------
+    function resizeCanvas(){
+      const cssW=Math.max(280, Math.round(wrap.clientWidth));
+      const cssH=Math.round(Math.min(460, cssW*0.78));
+      const dpr=window.devicePixelRatio||1;
+      const prevRatio=V.fit ? (V.scale/V.fit) : 1;   // preserve the user's zoom across plain resizes
+      wrap.style.height=cssH+'px';
+      canvas.width=Math.round(cssW*dpr); canvas.height=Math.round(cssH*dpr);
+      V.w=cssW; V.h=cssH; V.ox=cssW/2; V.oy=cssH/2;
+      V.fit=(Math.min(cssW,cssH)/2)/V.maxCoord;
+      V.scale=V.fit*prevRatio;
+      draw();
+    }
+    function fitView(){
+      const E=st.E, D=st.D, pts=[];
+      const push=function(p){ if (p && isFinite(p[0]) && isFinite(p[1])) pts.push(p); };
+      push(st.v); push(D.final);
+      if (E.mode==='real'){ push(D.p1); push(D.p2); push(D.s1); push(D.s2); }
+      if (E.mode==='complex'){
+        let p=st.v.slice();
+        for (let k=0;k<3;k++){ p=matVec2(E.A,p); push(p); }
+        for (let i=0;i<48;i++){ push(ellipsePoint(i/48*2*Math.PI)); }
+      }
+      if (E.mode==='defective'){ push(D.lv); push(D.nv); }
+      if (st.showImage){
+        const C=st.img.C, R=st.img.R;
+        for (let i=0;i<24;i++){
+          const ph=i/24*2*Math.PI, p0=[C[0]+Math.cos(ph)*R, C[1]+Math.sin(ph)*R];
+          push(p0); push(matVec2(E.A,p0));
+        }
+      }
+      let m=2.5;
+      pts.forEach(function(p){ m=Math.max(m,Math.abs(p[0]),Math.abs(p[1])); });
+      V.maxCoord=m*1.25;
+      resizeCanvas();
+      V.scale=V.fit;   // fitView's whole point is to reset zoom to the new content
+      draw();
+    }
+    function zoomBy(k){
+      V.scale=Math.min(V.fit*15, Math.max(V.fit*0.25, V.scale*k));
+      draw();
+    }
+
+    // ---------- drawing primitives ----------
+    function drawLine(p1,p2,color,width,dash){
+      ctx.beginPath(); ctx.setLineDash(dash||[]);
+      ctx.strokeStyle=color; ctx.lineWidth=width||1;
+      ctx.moveTo(p1[0],p1[1]); ctx.lineTo(p2[0],p2[1]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    function niceStep(range){
+      const raw=Math.max(range,1e-6)/8, p=Math.pow(10,Math.floor(Math.log10(raw)));
+      for (const m of [1,2,5,10]) if (raw<=m*p) return m*p;
+      return 10*p;
+    }
+    function fmtTick(v){ const r=Math.round(v); return Math.abs(v-r)<1e-9 ? String(r) : String(parseFloat(v.toFixed(3))); }
+    function drawGrid(){
+      const halfW=V.ox/V.scale, halfH=V.oy/V.scale;
+      const ext=Math.max(halfW,halfH)+1, stp=niceStep(ext);
+      ctx.font='10px '+FONT; ctx.fillStyle='#94A3B8'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const k0=Math.ceil(-ext/stp), k1=Math.floor(ext/stp);
+      for (let k=k0;k<=k1;k++){
+        const i=k*stp;
+        if (Math.abs(i)<1e-9) continue;
+        let p=toPx(i,0);
+        drawLine(toPx(i,halfH),toPx(i,-halfH),'#EEF0F4');
+        ctx.fillText(fmtTick(i),p[0],p[1]+11);
+        p=toPx(0,i);
+        drawLine(toPx(-halfW,i),toPx(halfW,i),'#EEF0F4');
+        ctx.fillText(fmtTick(i),p[0]-13,p[1]);
+      }
+      drawLine(toPx(-halfW,0),toPx(halfW,0),'#94A3B8',1.5);
+      drawLine(toPx(0,-halfH),toPx(0,halfH),'#94A3B8',1.5);
+    }
+    function drawEigLines(){
+      const E=st.E;
+      const halfW=V.ox/V.scale, halfH=V.oy/V.scale, ext=(Math.max(halfW,halfH)+V.maxCoord)*1.2+1;
+      const line=function(q,color){ drawLine(toPx(q[0]*ext,q[1]*ext),toPx(-q[0]*ext,-q[1]*ext),color,1.5,[6,6]); };
+      if (E.mode==='real'){ line(E.q1,'rgba(124,58,237,.35)'); line(E.q2,'rgba(234,88,12,.35)'); }
+      else if (E.mode==='complex'){ line(E.u,'rgba(124,58,237,.3)'); line(E.w,'rgba(234,88,12,.3)'); }
+      else if (E.mode==='defective'){ line(E.q,'rgba(124,58,237,.35)'); }
+    }
+
+    // labels with subscripts: "p_1" -> p with subscript 1; simple collision resolving
+    function parseLabel(text){
+      const segs=[]; let i=0;
+      while (i<text.length){
+        if (text[i]==='_' && i+1<text.length){ segs.push({t:text[i+1], sub:true}); i+=2; }
+        else { let j=i; while (j<text.length && text[j]!=='_') j++; segs.push({t:text.slice(i,j), sub:false}); i=j; }
+      }
+      return segs;
+    }
+    const F_MAIN=function(s){ return 'italic 600 '+(s?11:13)+'px '+FONT; };
+    const F_SUB=function(s){ return 'italic 600 '+(s?8.5:10)+'px '+FONT; };
+    function measureLabel(text,small){
+      let w=0;
+      parseLabel(text).forEach(function(s){ ctx.font=s.sub?F_SUB(small):F_MAIN(small); w+=ctx.measureText(s.t).width; });
+      return w;
+    }
+    function drawMathLabel(L){
+      const segs=parseLabel(L.text); let total=0;
+      segs.forEach(function(s){ ctx.font=s.sub?F_SUB(L.small):F_MAIN(L.small); total+=ctx.measureText(s.t).width; });
+      let x=L.x-total/2;
+      ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.lineJoin='round';
+      segs.forEach(function(s){
+        ctx.font=s.sub?F_SUB(L.small):F_MAIN(L.small);
+        const w=ctx.measureText(s.t).width, y=s.sub?L.y+4:L.y;
+        ctx.lineWidth=3.5; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.strokeText(s.t,x,y);
+        ctx.fillStyle=L.color; ctx.fillText(s.t,x,y);
+        x+=w;
+      });
+    }
+    function resolveLabels(){
+      labels.forEach(function(L){ L.mw=measureLabel(L.text,L.small); L.mh=L.small?12:15; });
+      for (let iter=0;iter<30;iter++){
+        let moved=false;
+        for (let i=0;i<labels.length;i++) for (let j=i+1;j<labels.length;j++){
+          const A=labels[i], B=labels[j], dx=B.x-A.x, dy=B.y-A.y;
+          const ox=(A.mw+B.mw)/2+5-Math.abs(dx), oy=(A.mh+B.mh)/2+4-Math.abs(dy);
+          if (ox>0 && oy>0){
+            if (ox<=oy){ const s=(dx===0?(i%2?1:-1):Math.sign(dx))*ox/2; A.x-=s; B.x+=s; }
+            else { const s=(dy===0?1:Math.sign(dy))*oy/2; A.y-=s; B.y+=s; }
+            moved=true;
+          }
+        }
+        if (!moved) break;
+      }
+      labels.forEach(function(L){
+        L.x=Math.min(Math.max(L.x,L.mw/2+8),V.w-L.mw/2-8);
+        L.y=Math.min(Math.max(L.y,L.mh/2+4),V.h-L.mh/2-4);
+      });
+    }
+    function drawVector(mx,my,color,label,opts){
+      opts=opts||{};
+      if (!isFinite(mx) || !isFinite(my)) return;
+      const o=toPx(0,0), t=toPx(mx,my), dx=t[0]-o[0], dy=t[1]-o[1], len=Math.hypot(dx,dy);
+      if (len<4) return;
+      const lw=opts.lineWidth||2;
+      ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineCap='round';
+      ctx.moveTo(o[0],o[1]); ctx.lineTo(t[0],t[1]); ctx.stroke();
+      const ang=Math.atan2(dy,dx), hl=Math.max(8,lw*3.4);
+      ctx.beginPath(); ctx.fillStyle=color;
+      ctx.moveTo(t[0],t[1]);
+      ctx.lineTo(t[0]-hl*Math.cos(ang-Math.PI/7), t[1]-hl*Math.sin(ang-Math.PI/7));
+      ctx.lineTo(t[0]-hl*Math.cos(ang+Math.PI/7), t[1]-hl*Math.sin(ang+Math.PI/7));
+      ctx.closePath(); ctx.fill();
+      if (label){
+        const ux=dx/len, uy=dy/len, side=opts.side||1;
+        labels.push({x:t[0]+ux*14+uy*side*12, y:t[1]+uy*14-ux*side*12, text:label, color:color, small:!!opts.small});
+      }
+    }
+
+    // ---------- smiley: a chiral picture that shows what the map does to the whole plane ----------
+    function drawSmiley(M,opts){
+      const C=st.img.C, R=st.img.R;
+      ctx.save();
+      ctx.globalAlpha=(opts.alpha===undefined)?0.92:opts.alpha;
+      ctx.translate(V.ox,V.oy); ctx.scale(V.scale,-V.scale);
+      ctx.transform(M[0][0],M[1][0],M[0][1],M[1][1],0,0);
+      const lw=1.6/V.scale;
+      ctx.beginPath(); ctx.arc(C[0],C[1],R,0,2*Math.PI);
+      ctx.fillStyle=opts.ghost?'#F8FAFC':'#FEF3C7'; ctx.fill();
+      ctx.strokeStyle=opts.ghost?'#CBD5E1':'#F59E0B'; ctx.lineWidth=lw*1.4; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(C[0]-0.5*R,C[1]-0.15*R);
+      ctx.quadraticCurveTo(C[0],C[1]-0.55*R,C[0]+0.5*R,C[1]-0.15*R);
+      ctx.strokeStyle=opts.ghost?'#94A3B8':'#B45309'; ctx.lineWidth=lw*1.4; ctx.lineCap='round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(C[0]-0.42*R,C[1]+0.34*R,0.13*R,0,2*Math.PI);   // left eye: open, filled — the vector points here
+      ctx.fillStyle='#0F172A'; ctx.fill();
+      ctx.beginPath(); ctx.arc(C[0]+0.42*R,C[1]+0.34*R,0.13*R,Math.PI*1.08,Math.PI*1.92); // right eye: closed (arc) => a mirror flip is visible at once
+      ctx.strokeStyle='#0F172A'; ctx.lineWidth=lw*1.5; ctx.lineCap='round'; ctx.stroke();
+      ctx.restore();
+    }
+    function drawImageLayers(M){
+      if (st.step>0) drawSmiley(imageMap2(st.E,0,1),{alpha:0.25, ghost:true});
+      drawSmiley(M,{alpha:0.92});
+      if (st.step>0){
+        const F=matVec2(M,st.v);
+        drawLine(toPx(0,0),toPx(F[0],F[1]),'rgba(30,41,59,.35)',1,[2,4]);
+      }
+    }
+    function drawEyeMarker(M){
+      const F=matVec2(M,st.v), p=toPx(F[0],F[1]);
+      ctx.beginPath(); ctx.arc(p[0],p[1],5.5,0,2*Math.PI);
+      ctx.strokeStyle='#7E22CE'; ctx.lineWidth=1.6; ctx.stroke();
+    }
+    function drawDetBadge(det){
+      if (det>=-1e-9) return;
+      const text='\u21C4  дзеркальне відображення: det = '+f(det);
+      ctx.font='600 12px '+FONT;
+      const tw=ctx.measureText(text).width, w=tw+24, h=26, x=12, y=12, r=8;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      ctx.fillStyle='rgba(254,226,226,0.95)'; ctx.fill();
+      ctx.strokeStyle='#F87171'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.fillStyle='#B91C1C'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText(text,x+12,y+h/2+0.5);
+    }
+    function drawZoomIndicator(){
+      const z=V.scale/V.fit;
+      ctx.font='10px '+FONT; ctx.fillStyle='#94A3B8'; ctx.textAlign='right'; ctx.textBaseline='alphabetic';
+      ctx.fillText('масштаб ×'+(z>=10?z.toFixed(0):z.toFixed(2)),V.w-10,V.h-10);
+    }
+
+    // ---------- real spectrum: projectors ----------
+    function drawReal(){
+      const E=st.E, D=st.D, v=st.v;
+      const t1=stepT(1), t2=stepT(2), t3=stepT(3), t4=stepT(4), t5=stepT(5);
+      if (t3>0){                                            // both projections exist: v is the diagonal of the parallelogram (as in part 1)
+        const o=toPx(0,0), a=toPx(D.p1[0],D.p1[1]), b=toPx(v[0],v[1]), c=toPx(D.p2[0],D.p2[1]);
+        ctx.beginPath(); ctx.moveTo(o[0],o[1]); ctx.lineTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.lineTo(c[0],c[1]); ctx.closePath();
+        ctx.fillStyle='rgba(44,95,224,'+(0.06*t3)+')'; ctx.fill();
+      }
+      if (t1>0){
+        const g=[v[0]+(D.p1[0]-v[0])*t1, v[1]+(D.p1[1]-v[1])*t1];
+        drawLine(toPx(v[0],v[1]),toPx(g[0],g[1]),CL.grey,1,[4,4]);
+        drawVector(g[0],g[1],CL.q1l,'p_1',{side:1});
+      }
+      if (t2>0){
+        const k=1+t2*(E.l1-1), s=[D.p1[0]*k,D.p1[1]*k];
+        drawLine(toPx(D.p1[0],D.p1[1]),toPx(s[0],s[1]),'rgba(124,58,237,.5)',1,[3,3]);
+        drawVector(s[0],s[1],CL.q1,'λ_1p_1',{lineWidth:3,side:1});
+      }
+      if (t3>0){
+        const g=[v[0]+(D.p2[0]-v[0])*t3, v[1]+(D.p2[1]-v[1])*t3];
+        drawLine(toPx(v[0],v[1]),toPx(g[0],g[1]),CL.grey,1,[4,4]);
+        drawVector(g[0],g[1],CL.q2l,'p_2',{side:-1});
+      }
+      if (t4>0){
+        const k=1+t4*(E.l2-1), s=[D.p2[0]*k,D.p2[1]*k];
+        drawLine(toPx(D.p2[0],D.p2[1]),toPx(s[0],s[1]),'rgba(234,88,12,.5)',1,[3,3]);
+        drawVector(s[0],s[1],CL.q2,'λ_2p_2',{lineWidth:3,side:-1});
+      }
+      if (t5>0){
+        const tip=[D.s1[0]+t5*D.s2[0], D.s1[1]+t5*D.s2[1]];
+        drawLine(toPx(D.s1[0],D.s1[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawLine(toPx(D.s2[0],D.s2[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawVector(tip[0],tip[1],CL.out,'Av',{lineWidth:4,side:1});
+      }
+    }
+
+    // ---------- complex spectrum: skew coordinates + rotation ----------
+    function ellipsePoint(phi){
+      const E=st.E, c=st.D.c;
+      const c1=E.r*(c[0]*Math.cos(phi)-c[1]*Math.sin(phi)), c2=E.r*(c[0]*Math.sin(phi)+c[1]*Math.cos(phi));
+      return [c1*E.u[0]+c2*E.w[0], c1*E.u[1]+c2*E.w[1]];
+    }
+    function drawEllipseLoop(){
+      ctx.beginPath();
+      for (let i=0;i<=90;i++){
+        const q=ellipsePoint(i/90*2*Math.PI), p=toPx(q[0],q[1]);
+        if (i) ctx.lineTo(p[0],p[1]); else ctx.moveTo(p[0],p[1]);
+      }
+      ctx.strokeStyle='rgba(44,95,224,.18)'; ctx.lineWidth=1.2; ctx.stroke();
+    }
+    function drawEllipseArc(t){
+      const E=st.E;
+      ctx.beginPath();
+      for (let i=0;i<=80;i++){
+        const q=ellipsePoint(-E.theta*t*i/80), p=toPx(q[0],q[1]);
+        if (i) ctx.lineTo(p[0],p[1]); else ctx.moveTo(p[0],p[1]);
+      }
+      ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(44,95,224,.6)'; ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
+    }
+    function drawSpiral(t){
+      const E=st.E, c=st.D.c, S=6*t;
+      const pointAt=function(s){
+        const cs=Math.cos(s*E.theta), sn=Math.sin(s*E.theta), rw=Math.pow(E.r,s);
+        const c1=rw*(c[0]*cs+c[1]*sn), c2=rw*(-c[0]*sn+c[1]*cs);
+        return toPx(c1*E.u[0]+c2*E.w[0], c1*E.u[1]+c2*E.w[1]);
+      };
+      ctx.beginPath();
+      for (let i=0;i<=240;i++){ const p=pointAt(S*i/240); if (i) ctx.lineTo(p[0],p[1]); else ctx.moveTo(p[0],p[1]); }
+      ctx.strokeStyle='rgba(44,95,224,.45)'; ctx.lineWidth=1.5; ctx.stroke();
+      for (let k=1;k<=6;k++){
+        if (k>S+1e-9) break;
+        const p=pointAt(k);
+        ctx.beginPath(); ctx.arc(p[0],p[1],Math.max(1.8,4.5-k*0.35),0,2*Math.PI);
+        ctx.fillStyle='rgba(44,95,224,'+Math.max(0.15,0.85-k*0.12)+')'; ctx.fill();
+      }
+    }
+    function drawComplex(){
+      const E=st.E, D=st.D, v=st.v, c=D.c;
+      const U=[c[0]*E.u[0],c[0]*E.u[1]], W=[c[1]*E.w[0],c[1]*E.w[1]];
+      const t1=stepT(1), t2=stepT(2), t3=stepT(3), t4=stepT(4);
+      drawVector(E.u[0],E.u[1],CL.q1,'u',{lineWidth:1.5,side:1,small:true});
+      drawVector(E.w[0],E.w[1],CL.q2,'w',{lineWidth:1.5,side:-1,small:true});
+      if (t1>0 && st.step<=2){
+        const f1=[v[0]+(U[0]-v[0])*t1, v[1]+(U[1]-v[1])*t1], f2=[v[0]+(W[0]-v[0])*t1, v[1]+(W[1]-v[1])*t1];
+        drawLine(toPx(v[0],v[1]),toPx(f1[0],f1[1]),CL.grey,1,[4,4]);
+        drawLine(toPx(v[0],v[1]),toPx(f2[0],f2[1]),CL.grey,1,[4,4]);
+        drawVector(f1[0],f1[1],CL.q1l,'c_1u',{side:1});
+        drawVector(f2[0],f2[1],CL.q2l,'c_2w',{side:-1});
+      }
+      if (t2>0 && st.step===2){
+        const rr=1+t2*(E.r-1);
+        drawVector(U[0]*rr,U[1]*rr,CL.q1,'r·c_1u',{lineWidth:2.5,side:1});
+        drawVector(W[0]*rr,W[1]*rr,CL.q2,'r·c_2w',{lineWidth:2.5,side:-1});
+        drawLine(toPx(v[0],v[1]),toPx(v[0]*rr,v[1]*rr),CL.grey,1,[3,3]);
+        drawVector(v[0]*rr,v[1]*rr,CL.mute,'|λ|·v',{lineWidth:2,side:1});
+      }
+      if (t3>0){
+        const psi=-E.theta*t3;
+        const c1t=E.r*(c[0]*Math.cos(psi)-c[1]*Math.sin(psi)), c2t=E.r*(c[0]*Math.sin(psi)+c[1]*Math.cos(psi));
+        const C1=[c1t*E.u[0],c1t*E.u[1]], C2=[c2t*E.w[0],c2t*E.w[1]], tip=[C1[0]+C2[0],C1[1]+C2[1]];
+        drawVector(C1[0],C1[1],CL.q1,'c_1u',{side:1});
+        drawVector(C2[0],C2[1],CL.q2,'c_2w',{side:-1});
+        drawLine(toPx(C1[0],C1[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawLine(toPx(C2[0],C2[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawVector(tip[0],tip[1],CL.out,'Av',{lineWidth:3.5,side:1});
+      }
+      if (t4>0) drawSpiral(t4);
+    }
+    function drawDefective(){
+      const E=st.E, D=st.D, v=st.v, t1=stepT(1), t2=stepT(2);
+      if (t1>0){ const k=1+t1*(E.lam-1); drawVector(v[0]*k,v[1]*k,CL.q1,'λv',{lineWidth:3,side:1}); }
+      if (t2>0){
+        const nv=[D.nv[0]*t2,D.nv[1]*t2], tip=[D.lv[0]+nv[0],D.lv[1]+nv[1]];
+        drawVector(nv[0],nv[1],CL.mute,'Nv',{side:-1});
+        drawLine(toPx(D.lv[0],D.lv[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawLine(toPx(nv[0],nv[1]),toPx(tip[0],tip[1]),CL.grey,1,[4,4]);
+        drawVector(tip[0],tip[1],CL.out,'Av',{lineWidth:4,side:1});
+      }
+    }
+    function drawScalar(){
+      const E=st.E, v=st.v, t1=stepT(1);
+      if (t1>0){ const k=1+t1*(E.lam-1); drawVector(v[0]*k,v[1]*k,CL.out,'λv',{lineWidth:3,side:1}); }
+    }
+
+    function draw(){
+      if (!V.w || !st.E || !st.D) return;
+      const dpr=window.devicePixelRatio||1;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,V.w,V.h);
+      drawGrid();
+      labels=[];
+      const M=imageMap2(st.E,st.step,anim.t);
+      drawEigLines();
+      if (st.showImage) drawImageLayers(M);
+      if (st.E.mode==='complex' && st.step>=3){ drawEllipseLoop(); if (stepT(3)>0) drawEllipseArc(stepT(3)); }
+      if (st.E.mode==='real') drawReal();
+      else if (st.E.mode==='complex') drawComplex();
+      else if (st.E.mode==='defective') drawDefective();
+      else drawScalar();
+      drawVector(st.v[0],st.v[1],CL.ink,'v',{lineWidth:3,side:-1});
+      if (st.showImage) drawEyeMarker(M);
+      resolveLabels();
+      labels.forEach(drawMathLabel);
+      drawDetBadge(det2x2(M));
+      drawZoomIndicator();
+    }
+
+    function startAnimation(){
+      if (anim.raf) cancelAnimationFrame(anim.raf);
+      const dur=900, t0=performance.now();
+      const ease=function(x){ return x<0.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2; };
+      function frame(now){
+        const k=Math.min(1,(now-t0)/dur);
+        anim.t=ease(k); draw();
+        if (k<1) anim.raf=requestAnimationFrame(frame); else { anim.raf=null; anim.t=1; draw(); }
+      }
+      anim.raf=requestAnimationFrame(frame);
+    }
+
+    // ---------- text: spectrum info, steps, legend ----------
+    const pm=function(x,y){ return '\\begin{pmatrix}'+f(x)+'\\\\'+f(y)+'\\end{pmatrix}'; };
+    const rowv=function(x,y){ return '\\begin{pmatrix}'+f(x)+'&'+f(y)+'\\end{pmatrix}'; };
+    const pm2=function(M){ return '\\begin{pmatrix}'+f(M[0][0])+'&'+f(M[0][1])+'\\\\'+f(M[1][0])+'&'+f(M[1][1])+'\\end{pmatrix}'; };
+    const card=function(inner){ return '<div class="info-card">'+inner+'</div>'; };
+    const note=function(inner){ return '<p class="tight" style="font-size:.82rem;">'+inner+'</p>'; };
+
+    const MODE_TEXT={real:'дійсний спектр', complex:'комплексний спектр: поворот', defective:'кратне λ: жорданова клітина', scalar:'A = λI'};
+
+    function updateInfo(){
+      const E=st.E;
+      const badge=document.getElementById('s2-badge');
+      badge.textContent=MODE_TEXT[E.mode]; badge.className='badge badge-'+E.mode;
+      let html='';
+      if (E.mode==='real'){
+        html+=card('\\( \\lambda_1='+f(E.l1)+',\\ \\vec q_1='+pm(E.q1[0],E.q1[1])+(E.symmetric?'':',\\ \\vec w_1^{\\,T}='+rowv(E.w1[0],E.w1[1]))+' \\)');
+        html+=card('\\( \\lambda_2='+f(E.l2)+',\\ \\vec q_2='+pm(E.q2[0],E.q2[1])+(E.symmetric?'':',\\ \\vec w_2^{\\,T}='+rowv(E.w2[0],E.w2[1]))+' \\)');
+        html+=E.symmetric
+          ? note('Матриця <b>симетрична</b>: \\(\\vec q_1\\perp\\vec q_2\\), \\(Q^{-1}=Q^{T}\\), тож \\(\\vec w_i=\\vec q_i\\): проєктори ортогональні \\(P_i=\\vec q_i\\vec q_i^{\\,T}\\), а координати — прості скалярні добутки.')
+          : note('Матриця <b>несиметрична</b>: \\(\\vec q_1\\), \\(\\vec q_2\\) не ортогональні, \\(Q^{-1}\\neq Q^{T}\\). Рядки \\(Q^{-1}\\) (вектори \\(\\vec w_i^{\\,T}\\)) довелось шукати; проєктори <b>косокутні</b>: \\(P_i=\\vec q_i\\vec w_i^{\\,T}\\neq P_i^{T}\\).');
+        if (E.l1*E.l2<0) html+=note('\\(\\det A=\\lambda_1\\lambda_2<0\\): перетворення <b>дзеркалить</b> орієнтацію (на полотні з’явиться позначка «⇄»).');
+      } else if (E.mode==='complex'){
+        const deg=(E.theta*180/Math.PI).toFixed(1);
+        html+=card('\\( \\lambda_{1,2}=\\alpha\\pm\\beta i='+f(E.alpha)+'\\pm '+f(E.beta)+'\\,i \\)<br>\\( r=|\\lambda|='+f(E.r)+',\\quad \\theta=\\arg\\lambda='+deg+'^\\circ \\)');
+        html+=card('\\( \\vec u=\\operatorname{Re}\\vec q='+pm(E.u[0],E.u[1])+',\\ \\vec w=\\operatorname{Im}\\vec q='+pm(E.w[0],E.w[1])+' \\)');
+        html+=note('Дійсних власних напрямів немає, тому дійсного проєкторного розкладу теж нема: спряжена пара комплексних проєкторів \\(P,\\bar P\\) у дійсному записі зливається в \\(A=\\alpha I+\\beta J\\), \\(J^2=-I\\) (поворот на \\(90^\\circ\\)). У базисі \\((\\vec u,\\vec w)\\): \\(A=Q\\,rR(-\\theta)\\,Q^{-1}\\).');
+        html+=E.normal
+          ? note('Матриця <b>нормальна</b> (\\(AA^{T}=A^{T}A\\)): \\(\\vec u\\perp\\vec w\\), \\(|\\vec u|=|\\vec w|\\) — це чистий поворот із розтягом у звичайній системі координат.')
+          : note('Матриця <b>ненормальна</b>: базис \\((\\vec u,\\vec w)\\) косокутний (або з різними довжинами), тому «поворот» відбувається в косій системі координат — по еліпсах, а не по колах.');
+      } else if (E.mode==='defective'){
+        html+=card('\\( \\lambda='+f(E.lam)+',\\ \\vec q='+pm(E.q[0],E.q[1])+' \\)<br>\\( N=A-\\lambda I='+pm2(E.N)+',\\ N^2=0 \\)');
+        html+=note('Власний напрям лише один: матриця <b>не діагоналізується</b>, повного набору проєкторів нема. Дія прозора все одно: \\(A\\vec v=\\lambda\\vec v+N\\vec v\\).');
+      } else {
+        html+=card('\\( A=\\lambda I,\\ \\lambda='+f(E.lam)+' \\)');
+        html+=note('Усі напрями власні: чисте масштабування, \\(P=I\\).');
+      }
+      const el=document.getElementById('s2-eigen-info');
+      el.innerHTML=html; renderMath(el);
+    }
+
+    function stepDefs(){
+      const E=st.E;
+      if (E.mode==='real'){
+        const sym=E.symmetric;
+        return [
+          {t:'Крок 0: початковий стан', c:'', d:'Вектор \\(\\vec v\\) і власні напрями \\(\\vec q_1,\\vec q_2\\) (пунктир). Дія: \\(A\\vec v=\\lambda_1P_1\\vec v+\\lambda_2P_2\\vec v\\).'},
+          {t:'Крок 1: проєкція на \\(\\vec q_1\\)', c:'', d: sym
+            ? 'Ортогональна проєкція: \\(\\vec p_1=(\\vec q_1\\vec q_1^{\\,T})\\vec v\\) — пунктир перпендикулярний до \\(\\vec q_1\\).'
+            : 'Косокутна проєкція: \\(\\vec p_1=\\vec q_1(\\vec w_1^{\\,T}\\vec v)\\). Пунктир паралельний \\(\\vec q_2\\), а не перпендикулярний: проєктор неортогональний.'},
+          {t:'Крок 2: дія \\(\\lambda_1\\)', c:'c-q1', d:'Розтяг уздовж \\(\\vec q_1\\): \\(\\vec s_1=\\lambda_1\\vec p_1\\). Якщо \\(\\lambda_1<0\\) — з розворотом (дзеркалення вздовж цієї осі).'},
+          {t:'Крок 3: проєкція на \\(\\vec q_2\\)', c:'', d:'\\(\\vec p_2=\\vec q_2(\\vec w_2^{\\,T}\\vec v)\\) — проєкція вздовж \\(\\vec q_1\\). Разом \\(\\vec v=\\vec p_1+\\vec p_2\\): паралелограм із розділу 1.'},
+          {t:'Крок 4: дія \\(\\lambda_2\\)', c:'c-q2', d:'Розтяг уздовж \\(\\vec q_2\\): \\(\\vec s_2=\\lambda_2\\vec p_2\\). При \\(\\lambda_2<0\\) — дзеркалення.'},
+          {t:'Крок 5: суперпозиція', c:'c-out', d:'\\(A\\vec v=\\vec s_1+\\vec s_2\\). Матриця подіяла на кожну складову спектра окремо, а результати додано.'}
+        ];
+      }
+      if (E.mode==='complex'){
+        return [
+          {t:'Крок 0: комплексний спектр', c:'c-warn', d:'\\(\\lambda=\\alpha\\pm\\beta i\\): дійсних власних напрямів нема, тому в \\(A\\) є <b>поворот</b>. Дійсна пара \\(\\vec u=\\operatorname{Re}\\vec q\\), \\(\\vec w=\\operatorname{Im}\\vec q\\) — координатні осі інваріантної площини.'},
+          {t: E.normal ? 'Крок 1: складові в ортогональному базисі' : 'Крок 1: косокутні складові', c:'', d: E.normal
+            ? '\\(\\vec v=c_1\\vec u+c_2\\vec w\\), де \\(\\vec c=Q^{-1}\\vec v\\). Тут \\(\\vec u\\perp\\vec w\\), тож пунктири — звичайні перпендикулярні проєкції.'
+            : '\\(\\vec v=c_1\\vec u+c_2\\vec w\\), де \\(\\vec c=Q^{-1}\\vec v\\). Пунктири паралельні \\(\\vec w\\) і \\(\\vec u\\) (це не проєкції на власні прямі — таких нема).'},
+          {t:'Крок 2: розтяг на \\(r=|\\lambda|\\)', c:'', d:'Обидві складові множимо на \\(r=\\sqrt{\\alpha^2+\\beta^2}\\).'},
+          {t:'Крок 3: поворот на \\(\\arg\\lambda\\)', c:'c-out', d:'У координатах \\((\\vec u,\\vec w)\\) вектор \\(\\vec c\\) обертається: \\(\\vec c\\mapsto rR(-\\theta)\\vec c\\). Вістря рухається дугою еліпса (образ кола в цих координатах) і потрапляє в \\(A\\vec v\\).'},
+          {t:'Крок 4: спіраль повторних дій', c:'', d:'\\(A\\vec v,\\ A^2\\vec v,\\ A^3\\vec v,\\dots\\): спіраль, що розкручується при \\(r>1\\) і скручується при \\(r<1\\).'}
+        ];
+      }
+      if (E.mode==='defective'){
+        return [
+          {t:'Крок 0: початковий стан', c:'', d:'\\(\\vec v\\) і єдиний власний напрям \\(\\vec q\\) (\\(\\lambda\\) кратне).'},
+          {t:'Крок 1: розтяг \\(\\lambda\\vec v\\)', c:'c-q1', d:'Власна частина дії: \\(\\lambda\\vec v\\).'},
+          {t:'Крок 2: зсув \\(N\\vec v\\)', c:'c-out', d:'\\(A\\vec v=\\lambda\\vec v+N\\vec v\\), де \\(N=A-\\lambda I\\), \\(N^2=0\\). Замість другого проєктора — нільпотентна добавка.'}
+        ];
+      }
+      return [
+        {t:'Крок 0: початковий стан', c:'', d:'\\(\\vec v\\).'},
+        {t:'Крок 1: \\(A\\vec v=\\lambda\\vec v\\)', c:'c-out', d:'\\(A=\\lambda I\\): усі напрями власні — чисте масштабування.'}
+      ];
+    }
+
+    let builtMode=null;
+    function rebuildSteps(){
+      const box=document.getElementById('s2-steps');
+      const key=st.E.mode+(st.E.mode==='real'?('_'+st.E.symmetric):'')+(st.E.mode==='complex'?('_'+st.E.normal):'');
+      if (builtMode!==key || !box.children.length){
+        builtMode=key;
+        box.innerHTML=stepDefs().map(function(s,i){
+          return '<div class="s2-step" data-step="'+i+'"><h4 class="'+s.c+'">'+s.t+'</h4><p>'+s.d+'</p></div>';
+        }).join('');
+        box.querySelectorAll('.s2-step').forEach(function(item){
+          item.addEventListener('click',function(){
+            const k=+item.dataset.step;
+            if (k!==st.step){ st.step=k; refreshStepUI(); startAnimation(); }
+          });
+        });
+        renderMath(box);
+      }
+      refreshStepUI();
+    }
+    function refreshStepUI(){
+      document.getElementById('s2-counter').textContent=st.step+' / '+st.maxSteps;
+      document.getElementById('s2-prev').disabled=(st.step===0);
+      document.getElementById('s2-next').disabled=(st.step===st.maxSteps);
+      document.getElementById('s2-replay').disabled=(st.step===0);
+      document.querySelectorAll('#s2-steps .s2-step').forEach(function(item,i){
+        item.classList.toggle('active',i===st.step);
+        item.classList.toggle('done',i<st.step);
+      });
+    }
+
+    function updateLegend(){
+      const E=st.E; let items;
+      if (E.mode==='real') items=[['v',CL.ink],['p₁',CL.q1l],['λ₁p₁',CL.q1],['p₂',CL.q2l],['λ₂p₂',CL.q2],['Av',CL.out]];
+      else if (E.mode==='complex') items=[['v',CL.ink],['u',CL.q1],['w',CL.q2],['c₁u, c₂w',CL.q1l],['Av',CL.out],['A⁽ᵏ⁾v',CL.acc]];
+      else if (E.mode==='defective') items=[['v',CL.ink],['λv',CL.q1],['Nv',CL.mute],['Av',CL.out]];
+      else items=[['v',CL.ink],['λv',CL.out]];
+      document.getElementById('s2-legend').innerHTML=items.map(function(it){
+        return '<span><i style="background:'+it[1]+'"></i>'+it[0]+'</span>';
+      }).join('');
+    }
+
+    function updateVecReadout(){
+      const E=st.E, D=st.D, v=st.v;
+      let h='<div class="line">v = ('+f(v[0])+', '+f(v[1])+')</div>';
+      if (E.mode==='real'){
+        h+='<div class="line"><span class="b1">d₁</span> = w₁·v = '+f(D.d1,3)+(E.symmetric?' <span class="ok">(= q₁·v, скалярний добуток)</span>':'')+'</div>';
+        h+='<div class="line"><span class="b2">d₂</span> = w₂·v = '+f(D.d2,3)+(E.symmetric?' <span class="ok">(= q₂·v)</span>':'')+'</div>';
+        if (!E.symmetric) h+='<div class="line warn">wᵢ ≠ qᵢ: коефіцієнти через рядки Q⁻¹ (тобто СЛАР), а не скалярні добутки з qᵢ</div>';
+        h+='<div class="line">p₁ = ('+f(D.p1[0],2)+', '+f(D.p1[1],2)+'),  p₂ = ('+f(D.p2[0],2)+', '+f(D.p2[1],2)+')</div>';
+      } else if (E.mode==='complex'){
+        h+='<div class="line">c = Q⁻¹v = ('+f(D.c[0],3)+', '+f(D.c[1],3)+')</div>';
+      } else if (E.mode==='defective'){
+        h+='<div class="line">λv = ('+f(D.lv[0],2)+', '+f(D.lv[1],2)+'),  Nv = ('+f(D.nv[0],2)+', '+f(D.nv[1],2)+')</div>';
+      }
+      h+='<div class="line ok">Av = ('+f(D.final[0],3)+', '+f(D.final[1],3)+')</div>';
+      document.getElementById('s2-vec-readout').innerHTML=h;
+    }
+
+    // ---------- 2.2: the matrix itself as a sum of spectral components ----------
+    function miniMatrixHTML(M,label,maxAbs){
+      let html='<div style="text-align:center;">'+
+        '<div style="display:grid;grid-template-columns:repeat(2,56px);grid-template-rows:repeat(2,56px);gap:2px;'+
+        'border:1px solid #DDE1E8;border-radius:6px;overflow:hidden;background:#DDE1E8;">';
+      for (let i=0;i<2;i++) for (let j=0;j<2;j++){
+        html+='<div style="display:flex;align-items:center;justify-content:center;font-family:\'JetBrains Mono\',monospace;font-size:.85rem;background:'+
+          heatColor(M[i][j],maxAbs)+';">'+fmt(M[i][j],2)+'</div>';
+      }
+      html+='</div><div style="font-size:.8rem;color:#5B6478;margin-top:5px;max-width:140px;">'+label+'</div></div>';
+      return html;
+    }
+    function opHTML(s){ return '<div style="font-size:1.5rem;color:#5B6478;">'+s+'</div>'; }
+    function maxAbsOf(mats){ let m=1e-9; mats.forEach(function(M){ m=Math.max(m,maxAbsMat2(M)); }); return m; }
+    function row(items){ // items: [matrix,label] or operator strings
+      const m=maxAbsOf(items.filter(function(x){ return typeof x!=='string'; }).map(function(x){ return x[0]; }));
+      return items.map(function(x){ return typeof x==='string' ? opHTML(x) : miniMatrixHTML(x[0],x[1],m); }).join('');
+    }
+
+    function renderSynthesis(){
+      const E=st.E, I=E.I;
+      let rowA='', rowB='', lines='';
+      if (E.mode==='real'){
+        const t1=scaleMat2(E.P1,E.l1), t2=scaleMat2(E.P2,E.l2), sum=addMat2(t1,t2);
+        rowA=row([[E.P1,'P₁ (проєктор на q₁)'],'+',[E.P2,'P₂ (проєктор на q₂)'],'=',[I,'одинична I']]);
+        rowB=row([[t1,'λ₁·P₁ (λ₁='+f(E.l1)+')'],'+',[t2,'λ₂·P₂ (λ₂='+f(E.l2)+')'],'=',[sum,'сума'],'≟',[E.A,'вихідна A']]);
+        const err=Math.max(
+          maxAbsMat2(subMat2(addMat2(E.P1,E.P2),I)), maxAbsMat2(subMat2(matMul2(E.P1,E.P1),E.P1)),
+          maxAbsMat2(subMat2(matMul2(E.P2,E.P2),E.P2)), maxAbsMat2(matMul2(E.P1,E.P2)), maxAbsMat2(subMat2(sum,E.A)));
+        lines+='<div class="line ok">P₁² = P₁, P₂² = P₂, P₁P₂ = 0, P₁ + P₂ = I, ΣλᵢPᵢ = A; макс. похибка = '+err.toExponential(1)+'</div>';
+        lines+=E.symmetric
+          ? '<div class="line ok">Pᵢᵀ = Pᵢ: проєктори <b>ортогональні</b>, Pᵢ = qᵢqᵢᵀ — двоїстий рядок wᵢ дорівнює qᵢ, нічого шукати не треба</div>'
+          : '<div class="line warn">Pᵢᵀ ≠ Pᵢ: проєктори <b>косокутні</b> (P₁ проєктує вздовж q₂, P₂ — вздовж q₁); Pᵢ = qᵢ·(i-й рядок Q⁻¹), а Q⁻¹ довелось знаходити</div>';
+      } else if (E.mode==='complex'){
+        const a=scaleMat2(I,E.alpha), b=scaleMat2(E.J,E.beta);
+        rowA=row([[matMul2(E.J,E.J),'J² (поворот на 90° двічі)'],'=',[scaleMat2(I,-1),'−I']]);
+        rowB=row([[a,'α·I (розтяг, α='+f(E.alpha)+')'],'+',[b,'β·J (поворот, β='+f(E.beta)+')'],'=',[addMat2(a,b),'сума'],'≟',[E.A,'вихідна A']]);
+        const err=Math.max(maxAbsMat2(addMat2(matMul2(E.J,E.J),I)), maxAbsMat2(subMat2(addMat2(a,b),E.A)));
+        lines+='<div class="line ok">J = (A − αI)/β, J² = −I, A = αI + βJ; макс. похибка = '+err.toExponential(1)+'</div>';
+        lines+='<div class="line">Комплексні проєктори: P = ½(I − iJ), P̄ = ½(I + iJ); A = λP + λ̄P̄. Кожен окремо — комплексний; у дійсному записі лишається пара αI, βJ.</div>';
+        lines+=E.normal
+          ? '<div class="line ok">A нормальна: J — точний поворот на 90° у звичайній метриці, комплексні проєктори ермітово-ортогональні</div>'
+          : '<div class="line warn">A ненормальна: J — поворот на 90° лише в косій системі (u, w); комплексні проєктори не ортогональні</div>';
+      } else if (E.mode==='defective'){
+        const l=scaleMat2(I,E.lam);
+        rowB=row([[l,'λ·I'],'+',[E.N,'N (нільпотент)'],'=',[addMat2(l,E.N),'сума'],'≟',[E.A,'вихідна A']]);
+        lines+='<div class="line warn">N² = 0, але N ≠ 0: спектральних проєкторів замало (єдиний власний напрям), тому A ≠ ΣλᵢPᵢ. Розклад: A = λI + N.</div>';
+      } else {
+        rowB=row([[scaleMat2(I,E.lam),'λ·I'],'=',[E.A,'A']]);
+        lines+='<div class="line ok">A = λI: єдиний проєктор P = I</div>';
+      }
+      document.getElementById('s2-synth-id-row').innerHTML=rowA;
+      document.getElementById('s2-synth-id-row').style.display=rowA?'flex':'none';
+      document.getElementById('s2-synth-row').innerHTML=rowB;
+      document.getElementById('s2-synth-readout').innerHTML=lines;
+    }
+
+    // ---------- inputs ----------
+    const el=function(id){ return document.getElementById(id); };
+    const num=function(id){ const x=parseFloat(el(id).value); return isFinite(x)?x:0; };
+    function readMatrix(){
+      const sym=el('s2-chk-sym').checked;
+      el('s2-in-b2').disabled=sym;
+      if (sym) el('s2-in-b2').value=el('s2-in-b').value;
+      st.A=[[num('s2-in-a'),num('s2-in-b')],[sym?num('s2-in-b'):num('s2-in-b2'),num('s2-in-c')]];
+    }
+    function readVector(){ st.v=[num('s2-in-vx'),num('s2-in-vy')]; }
+    function writeVector(){ el('s2-in-vx').value=st.v[0]; el('s2-in-vy').value=st.v[1]; }
+
+    function onMatrixChange(){
+      const prev=st.E?st.E.mode:null;
+      st.E=spectrum2(st.A);
+      st.maxSteps={real:5,complex:4,defective:2,scalar:1}[st.E.mode];
+      if (prev!==st.E.mode) st.step=0; else st.step=Math.min(st.step,st.maxSteps);
+      updateInfo(); rebuildSteps(); updateLegend(); renderSynthesis();
+      onVectorChange(true);
+    }
+    function onVectorChange(refit){
+      st.D=vectorData2(st.E,st.v);
+      const vl=Math.hypot(st.v[0],st.v[1]);
+      st.img.R=Math.max(0.8,0.5*vl);
+      st.img.d=[-0.42*st.img.R,0.34*st.img.R];
+      st.img.C=[st.v[0]-st.img.d[0], st.v[1]-st.img.d[1]];
+      updateVecReadout();
+      if (refit) fitView(); else draw();
+    }
+
+    ['s2-in-a','s2-in-b','s2-in-b2','s2-in-c'].forEach(function(id){
+      el(id).addEventListener('input',function(){ readMatrix(); onMatrixChange(); });
+    });
+    el('s2-chk-sym').addEventListener('change',function(){ readMatrix(); onMatrixChange(); });
+    ['s2-in-vx','s2-in-vy'].forEach(function(id){
+      el(id).addEventListener('input',function(){ readVector(); onVectorChange(true); });
+    });
+    el('s2-chk-image').addEventListener('change',function(e){ st.showImage=e.target.checked; onVectorChange(true); });
+
+    const PRESETS={
+      'sym':      {A:[[2,1],[1,2]],  v:[1,2]},
+      'nonsym':   {A:[[3,1],[0,2]],  v:[1,2]},
+      'cx-skew':  {A:[[2,-1],[3,0]], v:[1,1]},
+      'cx-normal':{A:[[1,-1],[1,1]], v:[1,2]},
+      'jordan':   {A:[[2,1],[0,2]],  v:[1,1]}
+    };
+    document.querySelectorAll('[data-s2preset]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        const p=PRESETS[btn.dataset.s2preset];
+        el('s2-in-a').value=p.A[0][0]; el('s2-in-b').value=p.A[0][1]; el('s2-in-b2').value=p.A[1][0]; el('s2-in-c').value=p.A[1][1];
+        el('s2-chk-sym').checked=(p.A[0][1]===p.A[1][0]);
+        st.v=p.v.slice(); writeVector();
+        st.step=0; readMatrix(); onMatrixChange();
+      });
+    });
+
+    el('s2-prev').addEventListener('click',function(){ if (st.step>0){ st.step--; refreshStepUI(); startAnimation(); } });
+    el('s2-next').addEventListener('click',function(){ if (st.step<st.maxSteps){ st.step++; refreshStepUI(); startAnimation(); } });
+    el('s2-replay').addEventListener('click',startAnimation);
+    el('s2-zoom-in').addEventListener('click',function(){ zoomBy(1.25); });
+    el('s2-zoom-out').addEventListener('click',function(){ zoomBy(0.8); });
+    el('s2-zoom-reset').addEventListener('click',function(){ V.scale=V.fit; draw(); });
+    canvas.addEventListener('wheel',function(e){
+      if (!(e.ctrlKey||e.metaKey)) return;              // plain wheel keeps scrolling the page
+      e.preventDefault(); zoomBy(Math.exp(-e.deltaY*0.0022));
+    },{passive:false});
+    canvas.addEventListener('dblclick',function(){ V.scale=V.fit; draw(); });
+
+    // dragging the vector — ONLY by its tip: the view is NOT refitted while dragging (a refit on
+    // every move changes the scale under the pointer and makes the vector run away); it is refitted on release
+    let dragging=false, dragPending=false;
+    function nearTip(e){
+      const r=canvas.getBoundingClientRect();
+      const t=toPx(st.v[0],st.v[1]);
+      return Math.hypot(e.clientX-r.left-t[0], e.clientY-r.top-t[1]) < 18;
+    }
+    function handleDrag(e){
+      const r=canvas.getBoundingClientRect();
+      const mx=(e.clientX-r.left-V.ox)/V.scale, my=-(e.clientY-r.top-V.oy)/V.scale;
+      st.v=[Math.round(mx*10)/10, Math.round(my*10)/10];
+      if (!dragPending){
+        dragPending=true;
+        requestAnimationFrame(function(){ dragPending=false; writeVector(); onVectorChange(false); });
+      }
+    }
+    canvas.addEventListener('pointerdown',function(e){
+      if (!nearTip(e)) return;
+      dragging=true;
+      canvas.style.cursor='grabbing';
+      try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+      handleDrag(e);
+    });
+    canvas.addEventListener('pointermove',function(e){
+      if (dragging) handleDrag(e);
+      else canvas.style.cursor = nearTip(e) ? 'grab' : 'default';
+    });
+    function endDrag(){
+      if (!dragging) return;
+      dragging=false; canvas.style.cursor='default';
+      writeVector(); onVectorChange(true);
+    }
+    canvas.addEventListener('pointerup',endDrag);
+    canvas.addEventListener('pointercancel',endDrag);
+    window.addEventListener('resize',resizeCanvas);
+
+    // ---------- 2.3 spectrum mixer (symmetric 2x2): change the spectrum, get the matrix ----------
+    let mixL1=3, mixL2=1, mixPhi=45;
+    function renderMixer(){
+      const ph=mixPhi*Math.PI/180;
+      const q1=[Math.cos(ph),Math.sin(ph)], q2=[-Math.sin(ph),Math.cos(ph)];
+      const t1=scaleMat2(outer2(q1,q1),mixL1), t2=scaleMat2(outer2(q2,q2),mixL2), A=addMat2(t1,t2);
+      el('s2-mix-row').innerHTML=row([[t1,'λ₁·q₁q₁ᵀ'],'+',[t2,'λ₂·q₂q₂ᵀ'],'=',[A,'матриця A']]);
+      const a=A[0][0], b=A[0][1], d=A[1][1];
+      const mean=(a+d)/2, rad=Math.sqrt(Math.pow((a-d)/2,2)+b*b);
+      const hi=mean+rad, lo=mean-rad, expHi=Math.max(mixL1,mixL2), expLo=Math.min(mixL1,mixL2);
+      const ok=Math.abs(hi-expHi)<1e-9 && Math.abs(lo-expLo)<1e-9;
+      el('s2-mix-readout').innerHTML=
+        '<div class="line">A = ['+fmt(a)+', '+fmt(b)+'; '+fmt(b)+', '+fmt(d)+']</div>'+
+        '<div class="line">спектр, зчитаний із A: λ = '+fmt(hi)+' і '+fmt(lo)+
+        (ok?' <span class="ok">✓ збігається із заданим</span>':' <span class="warn">розбіжність</span>')+'</div>';
+    }
+    el('s2-mix-l1').addEventListener('input',function(e){ mixL1=+e.target.value; el('s2-mix-l1-val').textContent=mixL1.toFixed(1); renderMixer(); });
+    el('s2-mix-l2').addEventListener('input',function(e){ mixL2=+e.target.value; el('s2-mix-l2-val').textContent=mixL2.toFixed(1); renderMixer(); });
+    el('s2-mix-phi').addEventListener('input',function(e){ mixPhi=+e.target.value; el('s2-mix-phi-val').textContent=mixPhi+'°'; renderMixer(); });
+
+    // ---------- init ----------
+    readMatrix(); readVector();
+    onMatrixChange();
+    renderMixer();
+  })(); } catch(e) { reportError('Розділ 2 (матриця) не запустився', e); }
+  
+  
+  
+    // ============ SECTION 3: Haar wavelet image transform ============
+  try { (function(){
+    function buildHaarBasis(N){
+      const n = Math.log2(N);
+      const basis=[];
+      basis.push(new Array(N).fill(1/Math.sqrt(N)));
+      for (let j=0;j<n;j++){
+        const blockLen=N/Math.pow(2,j);
+        const half=blockLen/2;
+        const amp=Math.pow(2,j/2)/Math.sqrt(N);
+        for (let k=0;k<Math.pow(2,j);k++){
+          const vec=new Array(N).fill(0);
+          const start=k*blockLen;
+          for (let i=0;i<half;i++) vec[start+i]=amp;
+          for (let i=half;i<blockLen;i++) vec[start+i]=-amp;
+          basis.push(vec);
+        }
+      }
+      return basis;
+    }
+    function buildH(basisArr){
+      const N=basisArr.length;
+      const Hm=[];
+      for (let i=0;i<N;i++){ Hm.push(new Array(N).fill(0)); }
+      for (let r=0;r<N;r++) for (let i=0;i<N;i++) Hm[i][r]=basisArr[r][i];
+      return Hm;
+    }
+    function zerosMat(n,m){ const A=[]; for(let i=0;i<n;i++) A.push(new Array(m).fill(0)); return A; }
+    function transposeMat(A){
+      const n=A.length,m=A[0].length; const T=zerosMat(m,n);
+      for(let i=0;i<n;i++) for(let j=0;j<m;j++) T[j][i]=A[i][j];
+      return T;
+    }
+    function matMul(A,B){
+      const n=A.length,k=A[0].length,m=B[0].length;
+      const C=zerosMat(n,m);
+      for(let i=0;i<n;i++) for(let j=0;j<m;j++){
+        let s=0; for(let t=0;t<k;t++) s+=A[i][t]*B[t][j];
+        C[i][j]=s;
+      }
+      return C;
+    }
+
+    function generatePreset(name,n){
+      const A=zerosMat(n,n);
+      if (name==='edge-h'){
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = i<n/2 ? 1 : 0;
+      } else if (name==='edge-v'){
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = j<n/2 ? 1 : 0;
+      } else if (name==='checker'){
+        const block = Math.max(1, n/4);
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+          const bi=Math.floor(i/block), bj=Math.floor(j/block);
+          A[i][j] = ((bi+bj)%2===0) ? 1 : 0;
+        }
+      } else if (name==='gradient'){
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = 1 - j/(n-1);
+      } else if (name==='noise'){
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = Math.random();
+      } else {
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = 1;
+      }
+      return A;
+    }
+
+    let N=16;
+    let basis=buildHaarBasis(N);
+    let H=buildH(basis);
+    let mode='edge-h';
+    let brush=0;
+    let keepPercent=100;
+    let X=generatePreset(mode,N);
+    let uploadedImg=null;
+    let S=null;
+
+    function loadImageToX(img){
+      const tmp=document.createElement('canvas');
+      tmp.width=N; tmp.height=N;
+      const tctx=tmp.getContext('2d');
+      const side=Math.min(img.width,img.height);
+      tctx.drawImage(img, (img.width-side)/2, (img.height-side)/2, side, side, 0,0,N,N);
+      const data=tctx.getImageData(0,0,N,N).data;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+        const idx=(i*N+j)*4;
+        const gray=(data[idx]*0.299+data[idx+1]*0.587+data[idx+2]*0.114)/255;
+        X[i][j]=gray;
+      }
+    }
+
+    function computeTransform(){
+      if (typeof stopScan==='function') stopScan();
+      const Ht=transposeMat(H);
+      S = matMul(matMul(Ht,X),H);
+      applyCompressionAndRender();
+    }
+
+    function compressSpectrum(Smat, pct){
+      const n=Smat.length;
+      const entries=[];
+      for(let i=0;i<n;i++) for(let j=0;j<n;j++) entries.push({i:i,j:j,a:Math.abs(Smat[i][j])});
+      entries.sort(function(x,y){ return y.a-x.a; });
+      const keepCount = Math.max(1, Math.round(pct/100*n*n));
+      const keepMask = zerosMat(n,n);
+      for (let k=0;k<keepCount;k++){ keepMask[entries[k].i][entries[k].j]=1; }
+      const Sc = zerosMat(n,n);
+      for(let i=0;i<n;i++) for(let j=0;j<n;j++) Sc[i][j] = keepMask[i][j] ? Smat[i][j] : 0;
+      return {Sc:Sc, mask:keepMask, keepCount:keepCount};
+    }
+
+    function applyCompressionAndRender(){
+      const res = compressSpectrum(S,keepPercent);
+      const Xrec = matMul(matMul(H,res.Sc),transposeMat(H));
+      renderImage(document.getElementById('s3-image-canvas'), X);
+      renderHeatmap(document.getElementById('s3-heatmap-canvas'), S, null);
+      renderHeatmap(document.getElementById('s3-heatmap-compressed'), res.Sc, res.mask);
+      renderImage(document.getElementById('s3-recon-canvas'), Xrec);
+      let sumSq=0;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) sumSq += Math.pow(X[i][j]-Xrec[i][j],2);
+      const rmse=Math.sqrt(sumSq/(N*N));
+      document.getElementById('s3-compress-readout').innerHTML =
+        'залишено '+res.keepCount+' із '+(N*N)+' ('+Math.round(res.keepCount/(N*N)*100)+'%) &nbsp;|&nbsp; RMSE = '+rmse.toFixed(4);
+    }
+
+    function renderImage(canvasEl, mat){
+      const ctx=canvasEl.getContext('2d');
+      const Wp=canvasEl.width;
+      const cell=Wp/N;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+        const val=Math.max(0,Math.min(1,mat[i][j]));
+        const g=Math.round(255*val);
+        ctx.fillStyle='rgb('+g+','+g+','+g+')';
+        ctx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+      }
+    }
+
+    // (локальна копія heatColor видалена — використовується спільна з розділу «SHARED UTILITIES»)
+
+    function renderHeatmap(canvasEl, mat, mask){
+      const ctx=canvasEl.getContext('2d');
+      const Wp=canvasEl.width;
+      const cell=Wp/N;
+      let maxAbs=1e-9;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) maxAbs=Math.max(maxAbs,Math.abs(mat[i][j]));
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+        if (mask && mask[i][j]===0){
+          ctx.fillStyle='#EEF0F4';
+        } else {
+          ctx.fillStyle=heatColor(mat[i][j],maxAbs);
+        }
+        ctx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+      }
+    }
+
+    function renderBasisGallery(){
+      const wrap=document.getElementById('s3-basis-gallery');
+      wrap.innerHTML='';
+      const W=320, H=26;
+      for (let r=0;r<N;r++){
+        const rowEl=document.createElement('div');
+        rowEl.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:3px;';
+        const lab=document.createElement('div');
+        lab.textContent='№'+r;
+        lab.style.cssText="width:32px;flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--ink-soft);text-align:right;";
+        const c=document.createElement('canvas');
+        c.width=W; c.height=H;
+        c.style.cssText='display:block;width:100%;max-width:'+W+'px;border:1px solid #DDE1E8;border-radius:3px;flex:1 1 auto;';
+        c.title='вейвлет №'+r;
+        const cx=c.getContext('2d');
+        cx.fillStyle='#fff'; cx.fillRect(0,0,W,H);
+        const vec=basis[r];
+        let maxAbs=1e-9;
+        for(let i=0;i<N;i++) maxAbs=Math.max(maxAbs,Math.abs(vec[i]));
+        const barW=W/N, mid=H/2, amp=H/2-3;
+        for(let i=0;i<N;i++){
+          const h=(vec[i]/maxAbs)*amp;
+          cx.fillStyle = vec[i]>=0 ? '#DC2626' : '#2563EB';
+          if (h>=0) cx.fillRect(i*barW,mid-h,Math.max(1,barW-0.4),h);
+          else cx.fillRect(i*barW,mid,Math.max(1,barW-0.4),-h);
+        }
+        cx.strokeStyle='#CBD2DE'; cx.beginPath(); cx.moveTo(0,mid); cx.lineTo(W,mid); cx.stroke();
+        rowEl.appendChild(lab); rowEl.appendChild(c);
+        wrap.appendChild(rowEl);
+      }
+    }
+
+    function renderKernelMatrix(){
+      const c=document.getElementById('s3-kernel-canvas');
+      const ctx=c.getContext('2d');
+      const W=c.width, cell=W/N;
+      let maxAbs=1e-9;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) maxAbs=Math.max(maxAbs,Math.abs(H[i][j]));
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+        ctx.fillStyle=heatColor(H[i][j],maxAbs);
+        ctx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+      }
+    }
+
+    function updateOrthReadout(){
+      const r1el=document.getElementById('s3-orth-r1'), r2el=document.getElementById('s3-orth-r2');
+      const r1=Math.max(0,Math.min(N-1, +r1el.value||0));
+      const r2=Math.max(0,Math.min(N-1, +r2el.value||0));
+      let s=0; for(let i=0;i<N;i++) s+=basis[r1][i]*basis[r2][i];
+      document.getElementById('s3-orth-readout').innerHTML =
+        'вейвлет №'+r1+' · вейвлет №'+r2+' = <span class="mono">'+s.toFixed(4)+'</span>'+
+        (r1===r2 ? ' (норма = 1)' : (Math.abs(s)<1e-9 ? ' <span class="ok">(ортогональні)</span>' : ''));
+    }
+
+    let painting=false;
+    function paintAt(px,py){
+      const canvasEl=document.getElementById('s3-image-canvas');
+      const cell=canvasEl.width/N;
+      const j=Math.floor(px/cell), i=Math.floor(py/cell);
+      if (i<0||i>=N||j<0||j>=N) return;
+      X[i][j]=brush;
+      computeTransform();
+    }
+    const imgCanvas=document.getElementById('s3-image-canvas');
+    imgCanvas.addEventListener('pointerdown', function(e){
+      if (mode!=='paint') return;
+      painting=true;
+      const [px,py]=getCanvasPos(imgCanvas,e);
+      paintAt(px,py);
+    });
+    imgCanvas.addEventListener('pointermove', function(e){
+      if (!painting || mode!=='paint') return;
+      const [px,py]=getCanvasPos(imgCanvas,e);
+      paintAt(px,py);
+    });
+    window.addEventListener('pointerup', function(){ painting=false; });
+
+    document.querySelectorAll('#s3-size-buttons button').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.querySelectorAll('#s3-size-buttons button').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        N = +this.dataset.n;
+        basis = buildHaarBasis(N);
+        H = buildH(basis);
+        if (mode==='uploaded' && uploadedImg){
+          X = generatePreset('blank', N);
+          loadImageToX(uploadedImg);
+        } else {
+          X = generatePreset(mode==='paint' ? 'blank' : mode, N);
+        }
+        renderBasisGallery();
+        renderKernelMatrix();
+        const r1el=document.getElementById('s3-orth-r1'), r2el=document.getElementById('s3-orth-r2');
+        r1el.max=N-1; r2el.max=N-1;
+        if (+r1el.value>N-1) r1el.value=0;
+        if (+r2el.value>N-1) r2el.value=Math.min(1,N-1);
+        updateOrthReadout();
+        computeTransform();
+      });
+    });
+
+    document.querySelectorAll('#s3-preset-buttons button[data-preset]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.querySelectorAll('#s3-preset-buttons button[data-preset]').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        mode=this.dataset.preset;
+        document.getElementById('s3-upload-btn').classList.remove('active');
+        document.getElementById('s3-paint-tools').style.display = (mode==='paint') ? 'flex' : 'none';
+        X = generatePreset(mode==='paint' ? 'blank' : mode, N);
+        computeTransform();
+      });
+    });
+
+    document.querySelectorAll('#s3-paint-tools button[data-brush]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.querySelectorAll('#s3-paint-tools button[data-brush]').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        brush = +this.dataset.brush;
+      });
+    });
+
+    document.getElementById('s3-upload-btn').addEventListener('click', function(){
+      document.getElementById('s3-upload-input').click();
+    });
+    document.getElementById('s3-upload-input').addEventListener('change', function(e){
+      const file=e.target.files[0];
+      if (!file) return;
+      const img=new Image();
+      const reader=new FileReader();
+      reader.onload=function(ev){ img.src=ev.target.result; };
+      img.onload=function(){
+        uploadedImg=img;
+        mode='uploaded';
+        document.getElementById('s3-upload-btn').classList.add('active');
+        loadImageToX(img);
+        document.querySelectorAll('#s3-preset-buttons button[data-preset]').forEach(function(b){ b.classList.remove('active'); });
+        document.getElementById('s3-paint-tools').style.display='none';
+        computeTransform();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('s3-orth-r1').addEventListener('input', updateOrthReadout);
+    document.getElementById('s3-orth-r2').addEventListener('input', updateOrthReadout);
+
+    document.getElementById('s3-compress').addEventListener('input', function(e){
+      keepPercent = +e.target.value;
+      document.getElementById('s3-compress-val').textContent = keepPercent+'%';
+      applyCompressionAndRender();
+    });
+
+    function supportRange(vec){
+      let lo=-1, hi=-1;
+      for (let i=0;i<vec.length;i++){
+        if (Math.abs(vec[i])>1e-9){ if (lo===-1) lo=i; hi=i; }
+      }
+      if (lo===-1){ lo=0; hi=vec.length-1; }
+      return [lo,hi];
+    }
+
+    function computeSignificantSet(){
+      const entries=[];
+      for(let r=0;r<N;r++) for(let r2=0;r2<N;r2++) entries.push({r:r,r2:r2,a:Math.abs(S[r][r2])});
+      entries.sort(function(x,y){ return y.a-x.a; });
+      const topCount=Math.max(1, Math.round(0.12*N*N));
+      const set=new Set();
+      for (let k=0;k<topCount;k++) set.add(entries[k].r+'_'+entries[k].r2);
+      return set;
+    }
+
+    const animBtn=document.getElementById('s3-animate-btn');
+    const imgOverlay=document.getElementById('s3-image-overlay');
+    const hmOverlay=document.getElementById('s3-heatmap-overlay');
+    const animCaption=document.getElementById('s3-anim-caption');
+    let scanOrder=null, scanSig=null, scanTimer=null, scanRunning=false;
+
+    function drawImagePattern(r,r2,pulse){
+      const ictx=imgOverlay.getContext('2d');
+      const Wp=imgOverlay.width; const cell=Wp/N;
+      ictx.clearRect(0,0,Wp,Wp);
+      const [iLo,iHi]=supportRange(basis[r]);
+      const [jLo,jHi]=supportRange(basis[r2]);
+      const a=pulse?0.75:0.5;
+      for (let i=iLo;i<=iHi;i++){
+        for (let j=jLo;j<=jHi;j++){
+          const val=basis[r][i]*basis[r2][j];
+          if (Math.abs(val)<1e-9) continue;
+          ictx.fillStyle = val>0 ? 'rgba(255,255,255,'+a+')' : 'rgba(37,99,235,'+a+')';
+          ictx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+        }
+      }
+      ictx.strokeStyle = pulse ? '#F59E0B' : 'rgba(29,36,51,0.4)';
+      ictx.lineWidth = pulse ? 3 : 1.5;
+      ictx.strokeRect(jLo*cell+0.5, iLo*cell+0.5, (jHi-jLo+1)*cell-1, (iHi-iLo+1)*cell-1);
+    }
+
+    function drawHeatmapHighlight(r,r2,pulse){
+      const hctx=hmOverlay.getContext('2d');
+      const Wp=hmOverlay.width; const cell=Wp/N;
+      hctx.clearRect(0,0,Wp,Wp);
+      hctx.fillStyle = pulse ? 'rgba(245,158,11,0.55)' : 'rgba(29,36,51,0.12)';
+      hctx.fillRect(r2*cell, r*cell, cell, cell);
+      hctx.strokeStyle = pulse ? '#F59E0B' : '#94A3B8';
+      hctx.lineWidth = pulse ? 3 : 1.5;
+      hctx.strokeRect(r2*cell+0.5, r*cell+0.5, cell-1, cell-1);
+    }
+
+    function updateCaption(idx,r,r2,val,sig){
+      animCaption.textContent = 'крок '+(idx+1)+' з '+(N*N)+' · вейвлет-рядок №'+r+' × вейвлет-стовпець №'+r2+
+        ' · S['+r+']['+r2+'] = '+val.toFixed(3)+(sig?'  ← суттєвий збіг':'');
+    }
+//////////////////////
+/*
+    function stopScan(){
+      scanRunning=false;
+      if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+      if (animBtn) animBtn.textContent='▶ Анімувати сканування';
+      if (imgOverlay) imgOverlay.getContext('2d').clearRect(0,0,imgOverlay.width,imgOverlay.height);
+      if (hmOverlay) hmOverlay.getContext('2d').clearRect(0,0,hmOverlay.width,hmOverlay.height);
+      if (animCaption) animCaption.textContent='';
+    }
+
+    function runStep(idx){
+      if (!scanRunning) return;
+      if (idx>=scanOrder.length){ stopScan(); return; }
+      const step=scanOrder[idx], r=step.r, r2=step.r2;
+      const sig=scanSig.has(r+'_'+r2);
+      const val=S[r][r2];
+      drawImagePattern(r,r2,false);
+      drawHeatmapHighlight(r,r2,false);
+      updateCaption(idx,r,r2,val,sig);
+      const baseDwell=Math.max(15, Math.min(260, Math.round(9000/(N*N))));
+      const dwell = sig ? Math.round(baseDwell*3.2) : baseDwell;
+      if (sig){
+        setTimeout(function(){
+          if (!scanRunning) return;
+          drawImagePattern(r,r2,true);
+          drawHeatmapHighlight(r,r2,true);
+        }, Math.round(dwell*0.45));
+      }
+      scanTimer=setTimeout(function(){ runStep(idx+1); }, dwell);
+    }
+
+    animBtn.addEventListener('click', function(){
+      if (scanRunning){ stopScan(); return; }
+      scanOrder=[];
+      for (let r=0;r<N;r++) for (let r2=0;r2<N;r2++) scanOrder.push({r:r,r2:r2});
+      scanSig=computeSignificantSet();
+      scanRunning=true;
+      animBtn.textContent='⏸ Зупинити';
+      runStep(0);
+    });
+	*/
+	////////////
+	    // ---------- керування: короткий клік = 1 крок, довге натискання = автопробіг ----------
+    const BTN_IDLE='▶ Крок (тримати — авто)', BTN_AUTO='⏩ авто…';
+    let curIdx=0, holdTimer=null, pointerHeld=false, autoMode=false, scanToken=0;
+
+    function stopScan(){
+      scanRunning=false; autoMode=false; pointerHeld=false; scanOrder=null; scanSig=null; curIdx=0;
+      if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+      if (holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+      if (animBtn) animBtn.textContent=BTN_IDLE;
+      if (imgOverlay) imgOverlay.getContext('2d').clearRect(0,0,imgOverlay.width,imgOverlay.height);
+      if (hmOverlay) hmOverlay.getContext('2d').clearRect(0,0,hmOverlay.width,hmOverlay.height);
+      if (animCaption) animCaption.textContent='';
+    }
+
+    function ensureScan(){
+      if (!scanOrder){
+        scanOrder=[];
+        for (let r=0;r<N;r++) for (let r2=0;r2<N;r2++) scanOrder.push({r:r,r2:r2});
+        scanSig=computeSignificantSet();
+        curIdx=0;
+      }
+      if (curIdx>=scanOrder.length) curIdx=0;
+    }
+
+    function finishScan(){
+      scanRunning=false; autoMode=false;
+      if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+      if (imgOverlay) imgOverlay.getContext('2d').clearRect(0,0,imgOverlay.width,imgOverlay.height);
+      if (hmOverlay) hmOverlay.getContext('2d').clearRect(0,0,hmOverlay.width,hmOverlay.height);
+      if (animCaption) animCaption.textContent='сканування завершено: '+(N*N)+' кроків';
+      if (animBtn) animBtn.textContent=BTN_IDLE;
+      scanOrder=null; scanSig=null; curIdx=0;
+    }
+
+    function runStep(idx){
+      const my=++scanToken;
+      const step=scanOrder[idx], r=step.r, r2=step.r2;
+      const sig=scanSig.has(r+'_'+r2);
+      const val=S[r][r2];
+      drawImagePattern(r,r2,false);
+      drawHeatmapHighlight(r,r2,false);
+      updateCaption(idx,r,r2,val,sig);
+      const baseDwell=Math.max(60, Math.min(320, Math.round(12000/(N*N))));   // ← темп авто
+      const dwell = sig ? Math.round(baseDwell*3.2) : baseDwell;
+      if (sig){
+        setTimeout(function(){
+          if (!scanOrder || my!==scanToken) return;      // крок уже змінився — спалах скасовано
+          drawImagePattern(r,r2,true);
+          drawHeatmapHighlight(r,r2,true);
+        }, Math.round(dwell*0.45));
+      }
+      if (autoMode && scanRunning){
+        scanTimer=setTimeout(function(){
+          if (!scanRunning || !autoMode || !scanOrder) return;
+          stepForward();
+        }, dwell);
+      }
+    }
+
+    function stepForward(){
+      if (!scanOrder) ensureScan();
+      if (curIdx>=scanOrder.length){ finishScan(); return; }
+      runStep(curIdx);
+      curIdx++;
+    }
+
+    function singleStep(){
+      if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+      autoMode=false; scanRunning=false;
+      stepForward();
+    }
+
+    animBtn.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      try{ animBtn.setPointerCapture(e.pointerId); }catch(err){}
+      pointerHeld=true;
+      ensureScan();
+      holdTimer=setTimeout(function(){
+        holdTimer=null;
+        if (!pointerHeld) return;
+        autoMode=true; scanRunning=true;
+        animBtn.textContent=BTN_AUTO;
+        stepForward();
+      }, 420);                                            // ← поріг спрацювання авто, мс
+    });
+    function releasePress(){
+      if (!pointerHeld) return;
+      pointerHeld=false;
+      if (holdTimer){ clearTimeout(holdTimer); holdTimer=null; singleStep(); }
+      else if (autoMode){
+        autoMode=false; scanRunning=false;
+        if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+        animBtn.textContent=BTN_IDLE;
+        if (animCaption && animCaption.textContent) animCaption.textContent+=' · пауза';
+      }
+    }
+    animBtn.addEventListener('pointerup', releasePress);
+    animBtn.addEventListener('pointercancel', releasePress);
+    animBtn.addEventListener('lostpointercapture', function(){ if (pointerHeld) releasePress(); });
+    animBtn.textContent=BTN_IDLE;
+	
+	/////////////
+
+    document.getElementById('s3-orth-r1').max=N-1;
+    document.getElementById('s3-orth-r2').max=N-1;
+    renderBasisGallery();
+    renderKernelMatrix();
+    updateOrthReadout();
+    computeTransform();
+  })(); } catch(e) { reportError('Розділ 3 (зображення) не запустився', e); }
+
+  try {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\(', right: '\\)', display: false}
+        ]
+      });
+    }
+  } catch(e) { console.error('Рендер формул (KaTeX) не вдався:', e); }
+
+});
+</script>
+</body>
+</html>
