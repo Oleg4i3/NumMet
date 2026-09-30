@@ -235,11 +235,11 @@ scene.add(prism, edges, whiteHalo, whiteCore, inside, fan);
 
 /* ---------- камера: ширший кут = глибша перспектива ---------- */
 const camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.1, 100);
-const LOOK = new THREE.Vector3(0.6, 0.25, 0.9);
+const LOOK = new THREE.Vector3(0.6, 0.25, -1.9);
 
 function fitDistance(aspect) {
   const t = Math.tan(camera.fov * DEG / 2);
-  return Math.max(3.1 / t, 6.9 / (t * aspect)) + 1.2;
+  return Math.max(1.1 / t, 2.9 / (t * aspect)) + 1.2;
 }
 camera.position.set(2.4, -0.9, fitDistance(camera.aspect));
 
@@ -256,12 +256,58 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-
+/*
 (function tick() {
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
+})();*/
+
+// 1. Вынесите базовые настройки (сделайте это ОДИН РАЗ перед функцией tick)
+const baseDistance = fitDistance(camera.aspect);
+
+// Устанавливаем стартовую позицию камеры
+camera.position.set(2.4, -0.9, baseDistance);
+
+// Привязываем OrbitControls к вашей точке LOOK
+controls.target.copy(LOOK);
+controls.update();
+
+// Переменные для настройки эллипса
+const SPEED = 0.001;        // Скорость движения (чем меньше, тем медленнее)
+const X_AMPLITUDE = 0.4;    // Отклонение по горизонтали (влево-вправо)
+const Y_AMPLITUDE = 0.08;   // Совсем крохотное отклонение по вертикали
+
+// Запоминаем стартовую позицию для отсчета эллипса
+const startCameraPos = camera.position.clone();
+
+
+// 2. Сама обновленная функция tick
+(function tick() {
+  // Получаем текущее время в миллисекундах
+  const time = performance.now() * SPEED;
+
+  // Считаем смещение по эллипсу "туда-сюда"
+  const offsetX = Math.sin(time) * X_AMPLITUDE;
+  const offsetY = Math.cos(time) * Y_AMPLITUDE;
+
+  // Смещаем камеру относительно её стартовой позиции
+  camera.position.x = startCameraPos.x + offsetX;
+  camera.position.y = startCameraPos.y + offsetY;
+
+  // Заставляем OrbitControls всегда держать фокус на объекте
+  controls.target.copy(LOOK);
+
+  // Обновляем контроллеры, чтобы они применили изменения и развернули камеру
+  controls.update();
+
+  // Рендерим сцену
+  renderer.render(scene, camera);
+  
+  // Зацикливаем
+  requestAnimationFrame(tick);
 })();
+
 </script>
 </body>
 </html>
