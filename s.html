@@ -238,7 +238,7 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
       <div class="sb-scene">
         <iframe src="pryzm3D.html" title="Дисперсія: призма (three.js)" loading="lazy"
           style="width:100%;height:200px;border:0;border-radius:8px;background:#000;display:block;"></iframe>
-        <div class="sb-cap">Дисперсія світла. Камера розкладає зображення в базисі RGB (red-green-blue). Екран гаджета синтезує зображення з цих трьох компонент</div>
+        <div class="sb-cap">Дисперсія світла. Матриця камери розкладає зображення в базисі RGB (red-green-blue). Екран гаджета синтезує зображення з цих трьох компонент</div>
       </div>
              <div class="sb-scene">
         <canvas id="sb-wave" width="260" height="200" style="cursor:pointer;" title="клік по хвилі — пуск/пауза; клік по смузі — вимкнути/увімкнути смугу"></canvas>
@@ -246,7 +246,7 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
           <button id="sb-wave-play" class="btn small" style="min-width:44px;" title="пуск/пауза">▶</button>
           <button id="sb-wave-mute" class="btn small" style="min-width:44px;" title="загальний mute">🔊</button>
           <select id="sb-wave-src" class="btn small" style="padding:5px 6px;" title="джерело звуку">
-		  <option value="loop">loop.mp3</option>
+		            <option value="loop" selected>loop.mp3</option>
             <option value="demo">демо</option>
              <option value="file">свій файл…</option>
           </select>
@@ -566,7 +566,6 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
 
 </main>
 
-<footer>Ортонормований базис → спектр. Один факт, показаний тричі.</footer>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -770,12 +769,19 @@ document.addEventListener('DOMContentLoaded', function(){
       function applyMute(){
         if (actx) master.gain.setTargetAtTime(muted?0:0.5, actx.currentTime, 0.02);
       }
-      async function startAudio(){
+       async function startAudio(){
         if (!ensureAudio()){ updateBtns(); return; }
         if (actx.state==='suspended'){ try{ await actx.resume(); }catch(e){} }
-        applySource();
-        running=true; updateBtns();
+        if (desired==='loop' && !loopBuf){          // перший пуск: тягнемо loop.mp3
+          await loadLoop();
+          if (!running && actx){ applySource(); running=true; }   // не вдався loop → одразу демо
+        } else {
+          applySource();
+          running=true;
+        }
+        updateBtns();
       }
+	  
       function togglePlay(){
         if (loading) return;
         if (!running){ startAudio(); }
