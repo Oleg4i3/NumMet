@@ -425,11 +425,11 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
 
   <div class="panel">
     <h3>3.1 Базисні вейвлети та їхня ортогональність</h3>
-    <div class="controls-row" id="s3-size-buttons">
+	    <div class="controls-row" id="s3-size-buttons">
       <span style="font-size:.88rem;color:var(--ink-soft);margin-right:4px;">Розмір N:</span>
       <button class="btn small" data-n="8">8</button>
       <button class="btn small active" data-n="16">16</button>
-      <button class="btn small" data-n="32">32</button>
+      <button class="btn small" data-n="256">256</button>
     </div>
     <div id="s3-basis-gallery" style="max-height:260px; overflow-y:auto; overflow-x:hidden; padding:8px; border:1px solid var(--line); border-radius:8px; background:#FAFBFD;"></div>
     <div class="slider-row">
@@ -451,11 +451,11 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
 
     <h3>3.2 Зображення</h3>
     <div class="controls-row" id="s3-preset-buttons">
-      <button class="btn small active" data-preset="edge-h">Горизонтальний край</button>
-      <button class="btn small" data-preset="edge-v">Вертикальний край</button>
+      <button class="btn small active" data-preset="letter-k">Буква К</button>
+      <button class="btn small" data-preset="stripes">Смуги змінної ширини</button>
+      <button class="btn small" data-preset="blobs">Круглі плями</button>
       <button class="btn small" data-preset="checker">Шахівниця</button>
       <button class="btn small" data-preset="gradient">Градієнт</button>
-      <button class="btn small" data-preset="noise">Шум</button>
       <button class="btn small" data-preset="paint">Малювати самому</button>
       <button class="btn small" id="s3-upload-btn">Завантажити фото…</button>
       <input type="file" id="s3-upload-input" accept="image/*" style="display:none;">
@@ -2134,8 +2134,6 @@ document.addEventListener('DOMContentLoaded', function(){
     renderMixer();
   })(); } catch(e) { reportError('Розділ 2 (матриця) не запустився', e); }
   
-  
-  
     // ============ SECTION 3: Haar wavelet image transform ============
   try { (function(){
     function buildHaarBasis(N){
@@ -2181,10 +2179,49 @@ document.addEventListener('DOMContentLoaded', function(){
 
     function generatePreset(name,n){
       const A=zerosMat(n,n);
-      if (name==='edge-h'){
-        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = i<n/2 ? 1 : 0;
-      } else if (name==='edge-v'){
-        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = j<n/2 ? 1 : 0;
+      if (name==='letter-k'){
+        // «К»: стовбур + дві діагоналі (відрізки в нормованих координатах [0,1]²)
+        const segs=[
+          [0.25,0.00, 0.25,1.00],   // стовбур
+          [0.25,0.50, 0.75,0.00],   // верхня діагональ
+          [0.25,0.50, 0.75,1.00]    // нижня діагональ
+        ];
+        const wdt=0.085, aa=0.02;
+        const segDist=function(px,py,ax,ay,bx,by){
+          const dx=bx-ax, dy=by-ay;
+          const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/((dx*dx+dy*dy)||1)));
+          return Math.hypot(px-(ax+dx*t), py-(ay+dy*t));
+        };
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+          const x=(j+0.5)/n, y=(i+0.5)/n;
+          let d=1e9;
+          for(const s of segs) d=Math.min(d, segDist(x,y,s[0],s[1],s[2],s[3]));
+          A[i][j]=Math.max(0,Math.min(1,(wdt-d)/aa));   // м'який край
+        }
+      } else if (name==='stripes'){
+        // смуги змінної ширини 1,2,4,8,... px — «східці» під октави Хаара
+        let j=0, w=1, on=1;
+        while(j<n){
+          const rest=n-j;
+          const take=(rest>=2*w)? w : rest;   // остання смуга поглинає залишок
+          for(let jj=j;jj<j+take;jj++) for(let i=0;i<n;i++) A[i][jj]=on;
+          j+=take; w*=2; on=1-on;
+        }
+      } else if (name==='blobs'){
+        // круглі плями: сума гаусіан (x, y, радіус, висота)
+        const blobs=[
+          [0.30,0.30,0.14,1.0],[0.70,0.35,0.10,0.8],
+          [0.45,0.70,0.16,0.9],[0.80,0.80,0.07,0.7]
+        ];
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+          const x=(j+0.5)/n, y=(i+0.5)/n;
+          let v=0;
+          for(const b of blobs){
+            const dx=(x-b[0])/b[2], dy=(y-b[1])/b[2];
+            v+=b[3]*Math.exp(-(dx*dx+dy*dy));
+          }
+          A[i][j]=Math.max(0,Math.min(1,v));
+        }
       } else if (name==='checker'){
         const block = Math.max(1, n/4);
         for(let i=0;i<n;i++) for(let j=0;j<n;j++){
@@ -2193,10 +2230,8 @@ document.addEventListener('DOMContentLoaded', function(){
         }
       } else if (name==='gradient'){
         for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = 1 - j/(n-1);
-      } else if (name==='noise'){
-        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = Math.random();
       } else {
-        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = 1;
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = 1;   // 'blank': фон для малювання/фото
       }
       return A;
     }
@@ -2204,7 +2239,7 @@ document.addEventListener('DOMContentLoaded', function(){
     let N=16;
     let basis=buildHaarBasis(N);
     let H=buildH(basis);
-    let mode='edge-h';
+    let mode='letter-k';
     let brush=0;
     let keepPercent=100;
     let X=generatePreset(mode,N);
@@ -2259,36 +2294,48 @@ document.addEventListener('DOMContentLoaded', function(){
         'залишено '+res.keepCount+' із '+(N*N)+' ('+Math.round(res.keepCount/(N*N)*100)+'%) &nbsp;|&nbsp; RMSE = '+rmse.toFixed(4);
     }
 
+    // малювання через ImageData (швидко навіть при N=256); кольори ті самі, що в спільної heatColor
     function renderImage(canvasEl, mat){
       const ctx=canvasEl.getContext('2d');
       const Wp=canvasEl.width;
-      const cell=Wp/N;
-      for(let i=0;i<N;i++) for(let j=0;j<N;j++){
-        const val=Math.max(0,Math.min(1,mat[i][j]));
-        const g=Math.round(255*val);
-        ctx.fillStyle='rgb('+g+','+g+','+g+')';
-        ctx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+      const img=ctx.createImageData(Wp,Wp), d=img.data;
+      for(let py=0;py<Wp;py++){
+        const i=Math.min(N-1, (py*N/Wp)|0);
+        for(let px=0;px<Wp;px++){
+          const j=Math.min(N-1, (px*N/Wp)|0);
+          const val=Math.max(0,Math.min(1,mat[i][j]));
+          const g=Math.round(255*val), o=(py*Wp+px)*4;
+          d[o]=g; d[o+1]=g; d[o+2]=g; d[o+3]=255;
+        }
       }
+      ctx.putImageData(img,0,0);
     }
 
-    // (локальна копія heatColor видалена — використовується спільна з розділу «SHARED UTILITIES»)
-
-    function renderHeatmap(canvasEl, mat, mask){
+     function renderHeatmap(canvasEl, mat, mask){
       const ctx=canvasEl.getContext('2d');
       const Wp=canvasEl.width;
-      const cell=Wp/N;
       let maxAbs=1e-9;
-      for(let i=0;i<N;i++) for(let j=0;j<N;j++) maxAbs=Math.max(maxAbs,Math.abs(mat[i][j]));
       for(let i=0;i<N;i++) for(let j=0;j<N;j++){
-        if (mask && mask[i][j]===0){
-          ctx.fillStyle='#EEF0F4';
-        } else {
-          ctx.fillStyle=heatColor(mat[i][j],maxAbs);
-        }
-        ctx.fillRect(j*cell,i*cell,cell+0.5,cell+0.5);
+        if (i===0 && j===0) continue;        // DC у шкалу не входить: вона на 1–3 порядки більша за деталі
+        maxAbs=Math.max(maxAbs,Math.abs(mat[i][j]));
       }
+      const img=ctx.createImageData(Wp,Wp), d=img.data;
+      for(let py=0;py<Wp;py++){
+        const i=Math.min(N-1, (py*N/Wp)|0);
+        for(let px=0;px<Wp;px++){
+          const j=Math.min(N-1, (px*N/Wp)|0);
+          const o=(py*Wp+px)*4;
+          if (mask && mask[i][j]===0){ d[o]=238; d[o+1]=240; d[o+2]=244; }   // занулені — сірі
+          else {
+            const t=maxAbs>1e-9?Math.max(-1,Math.min(1,mat[i][j]/maxAbs)):0;
+            if (t>=0){ const g=Math.round(255*(1-t)); d[o]=255; d[o+1]=g; d[o+2]=g; }
+            else { const rg=Math.round(255*(1+t)); d[o]=rg; d[o+1]=rg; d[o+2]=255; }
+          }
+          d[o+3]=255;
+        }
+      }
+      ctx.putImageData(img,0,0);
     }
-
     function renderBasisGallery(){
       const wrap=document.getElementById('s3-basis-gallery');
       wrap.innerHTML='';
@@ -2343,14 +2390,17 @@ document.addEventListener('DOMContentLoaded', function(){
         (r1===r2 ? ' (норма = 1)' : (Math.abs(s)<1e-9 ? ' <span class="ok">(ортогональні)</span>' : ''));
     }
 
-    let painting=false;
+    let painting=false, paintPending=false;
     function paintAt(px,py){
       const canvasEl=document.getElementById('s3-image-canvas');
       const cell=canvasEl.width/N;
       const j=Math.floor(px/cell), i=Math.floor(py/cell);
       if (i<0||i>=N||j<0||j>=N) return;
       X[i][j]=brush;
-      computeTransform();
+      if (!paintPending){                          // перерахунок не частіше, ніж раз на кадр
+        paintPending=true;
+        requestAnimationFrame(function(){ paintPending=false; computeTransform(); });
+      }
     }
     const imgCanvas=document.getElementById('s3-image-canvas');
     imgCanvas.addEventListener('pointerdown', function(e){
@@ -2387,6 +2437,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if (+r2el.value>N-1) r2el.value=Math.min(1,N-1);
         updateOrthReadout();
         computeTransform();
+        updateScanVisibility();
       });
     });
 
@@ -2434,10 +2485,14 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('s3-orth-r1').addEventListener('input', updateOrthReadout);
     document.getElementById('s3-orth-r2').addEventListener('input', updateOrthReadout);
 
+    let compressPending=false;
     document.getElementById('s3-compress').addEventListener('input', function(e){
       keepPercent = +e.target.value;
       document.getElementById('s3-compress-val').textContent = keepPercent+'%';
-      applyCompressionAndRender();
+      if (!compressPending){
+        compressPending=true;
+        requestAnimationFrame(function(){ compressPending=false; applyCompressionAndRender(); });
+      }
     });
 
     function supportRange(vec){
@@ -2500,50 +2555,8 @@ document.addEventListener('DOMContentLoaded', function(){
       animCaption.textContent = 'крок '+(idx+1)+' з '+(N*N)+' · вейвлет-рядок №'+r+' × вейвлет-стовпець №'+r2+
         ' · S['+r+']['+r2+'] = '+val.toFixed(3)+(sig?'  ← суттєвий збіг':'');
     }
-//////////////////////
-/*
-    function stopScan(){
-      scanRunning=false;
-      if (scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
-      if (animBtn) animBtn.textContent='▶ Анімувати сканування';
-      if (imgOverlay) imgOverlay.getContext('2d').clearRect(0,0,imgOverlay.width,imgOverlay.height);
-      if (hmOverlay) hmOverlay.getContext('2d').clearRect(0,0,hmOverlay.width,hmOverlay.height);
-      if (animCaption) animCaption.textContent='';
-    }
 
-    function runStep(idx){
-      if (!scanRunning) return;
-      if (idx>=scanOrder.length){ stopScan(); return; }
-      const step=scanOrder[idx], r=step.r, r2=step.r2;
-      const sig=scanSig.has(r+'_'+r2);
-      const val=S[r][r2];
-      drawImagePattern(r,r2,false);
-      drawHeatmapHighlight(r,r2,false);
-      updateCaption(idx,r,r2,val,sig);
-      const baseDwell=Math.max(15, Math.min(260, Math.round(9000/(N*N))));
-      const dwell = sig ? Math.round(baseDwell*3.2) : baseDwell;
-      if (sig){
-        setTimeout(function(){
-          if (!scanRunning) return;
-          drawImagePattern(r,r2,true);
-          drawHeatmapHighlight(r,r2,true);
-        }, Math.round(dwell*0.45));
-      }
-      scanTimer=setTimeout(function(){ runStep(idx+1); }, dwell);
-    }
-
-    animBtn.addEventListener('click', function(){
-      if (scanRunning){ stopScan(); return; }
-      scanOrder=[];
-      for (let r=0;r<N;r++) for (let r2=0;r2<N;r2++) scanOrder.push({r:r,r2:r2});
-      scanSig=computeSignificantSet();
-      scanRunning=true;
-      animBtn.textContent='⏸ Зупинити';
-      runStep(0);
-    });
-	*/
-	////////////
-	    // ---------- керування: короткий клік = 1 крок, довге натискання = автопробіг ----------
+    // ---------- керування: короткий клік = 1 крок, довге натискання = автопробіг ----------
     const BTN_IDLE='▶ Крок (тримати — авто)', BTN_AUTO='⏩ авто…';
     let curIdx=0, holdTimer=null, pointerHeld=false, autoMode=false, scanToken=0;
 
@@ -2585,7 +2598,7 @@ document.addEventListener('DOMContentLoaded', function(){
       drawImagePattern(r,r2,false);
       drawHeatmapHighlight(r,r2,false);
       updateCaption(idx,r,r2,val,sig);
-      const baseDwell=Math.max(60, Math.min(320, Math.round(12000/(N*N))));   // ← темп авто
+      const baseDwell=Math.max(60, Math.min(320, Math.round(12000/(N*N))));
       const dwell = sig ? Math.round(baseDwell*3.2) : baseDwell;
       if (sig){
         setTimeout(function(){
@@ -2626,7 +2639,7 @@ document.addEventListener('DOMContentLoaded', function(){
         autoMode=true; scanRunning=true;
         animBtn.textContent=BTN_AUTO;
         stepForward();
-      }, 420);                                            // ← поріг спрацювання авто, мс
+      }, 420);                                            // поріг автозапуску, мс
     });
     function releasePress(){
       if (!pointerHeld) return;
@@ -2642,9 +2655,18 @@ document.addEventListener('DOMContentLoaded', function(){
     animBtn.addEventListener('pointerup', releasePress);
     animBtn.addEventListener('pointercancel', releasePress);
     animBtn.addEventListener('lostpointercapture', function(){ if (pointerHeld) releasePress(); });
-    animBtn.textContent=BTN_IDLE;
-	
-	/////////////
+
+    function updateScanVisibility(){
+      // сканер має сенс на малих N; 256 — режим дослідження стиснення, там він зайвий
+      const show=(N<=32);
+      if (animBtn){
+        const row=animBtn.parentElement;
+        if (row) row.style.display=show?'':'none';
+      }
+      if (animCaption) animCaption.style.display=show?'':'none';
+      if (!show && scanRunning) stopScan();
+      else if (animBtn && show) animBtn.textContent=BTN_IDLE;
+    }
 
     document.getElementById('s3-orth-r1').max=N-1;
     document.getElementById('s3-orth-r2').max=N-1;
@@ -2652,8 +2674,9 @@ document.addEventListener('DOMContentLoaded', function(){
     renderKernelMatrix();
     updateOrthReadout();
     computeTransform();
+    updateScanVisibility();
   })(); } catch(e) { reportError('Розділ 3 (зображення) не запустився', e); }
-
+  
   try {
     if (window.renderMathInElement) {
       renderMathInElement(document.body, {
