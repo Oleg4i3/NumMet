@@ -76,16 +76,24 @@ header.hero .eyebrow{
   color:var(--ink-soft);
   margin-bottom:6px;
 }
+
 .spectra-banner{
-  display:flex; flex-wrap:wrap; gap:0; align-items:stretch;
+  display:grid; grid-template-columns:1fr 1fr;
+  grid-template-areas:"prism atom" "sound graph";
+  gap:14px 18px;
   margin-top:22px; background:#fff; border:1px solid var(--line); border-radius:12px;
   padding:14px 18px; box-shadow:0 2px 10px rgba(29,36,51,0.04);
 }
-.sb-scene{flex:1 1 220px; display:flex; flex-direction:column; align-items:center; min-width:200px;}
-.sb-scene:not(:last-child){border-right:1px solid var(--line); margin-right:14px; padding-right:14px;}
-@media (max-width:700px){ .sb-scene:not(:last-child){border-right:none; margin-right:0; padding-right:0;} }
+.sb-scene{display:flex; flex-direction:column; align-items:center; min-width:0;}
+.sb-scene:nth-child(1){grid-area:prism;}
+.sb-scene:nth-child(2){grid-area:sound;}
+.sb-scene:nth-child(3){grid-area:atom;}
+.sb-scene:nth-child(4){grid-area:graph;}
+@media (max-width:700px){
+  .spectra-banner{grid-template-columns:1fr; grid-template-areas:"prism" "atom" "sound" "graph";}
+}
 .sb-scene svg, .sb-scene canvas{display:block; max-width:100%; height:auto; border-radius:8px; background:#f5f6fa;}
-.sb-cap{font-size:.74rem; color:var(--ink-soft); margin-top:6px; text-align:center;}
+.sb-cap{font-size:.74rem; color:var(--ink-soft); margin-top:6px; text-align:center; min-height:56px;}
 nav.stepnav{
   position:sticky; top:0; z-index:20;
   background:rgba(246,247,250,.92);
@@ -231,33 +239,36 @@ footer{padding:30px 20px; color:var(--ink-soft); font-size:.85rem; text-align:ce
   <div class="wrap">
        <h3>[Ортонормований] базис × об'єкт = спектр</h3>
     <p>«Спектр» у широкому сенсі — просто набір компонент, як веселка: біле світло саме по собі,
-    поки його не розкласти. Вид компонент залежить від того, який базис узяли для розкладу —
-    а базис іноді обираємо ми, іноді природа, іноді диктує матриця. Три спектрального розкладу в базисі: на векторі, на матриці, на зображенні.</p>
+    поки його не розкласти. Вид спектральних компонент залежить від того, який базис узяли для розкладу —
+    а базис іноді обираємо ми, іноді природа, іноді диктує матриця. Ви бачите 4 приклади спектрального аналізу. Нижче - три детальних приклади розкладу в базисі: на векторі, на матриці, на зображенні.</p>
 
     <div class="spectra-banner" id="spectra-banner">
       <div class="sb-scene">
         <iframe src="pryzm3D.html" title="Дисперсія: призма (three.js)" loading="lazy"
-          style="width:100%;height:200px;border:0;border-radius:8px;background:#000;display:block;"></iframe>
+          style="width:100%;height:230px;border:0;border-radius:8px;background:#000;display:block;"></iframe>
         <div class="sb-cap">Дисперсія світла. Матриця камери розкладає зображення в базисі RGB (red-green-blue). Екран гаджета синтезує зображення з цих трьох компонент</div>
       </div>
-             <div class="sb-scene">
-        <canvas id="sb-wave" width="260" height="200" style="cursor:pointer;" title="клік по хвилі — пуск/пауза; клік по смузі — вимкнути/увімкнути смугу"></canvas>
+      <div class="sb-scene">
+        <canvas id="sb-wave" width="460" height="230" style="cursor:pointer;" title="клік по хвилі — пуск/пауза; клік по смузі — вимкнути/увімкнути смугу"></canvas>
         <div style="display:flex;gap:6px;justify-content:center;margin-top:6px;align-items:center;">
           <button id="sb-wave-play" class="btn small" style="min-width:44px;" title="пуск/пауза">▶</button>
           <button id="sb-wave-mute" class="btn small" style="min-width:44px;" title="загальний mute">🔊</button>
           <select id="sb-wave-src" class="btn small" style="padding:5px 6px;" title="джерело звуку">
-		            <option value="loop" selected>loop.mp3</option>
+            <option value="loop" selected>loop.mp3</option>
             <option value="demo">демо</option>
-             <option value="file">свій файл…</option>
+            <option value="file">свій файл…</option>
           </select>
         </div>
-        <div class="sb-cap">Звуковий спектр. Клікайте по компонентам і слухайте</div>
-     
+        <div class="sb-cap">Звуковий спектр. Клікайте по компонентам, щоб відключити їх, і слухайте результат</div>
       </div>
-   
       <div class="sb-scene">
-        <canvas id="sb-atom" width="260" height="200"></canvas>
-        <div class="sb-cap">Спектр гідрогена - "відбиток пальця" атома. Аналізуючи спеткр зорі можна дізнатися її хімічний склад</div>
+        <canvas id="sb-atom" width="460" height="230"></canvas>
+        <div class="sb-cap">Спектр гідрогена - "відбиток пальця" атома. Аналізуючи спектр зорі можна дізнатися її хімічний склад</div>
+      </div>
+      <div class="sb-scene">
+        <iframe src="graphModes.html" title="Спектр графа: кластеризація за Фідлером" loading="lazy"
+          style="width:100%;height:265px;border:1px solid var(--line);border-radius:8px;background:#fff;display:block;"></iframe>
+        <div class="sb-cap">Спектр графа: коливальні моди дозволяють кластеризувати граф (кластери підсвічені кольором) </div>
       </div>
     </div>
   </div>
@@ -955,7 +966,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       // --- геометрія: драбина зліва, спектр справа ---
       const SPEC_X=Math.round(W*0.5), SPEC_W=W-SPEC_X;
-      const PANEL_T=16, PANEL_B=148, BAR_T=154, BAR_B=164;
+      const PANEL_T=16, PANEL_B=178, BAR_T=184, BAR_B=194;
       const LADDER_X0=22, LADDER_X1=SPEC_X-8, EL_X=Math.round(W*0.42);
       const xOfNm=function(nm){ return SPEC_X+(nm-400)/300*SPEC_W; };
       // лінії Бальмера видно завжди (довідковий спектр); спалах — коли фотон «долетів»
