@@ -24,6 +24,7 @@
       <option value="1">K₃,₃ (дводольний)</option>
       <option value="2">Приклад 1: K₂,₃+ребро+висяча</option>
       <option value="3">Приклад 1: 2 трикутники через вершину</option>
+      <option value="4">3 кластери: шарнір + міст (8 вершин)</option>
     </select>
     <b id="lamLab">λ₂ = 2.00</b>
   </div>
@@ -40,7 +41,8 @@
   'use strict';
   const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
   const SPEED=0.2, MAX_AMP=16, R=12, EPS=1e-3, TAU=3;
-  const NEUTRAL=['#c0c0c0','#c0c0c0','#c0c0c0','#c0c0c0','#c0c0c0','#c0c0c0'];
+  const NMAX=8;   /* максимум вершин серед пресетів */
+  const NEUTRAL=new Array(NMAX).fill('#c0c0c0');
 
   /* дані з isomorphism2.html */
   const GRAPHS=[
@@ -83,7 +85,21 @@
            [0.361,-0.282,0.361,0.361,-0.723,-0.079],
            [0.052,0.674,0.052,0.052,-0.105,-0.726],
            [0,0,0.707,-0.707,0,0],
-           [0.828,-0.195,-0.316,-0.316,0.195,-0.195]] }
+           [0.828,-0.195,-0.316,-0.316,0.195,-0.195]] },
+    /* A={0,1,2}, B={0,3,4} зі спільним шарніром 0; C={5,6,7}; міст 0–5.
+       λ₂ відокремлює C від A∪B, λ₃=1 розділяє A і B (шарнір і C там нульові).
+       λ₄=λ₅=λ₆=3 (виродження) — внутрішньокластерні моди по одній на трикутник;
+       базис обрано локалізованим: кожна мода живе лише в одному кластері. */
+    { label:'λ₂ = 0.37, λ₃ = 1.00', def:[1,2],
+      pos:[[180,200],[80,120],[200,80],[80,280],[200,320],[380,200],[480,120],[480,280]],
+      edges:[[0,1],[0,2],[1,2],[0,3],[0,4],[3,4],[5,6],[5,7],[6,7],[0,5]],
+      lam:[0,0.373802,1,3,3,3],
+      vec:[[0.354,0.354,0.354,0.354,0.354,0.354,0.354,0.354],
+           [-0.182,-0.291,-0.291,-0.291,-0.291,0.321,0.512,0.512],
+           [0,-0.5,-0.5,0.5,0.5,0,0,0],
+           [0,0.707,-0.707,0,0,0,0,0],
+           [0,0,0,0.707,-0.707,0,0,0],
+           [0,0,0,0,0,0,0.707,-0.707]] }
   ];
 
   function prep(g){
@@ -102,46 +118,76 @@
   function ampOf(m){ return sliders[m-1].value/100; }
   function setDefaults(g){
     sliders.forEach(function(s){ s.value='0'; });
-    sliders[g.def-1].value='100';
+    [].concat(g.def).forEach(function(m){ sliders[m-1].value='100'; });
   }
 
   let cur=GRAPHS[0];
   prep(cur); setDefaults(cur);
   let tAcc=0, last=null;
-  let Q=[0,0,0,0,0,0];
+  let Qx=new Array(NMAX).fill(0), Qy=new Array(NMAX).fill(0);   /* кореляція з опорною вершиною: горизонт. / вертик. */
 
   function step(t){
-    const dx=[0,0,0,0,0,0], dy=[0,0,0,0,0,0];
-    const val=[0,0,0,0,0,0], bnd=[0,0,0,0,0,0];
+    const N=cur.pos.length;
+    const dx=new Array(N).fill(0), dy=new Array(N).fill(0);
+    const bx=new Array(N).fill(0), by=new Array(N).fill(0);   /* межі амплітуди по осях */
     let rSum=0, wSum=0, totAmp=0;
     for (let m=1;m<6;m++){
       const a=ampOf(m); if (a<=0.005) continue;
       const w=(Math.sqrt(cur.lam[m])+0.5)*1.5;
       const A=a*MAX_AMP*Math.cos(t*w/100);
       rSum+=a*(SPEED*w/100); wSum+=a; totAmp+=a;
-      for (let i=0;i<6;i++){
+      for (let i=0;i<N;i++){
         const c=cur.vec[m][i], d=c*A;
-        if (m%2===1) dx[i]+=d; else dy[i]+=d;
-        val[i]+=d; bnd[i]+=Math.abs(c)*a*MAX_AMP;
+        if (m%2===1){ dx[i]+=d; bx[i]+=Math.abs(c)*a*MAX_AMP; }
+        else        { dy[i]+=d; by[i]+=Math.abs(c)*a*MAX_AMP; }
       }
     }
-    return {dx:dx, dy:dy, val:val, bnd:bnd, rSum:rSum, wSum:wSum, totAmp:totAmp};
+    return {dx:dx, dy:dy, bx:bx, by:by, rSum:rSum, wSum:wSum, totAmp:totAmp};
+  }
+
+  /* Кольори (змішування адитивне, у лінійному світлі):
+       зелений — горизонтальна ввісь: у фазі з найрухливішою по горизонталі вершиною (refX);
+       червоний / синій — вертикальна вісь: у фазі / в протифазі з найрухливішою по вертикалі (refY).
+     Вершина, що не зелена, бере колір з вертикальної осі. Якщо вертикального руху в неї немає
+     (як у шарніра), вона однаково «належить» обом вертикальним групам: 50 % червоного + 50 % синього = фіолетовий.
+     Насиченість = наскільки сильно вершина бере участь у русі (як і раніше), нерухомі — білі.
+     ax, ay ∈ [−1,1] — нормована кореляція руху вершини з refX по горизонталі та з refY по вертикалі. */
+  const C_RED=[224,36,46], C_GREEN=[28,165,75], C_BLUE=[37,69,224], C_WHITE=[247,247,247];
+  function lin(v){ v/=255; return v<=0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
+  function srgb(v){ return 255*(v<=0.0031308 ? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055); }
+  function phaseColor(ax,ay){
+    ax=Math.max(-1,Math.min(1,ax)); ay=Math.max(-1,Math.min(1,ay));
+    const g=Math.max(0,ax);                              /* зелена частка */
+    const wRB=(1-g)*Math.max(-ax,Math.abs(ay));          /* частка, що йде на червоне/синє */
+    const wR=wRB*(1+ay)/2, wB=wRB*(1-ay)/2;
+    const S=g+wRB;
+    if (S<1e-3) return 'rgb('+C_WHITE.join(',')+')';
+    const t=Math.pow(Math.min(1,S),0.6);
+    const out=[0,1,2].map(function(j){
+      const m=srgb((g*lin(C_GREEN[j])+wR*lin(C_RED[j])+wB*lin(C_BLUE[j]))/S);
+      return Math.round(C_WHITE[j]+t*(m-C_WHITE[j]));
+    });
+    return 'rgb('+out.join(',')+')';
   }
 
   function fillsFrom(s,dt){
-    let ref=0;
-    for (let i=1;i<6;i++) if (s.bnd[i]>s.bnd[ref]+1e-9) ref=i;
-    const n=s.bnd[ref]||1;
+    const N=cur.pos.length;
+    let rx=0, ry=0;
+    for (let i=1;i<N;i++){
+      if (s.bx[i]>s.bx[rx]+1e-9) rx=i;
+      if (s.by[i]>s.by[ry]+1e-9) ry=i;
+    }
+    const nx=s.bx[rx]||1, ny=s.by[ry]||1;   /* нормування окремо по кожній осі */
     const rAvg=s.wSum>0?s.rSum/s.wSum:0;
     const alpha=1-Math.exp(-rAvg*dt/TAU);
-    for (let i=0;i<6;i++){
-      const corr=(s.val[i]/n)*(s.val[ref]/n);
-      Q[i]+=alpha*(corr-Q[i]);
+    for (let i=0;i<N;i++){
+      const cx=(s.dx[i]/nx)*(s.dx[rx]/nx), cy=(s.dy[i]/ny)*(s.dy[ry]/ny);
+      Qx[i]+=alpha*(cx-Qx[i]);
+      Qy[i]+=alpha*(cy-Qy[i]);
     }
-    return Q.map(function(q){
-      const x=2*q, st=Math.min(1,Math.abs(x));
-      return 'hsl('+(x>=0?25:215)+',80%,'+(97-52*st).toFixed(1)+'%)';
-    });
+    const out=[];
+    for (let i=0;i<N;i++) out.push(phaseColor(2*Qx[i],2*Qy[i]));
+    return out;
   }
 
   function draw(fills,dx,dy){
@@ -151,7 +197,7 @@
     cur.edges.forEach(function(e){
       ctx.beginPath(); ctx.moveTo(X[e[0]][0],X[e[0]][1]); ctx.lineTo(X[e[1]][0],X[e[1]][1]); ctx.stroke();
     });
-    for (let i=0;i<6;i++){
+    for (let i=0;i<X.length;i++){
       ctx.beginPath(); ctx.arc(X[i][0],X[i][1],R,0,2*Math.PI);
       ctx.fillStyle=fills[i]; ctx.fill();
       ctx.strokeStyle='#333'; ctx.lineWidth=1.4; ctx.stroke();
@@ -173,7 +219,7 @@
     cur=GRAPHS[+this.value];
     prep(cur);
     setDefaults(cur);                 /* еквалайзер підстроївся під граф */
-    Q=[0,0,0,0,0,0];
+    Qx=new Array(NMAX).fill(0); Qy=new Array(NMAX).fill(0);
     document.getElementById('lamLab').textContent=cur.label;
   });
 
