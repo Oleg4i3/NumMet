@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Пошук власних векторів (банер для стартової сторінки)</title>
+<style>
+  :root{ color-scheme:light; --ink:#14213d; --muted:#56627a; }
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;
+    font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--ink);}
+  #app{display:flex;height:100%;align-items:stretch;}
+  #stage{position:relative;flex:1 1 auto;min-width:0;}
+  #stage canvas{display:block;width:100%;height:100%;pointer-events:none;}
+  #mx{flex:0 0 auto;width:min(34%,290px);display:flex;align-items:center;justify-content:center;
+    padding:0 26px 0 0;box-sizing:border-box;}
+  .mat{position:relative;display:grid;grid-template-columns:repeat(3,3.3em);gap:.55em .5em;
+    padding:.8em 1.1em;font-size:clamp(15px,2.2vw,21px);font-variant-numeric:tabular-nums;line-height:1.1;}
+  .mat::before,.mat::after{content:"";position:absolute;top:0;bottom:0;width:.45em;
+    border:2px solid var(--ink);box-sizing:border-box;}
+  .mat::before{left:0;border-right:none;}
+  .mat::after{right:0;border-left:none;}
+  .cell{text-align:right;color:var(--muted);}
+  .cell.d{font-weight:600;}
+  @media (max-width:620px){
+    #app{flex-direction:column;}
+    #mx{width:auto;padding:0 0 12px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div id="mx" aria-hidden="true"><div class="mat" id="mat"></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var stage = document.getElementById('stage');
+  if (typeof THREE === 'undefined') { document.getElementById('app').style.display = 'none'; return; }
+
+  /* ---------- 3D-лінійна алгебра ---------- */
+  function dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+  function nrm(a) { return Math.sqrt(dot(a, a)); }
+  function unit(a) { var n = nrm(a); return [a[0]/n, a[1]/n, a[2]/n]; }
+  function sc(k, a) { return [k*a[0], k*a[1], k*a[2]]; }
+  function add(a, b) { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
+  function sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+  function lerp3(a, b, t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+  function ease(t) { t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2; }
+  function mulberry(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function orth(vs) {                       /* Грам–Шмідт для трійки векторів */
+    var q = [], i, j, v;
+    for (j = 0; j < 3; j++) {
+      v = vs[j];
+      for (i = 0; i < j; i++) v = sub(v, sc(dot(q[i], v), q[i]));
+      q.push(unit(v));
+    }
+    return q;
+  }
+  function randOrtho(seed) {
+    var r = mulberry(seed * 7919 + 13), c = [], i;
+    for (i = 0; i < 3; i++) c.push([r() - 0.5, r() - 0.5, r() - 0.5]);
+    return orth(c);
+  }
+  var AX = [[1,0,0],[0,1,0],[0,0,1]];
+  function perp(q, v) { return nrm(sub(q, sc(dot(q, v), v))); }
+
+  /* ---------- модель: у власному базисі A = diag(λ₁, λ₂, λ₃) ---------- */
+  var L = [1.6, 1.6 * 0.7, 1.6 * 0.7 * 0.7];
+  function applyA(v) { return [L[0]*v[0], L[1]*v[1], L[2]*v[2]]; }
+  function computePlan(Q) {
+    var Z = Q.map(applyA);
+    var q1 = unit(Z[0]);
+    var p21 = sc(dot(q1, Z[1]), q1);
+    var r2 = sub(Z[1], p21), q2 = unit(r2);
+    var p31 = sc(dot(q1, Z[2]), q1), p32 = sc(dot(q2, Z[2]), q2);
+    var P = add(p31, p32), r3 = sub(Z[2], P), q3 = unit(r3);
+    return { Q: Q, Z: Z, q1: q1, p21: p21, r2: r2, q2: q2, p31: p31, p32: p32, P: P, r3: r3, q3: q3 };
+  }
+  function Bof(Q) {                         /* матриця оператора A у базисі q: Bij = qi · A qj */
+    var Z = Q.map(applyA), B = [], i, j;
+    for (i = 0; i < 3; i++) { B.push([]); for (j = 0; j < 3; j++) B[i].push(dot(Q[i], Z[j])); }
+    return B;
+  }
+  function lerpB(A, B, t) {
+    return A.map(function (row, i) { return row.map(function (v, j) { return v + (B[i][j] - v) * t; }); });
+  }
+  function maxErr(Q) { return Math.max(perp(Q[0], AX[0]), perp(Q[1], AX[1]), perp(Q[2], AX[2])); }
+
+  var seed = 3;
+  function newStart(prev) {                 /* випадкова трійка, помітно далека від осей */
+    for (;;) {
+      seed++;
+      var Q = randOrtho(seed);
+      if (Math.min(perp(Q[0], AX[0]), perp(Q[1], AX[1]), perp(Q[2], AX[2])) < 0.6) continue;
+      if (prev) Q = Q.map(function (v, i) { return dot(v, prev[i]) < 0 ? sc(-1, v) : v; });
+      return Q;
+    }
+  }
+
+  /* ---------- сцена (без жодних підписів) ---------- */
+  var COL = [0x1f5fa8, 0xc4570f, 0x2a7c4e], COLCSS = ['#1f5fa8', '#c4570f', '#2a7c4e'];
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0xffffff, 0);
+  stage.appendChild(renderer.domElement);
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(38, 16/10, 0.1, 60);
+  var cam = { theta: 0.78, phi: 1.12, radius: 6.2 }, aspect = 1.6;
+  function updateCam(T) {
+    cam.theta = 0.78 + T * 0.00009;
+    cam.phi = 1.12 + 0.1 * Math.sin(T * 0.00025);
+    cam.radius = 6.2 * Math.max(1, Math.pow(1.4 / aspect, 0.8));
+    camera.position.set(cam.radius * Math.sin(cam.phi) * Math.cos(cam.theta), cam.radius * Math.cos(cam.phi), cam.radius * Math.sin(cam.phi) * Math.sin(cam.theta));
+    camera.lookAt(0, 0, 0);
+  }
+
+  [[2.15,0,0],[0,2.15,0],[0,0,2.15]].forEach(function (t) {
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-t[0], -t[1], -t[2], t[0], t[1], t[2]]), 3));
+    scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x8b93a5 })));
+  });
+
+  var NMER = 24, NPAR = 12, NSEG = 96, base = [];
+  (function () {
+    function pt(th, ph) { return [Math.sin(ph)*Math.cos(th), Math.cos(ph), Math.sin(ph)*Math.sin(th)]; }
+    var i, j;
+    for (i = 0; i < NMER; i++) for (j = 0; j < NSEG; j++) base.push(pt(i*2*Math.PI/NMER, j*Math.PI/NSEG), pt(i*2*Math.PI/NMER, (j+1)*Math.PI/NSEG));
+    for (i = 1; i <= NPAR; i++) for (j = 0; j < NSEG; j++) base.push(pt(j*2*Math.PI/NSEG, i*Math.PI/(NPAR+1)), pt((j+1)*2*Math.PI/NSEG, i*Math.PI/(NPAR+1)));
+  })();
+  var ellGeo = new THREE.BufferGeometry();
+  var ellArr = new Float32Array(base.length * 3);
+  base.forEach(function (b, i) { var p = applyA(b); ellArr[3*i] = p[0]; ellArr[3*i+1] = p[1]; ellArr[3*i+2] = p[2]; });
+  ellGeo.setAttribute('position', new THREE.BufferAttribute(ellArr, 3));
+  scene.add(new THREE.LineSegments(ellGeo, new THREE.LineBasicMaterial({ color: 0x1f5fa8, transparent: true, opacity: 0.1 })));
+
+  function newArrow(color) {
+    var a = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 1, color, 0.15, 0.085);
+    a.line.material.transparent = true; a.cone.material.transparent = true;
+    scene.add(a); return a;
+  }
+  function setArrow(a, v, op, color) {
+    if (!v || op <= 0.01) { a.visible = false; return; }
+    var len = nrm(v);
+    if (len < 1e-3) { a.visible = false; return; }
+    a.visible = true;
+    a.setDirection(new THREE.Vector3(v[0]/len, v[1]/len, v[2]/len));
+    a.setLength(len, Math.min(0.15, len * 0.45), Math.min(0.085, len * 0.28));
+    if (color !== undefined) a.setColor(color);
+    a.line.material.opacity = op; a.cone.material.opacity = op;
+  }
+  var main = [0,1,2].map(function (i) { return newArrow(COL[i]); });
+  var ghost = [0,1,2].map(function (i) { return newArrow(COL[i]); });
+  var proj = [0,1,2].map(function () { return newArrow(0x000000); });
+  var opS = [1, 1, 1];
+
+  var dropGeo = new THREE.BufferGeometry();
+  dropGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  var drop = new THREE.Line(dropGeo, new THREE.LineDashedMaterial({ color: 0x4b5468, dashSize: 0.07, gapSize: 0.05 }));
+  drop.frustumCulled = false; scene.add(drop);
+
+  var disc = new THREE.Group();
+  var discMat = new THREE.MeshBasicMaterial({ color: 0x8d97ab, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  disc.add(new THREE.Mesh(new THREE.CircleGeometry(1.9, 72), discMat));
+  var ringPts = [];
+  for (var rp = 0; rp <= 72; rp++) ringPts.push(new THREE.Vector3(1.9 * Math.cos(rp * Math.PI / 36), 1.9 * Math.sin(rp * Math.PI / 36), 0));
+  var ringMat = new THREE.LineBasicMaterial({ color: 0x6f7a91, transparent: true, opacity: 0 });
+  disc.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts), ringMat));
+  scene.add(disc);
+  var ZAXIS = new THREE.Vector3(0, 0, 1);
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); aspect = w / h;
+    camera.aspect = aspect; camera.updateProjectionMatrix();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  window.addEventListener('resize', resize);
+
+  /* ---------- матриця поруч ---------- */
+  var cells = [], matEl = document.getElementById('mat');
+  (function () {
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) {
+      var c = document.createElement('div');
+      c.className = 'cell' + (i === j ? ' d' : '');
+      if (i === j) c.style.color = COLCSS[i];
+      c.textContent = ''; matEl.appendChild(c); cells.push(c);
+    }
+  })();
+  function fmt(v) { return Math.abs(v) < 0.005 ? '0,00' : (v < 0 ? '\u2212' : '') + Math.abs(v).toFixed(2).replace('.', ','); }
+  function showMatrix(B) {
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) {
+      var c = cells[3*i + j], t = fmt(B[i][j]);
+      if (c.textContent !== t) c.textContent = t;
+      if (i !== j) c.style.opacity = (0.3 + 0.7 * Math.min(1, Math.abs(B[i][j]) / 0.6)).toFixed(2);
+    }
+  }
+
+  /* ---------- кадр для фази p (1…6) і прогресу t ---------- */
+  var S = { mode: 'iter', k: 0, Q: null, plan: null, Bk: null, Bn: null, t0: 0, dur: 0, Qnew: null };
+  function compose(p, t) {
+    var P = S.plan, e = ease(t), i;
+    var o = { M: [P.Q[0], P.Q[1], P.Q[2]], op: [1, 1, 1], ghost: [null, null, null], pr: [null, null, null],
+              prOp: 0, focus: 0, dropFrom: null, dropTo: null, discN: null, discOp: 0 };
+    var u = t < 0.6 ? t / 0.6 : 1, v = t < 0.6 ? 0 : (t - 0.6) / 0.4;
+    switch (p) {
+      case 1:
+        for (i = 0; i < 3; i++) { o.M[i] = lerp3(P.Q[i], P.Z[i], e); o.ghost[i] = P.Q[i]; }
+        break;
+      case 2:
+        o.M = [lerp3(P.Z[0], P.q1, e), P.Z[1], P.Z[2]];
+        break;
+      case 3:
+        o.M = [P.q1, P.Z[1], P.Z[2]]; o.op = [1, 1, 0.18];
+        o.focus = 1; o.pr[0] = P.p21; o.prOp = e;
+        o.dropFrom = P.Z[1]; o.dropTo = lerp3(P.Z[1], P.p21, e);
+        o.discN = P.q1; o.discOp = e;
+        break;
+      case 4:
+        o.M = [P.q1, t < 0.6 ? lerp3(P.Z[1], P.r2, ease(u)) : lerp3(P.r2, P.q2, ease(v)), P.Z[2]];
+        o.op = [1, 1, 0.18];
+        o.ghost[1] = P.Z[1]; o.focus = 1; o.pr[0] = P.p21; o.prOp = 1 - 0.7 * ease(u);
+        o.discN = P.q1; o.discOp = 1;
+        break;
+      case 5:
+        o.M = [P.q1, P.q2, P.Z[2]]; o.op = [0.5, 0.5, 1];
+        o.focus = 2; o.pr = [P.p31, P.p32, P.P]; o.prOp = e;
+        o.dropFrom = P.Z[2]; o.dropTo = lerp3(P.Z[2], P.P, e);
+        o.discN = P.q3; o.discOp = e;
+        break;
+      case 6:
+        o.M = [P.q1, P.q2, t < 0.6 ? lerp3(P.Z[2], P.r3, ease(u)) : lerp3(P.r3, P.q3, ease(v))];
+        o.op = [0.5, 0.5, 1];
+        o.ghost[2] = P.Z[2]; o.focus = 2; o.pr = [P.p31, P.p32, P.P]; o.prOp = 1 - 0.7 * ease(u);
+        o.discN = P.q3; o.discOp = 1 - ease(v);
+        break;
+    }
+    return o;
+  }
+  function plainFrame(M) {
+    return { M: M, op: [1, 1, 1], ghost: [null, null, null], pr: [null, null, null], prOp: 0, focus: 0,
+             dropFrom: null, dropTo: null, discN: null, discOp: 0 };
+  }
+
+  function render3d(o, dtms) {
+    var i, k = 1 - Math.exp(-dtms / 90);
+    for (i = 0; i < 3; i++) {
+      opS[i] += (o.op[i] - opS[i]) * k;
+      setArrow(main[i], o.M[i], opS[i]);
+      setArrow(ghost[i], o.ghost[i], 0.28);
+      setArrow(proj[i], o.pr[i], o.prOp * 0.75, COL[o.focus]);
+    }
+    if (o.dropFrom) {
+      var arr = dropGeo.attributes.position.array;
+      arr[0] = o.dropFrom[0]; arr[1] = o.dropFrom[1]; arr[2] = o.dropFrom[2];
+      arr[3] = o.dropTo[0]; arr[4] = o.dropTo[1]; arr[5] = o.dropTo[2];
+      dropGeo.attributes.position.needsUpdate = true; drop.computeLineDistances(); drop.visible = true;
+    } else drop.visible = false;
+    if (o.discN) {
+      disc.quaternion.setFromUnitVectors(ZAXIS, new THREE.Vector3(o.discN[0], o.discN[1], o.discN[2]));
+      discMat.opacity = 0.16 * o.discOp; ringMat.opacity = 0.7 * o.discOp; disc.visible = true;
+    } else disc.visible = false;
+    renderer.render(scene, camera);
+  }
+
+  /* ---------- сценарій ----------
+     Перші ітерації показано повільно й з усіма кроками (множення на A → ортогоналізація),
+     далі вони пришвидшуються, трійка сходиться до осей; потім коротка пауза й нова випадкова трійка. */
+  var DETAIL = 3, THRESH = 0.015, HOLD = 2200, ROT = 1600;
+  var PW = [1.2, 0.5, 0.8, 0.9, 0.8, 0.9], PSUM = PW.reduce(function (a, b) { return a + b; }, 0);
+  function iterDur(k) { return Math.max(450, 4200 * Math.pow(0.62, k)); }
+  function phaseAt(u) {
+    var x = u * PSUM, i = 0;
+    while (i < 5 && x > PW[i]) { x -= PW[i]; i++; }
+    return { p: i + 1, t: Math.min(1, x / PW[i]) };
+  }
+  function beginIter(T) {
+    S.mode = 'iter'; S.plan = computePlan(S.Q);
+    S.Bk = Bof(S.Q); S.Bn = Bof([S.plan.q1, S.plan.q2, S.plan.q3]);
+    S.t0 = T; S.dur = iterDur(S.k);
+  }
+  function step(T, dtms) {
+    var el = T - S.t0, o, B;
+    if (S.mode === 'iter') {
+      var u = Math.min(1, el / S.dur);
+      if (S.k < DETAIL) { var ph = phaseAt(u); o = compose(ph.p, ph.t); }
+      else {
+        var e = ease(u), P = S.plan;
+        o = plainFrame([unit(lerp3(P.Q[0], P.q1, e)), unit(lerp3(P.Q[1], P.q2, e)), unit(lerp3(P.Q[2], P.q3, e))]);
+      }
+      B = lerpB(S.Bk, S.Bn, ease(u));
+      if (el >= S.dur) {
+        S.Q = [S.plan.q1, S.plan.q2, S.plan.q3]; S.k++;
+        if (maxErr(S.Q) < THRESH) { S.mode = 'hold'; S.t0 = T; }
+        else beginIter(T);
+      }
+    } else if (S.mode === 'hold') {
+      o = plainFrame(S.Q); B = Bof(S.Q);
+      if (el >= HOLD) { S.Qnew = newStart(S.Q); S.mode = 'rot'; S.t0 = T; }
+    } else {
+      var w = ease(el / ROT);
+      var Qt = orth([0,1,2].map(function (i) { return lerp3(S.Q[i], S.Qnew[i], w); }));
+      o = plainFrame(Qt); B = Bof(Qt);
+      if (el >= ROT) { S.Q = S.Qnew; S.k = 0; beginIter(T); }
+    }
+    updateCam(T);
+    showMatrix(B);
+    render3d(o, dtms);
+  }
+
+  /* ---------- старт ---------- */
+  S.Q = newStart(null);
+  beginIter(0);
+  resize();
+  var T = 0, last = null;
+  function frame(now) {
+    if (last === null) last = now;
+    var dt = Math.min(100, now - last); last = now;
+    T += dt;
+    step(T, dt);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

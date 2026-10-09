@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Обчислювальна математика++</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Literata:wght@500;600&display=swap" rel="stylesheet">
     <style>
         /* --- Загальні налаштування --- */
         body, html {
@@ -161,16 +164,152 @@
             border: none;
             display: block; /* Прибирає можливі відступи знизу */
         }
-        .placeholder {
+        /* --- СТАРТОВА СТОРІНКА --- */
+        .welcome {
+            --ink: #14213d;
+            --ink-soft: #2b3a55;
+            --muted: #56627a;
+            --rule: #d5dce6;
+            --paper: #f5f7fa;
+            --accent: #2f6fdb;
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #95a5a6;
+            overflow-y: auto;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-        .placeholder h2 { margin-bottom: 10px; color: #2c3e50; }
+        .welcome-inner {
+            box-sizing: border-box;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 76px 40px 36px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas:
+                "head"
+                "demo"
+                "toc"
+                "about"
+                "foot";
+            row-gap: 36px;
+        }
+        .w-head { grid-area: head; }
+        .w-head h1 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: clamp(2.3rem, 4.1vw, 3.5rem);
+            line-height: 1.06;
+            letter-spacing: -0.012em;
+        }
+        .w-sub {
+            margin: 12px 0 0;
+            font-size: 1.15rem;
+            color: var(--muted);
+        }
+        .w-lead {
+            margin: 26px 0 0;
+            max-width: 64ch;
+            font-size: 1rem;
+            line-height: 1.65;
+            color: var(--ink-soft);
+        }
+
+        /* банер з анімацією (лише прикраса) */
+        .demo {
+            grid-area: demo;
+            background: #fff;
+            border: 1px solid var(--rule);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo iframe {
+            width: 100%;
+            height: clamp(300px, 42vh, 400px);
+            border: none;
+            display: block;
+            background: transparent;
+        }
+
+        /* розділи курсу */
+        .toc { grid-area: toc; }
+        .toc-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            padding-bottom: 10px;
+        }
+        .toc-head h2 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+        }
+        .toc-head span { font-size: 0.85rem; color: var(--muted); }
+        .toc-row {
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr) auto;
+            align-items: baseline;
+            column-gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 0;
+            border: none;
+            border-top: 1px solid var(--rule);
+            background: none;
+            font: inherit;
+            text-align: left;
+            color: var(--ink);
+            cursor: pointer;
+        }
+        .toc-row:last-child { border-bottom: 1px solid var(--rule); }
+        .toc-num {
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-size: 1.1rem;
+            color: var(--muted);
+        }
+        .toc-title { font-size: 1rem; font-weight: 500; line-height: 1.4; }
+        .toc-count { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+        .toc-row:hover .toc-title,
+        .toc-row:hover .toc-num { color: var(--accent); }
+
+        .welcome button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .w-flagnote { margin-top: 12px; font-size: 0.95rem; color: var(--muted); }
+        .w-flag {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #6f42c1;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .w-about {
+            grid-area: about;
+            margin: 0;
+            max-width: 68ch;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--ink-soft);
+        }
+        .w-foot {
+            grid-area: foot;
+            margin: 8px 0 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 700px) {
+            .welcome-inner { padding: 72px 20px 28px; row-gap: 28px; }
+        }
+
 		
 		
 		/* --- Стиль для бейджика NEW --- */
@@ -210,7 +349,7 @@
 <div class="wrapper">
     <nav id="sidebar">
         <div class="sidebar-header">
-            <h3>ЧИСЕЛЬНІ МЕТОДИ (Numerical Analysis). Інтерактивний навчальний посібник</h3>
+            <h3>ЗМІСТ</h3>
         </div>
     <div class="category">Вступ. Основні поняття обчислювальної математики </div>
 		 <button class="menu-btn" onclick="openSim('intro.html', 'intro', this)">Похибки, збіжність, стійкість, обумовленість</button>
@@ -319,15 +458,29 @@
         </div>
 
         <div class="iframe-container">
-            <div class="placeholder" id="startMessage">
-                <h2>Вітаємо!</h2>
-                <p>Натисніть кнопку ☰, щоб відкрити меню.</p>
-           <p>На кожній сторінці є спойлер "Теоретична довідка". Уважно прочитайте, щоб зрозуміти, що відбувається у симуляції</p>
-		   <p>Теми з флагом<span class="badge-new" style="background-color: #6f42c1;">***</span>
-		   - факутальтивні, винесені для самостійного опрацювання</p>
-           <p>© КАІ Кафедра комп'ютерних інформаційних технологій </p>
-           
-			</div>
+            <div class="welcome" id="startMessage">
+                <div class="welcome-inner">
+                    <header class="w-head">
+                        <h1>Чисельні методи</h1>
+                        <p class="w-sub">Інтерактивний навчальний посібник</p>
+                        <p class="w-lead">Оберіть тему в меню: кнопка ☰ у верхньому лівому куті відкриває й ховає його. На кожній сторінці є спойлер «Теоретична довідка» — уважно прочитайте її, щоб зрозуміти, що відбувається в симуляції.</p>
+                        <p class="w-lead w-flagnote"><span class="w-flag">***</span> — факультативні теми, винесені для самостійного опрацювання.</p>
+                    </header>
+
+                    <div class="demo">
+                        <iframe src="welcomeEigen.html" title="Анімація" scrolling="no"></iframe>
+                    </div>
+
+                    <nav class="toc" aria-label="Розділи курсу">
+                        <div class="toc-head"><h2>Розділи курсу</h2><span id="tocStats"></span></div>
+                        <div id="tocList"></div>
+                    </nav>
+
+                    <p class="w-about">Чисельні методи вчать розв'язувати задачі наближено, але контрольовано: коли точної формули не існує або обчислення за нею надто затратні. Це розв'язування нелінійних рівнянь і великих систем лінійних рівнянь, пошук власних чисел і векторів, SVD і PCA, оптимізація, інтерполяція й апроксимація даних, інтегрування та диференціальні рівняння. Для кожного методу ставляться чотири запитання: яка похибка результату, чи збігається ітераційний процес, чи стійкий він до малих збурень вхідних даних і чи не надто він дорогий за часом і пам'яттю. Саме на таких методах працюють моделювання, обробка сигналів, аналіз даних і машинне навчання.</p>
+
+                    <p class="w-foot">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
+                </div>
+            </div>
             <iframe id="simFrame" name="simFrame" src=""></iframe>
         </div>
     </div>
@@ -340,6 +493,47 @@
     collapseBtn.addEventListener('click', function () {
         sidebar.classList.toggle('active');
     });
+
+    /* --- Стартова сторінка: зміст будується з бічного меню (його саме не змінюємо) --- */
+    (function buildWelcome() {
+        function plural(n, f) {
+            const m10 = n % 10, m100 = n % 100;
+            if (m10 === 1 && m100 !== 11) return f[0];
+            if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return f[1];
+            return f[2];
+        }
+        const list = document.getElementById('tocList');
+        if (!list) return;
+        const cats = Array.from(document.querySelectorAll('#sidebar .category'));
+        let total = 0;
+        cats.forEach(function (cat) {
+            let n = 0, el = cat.nextElementSibling;
+            while (el && !el.classList.contains('category')) {
+                if (el.classList.contains('menu-btn')) n++;
+                el = el.nextElementSibling;
+            }
+            total += n;
+            const clone = cat.cloneNode(true);
+            clone.querySelectorAll('.badge-new').forEach(function (b) { b.remove(); });
+            const text = clone.textContent.replace(/\s+/g, ' ').trim();
+            const m = text.match(/^(\d+)\.\s*(.*)$/);
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'toc-row';
+            row.innerHTML = '<span class="toc-num"></span><span class="toc-title"></span><span class="toc-count"></span>';
+            row.children[0].textContent = m ? m[1] : '';
+            row.children[1].textContent = m ? m[2] : text;
+            row.children[2].textContent = n + ' ' + plural(n, ['тема', 'теми', 'тем']);
+            row.addEventListener('click', function () {
+                sidebar.classList.remove('active');
+                const top = cat.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+                sidebar.scrollTo({ top: top, behavior: 'smooth' });
+            });
+            list.appendChild(row);
+        });
+        document.getElementById('tocStats').textContent =
+            total + ' ' + plural(total, ['тема', 'теми', 'тем']);
+    })();
 
     function openSim(file, title, btn) {
         const iframe = document.getElementById('simFrame');
