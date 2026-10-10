@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Нейромережа вчиться грати в хрестики-нулики</title>
+<style>
+:root{
+  --bg1:#fff7ec;--bg2:#eaf3fc;--panel:#ffffff;--ink:#22304a;--muted:#64708a;--line:#dde3ee;
+  --soft:#f2f5fb;--blue:#2f6fd0;--blue-d:#2258ab;--coral:#e2574c;--green:#2f9e63;--greenbg:#e4f4ea;
+  --amber:#f0a83a;--hl:#e7effb;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,Roboto,sans-serif;
+  background:linear-gradient(160deg,var(--bg1),var(--bg2) 70%);min-height:100vh}
+.page{max-width:1180px;margin:0 auto;padding:26px 20px 56px}
+h1,h2{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:600}
+h1{font-size:clamp(26px,4.4vw,38px);line-height:1.15;letter-spacing:-.01em}
+h2{font-size:21px;margin-bottom:12px}
+.lead{max-width:48em;color:var(--muted);font-size:17px;margin:10px 0 24px}
+.grid{display:grid;grid-template-columns:minmax(300px,410px) 1fr;gap:20px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border-radius:18px;padding:18px 20px;margin-bottom:20px;
+  box-shadow:0 3px 14px rgba(40,60,100,.08);border-top:5px solid var(--blue)}
+.card.train{border-top-color:var(--green)}
+.card.hood{border-top-color:var(--amber)}
+.card.lab{border-top-color:#8f6fd0}
+.card.how{border-top-color:#b9a7e0}
+.wide{grid-column:1/-1}
+.tabs{display:inline-flex;background:var(--soft);border-radius:999px;padding:3px;margin-bottom:14px}
+.tabs button{border:0;background:transparent;padding:7px 16px;font:inherit;font-weight:600;
+  color:var(--muted);cursor:pointer;border-radius:999px}
+.tabs button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#2b3a55;
+  border-radius:16px;padding:8px;max-width:340px;margin:0 auto 12px}
+.cell{position:relative;aspect-ratio:1;border:0;background:#fff;border-radius:10px;padding:0;
+  font:700 clamp(40px,11vw,58px)/1 Georgia,serif;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:transform .08s}
+.cell:hover:not(:disabled){transform:scale(1.04)}
+.cell:disabled{cursor:default}
+.cell.x{color:var(--blue)}.cell.o{color:var(--coral)}
+.cell.win{background:var(--hl);outline:3px solid var(--amber)}
+.cell.best{background:var(--greenbg)}
+.cell .val{position:absolute;left:2px;right:2px;bottom:4px;text-align:center;
+  font:700 12px system-ui;color:var(--green);background:rgba(255,255,255,.85);border-radius:6px}
+.cell .idx{position:absolute;left:6px;top:4px;font:11px system-ui;color:#b6bfd0}
+@keyframes pop{from{transform:scale(.5);opacity:.2}to{transform:scale(1);opacity:1}}
+.mark{display:block;animation:pop .18s ease-out}
+.status{min-height:2.7em;margin:0 0 10px;font-weight:700;font-size:17px}
+.note{color:var(--muted);font-size:14px;margin:8px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin:10px 0}
+label{font-size:15px}
+select,button.btn,input[type=number]{font:inherit;border:2px solid var(--line);background:#fff;
+  color:var(--ink);padding:7px 13px;border-radius:12px}
+button.btn{cursor:pointer;font-weight:600;transition:transform .08s}
+button.btn:hover:not(:disabled){border-color:var(--blue);color:var(--blue);transform:translateY(-1px)}
+button.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+button.btn.primary:hover:not(:disabled){background:var(--blue-d);color:#fff}
+button.btn.ghost{border-color:var(--coral);color:var(--coral)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.params{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 22px;margin-bottom:8px}
+.param label{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px;font-weight:600}
+.param output{color:var(--blue);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.bar{height:10px;background:var(--soft);border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--amber));transition:width .15s}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:8px 0 4px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-size:13.5px}
+canvas{display:block;width:100%}
+#chart{height:210px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:20px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
+.hoodGrid{display:grid;grid-template-columns:230px minmax(260px,1fr) minmax(280px,380px);gap:22px;margin-top:14px}
+@media(max-width:1050px){.hoodGrid{grid-template-columns:1fr 1fr}.hOut{grid-column:1/-1}}
+@media(max-width:700px){.hoodGrid{grid-template-columns:1fr}}
+.h3{font-size:15.5px;font-weight:700;margin:0 0 8px}
+.mboard{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:#c9d2e0;
+  border-radius:10px;padding:4px;max-width:190px}
+.mboard b{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:6px;
+  background:#fff;font:600 14px ui-monospace,Consolas,monospace;color:var(--muted)}
+.ngal{display:flex;flex-wrap:wrap;gap:7px}
+.ncard{width:62px;border:2px solid var(--line);border-radius:10px;padding:3px 3px 2px;cursor:pointer;
+  background:#fff;text-align:center;transition:transform .08s}
+.ncard:hover{transform:translateY(-2px)}
+.ncard.sel{border-color:var(--blue);box-shadow:0 0 0 3px var(--hl)}
+.ncard .mb{display:grid;grid-template-columns:repeat(3,1fr);gap:1px}
+.ncard .mb i{aspect-ratio:1;border-radius:2px;display:block}
+.ncard small{font:10.5px system-ui;color:var(--muted);font-variant-numeric:tabular-nums}
+.dbig{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#c9d2e0;
+  padding:4px;border-radius:12px;width:190px}
+.dbig b{aspect-ratio:1;background:#fff;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font:600 12.5px ui-monospace,Consolas,monospace;color:var(--ink)}
+.math{font:600 12.5px ui-monospace,Consolas,monospace;background:var(--soft);border-radius:10px;
+  padding:9px 11px;margin:10px 0 0;word-break:break-word}
+.step{display:flex;gap:9px;margin:7px 0;font-size:14.5px}
+.step b{flex:0 0 24px;height:24px;border-radius:50%;background:var(--amber);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px}
+.hOut{margin-top:20px;padding-top:14px;border-top:2px dashed var(--line)}
+#contrib{display:flex;align-items:flex-end;gap:3px;height:56px;margin:8px 0 2px}
+#contrib i{width:10px;border-radius:3px 3px 0 0;display:block}
+#vscale{position:relative;height:16px;border-radius:9px;max-width:520px;
+  background:linear-gradient(90deg,var(--coral),#f4dcd8 35%,#f7f7f7 50%,#cfdcf3 65%,var(--blue))}
+#vmark{position:absolute;top:-5px;width:4px;height:26px;background:var(--ink);border-radius:2px;
+  transform:translateX(-50%);transition:left .15s}
+.labGrid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:6px}
+@media(max-width:720px){.labGrid{grid-template-columns:1fr}}
+.labGrid .lab:nth-child(3){grid-column:1/-1}
+.lab{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--soft)}
+.lab canvas{margin:6px 0}
+#tanhC{height:190px}
+#landC{height:230px;cursor:crosshair;touch-action:none}
+#mGraph{height:150px}
+#mChart{height:170px}
+.lab .row{margin:6px 0}
+.labGrid .lab:last-child{grid-column:1/-1}
+.grow{flex:1;display:flex;align-items:center;gap:8px;margin:6px 0}
+.grow input[type=range]{flex:1}
+.kv{display:flex;gap:14px;flex-wrap:wrap;font-size:14.5px;font-weight:600}
+.kv b{color:var(--blue)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px 28px}
+.cols h3{font-size:16px;margin:0 0 5px}
+.cols p{margin:0;color:var(--muted);font-size:15px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:var(--soft);
+  padding:1px 5px;border-radius:4px}
+/* кіно */
+.cineRow{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+.cineBox{background:var(--soft);border:2px solid var(--line);border-radius:14px;padding:10px 12px;
+  transition:border-color .25s,box-shadow .25s}
+.cineBox.hot{border-color:var(--amber);box-shadow:0 0 0 4px #fdf0da}
+.cineBox .lbl{font:700 12.5px system-ui;color:var(--muted);margin:0 0 8px}
+.cineArrow{align-self:center;font-size:24px;color:#b6bfd0;font-weight:700}
+.cineRowV{display:flex;flex-direction:column;gap:3px;justify-content:center}
+.chipV{display:inline-block;font:600 10px ui-monospace,Consolas,monospace;border-radius:5px;
+  padding:2px 4px;min-width:30px;text-align:center;opacity:0;transform:translateX(-8px);
+  transition:opacity .25s,transform .25s}
+.chipV.on{opacity:1;transform:none}
+.chipV.big{font-size:13px;min-width:110px}
+.chipV.z{min-width:36px;font-size:9.5px;padding:1px 3px}
+.chipV.cand{min-width:0;font-size:11px;background:#fff;border:1.5px solid var(--line)}
+@keyframes flyin{from{transform:translate(-40px,-10px) scale(.3);opacity:0}to{transform:none;opacity:1}}
+.matrow{display:flex;align-items:center;gap:2px;opacity:.3;transition:opacity .2s;cursor:pointer;
+  padding:1px 2px;border-radius:5px}
+.matrow.on{opacity:1}
+.matrow.selrow{background:#fdf0da}
+.matrow i{width:9px;height:9px;border-radius:2px;display:block}
+.mathead{opacity:1;cursor:default}
+.matW{font:600 9.5px system-ui;color:#8a93a3;text-align:center;flex:0 0 86px}
+.cineB{display:grid;grid-template-columns:repeat(3,26px);gap:3px}
+.cineB i{aspect-ratio:1;border-radius:5px;background:#fff;display:flex;align-items:center;
+  justify-content:center}
+.cineB i.ghost{opacity:.4;outline:2px dashed var(--amber)}
+.vbig{font:700 24px Georgia,serif}
+.candWrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.cinscale{position:relative;height:14px;border-radius:8px;margin-top:6px;width:200px;
+  background:linear-gradient(90deg,var(--coral),#f7f7f7 50%,var(--blue))}
+.cinmark{position:absolute;top:-4px;width:3px;height:22px;background:var(--ink);border-radius:2px;
+  transform:translateX(-50%);transition:left .35s}
+/* поле зсувів у кіно */
+.sqB{display:grid;grid-template-columns:repeat(3,52px);gap:4px;background:#c9d2e0;
+  padding:5px;border-radius:12px;width:fit-content}
+.sqB i{position:relative;aspect-ratio:1;border-radius:8px;background:#fff;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.sqB .s{font:700 15px Georgia,serif;line-height:1}
+.sqB .d{font:700 10px ui-monospace,Consolas,monospace;line-height:1}
+.sqB .d.fly{animation:flyin .35s ease-out}
+/* конструктор мереж */
+.mrow{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);
+  padding:5px 2px;font-size:13.5px;cursor:pointer}
+.mrow:hover{background:var(--soft)}
+.mrow.sel{background:var(--hl)}
+.mrow i{width:18px;height:0;border-top:3px solid;display:inline-block;margin-right:4px}
+.mrow .del{margin-left:auto;padding:2px 8px}
+/* чап + мінішкала */
+details{border-bottom:1px solid var(--line);padding:8px 0}
+details summary{font-weight:700;cursor:pointer;font-size:15px}
+details p{margin:8px 0 2px;color:var(--muted);font-size:15px}
+.minibar{height:8px;border-radius:5px;max-width:340px;margin:8px auto 0;
+  background:linear-gradient(90deg,var(--coral),#f7f7f7 50%,var(--blue))}
+.minilbl{display:flex;justify-content:space-between;max-width:340px;margin:0 auto;
+  font:600 11px system-ui;color:var(--muted)}
+  
+  /* шлях помилки */
+.ebc{flex:1 1 150px;min-width:150px;border:2px solid var(--line);border-radius:12px;
+  background:var(--soft);padding:10px 12px;cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative}
+.ebc:hover{border-color:#b6bfd0}
+.ebc.on{border-color:var(--amber);box-shadow:0 0 0 4px #fdf0da;background:#fff}
+.ebc b{display:block;font-size:14.5px;margin-bottom:3px}
+.ebc small{color:var(--muted);font-size:12.5px;line-height:1.35;display:block}
+.ebc .n{position:absolute;top:-10px;left:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--coral);color:#fff;font:700 12px/20px system-ui;text-align:center}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>Нейромережа вчиться грати в хрестики-нулики</h1>
+<p class="lead">Ця програма нічого не знає про гру: всередині лише випадкові числа.
+Зіграйте з нею зараз, потім натисніть <b>«Навчити»</b> — і зіграйте знову.
+А потім — <b>під капот</b>, <b>кіно</b> і <b>лабораторія</b>: порахуйте все на папері
+й побачте, як вона вчиться.</p>
+
+<div class="grid">
+<!-- ================= ГРА ================= -->
+<section class="card">
+  <h2>🎮 Гра</h2>
+  <div class="tabs">
+    <button id="tabPlay" aria-pressed="true">Гра</button>
+    <button id="tabAn" aria-pressed="false">Аналіз позиції</button>
+  </div>
+  <div class="board" id="board"></div>
+  <p class="status" id="status"></p>
+  <div class="row" id="playCtl">
+    <label>Ваша сторона
+      <select id="side">
+        <option value="1">Хрестики — ходять першими</option>
+        <option value="2">Нулики — мережа починає</option>
+      </select>
+    </label>
+    <button class="btn" id="newGame">↺ Нова гра</button>
+  </div>
+  <label class="row" id="hintsRow"><input type="checkbox" id="hints" checked>
+    Показувати оцінки ходів мережі</label>
+  <div class="minibar"></div>
+  <div class="minilbl"><span>−1 програш</span><span>нічия</span><span>+1 перемога</span></div>
+  <p class="note" id="logNote"></p>
+</section>
+
+<!-- ================= НАВЧАННЯ ================= -->
+<section class="card train">
+  <h2>🏋️ Навчання</h2>
+  <div class="params">
+    <div class="param">
+      <label for="hid">Нейронів у прихованому шарі</label>
+      <select id="hid"><option>4</option><option>8</option><option>16</option><option selected>32</option><option>64</option></select>
+    </div>
+    <div class="param">
+      <label for="lr">Крок навчання <output id="lrOut"></output></label>
+      <input type="range" id="lr" min="0.005" max="0.15" step="0.005" value="0.08">
+    </div>
+    <div class="param">
+      <label for="eps">Випадкові ходи при навчанні <output id="epsOut"></output></label>
+      <input type="range" id="eps" min="0" max="0.5" step="0.05" value="0.3">
+    </div>
+    <div class="param">
+      <label for="act">Активація (дослід!)</label>
+      <select id="act">
+        <option value="tanh" selected>tanh — стиск до −1…+1</option>
+        <option value="relu">ReLU — мінус → спить</option>
+        <option value="linear">лінійна — без стискання</option>
+      </select>
+    </div>
+    <div class="param">
+      <label><input type="checkbox" id="decay" checked> Зменшувати крок із часом</label>
+      <p class="note">Чисел-«ручок» у мережі: <output id="pcount"></output></p>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn primary" data-train="1000">Навчити · 1 000 ігор</button>
+    <button class="btn primary" data-train="10000">10 000</button>
+    <button class="btn primary" data-train="50000">50 000</button>
+    <button class="btn" id="stop" disabled>⏸ Зупинити</button>
+    <button class="btn ghost" id="reset">Скинути мережу</button>
+  </div>
+  <div class="bar"><div id="barFill"></div></div>
+  <p class="note" id="trainInfo"></p>
+  <table>
+    <thead><tr><th>Перевірка</th><th>Перемоги</th><th>Нічиї</th><th>Програші</th></tr></thead>
+    <tbody>
+      <tr><td>Проти випадкового гравця</td><td id="rW">—</td><td id="rD">—</td><td id="rL">—</td></tr>
+      <tr><td>Проти ідеального гравця</td><td id="mW">—</td><td id="mD">—</td><td id="mL">—</td></tr>
+      <tr><td>Поразок, якби суперник перебрав усі ходи</td><td colspan="3" id="losses" style="text-align:left">—</td></tr>
+    </tbody>
+  </table>
+  <p class="note">«Ідеальний гравець» — не вчитель, а суддя: окрема програмка, що грає безпомилково.
+  Виграти в неї не можна, тому стеля для мережі — усі партії внічию. Деталі — у ЧаПах ↓</p>
+  <canvas id="chart"></canvas>
+  <div class="legend">
+    <span><i style="border-color:#2f6fd0"></i>перемоги проти випадкового, %</span>
+    <span><i style="border-color:#e2574c"></i>програші проти випадкового, %</span>
+    <span><i style="border-color:#22304a;border-top-style:dashed"></i>програші проти ідеального, %</span>
+  </div>
+</section>
+
+<!-- ================= ПІД КАПОТОМ ================= -->
+<section class="card hood wide">
+  <h2>🔬 Під капотом: як мережа думає зараз</h2>
+  <p class="note">Дошка перетворюється на 9 чисел, множиться на ваги — і виходить оцінка v.
+  Синє — додатні числа, червоне — від'ємні, яскравість — сила.</p>
+  <div class="hoodGrid">
+    <div>
+      <p class="h3">Вхід — 9 чисел</p>
+      <label class="row" style="margin-top:0">Дошка очами:
+        <select id="eyes">
+          <option value="auto" selected>того, хто ходить</option>
+          <option value="1">хрестиків ✕</option>
+          <option value="2">нуликів ◯</option>
+        </select>
+      </label>
+      <div class="mboard" id="inBoard"></div>
+      <p class="note">Та сама дошка очами суперника — той самий вектор, але з усіма знаками навпаки.
+      Тому однієї мережі вистачає на обидві сторони.</p>
+    </div>
+    <div>
+      <p class="h3" id="galTitle">Приховані нейрони — рядки матриці W₁</p>
+      <div class="ngal" id="gal"></div>
+      <p class="note">Кожен нейрон — це 9 ваг: по одній на клітинку. Клацніть на нейрон.</p>
+    </div>
+    <div>
+      <p class="h3" id="detTitle">Нейрон</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div><p class="note" style="margin:0 0 4px">ваги (рядок матриці)</p><div class="dbig" id="dW"></div></div>
+        <div><p class="note" style="margin:0 0 4px">добутки вага × число</p><div class="dbig" id="dP"></div></div>
+      </div>
+      <div class="step" style="margin-top:12px"><b>1</b><span>Порожня клітинка — це 0, її добуток теж 0: множити нічого.</span></div>
+      <div class="step"><b>2</b><span>Додаємо все — виходить сума z:</span></div>
+      <div class="math" id="mZ"></div>
+      <div class="step"><b>3</b><span id="mADesc"></span></div>
+      <div class="math" id="mA"></div>
+      <div class="step"><b>4</b><span>Нейрон вносить свою частку у відповідь:</span></div>
+      <div class="math" id="mC"></div>
+    </div>
+  </div>
+  <div class="hOut">
+    <p class="h3">Вихід: скласти внески всіх нейронів → стиснути → оцінка v</p>
+    <div id="contrib"></div>
+    <p class="note">Висота стовпчика — наскільки нейрон «переконав» вихід для цієї позиції.</p>
+    <div class="math" id="mV"></div>
+    <div style="max-width:520px;margin-top:8px"><div id="vscale"><div id="vmark"></div></div></div>
+    <p class="note">Мережа вибирає хід так: ставить фігуру в кожну вільну клітинку і рахує v —
+    <b>один розрахунок на вільну клітинку</b>, і бере найвищу оцінку. Один розрахунок — це дві
+    операції «рядок × матриця»: спочатку 9 чисел крізь W₁, потім голоси нейронів крізь w₂.</p>
+    <p class="note" style="font-weight:600">🧮 Завдання: порахуйте нейрон №1 на папері для дошки з екрана
+    і звірте з машиною. Потім перевірте клітинку, яку вона вважає найкращою.</p>
+  </div>
+</section>
+
+<!-- ================= КІНО ================= -->
+<section class="card lab wide">
+  <h2>🎬 Покрокове кіно</h2>
+  <div class="tabs">
+    <button id="cTabF" aria-pressed="true">Як обирається хід</button>
+    <button id="cTabB" aria-pressed="false">Як виправляються ваги</button>
+  </div>
+  <div class="row" style="margin-bottom:8px">
+    <span class="note">приклади позицій:</span>
+    <button class="btn" data-pre="0">загроза</button>
+    <button class="btn" data-pre="1">вилка</button>
+    <button class="btn" data-pre="2">переможний хід</button>
+    <button class="btn" data-pre="3">спокійна</button>
+    <button class="btn" data-pre="4">початок</button>
+    <button class="btn primary" data-pre="-1">🔍 влучний приклад</button>
+  </div>
+  <div class="cineRow" id="cineRow"></div>
+  <p id="cineCap" style="min-height:2.4em;font-weight:600;margin:10px 0 4px"></p>
+  <div class="row">
+    <button class="btn primary" id="cPlay">▶ Грати</button>
+    <button class="btn" id="cNext">⏭ Далі</button>
+    <button class="btn" id="cRe">↺ Спочатку</button>
+    <span class="note" id="cineHint">У фільмі «виправлення» крок навчання збільшено ×10, щоб зсуви було видно.</span>
+  </div>
+</section>
+
+<!-- ================= ШЛЯХ ПОМИЛКИ ================= -->
+<section class="card lab wide">
+  <h2>🕳️ Шлях помилки: як промах дістається кожної ваги</h2>
+  <p class="note">Помилка народжується одна — на відповіді мережі. А далі тече назад (back propagation) — крізь шість шлюзів,
+  і на кожному щось відбувається з потоком: коригується, ділиться, глушиться, перевертає знак.
+  Клацайте шлюзи. Ця схема — те саме, що показує кіно (вкладка «Як виправляються ваги»), тільки без чисел: механізм.</p>
+  <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap" id="ebcChain"></div>
+  <p class="note" id="ebcText" style="min-height:4.5em;font-size:15px;margin-top:12px"></p>
+</section>
+
+<!-- ================= ЛАБОРАТОРІЯ ================= -->
+<section class="card lab wide">
+  <h2>🧪 Лабораторія</h2>
+  <div class="labGrid">
+    <div class="lab">
+      <p class="h3">1 · Стискач tanh</p>
+      <canvas id="tanhC"></canvas>
+      <label class="grow">подати число <input type="range" id="tz" min="-4" max="4" step="0.1" value="2"></label>
+      <label class="grow">крутість k <input type="range" id="tk" min="0.25" max="6" step="0.25" value="1"></label>
+      <div class="row">
+        <button class="btn" data-z="4">4</button>
+        <button class="btn" data-z="10">10</button>
+        <button class="btn" data-z="-10">−10</button>
+        <label class="row" style="margin:0"><input type="checkbox" id="tlin"> показати без стискання</label>
+      </div>
+      <p class="note" id="tanhNote"></p>
+    </div>
+    <div class="lab">
+      <p class="h3">2 · Ландшафт помилки й градієнт</p>
+      <canvas id="landC"></canvas>
+      <div class="kv"><span>висота = помилка</span><span>висота тут: <b id="landPos">—</b></span></div>
+      <div class="row">
+        <button class="btn primary" id="gProbe">пробні кроки</button>
+        <button class="btn primary" id="gStep">крок ↓</button>
+        <button class="btn" id="g10">×10</button>
+        <button class="btn" id="gRe">точку на схил</button>
+		      <label class="grow">крок спуску <input type="range" id="gEta" min="0.005" max="0.5" step="0.005" value="0.05"></label>
+			        <button class="btn" id="gNew">новий ландшафт</button>
+      </div>
+      <p class="note" id="landNote">Перетягуйте точку мишею. «Пробні кроки»: маленький крок на південь,
+      маленький на схід — і порівнюємо, як змінилася висота. З двох підказок складається напрямок
+      найшвидшого спуску — червона стрілка. Це і є градієнт.</p>
+    </div>
+    <div class="lab">
+      <p class="h3">3 · Побудуй свою мережу</p>
+      <div class="row">Шар 1
+        <select id="m1"><option>4</option><option>8</option><option>16</option><option selected>32</option><option>64</option></select>
+        Шар 2
+        <select id="m2"><option value="0" selected>—</option><option>4</option><option>8</option><option>16</option></select>
+        Активація
+        <select id="mAct"><option selected>tanh</option><option>relu</option><option>linear</option></select>
+      </div>
+      <div class="row">Крок навчання <output id="mlrOut"></output>
+        <input type="range" id="mlr" min="0.005" max="0.15" step="0.005" value="0.035" style="width:110px">
+      </div>
+      <div class="row">Випадкові ходи <output id="mepsOut"></output>
+        <input type="range" id="meps" min="0" max="0.5" step="0.05" value="0.45" style="width:110px">
+        <label><input type="checkbox" id="mdecay" checked> зменшувати крок</label>
+      </div>
+      <div class="row">Бюджет
+        <select id="mBud"><option value="1000">1 000</option><option value="5000">5 000</option><option value="10000" selected>10 000</option><option value="20000">20 000</option></select>
+        <button class="btn primary" id="mGo">Навчити нову модель</button>
+        <button class="btn" id="mStop" disabled>⏸ Стоп</button>
+      </div>
+      <canvas id="mGraph"></canvas>
+      <p class="note" id="mInfo"></p>
+      <canvas id="mChart"></canvas>
+      <div id="mList"></div>
+      <div class="row">
+        <button class="btn" id="mBest">⚡ Показачок</button>
+        <button class="btn" id="mClear">Очистити список</button>
+      </div>
+      <p class="note">Суцільна лінія — програші проти ідеального гравця, пунктир — проти випадкового.
+      Рушій той самий, що в блоці «Навчання» зверху. Порівняйте одношарову з двошаровою
+      при однаковому бюджеті, а також лінійну активацію.</p>
+    </div>
+</section>
+
+<!-- ================= ЯК ЦЕ ПРАЦЮЄ ================= -->
+<section class="card how wide">
+  <h2>📖 Як це влаштовано — коротко</h2>
+  <div class="cols">
+    <div><h3>Позиція — дев'ять чисел</h3>
+      <p>Мережа не бачить хрестиків. Вона бачить дев'ять чисел: її фігура — +1, фігура суперника — −1,
+      порожня клітинка — 0. Поле показують очами гравця, що щойно походив, тому одна мережа грає за обидві сторони.</p></div>
+    <div><h3>Множення, додавання — і два стиски</h3>
+      <p>Кожен нейрон додає дев'ять добутків, сума проходить крізь стиск tanh (вигин!) — виходить активація.
+      Потім активації знову множаться й додаються, і фінальний стиск дає оцінку v. Правил гри всередині немає —
+      лише 11N+1 чисел і два стиски. Без стисків уся мережа згорнулася б в один «цінник».</p></div>
+    <div><h3>Звідки береться «правильна відповідь»</h3>
+      <p>Учителя немає. Мережа грає сама проти себе, а після партії переглядає кожну позицію:
+      «суперник відповість найкращим для себе ходом — мені дістанеться мінус його відповіді».
+      Останню позицію передбачати не треба: перемога — точно +1, нічия — точно 0.</p></div>
+    <div><h3>Чому іноді програє</h3>
+      <p>Навіть навчена мережа час від часу програлає досконалому гравцеві — зазвичай пропустивши
+      «вилку»: дві загрози одразу. Один шар легко ловить «або», а вилка — це «і».
+      Це чесне обмеження: його знімають глибші мережі або перебір ходів.</p></div>
+  </div>
+</section>
+
+<!-- ================= ЧАПІ ================= -->
+<section class="card how wide">
+  <h2>❓ Часті питання</h2>
+  <details><summary>Що означає число під клітинкою під час гри?</summary>
+    <p>Прогноз: «якщо поставити сюди фігуру, партія закінчиться ось так» — від −1 до +1. Для кожної вільної клітинки мережа робить окремий такий розрахунок. Хід, що одразу збирає лінію, оцінюють самі правила: це рівно +1.</p></details>
+  <details><summary>Звідки береться «правильна відповідь» для навчання?</summary>
+    <p>Мінус найкраща відповідь суперника: він перебирає всі свої ходи, а оцінює їх мережа його ж очима (кіно, вкладка «Як виправляються ваги», кроки 2–3 — показано анімацією). Остання позиція навчання не потребує — там точне число за правилами. У виграній партії окремі позиції бувають з t = −1: партію виграли випадково, а позиція була програшною проти найкращої гри.</p></details>
+	  <details><summary>Чому іноді вже навчена мережа в процесі донавчання стає різко тупішою?</summary>
+    <p>На графіку це шпилька вгору: ще крок тому мережа була кращою, ніж тепер. Відбувається ось що. «Навчена» не означає «у кожній позиції вчить правильно» — у мережі завжди залишаються слабкі місця, зазвичай рідкісні позиції, яких партії майже не відвідують (самі з них — ті, через які її можна обіграти). Донавчання продовжує зсувати ваги після кожної партії, і черговий поштовх — особливо від несподіваної позиції або вдалої вилки суперника — перекидає ваги так, що вилазить назовні та сама рідкісна пастка: тепер у кількох позиціях оцінки вишикувалися не на користь. Один-два ходи в кількох партіях — а через «жадібний вибір найкращого» це одразу видно на графіку.</p>
+    <p>Три речі, чому це не катастрофа, а властивість методу. (1) Навчання жодного разу не «зберігає досягнуте»: воно просто щоразу зсуває ваги в бік меншої помилки в тій позиції, яку бачить зараз — про весь інший досвід воно не пам'ятає, усе знання лежить тільки в самих вагах. (2) Вимір шумний: перевірка на 100 партіях має похибку в кілька відсотків, тож частина шпильок — це коливання виміру, а не справжнє погіршення (це видно й на головному графіку: крива дрижить навколо плато). (3) Той самий механізм, що час від часу псує, і виліковує: наступні партії знову тягнуть ваги в бік меншої помилки, і крива повертається на плато. Ліки радикальніше одне: зменшити крок (менші поштовхи) — саме тому крок навчання з часом зменшують, а на панелі навчання він уже стоїть невеликий.</p>
+  </details>
+  <details><summary>Виправлення на сусідніх ходах мають різні знаки — вони не знищують одне одного?</summary>
+    <p>Ні: позиції виправляються по одній, з кінця партії, кожна бачить уже виправлену мережу. Суперечливі поштовхи між партіями гасяться як шум — тому й потрібні тисячі ігор, а крок навчання з часом зменшують.</p></details>
+  <details><summary>Навіщо нелінійність і навіщо b?</summary>
+    <p>Вигин дає нейрону змінну чутливість — без нього вся мережа склеюється в один «цінник», який вміє «скільки», але не «якщо» (а гра — це «якщо»: дві фігури суперника в лінії небезпечні тільки разом). b — поріг: скільки доказів треба, щоб нейрон заговорив.</p></details>
+  <details><summary>tanh — крива без вимикача. Хто там спить?</summary>
+    <p>Ніхто. Але біля стель ±1 голос «прилипає» і нейрон майже перестає вчиться. ReLU спить чесно: a = 0. А вимкнути зайвий tanh-нейрон вихід може довірою w₂ ≈ 0.</p></details>
+	  <details><summary>Другий шар — мережа ж «розумніша». Чому вона грає гірше?</summary>
+    <p>«Розумніша» тут означає «здатна виразити більше» — але не «встигне навчитися». У глибини є три ціни, і при нашому бюджеті вони переважують: (1) та сама кількість ігор ділиться між удвічі більшою кількістю ручок — на кожну припадає менше уроків; (2) сигнал помилки доходить до першого шару крізь зайвий стиск tanh, а кожен стиск його послаблює — як луна крізь зайву кімнату; (3) крок навчання спільний для всіх шарів, а кожному шару потрібен свій темп. І головне: цій задачі другий шар нічого не додає — усі правила хрестиків-нулик («дві в лінії», «вилка») вміщаються в один шар. Глибина окупується там, де задача складніша й даних більше: збільшіть бюджет до 20 000 — і розрив скоротиться, а у великих іграх виграють саме глибокі мережі.</p></details>
+  <details><summary>ReLU — це ж «як у природному нейроні». Чому в нас гірший за tanh?</summary>
+    <p>Так, у ReLU є поріг, як у справжнього нейрона: або сигнал, або мовчання. Але наш спосіб навчання — не природний (у мозку немає градієнтного спуску), і саме для нього у ReLU два мінуси. Перший — <b>мертві нейрони</b>: якщо нейрон «заснув» на всіх позиціях, які бачить навчання, його помилка завжди нуль — він уже ніколи не прокинеться. У tanh таких нема: усі нейрони потроху вчяться завжди. Другий — <b>однобокий голос</b>: ReLU не вміє казати «ні» (його відповідь ніколи не від'ємна), тож усі мінуси доводиться перекладати на вихідний шар. Це не вирок ReLU: у великих мережах з мільйонами прикладів він якраз швидший і зручніший, тому панує в сучасних мережах. Але на нашій малій задачі з тисячами партій перемагає tanh — ваші ж виміри це показали: у ReLU програші стрибали від запуску до запуску в кілька разів сильніше.</p></details>
+  <details><summary>Чому не крутять саму форму вигину?</summary>
+    <p>Ці ручки вже є: крутість tanh(k·z) — це ті самі ваги, помножені на k (слайдер на стенді 1), а поріг ReLU — це b. Дублікати тільки плутають навчання.</p></details>
+  <details><summary>Що таке вихідний шар?</summary>
+    <p>Один нейрон за тим самим рецептом: сума «голос × довіра w₂» плюс зсув b₂, потім tanh — щоб відповідь жила на шкалі гри −1…+1.</p></details>
+  <details><summary>Лінійна активація не працює — а що саме вона вміє?</summary>
+    <p>Тільки «цінник»: кожна клітинка має фіксовану ціну, і мережа завжди ходить у найдорожчу вільну. Ні блокувати, ні реагувати на загрозу вона не може — перевірте після 1 000 ігор у таблиці проти ідеального.</p></details>
+  <details><summary>Хто такі «ідеальний гравець» і «поразки при переборі»? Хто їх навчив, якщо вчителя немає?</summary>
+    <p>Ніхто — вони не вчать, а судять. Це дві маленькі перевірочні програми: ідеальний гравець сам перебирає варіанти ходів і грає безпомилково; «поразки при переборі» — лічильник кінцівок партій, які скінчилися б поразкою мережі, якби суперник перепробував усі ходи. Мережа вчиться без них, сама проти себе; судді лише показують, наскільки вона сильна.</p></details>
+  <details><summary>Чому у фільмі «виправлення» зсуви більші, ніж насправді?</summary>
+    <p>Щоб їх було видно: у фільмі крок навчання збільшено ×10. У справжньому навчанні зсуви в 10 разів менші — тому й потрібні тисячі партій.</p></details>
+</section>
+</div>
+</div>
+<script>
+(()=>{'use strict';
+/* ================= правила ================= */
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function winner(b){for(const[a,c,d]of LINES)if(b[a]&&b[a]===b[c]&&b[a]===b[d])return b[a];return b.includes(0)?0:3;}
+function winLine(b){for(const l of LINES)if(b[l[0]]&&b[l[0]]===b[l[1]]&&b[l[0]]===b[l[2]])return l;return null;}
+function toMove(b){let x=0,o=0;for(const c of b){if(c===1)x++;else if(c===2)o++;}return x===o?1:2;}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const _x=new Array(9);
+function feat(b,p){for(let i=0;i<9;i++){const c=b[i];_x[i]=c===p?1:(c?-1:0);}return _x;}
+const fmt=n=>n.toLocaleString("uk-UA");
+function fmtV(v){const a=Math.abs(v);if(a<1e-4)return "0";
+  const dec=a>=0.095?2:4;return (v>0?"+":"\u2212")+a.toFixed(dec);}
+
+/* ================= мережа 9 -> H -> 1 ================= */
+class Net{
+  constructor(H,act){this.H=H;this.act=act;this.init();}
+  init(){const H=this.H;
+    this.W1=Array.from({length:H},()=>Array.from({length:9},()=>(Math.random()*2-1)*.5));
+    this.b1=Array.from({length:H},()=>this.act==="relu"?.1+.2*Math.random():0);
+    this.w2=Array.from({length:H},()=>(Math.random()*2-1)*.5);
+    this.b2=0;this.z=new Array(H).fill(0);this.a=new Array(H).fill(0);this.y=0;}
+  actF(s){return this.act==="relu"?(s>0?s:0):this.act==="linear"?s:Math.tanh(s);}
+  actD(a){return this.act==="relu"?(a>0?1:0):this.act==="linear"?1:1-a*a;}
+  forward(x){const H=this.H;let s2=this.b2;
+    for(let j=0;j<H;j++){let s=this.b1[j];const Wj=this.W1[j];
+      for(let k=0;k<9;k++)s+=Wj[k]*x[k];
+      this.z[j]=s;const a=this.actF(s);this.a[j]=a;s2+=this.w2[j]*a;}
+    this.y=Math.tanh(s2);return this.y;}
+  train(x,t,lr){const y=this.forward(x),dy=(y-t)*(1-y*y),H=this.H;
+    for(let j=0;j<H;j++){const a=this.a[j],dh=dy*this.w2[j]*this.actD(a);
+      this.w2[j]-=lr*dy*a;this.b1[j]-=lr*dh;
+      const Wj=this.W1[j];for(let k=0;k<9;k++)Wj[k]-=lr*dh*x[k];}
+    this.b2-=lr*dy;return y;}
+}
+
+/* ================= оцінка ходів ================= */
+function qOf(net,b,pl,a){b[a]=pl;const w=winner(b);let t;
+  if(w===3)t=0;else if(w)t=1;else t=-net.forward(feat(b,3-pl));
+  b[a]=0;return t;}
+function evalMoves(net,b,pl){const r=[];for(let i=0;i<9;i++)if(!b[i])r.push({i,v:qOf(net,b,pl,i)});return r;}
+function greedyMove(net,b,pl){let bv=-Infinity,bi=-1;
+  for(const m of evalMoves(net,b,pl))if(m.v>bv){bv=m.v;bi=m.i;}return bi;}
+function randMove(b){const e=[];for(let i=0;i<9;i++)if(!b[i])e.push(i);return pick(e);}
+
+/* ================= самонавчання (протокол toyNN) ================= */
+function negamaxTarget(net,b,p){
+  const q=3-p;let best=-2;
+  for(let i=0;i<9;i++)if(!b[i]){
+    b[i]=q;const w=winner(b);let v;
+    if(w===3)v=0;else if(w)v=1;else v=net.forward(feat(b,q));
+    b[i]=0;if(v>best)best=v;}
+  return -best;}
+function selfPlay(net,eps,lr){
+  const b=Array(9).fill(0);let p=1,w;const path=[];
+  for(;;){
+    const ev=evalMoves(net,b,p);let bv=-Infinity,bi=-1;
+    for(const m of ev)if(m.v>bv){bv=m.v;bi=m.i;}
+    b[Math.random()<eps?pick(ev).i:bi]=p;
+    w=winner(b);
+    if(w)break;
+    path.push({x:feat(b,p).slice(),b:b.slice(),p});
+    p=3-p;}
+  for(let i=path.length-1;i>=0;i--){const h=path[i];
+    net.train(h.x,negamaxTarget(net,h.b,h.p),lr);}
+  net.train(feat(b,p).slice(),w===3?0:1,lr);}
+
+/* ================= судді ================= */
+const mmCache=new Map();
+function mm(b){const k=b.join("");let v=mmCache.get(k);if(v!==undefined)return v;
+  const w=winner(b);
+  if(w===3)v=0;else if(w)v=-1;
+  else{const p=toMove(b);v=-2;
+    for(let i=0;i<9;i++)if(!b[i]){b[i]=p;const s=-mm(b);b[i]=0;if(s>v)v=s;}}
+  mmCache.set(k,v);return v;}
+function mmMove(b,p){let bv=-2,arr=[];
+  for(let i=0;i<9;i++)if(!b[i]){b[i]=p;const s=-mm(b);b[i]=0;
+    if(s>bv){bv=s;arr=[i];}else if(s===bv)arr.push(i);}return pick(arr);}
+function strictLosses(net,me){
+  const vc=new Map();
+  const vnet=(b,pl)=>{const k=b.join("")+pl;let v=vc.get(k);
+    if(v===undefined){v=net.forward(feat(b,pl));vc.set(k,v);}return v;};
+  let n=0;
+  (function rec(b,pl){
+    const w=winner(b);
+    if(w===3)return;if(w){if(w!==me)n++;return;}
+    if(pl===me){let bv=-Infinity,bi=-1;
+      for(let i=0;i<9;i++)if(!b[i]){b[i]=pl;const w2=winner(b);let t;
+        if(w2===3)t=0;else if(w2)t=1;else t=-vnet(b,3-pl);b[i]=0;
+        if(t>bv){bv=t;bi=i;}}
+      b[bi]=pl;rec(b,3-pl);b[bi]=0;}
+    else for(let i=0;i<9;i++)if(!b[i]){b[i]=pl;rec(b,3-pl);b[i]=0;}
+  })(Array(9).fill(0),1);
+  return n;}
+function playEval(net,side,opp){const b=Array(9).fill(0);let p=1,w=0;
+  while(!(w=winner(b))){const m=(p===side)?greedyMove(net,b,p):opp(b,p);b[m]=p;p=3-p;}
+  return w===3?"d":(w===side?"w":"l");}
+function evaluate(net,n){
+  const o={r:{w:0,d:0,l:0},m:{w:0,d:0,l:0}};
+  for(let s=1;s<=2;s++)for(let k=0;k<n;k++){o.r[playEval(net,s,randMove)]++;o.m[playEval(net,s,mmMove)]++;}
+  o.lossX=strictLosses(net,1);o.lossO=strictLosses(net,2);return o;}
+function evaluateLight(net,n){
+  const o={r:{w:0,d:0,l:0},m:{w:0,d:0,l:0}};
+  for(let s=1;s<=2;s++)for(let k=0;k<n;k++){o.r[playEval(net,s,randMove)]++;o.m[playEval(net,s,mmMove)]++;}
+  return o;}
+
+/* ================= демо-позиції та «народження t» ================= */
+const PRESETS=[
+  {name:"загроза",b:[2,2,0,1,1,0,0,0,1]},
+  {name:"вилка",b:[2,2,0,2,1,0,0,0,1]},
+  {name:"переможний хід",b:[1,2,0,0,1,2,0,0,1]},
+  {name:"спокійна",b:[2,0,0,0,1,0,0,0,1]},
+  {name:"початок",b:[0,0,0,0,1,0,0,0,0]}];
+function evalDemo(b){
+  const w=winner(b);
+  const nx=b.filter(c=>c===1).length,no=b.filter(c=>c===2).length;
+  const p=nx>no?1:no>nx?2:toMove(b);
+  const x=feat(b,p).slice();
+  const v=net.forward(x);
+  if(w)return{p,x,v,t:w===3?0:(w===p?1:-1),terminal:true,cands:[],neg:false,mx:0,
+    why:w===3?"партія скінчилася нічиєю — точну відповідь дають правила"
+    :`лінію зібрали ${w===1?"✕":"◯"} — точну відповідь дають правила`};
+  const ans=(nx!==no)?3-p:p;
+  const cands=[];
+  for(let i=0;i<9;i++)if(!b[i]){
+    b[i]=ans;const wa=winner(b);let val;
+    if(wa===3)val=0;else if(wa)val=1;else val=net.forward(feat(b,ans));
+    b[i]=0;cands.push({i,v:val});}
+  const mx=cands.length?Math.max(...cands.map(c=>c.v)):0;
+  net.forward(x);
+  if(nx!==no)return{p,x,v,t:-mx,terminal:false,cands,neg:true,mx,
+    why:"суперник відповість найкращим для себе ходом — мені дістанеться мінус його найкращої оцінки"};
+  return{p,x,v,t:mx,terminal:false,cands,neg:false,mx,
+    why:"тепер хід цього гравця: найкраще, що він може добути, — найкраща з власних оцінок"};}
+function bestPreset(){let bi=0,bd=-1;
+  for(let k=0;k<PRESETS.length;k++){
+    const D=evalDemo(PRESETS[k].b.slice());
+    const d=Math.abs(D.t-D.v);
+    if(d>bd){bd=d;bi=k;}}
+  return bi;}
+function loadPreset(k){setMode("analysis");board=PRESETS[k].b.slice();renderBoard();}
+
+/* ================= стан ================= */
+const $=s=>document.querySelector(s);
+let net=new Net(32,"tanh"),trainedGames=0,hist=[],sel=0;
+let board=Array(9).fill(0),mode="play",human=1,thinking=false,gameId=0;
+let training=false,stopFlag=false,targetGames=0,startGames=0;
+
+/* ================= поле ================= */
+const boardEl=$("#board"),cells=[];
+for(let i=0;i<9;i++){const c=document.createElement("button");c.className="cell";
+  c.addEventListener("click",()=>click(i));boardEl.appendChild(c);cells.push(c);}
+function renderBoard(){
+  const w=winner(board),wl=winLine(board),tm=toMove(board);
+  let ev=null;
+  const wantHints=mode==="analysis"?true:($("#hints").checked&&!thinking&&tm===human);
+  if(!w&&wantHints)ev=evalMoves(net,board,tm);
+  let bv=-Infinity;if(ev)for(const m of ev)if(m.v>bv)bv=m.v;
+  for(let i=0;i<9;i++){const c=cells[i];
+    c.className="cell"+(board[i]===1?" x":board[i]===2?" o":"");
+    let html=`<span class="idx">${i+1}</span>`;
+    if(board[i])html+=`<span class="mark">${board[i]===1?"✕":"◯"}</span>`;
+    if(ev&&!board[i]){const m=ev.find(e=>e.i===i);
+      html+=`<span class="val">${fmtV(m.v)}</span>`;
+      if(m.v>bv-1e-9)c.classList.add("best");}
+    c.innerHTML=html;
+    if(wl&&wl.includes(i))c.classList.add("win");
+    c.disabled=(mode==="play")&&(thinking||!!w||!!board[i]||tm!==human);}
+  const sym=p=>p===1?"✕":"◯";let s="";
+  if(mode==="play"){
+    if(w===3)s="Нічия. Зіграймо ще!";else if(w)s=(w===human)?"Ви перемогли! 🎉":"Перемогла мережа.";
+    else if(thinking)s="Мережа обирає хід…";else s=`Ваш хід (${sym(human)}).`;
+  }else{
+    if(w===3)s="Нічия.";else if(w)s=`Перемагають ${sym(w)}.`;
+    else s=`Аналіз: клітинка перемикається порожньо → ✕ → ◯. Хід: ${sym(tm)}.`;
+    const nx=board.filter(c=>c===1).length,no=board.filter(c=>c===2).length;
+    if(nx<no||nx>no+1)s+=" Така позиція неможлива в реальній грі — оцінки можуть бути дивними.";}
+  $("#status").textContent=s;
+  $("#logNote").textContent=ev
+    ?"Число під клітинкою — оцінка ходу від −1 (програш) до +1 (перемога). Зеленим — улюблений хід мережі."
+    :"Поставте галочку «оцінки ходів», щоб бачити, що думає мережа.";
+  renderHood();}
+function click(i){
+  if(mode==="analysis"){board[i]=(board[i]+1)%3;renderBoard();return;}
+  if(thinking||winner(board)||board[i]||toMove(board)!==human)return;
+  board[i]=human;renderBoard();
+  if(!winner(board)&&toMove(board)!==human)netTurn();}
+function netTurn(){const id=++gameId;thinking=true;renderBoard();
+  setTimeout(()=>{if(id!==gameId||!thinking)return;
+    const p=toMove(board);
+    if(winner(board)||p===human){thinking=false;renderBoard();return;}
+    board[greedyMove(net,board,p)]=p;thinking=false;renderBoard();},420);}
+function newGame(){gameId++;board=Array(9).fill(0);human=+$("#side").value;thinking=false;renderBoard();
+  if(!winner(board)&&toMove(board)!==human)netTurn();}
+function setMode(m){mode=m;cinePause();
+  $("#tabPlay").setAttribute("aria-pressed",m==="play");
+  $("#tabAn").setAttribute("aria-pressed",m==="analysis");
+  $("#playCtl").style.display=m==="play"?"flex":"none";
+  $("#hintsRow").style.display=m==="play"?"flex":"none";
+  newGame();}
+
+/* ================= під капотом ================= */
+const heat=(w,mx)=>{const r=Math.min(1,Math.abs(w)/mx);
+  return (w>=0?"rgba(47,111,208,":"rgba(226,87,76,")+(.08+.85*r)+")";};
+function hoodEyes(){const v=$("#eyes").value;return v==="auto"?toMove(board):+v;}
+function renderHood(){
+  const H=net.H,x=feat(board,hoodEyes()).slice();
+  net.forward(x);
+  const ib=$("#inBoard");ib.innerHTML="";
+  for(let i=0;i<9;i++){const b=document.createElement("b");
+    b.textContent=x[i]>0?"+1":x[i]<0?"\u22121":"0";
+    b.style.background=x[i]>0?"#dbe8fa":x[i]<0?"#fbdfdc":"#f4f6fa";
+    b.style.color=x[i]>0?"var(--blue)":x[i]<0?"var(--coral)":"#a7b0c2";
+    ib.appendChild(b);}
+  let maxW=1e-9;for(let j=0;j<H;j++)for(let k=0;k<9;k++)maxW=Math.max(maxW,Math.abs(net.W1[j][k]));
+  const gal=$("#gal");gal.innerHTML="";
+  $("#galTitle").textContent=`Приховані нейрони — рядки матриці W₁ (${H} × 9)`;
+  for(let j=0;j<H;j++){
+    const card=document.createElement("div");card.className="ncard"+(j===sel?" sel":"");
+    const mb=document.createElement("div");mb.className="mb";
+    for(let k=0;k<9;k++){const i2=document.createElement("i");
+      i2.style.background=heat(net.W1[j][k],maxW);mb.appendChild(i2);}
+    const sm=document.createElement("small");
+    sm.textContent=`h${j+1}=${net.a[j].toFixed(2)}`;
+    card.appendChild(mb);card.appendChild(sm);
+    card.addEventListener("click",()=>{sel=j;renderHood();});
+    gal.appendChild(card);}
+  $("#detTitle").textContent=`Нейрон №${sel+1}: рядок × вектор = одне число`;
+  const dw=$("#dW"),dp=$("#dP");dw.innerHTML="";dp.innerHTML="";
+  let terms="",zsum=net.b1[sel];
+  for(let k=0;k<9;k++){
+    const wb=document.createElement("b");wb.textContent=fmtV(net.W1[sel][k]);
+    wb.style.background=heat(net.W1[sel][k],maxW);dw.appendChild(wb);
+    const pb=document.createElement("b");
+    if(x[k]!==0){const p=x[k]*net.W1[sel][k];zsum+=p;
+      terms+=` + (${x[k]>0?"+1":"\u22121"})·(${fmtV(net.W1[sel][k])})`;
+      pb.textContent=fmtV(p);pb.style.background=heat(p,maxW);}
+    else{pb.textContent="0";pb.style.color="#c3cad8";}
+    dp.appendChild(pb);}
+  $("#mZ").textContent=`z = ${fmtV(net.b1[sel])}${terms} = ${fmtV(zsum)}`;
+  const a=net.a[sel];
+  $("#mADesc").textContent=net.act==="relu"
+    ?"ReLU: мінус — нейрон спить (0), плюс — пропускає як є:"
+    :net.act==="linear"
+    ?"Лінійна: без стискання, a = z:"
+    :"tanh стискає будь-яке число у діапазон −1…+1 (лабораторія №1):";
+  $("#mA").textContent=net.act==="linear"?`a = z = ${fmtV(a)}`
+    :net.act==="relu"?`a = max(0, z) = ${fmtV(a)}`:`a = tanh(z) = ${fmtV(a)}`;
+  const c=net.w2[sel]*a;
+  $("#mC").textContent=`внесок = w₂·a = (${fmtV(net.w2[sel])})·(${fmtV(a)}) = ${fmtV(c)}`;
+  let s2=net.b2,maxC=1e-9;const cs=[];
+  for(let j=0;j<H;j++){const cj=net.w2[j]*net.a[j];cs.push(cj);s2+=cj;maxC=Math.max(maxC,Math.abs(cj));}
+  const cb=$("#contrib");cb.innerHTML="";
+  for(const cj of cs){const bar=document.createElement("i");
+    bar.style.height=(4+50*Math.abs(cj)/maxC)+"px";
+    bar.style.background=cj>=0?"var(--blue)":"var(--coral)";cb.appendChild(bar);}
+  $("#mV").textContent=`v = tanh(${fmtV(net.b2)} + Σ внесків) = tanh(${fmtV(s2)}) = ${fmtV(net.y)}`;
+  $("#vmark").style.left=(50+net.y*50)+"%";}
+
+/* ================= лабораторія ================= */
+function setupC(c){const dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+  const ctx=c.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return{ctx,w,h};}
+
+/* --- стенд 1: tanh із крутістю k --- */
+let tz=2,tk=1;
+function drawTanh(){const c=$("#tanhC");if(!c.clientWidth)return;
+  const{ctx,w,h}=setupC(c);const a=Math.tanh(tk*tz);
+  const half=Math.max(4,Math.abs(tz)+.6);
+  const X=x=>w/2+x*(w-24)/(2*half),Y=y=>h/2-y*(h-30)/2/1.5;
+  ctx.font="11px system-ui";ctx.textBaseline="middle";
+  ctx.strokeStyle="#c9d2e0";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(X(-half),Y(0));ctx.lineTo(X(half),Y(0));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(X(0),Y(1.45));ctx.lineTo(X(0),Y(-1.45));ctx.stroke();
+  for(const sg of[1,-1]){ctx.setLineDash([5,4]);ctx.strokeStyle="#e2574c";
+    ctx.beginPath();ctx.moveTo(X(-half),Y(sg));ctx.lineTo(X(half),Y(sg));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#e2574c";ctx.textAlign="left";
+    ctx.fillText(sg>0?"+1 стеля":"−1 стеля",X(-half)+4,Y(sg)+(sg>0?-8:10));}
+  if($("#tlin").checked){ctx.strokeStyle="#b6bfd0";ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(X(-1.45),Y(-1.45*tk));ctx.lineTo(X(1.45),Y(1.45*tk));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#8a93a3";ctx.textAlign="center";ctx.fillText("без стискання",X(0.9),Y(0.9*tk)-12);}
+  ctx.strokeStyle="#2f6fd0";ctx.lineWidth=2.5;ctx.beginPath();
+  for(let i=0;i<=120;i++){const xx=-half+2*half*i/120;
+    i?ctx.lineTo(X(xx),Y(Math.tanh(tk*xx))):ctx.moveTo(X(xx),Y(Math.tanh(tk*xx)));}
+  ctx.stroke();
+  ctx.setLineDash([3,3]);ctx.strokeStyle="#8a93a3";
+  ctx.beginPath();ctx.moveTo(X(tz),Y(0));ctx.lineTo(X(tz),Y(a));ctx.lineTo(X(0),Y(a));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="#f0a83a";ctx.beginPath();ctx.arc(X(tz),Y(a),6,0,7);ctx.fill();
+  ctx.fillStyle="#22304a";ctx.textAlign="center";
+  ctx.fillText(fmtV(tz),X(tz),Y(0)+(tz>=0?14:-14));
+  ctx.textAlign="right";ctx.fillText(fmtV(a),X(0)-6,Y(a)-8);
+  $("#tanhNote").textContent=`подали ${fmtV(tz)} → tanh(${fmtV(tk*tz)}) = ${fmtV(a)}`
+    +(Math.abs(a)>0.999?" — стеля: перекричаний нейрон майже не вчиться":"")
+    +(tk!==1?` · крутість k=${tk} = ті самі ваги, помножені на ${fmtV(tk)}`:"");}
+ $("#tz").addEventListener("input",e=>{tz=+e.target.value;drawTanh();});
+ $("#tk").addEventListener("input",e=>{tk=+e.target.value;drawTanh();});
+ $("#tlin").addEventListener("change",drawTanh);
+document.querySelectorAll("[data-z]").forEach(b=>b.addEventListener("click",()=>{
+  tz=+b.dataset.z;$("#tz").value=Math.max(-4,Math.min(4,tz));drawTanh();}));
+
+/* --- стенд 2: ландшафт помилки й градієнт --- */
+const land={x:.72,y:.18,trail:[],probe:false,s:.05};
+const landPits=[{x:.30,y:.38,s:.17,d:.92},{x:.72,y:.66,s:.13,d:.6},{x:.62,y:.18,s:.09,d:.25}];
+function landH(x,y){const g=(cx,cy,s)=>Math.exp(-((x-cx)**2+(y-cy)**2)/(2*s*s));
+  let h=1;for(const p of landPits)h-=p.d*g(p.x,p.y,p.s);return h;}
+function newLandscape(){landPits.length=0;
+  const n=1+Math.floor(Math.random()*3);   /* 2–3 ями */
+  for(let i=0;i<n;i++)landPits.push({
+    x:.12+.76*Math.random(),y:.12+.76*Math.random(),
+    s:.08+.15*Math.random(),d:.35+.7*Math.random()});
+  land.x=.15+.7*Math.random();land.y=.15+.7*Math.random();
+  land.trail=[];land.probe=false;drawLand();landNote2();}
+ $("#gNew").addEventListener("click",()=>{if(!training&&!mini.busy)newLandscape();});
+function landArrow(ctx,x0,y0,dx,dy,len,color,lab){
+  const x1=x0+dx*len,y1=y0+dy*len,a=Math.atan2(dy,dx);
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x1+Math.cos(a)*9,y1+Math.sin(a)*9);
+  ctx.lineTo(x1+Math.cos(a+2.6)*7,y1+Math.sin(a+2.6)*7);
+  ctx.lineTo(x1+Math.cos(a-2.6)*7,y1+Math.sin(a-2.6)*7);ctx.closePath();ctx.fill();
+  ctx.font="700 10px system-ui";ctx.textAlign="left";
+  ctx.fillText(lab,x1+Math.cos(a)*13+2,y1+Math.sin(a)*13);}
+function drawLand(){const c=$("#landC");if(!c.clientWidth)return;
+  const{ctx,w,h}=setupC(c);
+  /* гладкий ландшафт: рахуємо на дрібній сітці, розтягуємо зі згладжуванням — квадратів не видно */
+  const sw=Math.max(4,Math.floor(w/3)),sh=Math.max(4,Math.floor(h/3));
+  const off=document.createElement("canvas");off.width=sw;off.height=sh;
+  const octx=off.getContext("2d");
+  const img=octx.createImageData(sw,sh),d=img.data;
+  const vals=new Float32Array(sw*sh);
+  for(let py=0;py<sh;py++)for(let px=0;px<sw;px++){
+    const H=landH(px/sw,py/sh);vals[py*sw+px]=H;
+    const i=(py*sw+px)*4;
+    d[i]=Math.round(236-198*H);d[i+1]=Math.round(243-152*H);d[i+2]=Math.round(251-100*H);d[i+3]=255;}
+
+  octx.putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+  ctx.drawImage(off,0,0,sw,sh,0,0,w,h);
+  
+  /* тонкі горизонталі: marching squares, 1 екранний піксель, з інтерполяцією */
+  ctx.strokeStyle="rgba(120,138,162,.5)";ctx.lineWidth=1;
+  ctx.lineJoin="round";
+  const SX=px=>px/sw*w,SY=py=>py/sh*h;
+  for(let lev=.15;lev<.99;lev+=.15){
+    for(let py=0;py<sh-1;py++)for(let px=0;px<sw-1;px++){
+      /* кути клітинки: v0=(px,py) v1=(px+1,py) v2=(px,py+1) v3=(px+1,py+1) */
+      const v0=vals[py*sw+px]-lev,v1=vals[py*sw+px+1]-lev,
+            v2=vals[(py+1)*sw+px]-lev,v3=vals[(py+1)*sw+px+1]-lev;
+      const code=(v0>0?1:0)|(v1>0?2:0)|(v3>0?4:0)|(v2>0?8:0);
+      if(code===0||code===15)continue;
+      /* точки перетину на боках (з інтерполяцією) */
+      const T=(a,b)=>a/(a-b);            /* частка від 0 до 1 між кутами */
+      const top=[SX(px+T(v0,v1)),SY(py)];
+      const bot=[SX(px+T(v2,v3)),SY(py+1)];
+      const lef=[SX(px),SY(py+T(v0,v2))];
+      const rig=[SX(px+1),SY(py+T(v1,v3))];
+      ctx.beginPath();
+      if(code===1||code===14){ctx.moveTo(lef[0],lef[1]);ctx.lineTo(top[0],top[1]);}
+      else if(code===2||code===13){ctx.moveTo(top[0],top[1]);ctx.lineTo(rig[0],rig[1]);}
+      else if(code===3||code===12){ctx.moveTo(lef[0],lef[1]);ctx.lineTo(rig[0],rig[1]);}
+      else if(code===4||code===11){ctx.moveTo(rig[0],rig[1]);ctx.lineTo(bot[0],bot[1]);}
+      else if(code===6||code===9){ctx.moveTo(top[0],top[1]);ctx.lineTo(bot[0],bot[1]);}
+      else if(code===7||code===8){ctx.moveTo(lef[0],lef[1]);ctx.lineTo(bot[0],bot[1]);}
+      else if(code===5){ctx.moveTo(lef[0],lef[1]);ctx.lineTo(top[0],top[1]);
+        ctx.moveTo(rig[0],rig[1]);ctx.lineTo(bot[0],bot[1]);}
+      else if(code===10){ctx.moveTo(top[0],top[1]);ctx.lineTo(rig[0],rig[1]);
+        ctx.moveTo(lef[0],lef[1]);ctx.lineTo(bot[0],bot[1]);}
+      ctx.stroke();}}
+	  
+  ctx.fillStyle="rgba(255,255,255,.8)";
+  for(const t of land.trail){ctx.beginPath();ctx.arc(t.x*w,t.y*h,2,0,7);ctx.fill();}
+  const X=land.x*w,Y=land.y*h;
+  const dS=landH(land.x,land.y+land.s)-landH(land.x,land.y);
+  const dE=landH(land.x+land.s,land.y)-landH(land.x,land.y);
+  if(land.probe){
+    const K=500;
+    const sLen=Math.max(8,Math.min(70,Math.abs(dS)*K));
+    const eLen=Math.max(8,Math.min(70,Math.abs(dE)*K));
+    const sDir=dS<=0?1:-1,eDir=dE<=0?1:-1;
+    landArrow(ctx,X,Y,0,sDir,sLen,"#2b7a4b",
+      `${sDir>0?"південь":"північ"} ${dS<=0?"−":"+"}${Math.abs(dS).toFixed(2)}`);
+    landArrow(ctx,X,Y,eDir,0,eLen,"#22304a",
+      `${eDir>0?"схід":"захід"} ${dE<=0?"−":"+"}${Math.abs(dE).toFixed(2)}`);
+    const ex=eDir*eLen,sy=sDir*sLen;
+    ctx.setLineDash([4,4]);ctx.strokeStyle="rgba(60,70,90,.55)";ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(X+ex,Y);ctx.lineTo(X+ex,Y+sy);ctx.lineTo(X,Y+sy);ctx.stroke();
+    ctx.setLineDash([]);
+    const rm=Math.hypot(ex,sy);
+    if(rm>2)landArrow(ctx,X,Y,ex/rm,sy/rm,rm,"#e2574c","спуск");}
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(X,Y,7,0,7);ctx.fill();
+  ctx.strokeStyle="#e2574c";ctx.lineWidth=3;ctx.stroke();
+  $("#landPos").textContent=landH(land.x,land.y).toFixed(2);}
+function landNote2(){if(!land.probe)return;
+  const dS=landH(land.x,land.y+land.s)-landH(land.x,land.y);
+  const dE=landH(land.x+land.s,land.y)-landH(land.x,land.y);
+  $("#landNote").textContent=`Пробували крок на південь: стало ${dS<0?"нижче":"вище"} на ${Math.abs(dS).toFixed(2)} — отже, вигідніше ${dS<0?"південь":"північ"}. Крок на схід: ${dE<0?"нижче":"вище"} на ${Math.abs(dE).toFixed(2)} — вигідніше ${dE<0?"схід":"захід"}. Червона стрілка — сума двох підказок (пунктир — паралелограм): напрямок найшвидшого спуску. Довжина пробної стрілки — наскільки змінилася висота, шкала спільна. У мережі напрямків не два, а стільки, скільки ваг, — і всі рахуються одразу одними множеннями.`;}
+ $("#gProbe").addEventListener("click",()=>{land.probe=true;drawLand();landNote2();});
+ $("#gStep").addEventListener("click",()=>{land.probe=true;landStep(1);});
+ $("#g10").addEventListener("click",()=>{land.probe=true;landStep(10);});
+ $("#gRe").addEventListener("click",()=>{land.x=.15+.7*Math.random();land.y=.15+.7*Math.random();
+  land.trail=[];land.probe=false;drawLand();landNote2();});
+function landStep(k){for(let i=0;i<k;i++){
+  const dS=landH(land.x,land.y+land.s)-landH(land.x,land.y);
+  const dE=landH(land.x+land.s,land.y)-landH(land.x,land.y);
+  const gE=-dE/land.s,gS=-dS/land.s,m=Math.hypot(gE,gS);
+  if(m<1e-9)break;
+  const eta=+$("#gEta").value;
+  land.x=Math.min(.97,Math.max(.03,land.x+eta*gE/m));
+  land.y=Math.min(.97,Math.max(.03,land.y+eta*gS/m));
+  land.trail.push({x:land.x,y:land.y});}
+  drawLand();landNote2();}
+let landDrag=false;
+ $("#landC").addEventListener("pointerdown",e=>{landDrag=true;landMove(e);});
+window.addEventListener("pointermove",e=>{if(landDrag)landMove(e);});
+window.addEventListener("pointerup",()=>landDrag=false);
+function landMove(e){if(e.target.id!=="landC")return;
+  const r=e.target.getBoundingClientRect();
+  land.x=Math.min(.97,Math.max(.03,(e.clientX-r.left)/r.width));
+  land.y=Math.min(.97,Math.max(.03,(e.clientY-r.top)/r.height));
+  land.trail=[];land.probe=false;drawLand();landNote2();}
+
+/* --- стенд 3: побудуй свою мережу (рушій = головне навчання) --- */
+class MNet{
+  constructor(sizes,act){this.sizes=sizes.slice();this.act=act;
+    this.W=[];this.B=[];this.A=[];this.Z=[];
+    for(let l=0;l<sizes.length-1;l++){
+      this.W.push(Array.from({length:sizes[l+1]},()=>Array.from({length:sizes[l]},()=>(Math.random()*2-1)*.5)));
+      this.B.push(new Array(sizes[l+1]).fill(0));}
+    for(const n of sizes){this.A.push(new Array(n).fill(0));this.Z.push(new Array(n).fill(0));}
+    this.np=0;for(let l=0;l<this.W.length;l++)this.np+=this.W[l].length*this.W[l][0].length+this.B[l].length;}
+  af(s){return this.act==="relu"?(s>0?s:0):this.act==="linear"?s:Math.tanh(s);}
+  ad(a){return this.act==="relu"?(a>0?1:0):this.act==="linear"?1:1-a*a;}
+  forward(x){const A0=this.A[0];for(let k=0;k<9;k++)A0[k]=x[k];
+    const L=this.W.length;
+    for(let l=0;l<L;l++){const Wl=this.W[l],Bl=this.B[l],Al=this.A[l],Zl=this.Z[l],An=this.A[l+1];
+      for(let j=0;j<Wl.length;j++){let s=Bl[j];const Wj=Wl[j];
+        for(let k=0;k<Wj.length;k++)s+=Wj[k]*Al[k];
+        Zl[j]=s;An[j]=(l===L-1)?Math.tanh(s):this.af(s);}}
+    return this.A[L][0];}
+  train(x,t,lr){const y=this.forward(x);
+    let delta=[(y-t)*(1-y*y)];
+    for(let l=this.W.length-1;l>=0;l--){
+      const Wl=this.W[l],Bl=this.B[l],Ain=this.A[l];
+      const dPrev=new Array(Ain.length).fill(0);
+      for(let j=0;j<delta.length;j++){const dj=delta[j],Wj=Wl[j];
+        for(let k=0;k<Ain.length;k++)dPrev[k]+=dj*Wj[k];}
+      if(l>0)for(let k=0;k<dPrev.length;k++)dPrev[k]*=this.ad(Ain[k]);
+      for(let j=0;j<delta.length;j++){const dj=delta[j],Wj=Wl[j];
+        for(let k=0;k<Wj.length;k++)Wj[k]-=lr*dj*Ain[k];
+        Bl[j]-=lr*dj;}
+      delta=dPrev;}
+    return y;}
+}
+const mini={models:[],sel:-1,busy:false,stop:false,done:0,target:0,cur:null,
+  colors:["#1c4f8f","#a8452b","#2b7a4b","#b08100"]};
+function miniSizes(){const s1=+$("#m1").value,s2=+$("#m2").value;
+  const s=[9,s1];if(s2>0)s.push(s2);s.push(1);return s;}
+function drawMiniGraph(sizes){const c=$("#mGraph");if(!c.clientWidth)return;
+  const{ctx,w,h}=setupC(c);
+  const padX=46,padY=14,cols=sizes.length;
+  const xs=i=>padX+(w-2*padX)*i/(cols-1);
+  const colY=(a,n)=>padY+(h-2*padY)*(n>1?a/(n-1):.5);
+  ctx.strokeStyle="rgba(70,90,130,.15)";ctx.lineWidth=1;
+  for(let l=0;l<cols-1;l++){const n1=Math.min(sizes[l],14),n2=Math.min(sizes[l+1],14);
+    for(let a=0;a<n1;a++)for(let b2=0;b2<n2;b2++){
+      ctx.beginPath();ctx.moveTo(xs(l),colY(a,n1));ctx.lineTo(xs(l+1),colY(b2,n2));ctx.stroke();}}
+  const lc=["#2f6fd0","#8f6fd0","#8f6fd0","#2f9e63"];
+  for(let l=0;l<cols;l++){const n=Math.min(sizes[l],14);
+    for(let a=0;a<n;a++){ctx.beginPath();ctx.arc(xs(l),colY(a,n),4.5,0,7);
+      ctx.fillStyle="#fff";ctx.fill();ctx.strokeStyle=lc[Math.min(l,3)];ctx.lineWidth=2;ctx.stroke();}
+    ctx.fillStyle="#64708a";ctx.font="10px system-ui";ctx.textAlign="center";
+    ctx.fillText(l===0?"дошка 9":l===cols-1?"v":String(sizes[l]),xs(l),h-3);}}
+/* дзеркало recordEval(): точка кожні 1000 ігор, та сама шкала /2 */
+function mRecordEval(){const o=evaluateLight(mini.cur.net,100);
+  mini.cur.hist.push({n:mini.done,r:o.r.l/2,f:o.m.l/2});}
+function drawMiniChart(){const c=$("#mChart");if(!c.clientWidth)return;
+  const{ctx,w,h}=setupC(c);
+  const L=34,R=8,T=8,B=20,pw=w-L-R,ph=h-T-B;
+  const all=mini.models.concat(mini.busy&&mini.cur?[mini.cur]:[]);
+  const maxN=Math.max(1000,...all.map(m=>m.budget||0),mini.target||1000);
+  ctx.font="10px system-ui";ctx.textBaseline="middle";
+  for(const v of[0,50,100]){const y=T+ph*(1-v/100);
+    ctx.strokeStyle=v===0?"#8a93a3":"#e6e9f0";ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();
+    ctx.fillStyle="#64708a";ctx.textAlign="right";ctx.fillText(v+"%",L-4,y);}
+  ctx.textAlign="center";ctx.textBaseline="top";
+  ctx.fillText(fmt(maxN)+" ігор навчання",L+pw/2,T+ph+6);
+  const X=n=>L+pw*n/maxN,Y=v=>T+ph*(1-v/100);
+  for(const m of all){
+    for(const[k,dash]of[["r",[5,4]],["f",[]]]){
+      ctx.strokeStyle=m.color;ctx.lineWidth=2;ctx.setLineDash(dash);ctx.beginPath();
+      m.hist.forEach((p,i)=>i?ctx.lineTo(X(p.n),Y(p[k])):ctx.moveTo(X(p.n),Y(p[k])));
+      ctx.stroke();ctx.setLineDash([]);}}}
+function renderMiniList(){const el=$("#mList");el.innerHTML="";
+  mini.models.forEach((m,i)=>{const r=document.createElement("div");
+    r.className="mrow"+(i===mini.sel?" sel":"");
+    r.innerHTML=`<i style="border-color:${m.color}"></i><b>${m.name}</b>&nbsp;· ${m.np} чисел · випадковий ${m.fr}% · ідеальний ${m.fi}% · строгий ✕${m.sx}/◯${m.so}${m.best?" · ⚡":""}`;
+    const del=document.createElement("button");del.className="btn del";del.textContent="✕";
+    del.addEventListener("click",e=>{e.stopPropagation();mini.models.splice(i,1);
+      if(mini.sel===i)mini.sel=-1;renderMiniList();drawMiniChart();});
+    r.appendChild(del);
+    r.addEventListener("click",()=>{mini.sel=i;drawMiniGraph(m.sizes);
+      $("#mInfo").textContent=`${m.name} · ${m.np} чисел · бюджет ${fmt(m.budget)} ігор · активація ${m.act}`;renderMiniList();});
+    el.appendChild(r);});}
+function miniPreview(){const s=miniSizes();
+  let np=0;for(let l=0;l<s.length-1;l++)np+=s[l]*s[l+1]+s[l+1];
+  drawMiniGraph(s);
+  $("#mInfo").textContent=`${s.join(" → ")} · ${np} чисел-ручок · ще не навчена`;}
+["#m1","#m2","#mAct"].forEach(id=>$(id).addEventListener("change",miniPreview));
+/* дзеркало trainChunk(): час-бюджет 14 мс, lr зі слайдера, спад, точки кожні 1000 */
+function mChunk(){
+  if(!mini.busy)return;
+  const M=mini.cur,lr0=+$("#mlr").value,eps=+$("#meps").value,dec=$("#mdecay").checked;
+  const t0=performance.now();
+  while(performance.now()-t0<14&&mini.done<mini.target){
+    const lr=dec?lr0/(1+mini.done/5000):lr0;
+    selfPlay(M.net,eps,lr);mini.done++;
+    if(mini.done%1000===0)mRecordEval();}
+  $("#mInfo").textContent=`навчання: ${fmt(mini.done)} з ${fmt(mini.target)} ігор · ${M.name}`;
+  drawMiniChart();
+  if(mini.done>=mini.target||mini.stop){mini.stop=false;
+    const o=evaluate(M.net,100);
+    M.fr=Math.round(o.r.l/2);M.fi=Math.round(o.m.l/2);
+    M.sx=o.lossX;M.so=o.lossO;
+    const pt={n:mini.done,r:o.r.l/2,f:o.m.l/2};
+    const last=M.hist[M.hist.length-1];
+    if(last&&last.n===mini.done)M.hist[M.hist.length-1]=pt;else M.hist.push(pt);
+    mini.models.push(M);mini.sel=mini.models.length-1;
+    mini.busy=false;$("#mGo").disabled=false;$("#mStop").disabled=true;
+    renderMiniList();drawMiniChart();drawMiniGraph(M.sizes);
+    $("#mInfo").textContent=`${M.name} · ${M.np} чисел · випадковий ${M.fr}% · ідеальний ${M.fi}% · строгий ✕${M.sx}/◯${M.so}`;return;}
+  requestAnimationFrame(mChunk);}
+ $("#mGo").addEventListener("click",()=>{
+  if(mini.busy||training)return;
+  if(mini.models.length>=4){mini.models.shift();if(mini.sel>=0)mini.sel--;}
+  const sizes=miniSizes(),act=$("#mAct").value,budget=+$("#mBud").value;
+  let np=0;for(let l=0;l<sizes.length-1;l++)np+=sizes[l]*sizes[l+1]+sizes[l+1];
+  mini.cur={net:new MNet(sizes,act),sizes,act,budget,np,
+    name:sizes.join("→"),color:mini.colors[mini.models.length%4],hist:[],fr:"—",fi:"—",sx:"—",so:"—",best:false};
+  mini.busy=true;mini.stop=false;mini.done=0;mini.target=budget;
+  mRecordEval();                       /* точка n=0 — як recordEval() у resetNet() */
+  $("#mGo").disabled=true;$("#mStop").disabled=false;
+  drawMiniGraph(sizes);drawMiniChart();
+  requestAnimationFrame(mChunk);});
+ $("#mStop").addEventListener("click",()=>mini.stop=true);
+ $("#mClear").addEventListener("click",()=>{if(mini.busy)return;
+  mini.models=[];mini.sel=-1;renderMiniList();drawMiniChart();});
+ $("#mBest").addEventListener("click",()=>{if(!mini.models.length)return;
+  let bi=0,bf=1e9;mini.models.forEach((m,i)=>{if(m.fi<bf){bf=m.fi;bi=i;}});
+  mini.models.forEach((m,i)=>m.best=i===bi);renderMiniList();});
+
+/* ================= графік ================= */
+function drawChart(){const c=$("#chart");if(!c.clientWidth)return;
+  const{ctx,w,h}=setupC(c);
+  const L=38,R=10,T=8,B=24,pw=w-L-R,ph=h-T-B;
+  const maxX=Math.max(hist.length?hist[hist.length-1].n:1000,1000);
+  ctx.font="11px system-ui";ctx.textBaseline="middle";
+  for(const v of[0,50,100]){const y=T+ph*(1-v/100);
+    ctx.strokeStyle=v===0?"#8a93a3":"#e6e9f0";ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();
+    ctx.fillStyle="#64708a";ctx.textAlign="right";ctx.fillText(v+"%",L-5,y);}
+  ctx.textAlign="center";ctx.textBaseline="top";
+  ctx.fillText(fmt(maxX)+" ігор навчання",L+pw/2,T+ph+6);
+  const X=n=>L+pw*n/maxX,Y=v=>T+ph*(1-v/100);
+  for(const[k,col,dash]of[["wr","#2f6fd0",[]],["lr","#e2574c",[]],["lm","#22304a",[5,4]]]){
+    ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=2;ctx.setLineDash(dash);ctx.beginPath();
+    hist.forEach((p,i)=>i?ctx.lineTo(X(p.n),Y(p[k])):ctx.moveTo(X(p.n),Y(p[k])));
+    ctx.stroke();ctx.setLineDash([]);}}
+
+/* ================= навчання ================= */
+function recordEval(){const o=evaluate(net,100);
+  hist.push({n:trainedGames,wr:o.r.w/2,lr:o.r.l/2,lm:o.m.l/2});
+  const show=(id,v)=>$(id).textContent=Math.round(v/2)+"%";
+  show("#rW",o.r.w);show("#rD",o.r.d);show("#rL",o.r.l);
+  show("#mW",o.m.w);show("#mD",o.m.d);show("#mL",o.m.l);
+  $("#losses").textContent=`✕: ${o.lossX} · ◯: ${o.lossO}`;}
+function refreshInfo(done){
+  $("#trainInfo").textContent=training
+    ?`Навчання: ${fmt(trainedGames)} з ${fmt(targetGames)} ігор…`
+    :done?`Готово: ${fmt(trainedGames)} ігор. Тепер зіграйте з нею знову! 🎯`
+    :`Зіграно ігор навчання: ${fmt(trainedGames)}`;}
+function setBusy(b){training=b;
+  document.querySelectorAll("[data-train],#reset,#hid,#lr,#eps,#act,#decay,#gProbe,#gStep,#g10,#gRe,#mGo,#mlr,#meps,#mdecay,[data-pre]").forEach(e=>e.disabled=b);
+  $("#stop").disabled=!b;}
+function trainChunk(){
+  if(!training)return;
+  const lr0=+$("#lr").value,eps=+$("#eps").value,dec=$("#decay").checked;
+  const t0=performance.now();
+  while(performance.now()-t0<14&&trainedGames<targetGames){
+    const lr=dec?lr0/(1+trainedGames/5000):lr0;
+    selfPlay(net,eps,lr);trainedGames++;
+    if(trainedGames%1000===0)recordEval();}
+  refreshInfo(false);
+  $("#barFill").style.width=Math.min(100,100*(trainedGames-startGames)/(targetGames-startGames))+"%";
+  drawChart();
+  if(trainedGames>=targetGames||stopFlag){stopFlag=false;setBusy(false);
+    recordEval();refreshInfo(true);drawChart();renderBoard();return;}
+  requestAnimationFrame(trainChunk);}
+function startTraining(n){if(training||mini.busy)return;
+  startGames=trainedGames;targetGames=trainedGames+n;stopFlag=false;
+  setBusy(true);refreshInfo(false);requestAnimationFrame(trainChunk);}
+function resetNet(){if(training||mini.busy)return;
+  net=new Net(+$("#hid").value,$("#act").value);trainedGames=0;hist=[];sel=0;
+  recordEval();refreshInfo(false);drawChart();renderBoard();newGame();}
+
+/* ================= КІНО ================= */
+function chip(cls,val){const s=document.createElement("span");
+  s.className="chipV"+(cls?" "+cls:"");s.textContent=(val===undefined)?"":val;return s;}
+const cine={tab:"f",step:0,playing:false,tm:null,rid:0};
+let cineR=null;
+function cinePause(){cine.playing=false;clearTimeout(cine.tm);
+  const b=$("#cPlay");if(b)b.textContent="▶ Грати";}
+function cineShow(t){if(training||thinking)return;
+  cine.tab=t;cinePause();
+  $("#cTabF").setAttribute("aria-pressed",t==="f");
+  $("#cTabB").setAttribute("aria-pressed",t==="b");
+  if(t==="b"){
+    const empty=board.every(c=>!c);
+    let weak=empty;
+    if(!weak){const D=evalDemo(board);weak=Math.abs(D.t-D.v)<0.1;}
+    if(weak)loadPreset(bestPreset());}
+  cineBuild();}
+function cineBuild(){
+  if(!$("#cineRow"))return;
+  const D=evalDemo(board);
+  const w=winner(board);
+  const R={tab:cine.tab,p:D.p,x:D.x,over:!!w,sel,t:D.t,why:D.why,
+    terminal:D.terminal,cands:D.cands,neg:D.neg,mx:D.mx,v:D.v,bmov:-1,candsF:[]};
+  const d=R.t-R.v;R.d=d;R.err=.5*d*d;
+  if(cine.tab==="b"){
+    R.djArr=Array.from({length:net.H},(q,j)=>d*(1-R.v*R.v)*net.w2[j]*net.actD(net.a[j]));
+    const n2=new Net(net.H,net.act);
+    n2.W1=net.W1.map(r=>r.slice());n2.b1=net.b1.slice();n2.w2=net.w2.slice();n2.b2=net.b2;
+    n2.train(D.x,R.t,+$("#lr").value*10);
+    R.v1=n2.forward(D.x);
+  }else{
+    R.v1=R.v;
+    if(!R.over){
+      R.bmov=greedyMove(net,board,D.p);
+      R.candsF=evalMoves(net,board,D.p);
+      const probe=board.slice();probe[R.bmov]=D.p;
+      R.x=feat(probe,D.p).slice();
+      net.forward(R.x);}}
+  R.maxw=1e-9;for(let j=0;j<net.H;j++)for(let k=0;k<9;k++)R.maxw=Math.max(R.maxw,Math.abs(net.W1[j][k]));
+  cineR=R;cine.rid++;cineBuildDOM(R);cine.step=0;cinePause();
+  $("#cineCap").textContent=cine.tab==="f"
+    ?"Позиція — з дошки зверху (в «Аналізі» можна скласти будь-яку, є кнопки прикладів). Натисніть ▶."
+    :"Дошка — зверху. Оберіть приклад або складіть свою позицію в «Аналізі». Натисніть ▶.";}
+function cineBuildDOM(R){
+  const row=$("#cineRow");row.innerHTML="";
+  const boxes=[];const mk=lbl=>{const d=document.createElement("div");d.className="cineBox";
+    const l=document.createElement("p");l.className="lbl";l.textContent=lbl;d.appendChild(l);
+    row.appendChild(d);boxes.push(d);return d;};
+  const arrow=()=>{const a=document.createElement("span");a.className="cineArrow";
+    a.textContent=cine.tab==="b"?"←":"→";row.appendChild(a);};
+  R.boxes=boxes;
+  const bA=mk(cine.tab==="f"?"дошка + пробний хід":"дошка — звідки береться відповідь");
+  const mb=document.createElement("div");mb.className="cineB";bA.appendChild(mb);
+  R.bcells=[];
+  for(let i=0;i<9;i++){const c=document.createElement("i");const v=board[i];
+    if(v){c.textContent=v===1?"✕":"◯";c.style.color=v===1?"var(--blue)":"var(--coral)";
+      c.style.font="700 13px Georgia";}
+    if(cine.tab==="f"&&i===R.bmov){c.textContent=R.p===1?"✕":"◯";
+      c.style.color=R.p===1?"var(--blue)":"var(--coral)";c.style.font="700 13px Georgia";
+      c.style.opacity=.55;c.classList.add("ghost");}
+    mb.appendChild(c);R.bcells.push(c);}
+  arrow();
+  if(cine.tab==="f"){
+    const bB=mk("рядок x — дошку «згортаємо» в 9 чисел");
+    const vx=document.createElement("div");vx.className="cineRowV";bB.appendChild(vx);
+    R.vch=[];
+    for(let k=0;k<9;k++){const c=chip("",R.x[k]>0?"+1":R.x[k]<0?"\u22121":"0");
+      c.style.background=R.x[k]>0?"#dbe8fa":R.x[k]<0?"#fbdfdc":"#f4f6fa";
+      c.style.color=R.x[k]>0?"var(--blue)":R.x[k]<0?"var(--coral)":"#a7b0c2";
+      vx.appendChild(c);R.vch.push(c);}}
+  else{
+    const bB=mk("оцінка проти відповіді");
+    const vv=document.createElement("div");vv.className="cineRowV";bB.appendChild(vv);
+    R.chV=chip("big","");R.chT=chip("big","");R.chD=chip("big","");R.chE=chip("");
+    R.chT.style.background="#e6f2ea";R.chT.style.color="var(--green)";
+    R.chD.style.background="#fdf3e0";
+    const vw=document.createElement("div");vw.className="cinscale";
+    R.vmark=document.createElement("div");R.vmark.className="cinmark";
+    R.tmark=document.createElement("div");R.tmark.className="cinmark";
+    R.tmark.style.background="var(--green)";
+    vw.appendChild(R.vmark);vw.appendChild(R.tmark);
+    [R.chV,R.chT,R.chD,R.chE,vw].forEach(e=>vv.appendChild(e));
+    R.cwrap2=document.createElement("div");R.cwrap2.className="candWrap";bB.appendChild(R.cwrap2);}
+  arrow();
+  const bC=mk(cine.tab==="f"?"матриця W₁ · b₁ · z → a · внесок":"провина тече назад: частка кожного нейрона");
+  const wrap=document.createElement("div");
+  wrap.style.cssText="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap";
+  bC.appendChild(wrap);
+  const mat=document.createElement("div");mat.className="cineRowV";wrap.appendChild(mat);
+  const head=document.createElement("div");head.className="matrow mathead on";
+  head.innerHTML=`<span class="chipV z on">b₁</span><span class="matW">W₁ — 9 ваг</span><span class="chipV z on">${cine.tab==="f"?"z → a":"частка"}</span><span class="chipV z on">${cine.tab==="f"?"внесок":"—"}</span>`;
+  mat.appendChild(head);
+  R.rows=[];
+  for(let j=0;j<net.H;j++){const r=document.createElement("div");r.className="matrow";
+    const bc=chip("z",fmtV(net.b1[j]));bc.style.background="#f0e6f8";
+    bc.title="зсув b₁ (у новій мережі 0 — навчання його підбере)";
+    r.appendChild(bc);
+    const cellsw=[];
+    for(let k=0;k<9;k++){const i2=document.createElement("i");
+      i2.style.background=heat(net.W1[j][k],R.maxw);r.appendChild(i2);cellsw.push(i2);}
+    const zc=chip("z",""),cc=chip("z","");
+    if(cine.tab==="b")cc.style.visibility="hidden";
+    r.appendChild(zc);r.appendChild(cc);
+    r.addEventListener("click",()=>{sel=j;R.sel=j;
+      [...mat.querySelectorAll(".matrow")].forEach(m=>m.classList.remove("selrow"));
+      r.classList.add("selrow");cineRowSel(R);});
+    if(j===R.sel)r.classList.add("selrow");
+    mat.appendChild(r);R.rows.push({r,bc,cells:cellsw,zc,cc});}
+  if(cine.tab==="f"){
+    R.flbl=document.createElement("p");R.flbl.className="note";R.flbl.style.margin="8px 0 2px";
+    R.fboard=document.createElement("div");R.fboard.className="cineB";
+    R.fnote=document.createElement("p");R.fnote.className="note";
+    mat.appendChild(R.flbl);mat.appendChild(R.fboard);mat.appendChild(R.fnote);}
+  else{
+    const side=document.createElement("div");
+    const slbl=document.createElement("p");slbl.className="lbl";
+    slbl.textContent="поле зсувів ваг (крок ×10)";
+    const sq=document.createElement("div");sq.className="sqB";
+    const snote=document.createElement("p");snote.className="note";snote.style.maxWidth="190px";
+    side.appendChild(slbl);side.appendChild(sq);side.appendChild(snote);
+    wrap.appendChild(side);
+    R.sq=sq;R.snote=snote;}
+  arrow();
+  if(cine.tab==="f"){
+    const bE=mk("Σ внесків + b₂ → tanh → v");
+    const out=document.createElement("div");out.className="cineRowV";out.style.alignItems="center";
+    R.sumCh=chip("big","");R.sumCh.style.minWidth="130px";
+    R.vb=document.createElement("span");R.vb.className="vbig";
+    const vw=document.createElement("div");vw.className="cinscale";
+    R.fmark=document.createElement("div");R.fmark.className="cinmark";vw.appendChild(R.fmark);
+    [R.sumCh,R.vb,vw].forEach(e=>out.appendChild(e));
+    bE.appendChild(out);
+    R.cwrap=document.createElement("div");R.cwrap.className="candWrap";bE.appendChild(R.cwrap);}
+  cineRowSel(R);}
+function cineRowSel(R){
+  const j=R.sel;
+  for(let s=0;s<net.H;s++)for(let k=0;k<9;k++)
+    R.rows[s].cells[k].style.background=heat(net.W1[s][k],R.maxw);
+  R.rows.forEach(r=>{r.cells.forEach(c=>c.style.boxShadow="");});
+  if(cine.tab==="f"){
+    R.flbl.textContent=`рядок №${j+1}: добутки вага × число`;
+    let mp=1e-9;for(let k=0;k<9;k++)if(R.x[k]!==0)mp=Math.max(mp,Math.abs(net.W1[j][k]*R.x[k]));
+    R.fboard.innerHTML="";
+    for(let k=0;k<9;k++){const c=document.createElement("i");
+      const pr=net.W1[j][k]*R.x[k];
+      c.style.font="600 8px ui-monospace";
+      if(R.x[k]!==0){c.textContent=fmtV(pr);c.style.background=heat(pr,mp);}
+      else{c.textContent="0";c.style.background="#f4f6fa";c.style.color="#c3cad8";}
+      R.fboard.appendChild(c);}
+    R.fnote.textContent=`сума добутків + b₁ → z = ${fmtV(net.z[j]||0)} → стиск → a = ${fmtV(net.a[j]||0)}`;
+    R.rows[j].cells.forEach(c=>c.style.boxShadow="inset 0 0 0 2px rgba(240,168,58,.6)");
+    return;}
+  const lr10=+$("#lr").value*10;
+  R.sq.innerHTML="";
+  for(let k=0;k<9;k++){const cell=document.createElement("i");
+    const sym=document.createElement("span");sym.className="s";
+    const v=board[k];
+    sym.textContent=v===1?"✕":v===2?"◯":"·";
+    sym.style.color=v===1?"var(--blue)":v===2?"var(--coral)":"#c3cad8";
+    const d=document.createElement("span");d.className="d fly";
+    const del=lr10*R.djArr[j]*R.x[k];
+    if(R.x[k]!==0){d.textContent=fmtV(del);
+      d.style.color=del>=0?"var(--blue)":"var(--coral)";}
+    else{d.textContent="0";d.style.color="#c3cad8";}
+    cell.appendChild(sym);cell.appendChild(d);R.sq.appendChild(cell);}
+  R.snote.textContent=`рядок №${j+1}: зсув ваги кожної клітинки. Порожня — 0, не рухається. Промах > 0 (недобрали) — ваги ростуть, < 0 — спадають.`;
+  R.rows[j].cells.forEach((c,k)=>{
+    const del=lr10*R.djArr[j]*R.x[k];
+    c.style.background=heat(net.W1[j][k]+del,R.maxw);
+    c.style.boxShadow="inset 0 0 0 2px rgba(240,168,58,.7)";});}
+function cineHot(R,i){R.boxes.forEach((b,k)=>b.classList.toggle("hot",k===i));}
+function cineSteps(){const R=cineR;if(!R)return[];
+  if(R.tab==="f"){
+    if(R.over)return[{cap:"Партія скінчилася. Оберіть приклад або складіть позицію в «Аналізі» — і кіно покаже хід.",run:()=>{}}];
+    const sym=R.p===1?"✕":"◯";
+    return[
+      {cap:`Мережа пробує хід: ${sym} у клітинку ${R.bmov+1} (пунктир). Питає себе: «що вийде після нього?»`,run:()=>cineHot(R,0)},
+      {cap:"Скануємо дошку ПО РЯДКАХ: зліва праворуч, зверху вниз. Кожна клітинка «вилітає» і стає на своє місце в рядку: своє +1, чуже −1, порожнє 0. Порядок можна було б узяти інший (стовпцями, навмання) — головне, домовитися про нього один раз.",dur:1700,run:()=>{cineHot(R,1);
+        const id=++cine.rid;
+        R.vch.forEach(c=>c.classList.remove("on","fly"));
+        R.vch.forEach((c,k)=>setTimeout(()=>{if(cine.rid!==id)return;
+          c.classList.add("on","fly");
+          const bc=R.bcells[k];
+          if(!board[k]){bc.style.outline="3px solid var(--amber)";
+            setTimeout(()=>{if(cine.rid===id)bc.style.outline="";},240);}
+        },k*140));}},
+      {cap:`Рядок x прибуває до матриці W₁ (${net.H} рядків — по одному на нейрон). Першими прибувають зсуви b₁ — у новій мережі вони нульові, але це теж числа, помилка їх навчить.`,dur:1200,run:()=>{cineHot(R,2);
+        const id=++cine.rid;
+        R.rows.forEach((r,j)=>setTimeout(()=>{if(cine.rid!==id)return;
+          r.r.classList.add("on");r.bc.classList.add("on");},j*30));}},
+      {cap:"Кожен рядок множить свої 9 ваг на рядок x і додає b₁ → z. Клацніть рядок — побачите його добутки в кольорах.",dur:1200,run:()=>{cineHot(R,2);
+        const id=++cine.rid;
+        R.rows.forEach((r,j)=>setTimeout(()=>{if(cine.rid!==id)return;
+          r.zc.textContent="z="+fmtV(net.z[j]);r.zc.classList.add("on");
+          r.zc.style.background="#fdf3e0";},j*30));}},
+      {cap:"Ящик tanh стискає кожне z у −1…+1 → голос a. Ніхто не спить, але біля стель голос прилипає — чутливість зникає.",dur:1100,run:()=>{cineHot(R,2);
+        const id=++cine.rid;
+        R.rows.forEach((r,j)=>setTimeout(()=>{if(cine.rid!==id)return;
+          r.zc.textContent="a="+net.a[j].toFixed(2);r.zc.style.background="#e6f2ea";
+          r.zc.style.color="var(--ink)";},j*25));}},
+      {cap:"Голос кожного нейрона множиться на довіру w₂ — внесок. Усе додається разом із зсувом b₂ (він уже в сумі).",dur:1200,run:()=>{cineHot(R,3);
+        const id=++cine.rid;
+        R.rows.forEach((r,j)=>setTimeout(()=>{if(cine.rid!==id)return;
+          const cj=net.w2[j]*net.a[j];r.cc.textContent=fmtV(cj);r.cc.classList.add("on");
+          r.cc.style.background=cj>=0?"#dbe8fa":"#fbdfdc";
+          r.cc.style.color=cj>=0?"var(--blue)":"var(--coral)";},j*25));
+        let s2=net.b2;for(let j=0;j<net.H;j++)s2+=net.w2[j]*net.a[j];
+        const sid=++cine.rid;
+        setTimeout(()=>{if(cine.rid!==sid)return;
+          R.sumCh.textContent=`сума+b₂ = ${fmtV(s2)}`;R.sumCh.classList.add("on");},net.H*25+150);}},
+      {cap:`Останній стиск → v = ${fmtV(net.y)}: прогноз кінця партії з позиції ПІСЛЯ пробного ходу. Ось він на шкалі гри.`,run:()=>{cineHot(R,3);
+        R.vb.textContent="v = "+fmtV(net.y);
+        R.vb.style.color=net.y>=0?"var(--blue)":"var(--coral)";
+        R.fmark.style.left=(50+net.y*50)+"%";}},
+      {cap:"Цю саму стрічку мережа прокрутила для КОЖНОЇ вільної клітинки — скільки вільних, стільки розрахунків. Ось усі відповіді: найкращу вона й грає.",run:()=>{cineHot(R,3);R.cwrap.innerHTML="";
+        let bv=-Infinity;for(const m of R.candsF)if(m.v>bv)bv=m.v;
+        for(const m of R.candsF){const c=chip("cand",`${m.i+1}: ${fmtV(m.v)}`);c.classList.add("on");
+          if(m.v>bv-1e-9){c.style.background="var(--greenbg)";c.style.color="var(--green)";
+            c.style.borderColor="var(--green)";c.style.fontWeight="700";}
+          R.cwrap.appendChild(c);}}}];}
+  const sym=R.p===1?"✕":"◯";
+  const steps=[];
+  steps.push({cap:`Позиція очами того, хто щойно походив (${sym}). Оцінка мережі: v = ${fmtV(R.v)}.`,run:()=>{cineHot(R,1);
+    R.chV.textContent="v = "+fmtV(R.v);R.chV.classList.add("on");
+    R.chV.style.background=R.v>=0?"#dbe8fa":"#fbdfdc";
+    R.chV.style.color=R.v>=0?"var(--blue)":"var(--coral)";
+    R.vmark.style.left=(50+R.v*50)+"%";}});
+  if(R.terminal){
+    steps.push({cap:`Партія вже скінчилася — ніяких думок: точну відповідь дають правила. t = ${fmtV(R.t)}. ${R.why}.`,run:()=>{cineHot(R,1);
+      R.chT.textContent="t = "+fmtV(R.t);R.chT.classList.add("on");
+      R.tmark.style.left=(50+R.t*50)+"%";}});}
+  else{
+    const ansSym=R.neg?(R.p===1?"◯":"✕"):sym;
+    steps.push({cap:R.neg
+      ?`Звідки взяти відповідь? Питаємо суперника (${ansSym}): він пробує кожен свій хід — слідкуйте за дошкою! Оцінки — очами суперника: що більше, то краще йому.`
+      :`Тепер хід гравця ${sym}: пробуємо кожен його хід і дивимося оцінки.`,dur:400+R.cands.length*380,run:()=>{cineHot(R,1);
+      R.cwrap2.innerHTML="";R.cchips=[];
+      const id=++cine.rid;
+      R.cands.forEach((c,k)=>setTimeout(()=>{if(cine.rid!==id)return;
+        const bc=R.bcells[c.i];
+        bc.textContent=ansSym;bc.classList.add("ghost");
+        bc.style.color=ansSym==="✕"?"var(--blue)":"var(--coral)";
+        const ch=chip("cand",`кл.${c.i+1}: ${fmtV(c.v)}`);ch.classList.add("on");
+        R.cchips.push(ch);R.cwrap2.appendChild(ch);},k*380));}});
+    steps.push({cap:R.neg
+      ?`Найкраща відповідь суперника: ${fmtV(R.mx)}. Але це добре для НЬОГО — отже, мені дістанеться мінус: t = −(${fmtV(R.mx)}) = ${fmtV(R.t)}.`
+      :`Найкраща власна оцінка: ${fmtV(R.mx)} — вона і є відповідь: t = ${fmtV(R.t)}.`,run:()=>{cineHot(R,1);
+      R.cands.forEach(c=>{const bc=R.bcells[c.i];
+        bc.classList.remove("ghost");bc.textContent="";bc.style.color="";});
+      (R.cchips||[]).forEach((ch,k)=>{
+        if(R.cands[k]&&R.cands[k].v>=R.mx-1e-9){
+          ch.style.background="var(--greenbg)";ch.style.color="var(--green)";
+          ch.style.borderColor="var(--green)";ch.style.fontWeight="700";}});
+      R.chT.textContent="t = "+fmtV(R.t);R.chT.classList.add("on");
+      R.tmark.style.left=(50+R.t*50)+"%";}});}
+  steps.push({cap:`Народилася помилка: мережа сказала ${fmtV(R.v)}, а правильно ${fmtV(R.t)}. Промах d = t − v = ${fmtV(R.d)} — саме він керує виправленням (помилка ½d² = ${fmtV(R.err)}).`,run:()=>{cineHot(R,1);
+    R.chD.textContent="d = t−v = "+fmtV(R.d);R.chD.classList.add("on");
+    R.chE.textContent="½d² = "+fmtV(R.err);R.chE.classList.add("on");}});
+  steps.push({cap:"Промах роздається нейронам: частка кожного = промах × довіра w₂ × чутливість. Хто голосував голосніше — тому більше дісталося.",dur:1100,run:()=>{cineHot(R,2);
+    const id=++cine.rid;
+    R.rows.forEach((r,j)=>setTimeout(()=>{if(cine.rid!==id)return;
+      r.r.classList.add("on");
+      const dj=R.djArr[j];r.zc.textContent=fmtV(dj);r.zc.classList.add("on");
+      r.zc.style.background=dj>=0?"#dbe8fa":"#fbdfdc";
+      r.zc.style.color=dj>=0?"var(--blue)":"var(--coral)";},j*30));}});
+  steps.push({cap:"Виправлення: зсув ваги клітинки = крок × частка × число клітинки. Клацніть рядок матриці — зсуви прилетять на поле праворуч, а кольори ваг рядка «поправляться».",run:()=>{cineHot(R,3);
+    cineRowSel(R);}});
+  steps.push({cap:`Один крок: v ${fmtV(R.v)} → ${fmtV(R.v1)}, промах ${fmtV(R.d)} → ${fmtV(R.t-R.v1)}. У партії так виправляється кожен хід — від кінця до початку (хвиля в часі).`,run:()=>{cineHot(R,1);
+    R.chE.textContent=`промах: ${fmtV(R.d)} → ${fmtV(R.t-R.v1)}`;
+    R.chV.textContent="v′ = "+fmtV(R.v1);
+    R.vmark.style.left=(50+R.v1*50)+"%";}});
+  return steps;}
+function cineNext(){const steps=cineSteps();if(!steps.length)return 900;
+  if(cine.step>=steps.length){cinePause();
+    $("#cineCap").textContent="Кіно скінчилося. Змініть позицію (кнопки прикладів або «Аналіз») і натисніть ↺ Спочатку.";return 0;}
+  const s=steps[cine.step];$("#cineCap").textContent=s.cap;s.run();cine.step++;
+  return s.dur||900;}
+function cinePlayToggle(){if(training||thinking)return;
+  if(cine.playing){cinePause();return;}
+  if(cine.step===0)cineBuild();
+  cine.playing=true;$("#cPlay").textContent="⏸ Пауза";
+  const tick=()=>{if(!cine.playing)return;
+    const wait=cineNext();
+    if(!cine.playing||!wait){cinePause();return;}
+    cine.tm=setTimeout(tick,wait);};
+  tick();}
+ $("#cPlay").addEventListener("click",cinePlayToggle);
+ $("#cNext").addEventListener("click",()=>{if(training||thinking)return;
+  if(cine.step===0)cineBuild();cinePause();cineNext();});
+ $("#cRe").addEventListener("click",()=>{if(training||thinking)return;cineBuild();});
+ $("#cTabF").addEventListener("click",()=>cineShow("f"));
+ $("#cTabB").addEventListener("click",()=>cineShow("b"));
+document.querySelectorAll("[data-pre]").forEach(b=>b.addEventListener("click",()=>{
+  if(training||thinking)return;
+  const k=+b.dataset.pre;loadPreset(k<0?bestPreset():k);cineBuild();}));
+
+
+/* ================= панель «шлях помилки» ================= */
+const EBC=[
+ {t:"Промах",s:"мережа сказала v, правила дають t",
+  x:"Помилка народжується одна, на відповіді мережі: промах d = t − v — наскільки і в бік чого помилилися. Він спільний для всіх 353 ваг — це ще не градієнт, це лише сировина. Напрямок у нього вже закладений: недобрали (t > v) — оцінки треба підняти, перебрали — опустити."},
+ {t:"Чутливість виходу",s:"глухота біля стель: ×(1−v²)",
+  x:"Якщо відповідь v стоїть біля стелі ±1, виправляти майже нічого — оцінка вже впертася в межу шкали. Тому промах множиться на чутливість виходу (1−v²): біля нуля вона ≈ 1 (повна сила), біля стель ≈ 0 (глушиться). Вираз (1−v²) - крутизна нашого tanh - називається похідною (швидкістю зміни). Те саме правило, що й для будь-якого нейрона нижче — просто тут воно застосовується до відповіді всієї мережі. Після цього кроку помилка стає «офіційною» — δ, яку роздаватимуть."},
+ {t:"Довіра",s:"ділиться між 32 нейронами: ×w₂ⱼ",
+  x:"Кожен нейрон голосував своїм голосом aⱼ, а вихід слухав кожного по-своєму — через свою вагу w₂ⱼ («довіра»). Помилка множиться на довіру: голосував гучно й мав велику довіру — більше дісталося; мовчав або вихід його ігнорує (w₂ ≈ 0) — нічого. Так один потік ділиться на 32 струмки — частки нейронів."},
+ {t:"Чутливість нейрона",s:"крутизна його tanh: ×(1−aⱼ²)",
+  x:"У кожного нейрона свій tanh, і частка проходить крізь нього не повністю, а множачись на крутизну кривої в точці, де нейрон зараз працює. Крутизна tanh обчислюється як (1 − a²): коли a близьке до 1 (або до −1), вираз близький до 0 — нейрон «насичений», кричить на максимумі, йому вже нікуди зсуватися, тому й вчитися майже нечого. a ≈ 0 — нейрон на найкрутій ділянці, уважний, вчиться повною мірою. У сплячого ReLU крутизна 0 — провина до його ваг не доходить узагалі. Після цього шлюзу частка нейрона δⱼ сформована."},
+ {t:"Внесок клітинки",s:"9 ваг на нейрон: ×xₖ, знак по знаку",
+  x:"Частка нейрона розмножується на всі його 9 ваг — по одній на клітинку. Але рухається лише та, чия клітинка брала участь у цій позиції: своя фігура (xₖ = +1) — з одним знаком, чуже (xₖ = −1) — з протилежним, порожня (xₖ = 0) — нуль, вага стоїть: порожня клітинка ні в чому не винна. Один і той самий промах у трьох зайнятих клітинках дає три зсуви однакового модуля і — для чужої фігури — протилежного знаку."},
+ {t:"Хвиля в часі",s:"кожен хід партії, з кінця на початок",
+  x:"Цю саму операцію — з власним промахом кожної позиції — проходить кожен хід партії: спершу останній (там відповідь точна, з правил), потім передостанній — уже виправленою мережею, і так до першого ходу. Потім наступна партія. Тисячі повторень змивають випадкові поштовхи й залишають те, що повторюється. Весь шлях від відповіді до клітинок — це і є error backpropagation: помилка тече назад, точно протилежно тому, як сигнал тік вперед."}];
+function ebcShow(g){document.querySelectorAll(".ebc").forEach(el=>el.classList.toggle("on",el._gate===g));
+  $("#ebcText").textContent=g.x;}
+(function(){const c=$("#ebcChain");if(!c)return;
+ const flow=document.createElement("div");
+ flow.style.cssText="flex:0 0 auto;align-self:center;font:700 20px system-ui;color:#b6bfd0;padding:0 2px";
+ flow.textContent="⟵";
+ c.appendChild(flow);
+ for(let i=EBC.length-1;i>=0;i--){const d=document.createElement("div");d.className="ebc";
+  d._gate=EBC[i];
+  d.innerHTML=`<span class="n">${i+1}</span><b>${EBC[i].t}</b><small>${EBC[i].s}</small>`;
+  d.addEventListener("click",()=>ebcShow(d._gate));c.appendChild(d);}
+ ebcShow(EBC[0]);})();
+/* ================= проводка ================= */
+document.querySelectorAll("[data-train]").forEach(b=>b.addEventListener("click",()=>startTraining(+b.dataset.train)));
+ $("#stop").addEventListener("click",()=>{stopFlag=true;});
+ $("#reset").addEventListener("click",resetNet);
+ $("#hid").addEventListener("change",resetNet);
+ $("#act").addEventListener("change",resetNet);
+ $("#newGame").addEventListener("click",newGame);
+ $("#side").addEventListener("change",newGame);
+ $("#hints").addEventListener("change",renderBoard);
+ $("#eyes").addEventListener("change",renderHood);
+ $("#tabPlay").addEventListener("click",()=>setMode("play"));
+ $("#tabAn").addEventListener("click",()=>setMode("analysis"));
+const sync=()=>{$("#lrOut").textContent=(+$("#lr").value).toFixed(3);
+  $("#epsOut").textContent=Math.round(+$("#eps").value*100)+"%";
+  const H=+$("#hid").value;$("#pcount").textContent=`9×${H}+${H}+${H}+1 = ${11*H+1}`;};
+ $("#lr").addEventListener("input",sync);
+ $("#eps").addEventListener("input",sync);
+const mSync=()=>{$("#mlrOut").textContent=(+$("#mlr").value).toFixed(3);
+  $("#mepsOut").textContent=Math.round(+$("#meps").value*100)+"%";};
+ $("#mlr").addEventListener("input",mSync);
+ $("#meps").addEventListener("input",mSync);
+window.addEventListener("resize",()=>{drawChart();drawTanh();drawLand();drawMiniChart();});
+sync();mSync();resetNet();drawTanh();drawLand();miniPreview();
+})();
+</script>

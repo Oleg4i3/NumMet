@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мозок гармати</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2b241d;--paper:#f2ecdd;--pos:#2f6fd0;--neg:#e2574c;--bias:#2b7a4b;--acc:#e8a33d;--line:rgba(43,36,29,.25)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:17px/1.5 'Spectral',Georgia,serif;min-height:100vh}
+.m{font-family:'IBM Plex Mono',monospace}
+nav{display:flex;gap:4px;flex-wrap:wrap;padding:14px 22px 0;border-bottom:1px solid var(--line)}
+nav button{font:12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid transparent;border-bottom:none;
+ padding:9px 16px;color:var(--ink);cursor:pointer;opacity:.6}
+nav button.on{opacity:1;border-color:var(--line);background:rgba(255,255,255,.45)}
+nav button:disabled{opacity:.28;cursor:default}
+section{max-width:1180px;margin:0 auto;padding:26px 22px 60px}
+section#sG{max-width:none;padding:0}
+h1{font-style:italic;font-weight:500;font-size:clamp(26px,3.4vw,40px);margin-bottom:8px}
+.lead{max-width:62ch;margin-bottom:20px}
+.btn{font:12px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;background:none;border:1px solid var(--ink);color:var(--ink);padding:8px 18px;cursor:pointer}
+.btn:hover:not(:disabled){background:var(--ink);color:var(--paper)}.btn:disabled{opacity:.3;cursor:default}
+/* таблиця */
+table.tb{border-collapse:collapse;font:12px 'IBM Plex Mono',monospace}
+.tb td,.tb th{width:46px;height:30px;text-align:center;border:1px solid rgba(43,36,29,.12)}
+.tb th{opacity:.6;font-weight:400}.tb td{cursor:pointer}.tb td:hover{outline:2px solid var(--ink)}
+.two{display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:start}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.bar{height:22px;background:var(--ink);margin:4px 0 14px;min-width:4px}
+.bar.b{background:var(--pos)}
+.big{font:500 30px 'IBM Plex Mono',monospace}
+/* анатомія */
+.an{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:26px}
+@media(max-width:900px){.an{grid-template-columns:1fr}}
+#lhm td{width:26px;height:18px}#lhm th{font-size:10px}select{font:12px 'IBM Plex Mono',monospace;background:#fffaf0;border:1px solid var(--line);padding:3px}
+#net,#tsvg{width:100%;background:rgba(255,255,255,.4);border:1px solid var(--line)}
+#net text,#tsvg text{font-family:'IBM Plex Mono',monospace}
+.step{font:11px 'IBM Plex Mono',monospace;letter-spacing:.14em;opacity:.55;text-transform:uppercase}
+h2{font-style:italic;font-weight:500;font-size:25px;margin:2px 0 8px}
+.fm{font:14px/1.7 'IBM Plex Mono',monospace;background:rgba(255,255,255,.5);border-left:3px solid var(--acc);padding:8px 12px;margin:12px 0}
+.knob{display:flex;align-items:center;gap:8px;font:12px 'IBM Plex Mono',monospace;margin:3px 0}
+.knob .l{width:92px}.knob input{flex:1}.knob o{width:44px;text-align:right}
+table.mx{border-collapse:collapse;font:13px 'IBM Plex Mono',monospace;margin:8px 0}
+.mx td{padding:3px 7px;text-align:right;border-bottom:1px solid rgba(43,36,29,.1)}
+.mx tr.hl td{background:rgba(232,163,61,.35)}
+.stage{position:relative;width:400px;height:222px;font:13px 'IBM Plex Mono',monospace;margin:4px 0}
+.stage .dec{position:absolute;transition:opacity .5s;white-space:nowrap}
+.stage .brk{border:2px solid var(--ink);width:7px}
+.chip{position:absolute;width:44px;height:30px;line-height:28px;text-align:center;border:1px solid rgba(43,36,29,.4);background:#fffaf0;
+ font-size:12px;transition:left .95s ease,top .95s ease,opacity .6s,background .3s}
+.chip.cA{border:2px solid #1b9aaa}.chip.cB{border:2px solid #8e5bd0}.chip.hA{background:rgba(27,154,170,.45)}.chip.hB{background:rgba(142,91,208,.4)}.cAt{color:#1b9aaa}.cBt{color:#8e5bd0}.chip.a{background:rgba(232,163,61,.35)}
+.fl{animation:fo 1.8s forwards}@keyframes fo{from{opacity:.9}to{opacity:0}}
+.flow{stroke-dasharray:6 9;animation:fl .9s linear infinite}@keyframes fl{to{stroke-dashoffset:-15}}
+.nav{display:flex;gap:8px;margin-top:14px;align-items:center}
+</style></head><body>
+<nav id="tabs">
+ <button class="on" data-t="G">0 · Гра</button><button data-t="0">1 · Навіщо</button><button data-t="1">2 · Анатомія</button>
+ <button data-t="2">3 · Навчання</button><button data-t="3">4 · Епохи</button>
+ <button data-t="5">5 · Стрільба</button><button data-t="6">6 · Лабораторія</button>
+</nav>
+
+<section id="sG"><iframe id="gMain" data-src="fishgun.html" style="display:block;width:100%;height:calc(100vh - 52px);border:0;background:#cfe3f0"></iframe></section>
+
+<section id="s0" hidden>
+ <h1>Навіщо гарматі мозок?</h1>
+ <p class="lead">Кіт стріляє рибою в тарілку. Яким має бути кут? Це залежить від <b>вітру</b> і <b>відстані</b>, а риба ще й летить як бумеранг. Найпростіше — скласти таблицю: «такий вітер, така відстань → такий кут». Ось її шматочок на 100 клітинок. Натискайте на клітинки.</p>
+ <div class="two">
+  <div>
+   <table class="tb" id="tbl"></table>
+   <p class="m" id="cellInfo" style="font-size:13px;margin-top:10px;min-height:20px">← клацніть клітинку</p>
+  </div>
+  <div style="max-width:560px">
+   <p class="m" style="font-size:13px">Щоб влучати чесно (вітер із кроком 1 %, відстань із кроком пів метра), у таблиці було б</p>
+   <div class="big">101 × 111 = 11 211</div><div class="bar" style="width:100%"></div>
+   <p class="m" style="font-size:13px">клітинок. А «мозок» гармати з чотирьох нейронів — це лише</p>
+   <div class="big" style="color:var(--pos)">17 чисел</div><div class="bar b" style="width:.15%"></div>
+   <p style="margin-top:6px">Дивно, але саме він і заповнив таблицю зліва — кожну клітинку порахував сам. Таблицю треба зберігати і складати вручну, а мозок — ні. Він сам «здогадується» кут для вітру, якого ніколи не бачив.</p>
+   <p style="margin-top:12px;border-left:3px solid var(--acc);padding-left:12px">А чи можна так заповнити <i>будь-яку</i> таблицю? У 1989 році математик <b>Джордж Цибенко</b> (George Cybenko; закінчення «-енко» звучить дуже знайомо 😉) довів: мережа з одним прихованим шаром і <i>достатньою</i> кількістю нейронів відтворить будь-яку плавну таблицю з будь-якою точністю. Є два «але»: «достатньо» може бути багато, і теорема не каже, <i>як знайти</i> потрібні числа — цьому ми й вчитимемо мозок. Друге: таблиця має бути плавною. Тому ми й прибрали з фізики різкий обрив.</p>
+   <p style="margin-top:12px"><button class="btn" data-go="1">Що всередині мозку? →</button></p>
+  </div>
+ </div>
+</section>
+
+<section id="s1" hidden>
+ <div class="an">
+  <svg id="net" viewBox="0 0 620 410"></svg>
+  <div>
+   <div class="step" id="stNo"></div><h2 id="stT"></h2><p id="stD"></p>
+   <div class="fm" id="stF"></div>
+   <div id="knobs"></div>
+   <svg id="curve" viewBox="0 0 340 200" style="width:100%;max-width:400px;display:none;margin-top:6px"></svg>
+   <div id="phCap" style="display:none;margin:8px 0;min-height:84px;font-size:15px"></div><div style="overflow-x:auto"><div class="stage" id="stage" style="display:none"></div></div>
+   <div class="nav"><button class="btn" id="prev">← назад</button><button class="btn" id="next">далі →</button><span class="m" id="rst" style="font-size:12px"></span></div>
+  </div>
+ </div>
+</section>
+
+<section id="s2" hidden>
+ <div class="an" id="an2">
+  <div id="lcol">
+   <iframe id="game" data-src="fishgun.html?embed" style="width:100%;aspect-ratio:16/10;border:1px solid var(--line);background:#cfe3f0"></iframe>
+   <div class="nav" style="justify-content:space-between"><span class="big" id="missLbl"></span><button class="btn" id="shot">вистрілити</button></div>
+  </div>
+  <div>
+   <div class="step" id="tNo"></div><h2 id="tT"></h2><p id="tD"></p>
+   <div id="p1" hidden><svg id="nsvg" viewBox="0 0 360 330" style="width:100%;max-width:380px"></svg>
+    <div class="nav"><button class="btn" id="bp">підкрутити нейрони</button><button class="btn" id="bn">знову новачок</button><span class="m" id="tries" style="font-size:12px"></span></div></div>
+   <div id="p2" hidden><svg id="c1" viewBox="0 0 360 250" style="width:100%;max-width:400px;cursor:crosshair;background:rgba(255,255,255,.4);border:1px solid var(--line)"></svg>
+    <div class="knob"><span class="l">розмір кроку</span><input type="range" id="l1" min=".02" max=".6" step=".02" value=".3"></div>
+    <div class="nav"><button class="btn" id="b1s">крок вниз</button><button class="btn" id="b1r">заново</button><span class="m" style="font-size:11px;opacity:.6">клацніть на графіку — новий старт</span></div></div>
+   <div id="p3" hidden><div class="nav" id="terr" style="margin:0 0 6px"></div>
+    <canvas id="c2" width="336" height="336" style="width:100%;max-width:380px;cursor:crosshair;border:1px solid var(--line)"></canvas>
+    <div id="cap2" style="font-size:15px;min-height:62px;margin:6px 0"></div>
+    <div class="knob"><span class="l">розмір кроку</span><input type="range" id="l2" min=".02" max=".6" step=".02" value=".12"></div>
+    <div class="nav"><button class="btn" id="b2n"></button><button class="btn" id="b2m">×10</button><button class="btn" id="b2r">заново</button></div></div>
+   <div id="p4" hidden><svg id="nsvg2" viewBox="0 0 360 330" style="width:100%;max-width:380px"></svg></div>
+   <div id="p5" hidden><div class="nav" style="margin:0 0 6px"><button class="btn" id="ak1">tanh</button><button class="btn" id="ak2">ReLU</button></div>
+    <svg id="gsvg" viewBox="0 0 350 250" style="width:100%;max-width:400px"></svg>
+    <div class="knob"><span class="l">ручка</span><input type="range" id="kw" min="-3" max="1.5" step=".02" value="-1.66"></div>
+    <div class="nav"><button class="btn" id="kr"></button></div>
+    <details style="margin-top:10px"><summary class="m" style="font-size:12px;cursor:pointer">Для допитливих</summary><div style="margin-top:6px">
+     <div class="knob"><span class="l">сума z</span><input type="range" id="zs" min="-6" max="6" step=".1" value="3"></div>
+     <svg id="asv" viewBox="0 0 340 190" style="width:100%;max-width:400px"></svg><div class="fm" id="atx"></div>
+     <p style="font-size:14px">Нахил графіка в точці — це <b>чутливість</b>: на скільки зміниться голос, якщо трохи змінити z. Саме він — «шестерня» нейрона в ланцюжку. Для tanh його можна порахувати з самого голосу: <b>1 − a²</b>. Для ReLU він завжди 0 або 1.</p>
+     <div id="det2"></div></div></details></div>
+   <div id="p6" hidden><div class="nav" style="margin:0 0 6px"><span class="m" style="font-size:12px">«стискувач» нейронів:</span><button class="btn" id="bAk1" style="padding:4px 12px">tanh</button><button class="btn" id="bAk2" style="padding:4px 12px">ReLU</button><span class="m" id="bAkN" style="font-size:11px;opacity:.65"></span></div><div id="bpCap" style="font-size:16px;min-height:50px"></div>
+    <svg id="bsvg" viewBox="0 0 900 500" style="width:100%;max-width:1000px;background:rgba(255,255,255,.4);border:1px solid var(--line)"></svg>
+    <div class="nav"><button class="btn" id="bpn"></button><button class="btn" id="bpr">знову новачок</button><span class="big" id="bpMiss" style="font-size:22px"></span></div>
+    <details id="bpDet" style="margin-top:12px"><summary class="m" style="font-size:12px;cursor:pointer">Для допитливих: що таке зворотне поширення</summary>
+     <div style="margin-top:8px;font-size:15px;max-width:72ch">
+      <p><b>Яке питання ми ставимо.</b> «Якщо я трохи підкручу <i>цей</i> ремінь, промах стане більшим чи меншим — і на скільки?» Відповідь — <b>нахил</b>, або вклад ременя в промах. Ременів і зсувів у мозку 17, і для кожного потрібен свій вклад.</p>
+      <p><b>Чому «назад».</b> Між ременем і промахом стоїть ланцюжок шестерень: ремінь → сума → стискувач → голос нейрона → ремінь виходу → сума → вихідний стискувач → кут → падіння риби. Вклад ременя — <b>добуток передавальних чисел</b> усіх шестерень по дорозі. Кінець ланцюжка (від промаху до виходу) у всіх ременів однаковий, тож ми рахуємо його <b>один раз</b> від виходу й несемо назад, на кожній шестерні множачи на її число. Звідси й назва.</p>
+      <p><b>Що вирішує стискувач.</b> <b>tanh</b>: число шестерні = 1 − a². Голос біля 0 → число біля 1, поправка проходить. Голос ±1 («кричить») → число біля 0, поправка гаситься. <b>ReLU</b> (храповик): число 1, коли сума додатна, і 0, коли від’ємна. Нейрон із закритим храповиком для цього пострілу «глухий»: його ремені не вчаться.</p>
+      <p><b>Правило підкручування:</b> новий натяг = старий натяг − крок × вклад. Мінус — бо вклад показує, куди промах росте, а нам треба вниз. Крок малий, щоб не перестрибнути.</p>
+      <p class="m" style="font-size:12px;margin-top:10px">Вклад ременя «вітер → нейрон j» просто зараз (м промаху на одиницю ременя):</p><div id="bpDetT"></div>
+      <p class="m" style="font-size:12px">Поправка ременя = −крок × (промах / 50) × «разом». Число «разом» — добуток п’яти чисел рядка.</p>
+     </div></details></div>
+   <div class="nav"><button class="btn" id="tprev">← назад</button><button class="btn" id="tnext">далі →</button></div>
+  </div>
+ </div>
+</section>
+
+<section id="s3" hidden>
+ <div class="an">
+  <div><div class="step">карта влучань · вітер →, відстань ↓</div><table class="tb" id="hm" style="margin-top:6px"></table>
+   <p class="m" id="hmN" style="font-size:13px;margin-top:8px"></p>
+   <p class="m" style="font-size:11px;opacity:.6"><span style="color:#2b7a4b">■</span> влучання · <span style="color:#e8a33d">■</span> майже · <span style="color:#e2574c">■</span> промах</p></div>
+  <div>
+   <div class="step">Крок 4</div><h2>Епохи</h2>
+   <p>Епоха — один прохід по багатьох пострілах. Тут мозок вчиться <b>сам</b>: учителя нема, є лише промахи в метрах (інші способи — в Лабораторії). Після кожної мозок трохи вчиться. Дивіться, як карта зеленіє. Великий крок — мозок «трясе», малий — довго.</p>
+   <svg id="esvg" viewBox="0 0 360 190" style="width:100%;max-width:400px;background:rgba(255,255,255,.4);border:1px solid var(--line)"></svg>
+   <div class="m" id="eInfo" style="font-size:13px;margin:4px 0"></div>
+   <div class="knob"><span class="l">розмір кроку</span><input type="range" id="elr" min="0" max="100" value="45"></div>
+   <div class="nav"><button class="btn" id="ePlay">▶ вчитись</button><button class="btn" id="eStep">+1 епоха</button><button class="btn" id="eReset">знову новачок</button></div>
+   <svg id="enet" viewBox="0 0 360 340" style="width:100%;max-width:260px;margin-top:8px"></svg>
+  </div>
+ </div>
+</section>
+
+<section id="s5" hidden>
+ <div class="an">
+  <div><iframe id="gShoot" data-src="fishgun.html?embed" style="width:100%;aspect-ratio:16/10;border:1px solid var(--line);background:#cfe3f0"></iframe>
+   <div class="nav" style="justify-content:space-between"><span class="big" id="shInfo"></span><button class="btn" id="shFire">вистрілити мозком</button></div></div>
+  <div><div class="step">Крок 5</div><h2>Стрільба</h2>
+   <p>Тягніть тарілку, крутіть вітер — гармата сама обирає кут за своїм мозком. Вогонь — кнопка або пробіл.</p>
+   <div class="fm" id="shSrc"></div></div>
+ </div>
+</section>
+
+<section id="s6" hidden>
+ <div class="an">
+  <div>
+   <div class="step">Крок 6</div><h2>Лабораторія</h2>
+   <p>Збери мережу, обери <b>світ</b> і <b>спосіб навчання</b>. Мета: знайти найменшу мережу, що влучає 90 зі 100.</p>
+   <div class="knob"><span class="l">світ</span><span id="lWorlds" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+   <div class="m" id="lWd" style="font-size:13px;margin:2px 0 8px;min-height:34px"></div>
+   <div class="nav" id="labPre" style="margin:0 0 8px;flex-wrap:wrap"></div>
+   <div class="knob"><span class="l">шарів</span><button class="btn" id="lL1" style="padding:4px 12px">1</button><button class="btn" id="lL2" style="padding:4px 12px">2</button></div>
+   <div class="knob"><span class="l">нейронів 1</span><input type="range" id="lN1" min="1" max="8" value="4"><o id="oN1">4</o></div>
+   <div class="knob" id="kN2"><span class="l">нейронів 2</span><input type="range" id="lN2" min="1" max="8" value="4"><o id="oN2">4</o></div>
+   <div class="knob"><span class="l">стискач 1</span><select id="lA1"></select></div>
+   <div class="knob" id="kA2"><span class="l">стискач 2</span><select id="lA2"></select></div>
+   <div class="knob"><span class="l">як вчимо</span><span id="lModes" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+   <div class="knob" id="kTeach"><span class="l">відповідь учителя</span><span id="lTeach" style="display:flex;gap:6px"></span></div>
+   <div class="m" id="lMd" style="font-size:13px;margin:2px 0 8px;min-height:50px;max-width:62ch"></div>
+   <details id="lRew" style="margin:0 0 8px"><summary class="m" style="font-size:12px;cursor:pointer">Нагорода за постріл</summary>
+    <div style="font-size:14px;margin-top:6px">
+     <p>Кожен пробний постріл отримує <b>очки</b>:</p>
+     <ul style="margin:4px 0 4px 18px;padding:0">
+      <li>чим ближче до тарілки — тим більше (мінус відстань у метрах)</li>
+      <li>влучила — <b>+100</b></li>
+      <li>вдарилась об стіну чи стелю — <b>−50</b></li>
+      <li>пройшла крізь вікно — <b>+25</b></li>
+      <li>кожен рикошет — <b>−5</b></li>
+     </ul>
+     <p class="m" style="font-size:12px">Мозок пробує 12 кутів поблизу свого (часом далеко), бере той, що дав найбільше очок, і підтягується до нього. Це проста форма навчання з підкріпленням.</p></div></details>
+   <div class="knob"><span class="l">розмір кроку</span><input type="range" id="lLR" min="0" max="100" value="45"></div>
+   <div class="nav"><button class="btn" id="lPlay"></button><button class="btn" id="lStep">+1 епоха</button><button class="btn" id="lNew">нова мережа</button><button class="btn" id="lSend">→ у гармату</button></div>
+   <div class="m" id="lInfo" style="font-size:13px;margin:8px 0;min-height:36px"></div>
+   <table class="tb" id="lhm" style="margin-top:4px"></table>
+  </div>
+  <div>
+   <svg id="lscene" viewBox="0 0 600 270" style="width:100%;max-width:640px;background:rgba(255,255,255,.4);border:1px solid var(--line)"></svg>
+   <div class="knob"><span class="l">вітер</span><input type="range" id="lSW" min="0" max="100" value="50"></div>
+   <div class="knob"><span class="l">відстань</span><input type="range" id="lSD" min="0" max="100" value="50"></div>
+   <div class="m" id="lSI" style="font-size:13px;min-height:20px"></div>
+   <svg id="lnet" viewBox="0 0 420 310" style="width:100%;max-width:460px"></svg>
+   <svg id="lchart" viewBox="0 0 360 170" style="width:100%;max-width:400px;background:rgba(255,255,255,.4);border:1px solid var(--line);margin-top:8px"></svg></div>
+ </div>
+</section>
+
+<script>
+'use strict';
+const BRAIN={W1:[[2.7371,1.5372],[0.7319,1.204],[-0.9687,0.1921],[0.7686,0.3694]],b1:[0.1795,-2.1932,-0.9783,-1.0896],W2:[-1.1926,-1.1234,0.6718,-1.5086],b2:-0.2424};
+const C0=52,R0=23,H=4,th=Math.tanh;
+const clone=b=>JSON.parse(JSON.stringify(b));
+let net=clone(BRAIN);
+const fmt=v=>(v<0?'−':'')+Math.abs(v).toFixed(2);
+function run(n,x,y,act){const z=[],a=[],af=act==='relu'?q=>q>0?q:0:th;for(let j=0;j<H;j++){z[j]=n.W1[j][0]*x+n.W1[j][1]*y+n.b1[j];a[j]=af(z[j]);}
+ let zo=n.b2;for(let j=0;j<H;j++)zo+=n.W2[j]*a[j];const v=th(zo);return{z,a,zo,v,ang:C0+R0*v};}
+const dist=y=>59.5+70*y;           // відстань від гармати до тарілки
+const el=id=>document.getElementById(id);
+
+/* ---------- вкладки ---------- */
+function go(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
+ ['G',0,1,2,3,5,6].forEach(i=>el('s'+i).hidden=String(t)!==String(i));CUR=String(t);muteAll();
+ if(t=='G')loadG('gMain');if(t==2){loadG('game');tdraw();}if(t==3)edraw();if(t==5){loadG('gShoot');shAim(0);}if(t==6)ldraw();}
+function loadG(id){const f=el(id);if(!f.getAttribute('src')){f.setAttribute('allow','autoplay');f.src=f.dataset.src;}}
+document.querySelectorAll('nav button:not(:disabled)').forEach(b=>b.onclick=()=>go(b.dataset.t));
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+
+/* ---------- 1. Навіщо: таблиця із самого мозку ---------- */
+(function(){const t=el('tbl');let h='<tr><th></th>';
+ for(let i=0;i<10;i++)h+='<th>'+Math.round(i/9*100)+'%</th>';h+='</tr>';
+ for(let j=0;j<10;j++){const y=j/9*.786;h+='<tr><th>'+Math.round(dist(y))+' м</th>';
+  for(let i=0;i<10;i++){const w=i/9,r=run(BRAIN,w,y);
+   h+='<td data-w="'+w+'" data-y="'+y+'" style="background:rgba(232,163,61,'+(.08+.8*(r.ang-33)/42).toFixed(2)+')">'+r.ang.toFixed(0)+'°</td>';}
+  h+='</tr>';}
+ t.innerHTML='<caption class="m" style="font-size:11px;opacity:.55;text-align:left;padding-bottom:5px">КУТ ПОСТРІЛУ · стовпці — вітер, рядки — відстань до тарілки</caption>'+h;
+ t.onclick=e=>{const d=e.target.closest('td');if(!d)return;const r=run(BRAIN,+d.dataset.w,+d.dataset.y);
+  el('cellInfo').textContent='вітер '+Math.round(d.dataset.w*100)+' %, відстань '+Math.round(dist(d.dataset.y))+' м → кут '+r.ang.toFixed(1)+'°';};})();
+
+/* ---------- 2. Анатомія ---------- */
+const st={step:0,x:.5,y:.4,hl:-1,ph:0,row:-1,tm:null};
+const STEPS=[
+ ['Вхід','Мозок бачить світ тільки через два числа: <b>вітер x</b> і <b>відстань y</b> (обидва від 0 до 1). Крутіть повзунки — два кружечки зліва змінюються.'],
+ ['Один нейрон: ваги й зсув','Кожне число множиться на свою <b>вагу</b>: синя — додатна, червона — від’ємна, товщина — сила. Потім додаємо <b style="color:var(--bias)">зсув b</b>. Виходить сума z. Крутіть ваги — z змінюється.'],
+ ['Стискач tanh','Сума z буває будь-яка: 7 чи −12. Стискач <b>tanh</b> робить з неї «голос» від −1 до +1: на графіку видно стелю й підлогу, вище яких голос не росте.<br><b>Навіщо він?</b> 1) Без стискача усі наші множення й додавання разом дали б просто один рівний нахил, а кут з вітром має <i>вигини</i>. Стискач і є «вигин». 2) Жоден нейрон не кричить безмежно: коли z велике, голос уже ±1 і майже не реагує (рожеві зони).<br><i>Секрет: стискачів буває багато, наприклад ReLU: «все від’ємне стає нулем, додатне лишається». Їх спробуємо в лабораторії.</i>'],
+ ['Чотири нейрони','Таких нейронів у нас чотири, з різними числами. Записувати кожен окремо — довго. Тисніть «далі»: кожне натискання — наступний кадр анімації.'],
+ ['Вихідний нейрон','Чотири голоси множимо на ваги другого шару, додаємо зсув і знову стискаємо: v від −1 до +1. Далі <b>кут = 52° + 23°·v</b>, тобто від 29° до 75°.'],
+ ['Усе разом','Лічимо пам’ять мозку: 4×2 = 8 ваг + 4 зсуви + 4 ваги + 1 зсув = <b>17 чисел</b>. Усе «розуміння» вітру — тільки вони.']];
+const KN=[
+ {l:'вітер x',min:0,max:1,s:.01,g:()=>st.x,set:v=>st.x=v,on:[0,1,2,3,4,5,6],c:'--acc'},
+ {l:'відстань y',min:0,max:.79,s:.01,g:()=>st.y,set:v=>st.y=v,on:[0,1,2,3,4,5,6],c:'--acc'},
+ {l:'вага w₁',min:-3,max:3,s:.05,g:()=>net.W1[0][0],set:v=>net.W1[0][0]=v,on:[1,2],c:'--pos'},
+ {l:'вага w₂',min:-3,max:3,s:.05,g:()=>net.W1[0][1],set:v=>net.W1[0][1]=v,on:[1,2],c:'--pos'},
+ {l:'зсув b',min:-3,max:3,s:.05,g:()=>net.b1[0],set:v=>net.b1[0]=v,on:[1,2],c:'--bias'}];
+const kb=el('knobs');
+KN.forEach((k,i)=>{const d=document.createElement('div');d.className='knob';
+ d.innerHTML='<span class="l">'+k.l+'</span><input type="range" min="'+k.min+'" max="'+k.max+'" step="'+k.s+'" value="'+k.g()+'"><o></o>';
+ const inp=d.querySelector('input');inp.style.accentColor='var('+k.c+')';
+ inp.oninput=()=>{k.set(+inp.value);draw();};k.d=d;k.inp=inp;kb.appendChild(d);});
+
+function col(a,al){return a>=0?'rgba(47,111,208,'+al+')':'rgba(226,87,76,'+al+')';}
+function edge(x1,y1,x2,y2,w,lab,hl){const s=1+3.4*Math.min(1,Math.abs(w)/1.5);
+ let o='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col(w,hl?1:.75)+'" stroke-width="'+(hl?s+1.5:s)+'"/>';
+ if(lab){const t=.62,tx=x1+(x2-x1)*t,ty=y1+(y2-y1)*t;
+  o+='<rect x="'+(tx-21)+'" y="'+(ty-8)+'" width="42" height="15" fill="#f2ecdd" opacity=".9"/><text x="'+tx+'" y="'+(ty+4)+'" font-size="11" text-anchor="middle" fill="'+(w<0?'#e2574c':'#2f6fd0')+'">'+fmt(w)+'</text>';}return o;}
+function node(cx,cy,r,a,top,sub,out){return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+(out?'#f2ecdd':col(a,Math.abs(a)*.85+.08))+'" stroke="#2b241d" stroke-width="'+(out?1.5:1.2)+'"/>'+
+ '<text x="'+cx+'" y="'+(cy+4)+'" font-size="13" text-anchor="middle" fill="#2b241d">'+top+'</text>'+(sub?'<text x="'+cx+'" y="'+(cy+r+14)+'" font-size="11" text-anchor="middle" fill="#2b7a4b">'+sub+'</text>':'');}
+
+const HY=[60,150,240,330],IX=[78,78],IY=[135,275],HX=310,OX=545,OY=205;
+function draw(){const s=st.step,r=run(net,st.x,st.y),nh=s<3?1:4;let o='';
+ // ребра вхід → прихований
+ for(let j=0;j<nh;j++)for(let i=0;i<2;i++)o+=edge(IX[i]+22,IY[i],HX-24,HY[j],net.W1[j][i],s>=1,s===3&&j===st.hl);
+ if(s>=4)for(let j=0;j<4;j++)o+=edge(HX+24,HY[j],OX-30,OY,net.W2[j],true,false);
+ // вузли
+ o+=node(IX[0],IY[0],22,0,'x',null,true)+node(IX[1],IY[1],22,0,'y',null,true);
+ o+='<text x="'+IX[0]+'" y="'+(IY[0]-30)+'" font-size="12" text-anchor="middle">вітер '+st.x.toFixed(2)+'</text><text x="'+IX[1]+'" y="'+(IY[1]-30)+'" font-size="12" text-anchor="middle">відстань '+st.y.toFixed(2)+'</text>';
+ for(let j=0;j<nh;j++)o+=node(HX,HY[j],24,s>=2?r.a[j]:0,s>=2?fmt(r.a[j]):(s>=1?'z='+r.z[j].toFixed(1):'Σ'),s>=1?'b='+fmt(net.b1[j]):null,s<2);
+ if(s>=4){o+=node(OX,OY,30,r.v,fmt(r.v),'b='+fmt(net.b2),false);
+  o+='<text x="'+OX+'" y="'+(OY+64)+'" font-size="22" text-anchor="middle" font-weight="500">'+r.ang.toFixed(1)+'°</text><text x="'+OX+'" y="'+(OY+82)+'" font-size="11" text-anchor="middle" opacity=".6">кут гармати</text>';}
+ el('net').innerHTML=o;
+ // текст
+ el('stNo').textContent='Крок '+(s+1)+' / '+STEPS.length+(s===3?' · кадр '+(st.ph+1)+'/6':'');el('stT').textContent=STEPS[s][0];el('stD').innerHTML=STEPS[s][1];
+ let f='введіть x, y — побачите числа';
+ const w=net.W1[0];
+ if(s===0)f='x = '+st.x.toFixed(2)+',  y = '+st.y.toFixed(2);
+ if(s===1)f='z = '+fmt(w[0])+'·'+st.x.toFixed(2)+' + '+fmt(w[1])+'·'+st.y.toFixed(2)+' + ('+fmt(net.b1[0])+')<br>z = <b>'+fmt(r.z[0])+'</b>';
+ if(s===2)f='a = tanh('+fmt(r.z[0])+') = <b>'+fmt(r.a[0])+'</b><br>чутливість 1 − a² = '+(1-r.a[0]*r.a[0]).toFixed(2);
+ if(s===3)f=['z₁…z₄ — чотири окремі рівняння','W — матриця ваг, 4×2','v = (x, y) — вектор входів','W · v — усі чотири суми одразу','z = W·v + b','<b>a = tanh( W·v + b )</b>'][st.ph];
+ if(s===4)f='zₒ = Σ wⱼ·aⱼ + b = '+fmt(r.zo)+'<br>v = tanh(zₒ) = <b>'+fmt(r.v)+'</b><br>кут = 52 + 23·v = <b>'+r.ang.toFixed(1)+'°</b>';
+ if(s>=5)f='кут = 52 + 23·tanh( Σ wⱼ·tanh(w₁ⱼx+w₂ⱼy+bⱼ) + b ) = <b>'+r.ang.toFixed(1)+'°</b>';
+ el('stF').innerHTML=f;
+ KN.forEach(k=>{const on=k.on.includes(s);k.d.style.display=on?'':'none';k.inp.value=k.g();k.d.querySelector('o').textContent=(+k.g()).toFixed(2);});
+ // крива tanh зі шкалою
+ const cv=el('curve');cv.style.display=s===2?'block':'none';
+ if(s===2){const X=u=>170+u*24,Y=a=>95-a*70,F='font-family="IBM Plex Mono" font-size="10"';let p='',o='';
+  for(let u=-6;u<=6.01;u+=.2)p+=(p?'L':'M')+X(u).toFixed(1)+' '+Y(th(u)).toFixed(1);
+  const z=Math.max(-6,Math.min(6,r.z[0])),a=th(z);
+  [[-6,-2],[2,6]].forEach(q=>o+='<rect x="'+X(q[0])+'" y="'+Y(1)+'" width="'+(X(q[1])-X(q[0]))+'" height="'+(Y(-1)-Y(1))+'" fill="#e2574c" opacity=".09"/>');
+  o+='<line x1="'+X(-6)+'" y1="'+Y(1)+'" x2="'+X(6)+'" y2="'+Y(1)+'" stroke="#2b241d" stroke-dasharray="4 3" opacity=".5"/><line x1="'+X(-6)+'" y1="'+Y(-1)+'" x2="'+X(6)+'" y2="'+Y(-1)+'" stroke="#2b241d" stroke-dasharray="4 3" opacity=".5"/>';
+  o+='<line x1="'+X(-6)+'" y1="'+Y(0)+'" x2="'+X(6)+'" y2="'+Y(0)+'" stroke="#2b241d" opacity=".5"/><line x1="'+X(0)+'" y1="'+(Y(1)-10)+'" x2="'+X(0)+'" y2="'+(Y(-1)+10)+'" stroke="#2b241d" opacity=".5"/>';
+  for(let u=-6;u<=6;u+=2)o+='<line x1="'+X(u)+'" y1="'+(Y(0)-3)+'" x2="'+X(u)+'" y2="'+(Y(0)+3)+'" stroke="#2b241d"/><text x="'+X(u)+'" y="'+(Y(0)+16)+'" '+F+' text-anchor="middle" opacity=".7">'+(u<0?'−':'')+Math.abs(u)+'</text>';
+  o+='<text x="'+(X(-6)-2)+'" y="'+(Y(1)+3)+'" '+F+' text-anchor="end">+1</text><text x="'+(X(-6)-2)+'" y="'+(Y(0)+3)+'" '+F+' text-anchor="end">0</text><text x="'+(X(-6)-2)+'" y="'+(Y(-1)+3)+'" '+F+' text-anchor="end">−1</text>';
+  o+='<text x="'+X(6)+'" y="'+(Y(1)-4)+'" '+F+' text-anchor="end">стеля</text><text x="'+X(6)+'" y="'+(Y(-1)+13)+'" '+F+' text-anchor="end">підлога</text>';
+  o+='<text x="'+X(-4)+'" y="'+(Y(-1)+30)+'" '+F+' text-anchor="middle" fill="#e2574c">кричить</text><text x="'+X(4)+'" y="'+(Y(1)-14)+'" '+F+' text-anchor="middle" fill="#e2574c">кричить</text>';
+  o+='<text x="'+X(6)+'" y="'+(Y(0)-6)+'" '+F+' text-anchor="end">z →</text><text x="'+(X(0)+5)+'" y="'+(Y(1)-14)+'" '+F+'>↑ голос a</text>';
+  o+='<path d="'+p+'" fill="none" stroke="#2b241d" stroke-width="2.2"/><line x1="'+X(z)+'" y1="'+Y(0)+'" x2="'+X(z)+'" y2="'+Y(a)+'" stroke="#e8a33d" stroke-dasharray="3"/><line x1="'+X(0)+'" y1="'+Y(a)+'" x2="'+X(z)+'" y2="'+Y(a)+'" stroke="#e8a33d" stroke-dasharray="3"/><circle cx="'+X(z)+'" cy="'+Y(a)+'" r="5" fill="#e8a33d"/>';
+  cv.innerHTML=o;}
+ updateStage();
+ el('prev').disabled=s===0;el('next').textContent=s===STEPS.length-1?'до навчання →':'далі →';
+ el('rst').innerHTML=(s>=1&&s<=2)?'<a href="#" id="rs" style="color:inherit">скинути ваги</a>':'';
+ const rs=el('rs');if(rs)rs.onclick=e=>{e.preventDefault();net=clone(BRAIN);draw();};}
+/* ---------- крок 4: рівняння → матриця (анімація) ---------- */
+const PH=6;
+const CAP=['Чотири нейрони — це <b>чотири рівняння</b>, у кожному свої числа. Виглядає страшно, правда?',
+ 'Хитрість: беремо всі <b>ваги</b> і складаємо їх у таблицю — <b>матрицю W</b>. Один рядок — один нейрон.',
+ 'Входи теж складаємо в стовпець — це <b>вектор v</b> = (x, y).',
+ '<b>Домовленість про множення:</b> рядок × стовпець — <span class="cAt"><b>перше з першим</b></span>, <span class="cBt"><b>друге з другим</b></span>, а потім додати.',
+ 'Зсуви теж складаємо в стовпець — <b>вектор b</b> — і додаємо: виходить z.',
+ 'Стискач tanh застосовуємо до кожного z: вийшли чотири голоси a. Чотири рівняння стали одним коротким.'];
+const SG=el('stage'),RY=i=>26+i*46;
+function mk(cls,html,x,y,css){const d=document.createElement('div');d.className=cls;d.style.left=x+'px';d.style.top=y+'px';if(html!=null)d.innerHTML=html;if(css)d.style.cssText+=css;SG.appendChild(d);return d;}
+const eqT=[],Wc=[],vc=[],Wv=[],bc=[],zc=[],dec=[];
+const D=(min,html,x,y,css)=>{const d=mk('dec',html,x,y,css);dec.push({d,min});return d;};
+for(let i=0;i<4;i++){eqT.push(mk('dec','z<sub>'+(i+1)+'</sub> =',0,RY(i)+5),mk('dec cAt','·x +',92,RY(i)+5),mk('dec cBt','·y +',178,RY(i)+5));
+ Wc.push([mk('chip cA',''),mk('chip cB','')]);Wv.push(mk('chip',''));bc.push(mk('chip',''));zc.push(mk('chip',''));}
+vc.push(mk('chip cA',''),mk('chip cB',''));
+D(1,'',8,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-right:none');D(1,'',108,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-left:none');
+D(2,'',128,RY(1)-6,'height:98px;width:7px;border:2px solid #2b241d;border-right:none');D(2,'',180,RY(1)-6,'height:98px;width:7px;border:2px solid #2b241d;border-left:none');
+D(2,'×',117,RY(1)+14);D(3,'=',189,RY(1)+14);
+D(3,'',198,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-right:none');D(3,'',252,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-left:none');
+D(4,'+',259,RY(1)+14);
+D(4,'',268,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-right:none');D(4,'',320,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-left:none');
+D(4,'=',326,RY(1)+14);
+D(4,'',334,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-right:none');D(4,'',386,RY(0)-6,'height:190px;width:7px;border:2px solid #2b241d;border-left:none');
+D(1,'W',50,200);D(2,'v',154,200);D(3,'W·v',210,200);D(4,'b',286,200,'color:#2b7a4b');const zl=D(4,'z',356,200);
+const tl=D(5,'tanh ↓',338,-2,'font-size:11px');
+function setPhase(p){st.ph=p;clearInterval(st.tm);st.row=p>3?4:-1;st.hl=-1;
+ if(p===3){st.row=0;st.hl=0;st.tm=setInterval(()=>{st.row++;st.hl=st.row<4?st.row:-1;if(st.row>=4)clearInterval(st.tm);draw();},1900);}}
+function layout(){const p=st.ph,row=st.row,pos=(d,x,y,o)=>{d.style.left=x+'px';d.style.top=y+'px';d.style.opacity=o;};
+ eqT.forEach(d=>d.style.opacity=p===0?1:0);
+ for(let i=0;i<4;i++){for(let c=0;c<2;c++){const d=Wc[i][c];pos(d,p===0?(c?130:44):16+48*c,RY(i),1);d.classList.toggle(c?'hB':'hA',p===3&&row===i);}
+  pos(Wv[i],204,RY(i),(p>=4||(p===3&&row>=i))?1:0);
+  pos(bc[i],p===0?222:p<4?330:274,RY(i),p===0?1:p<4?0:(p===5?.35:1));
+  pos(zc[i],340,RY(i),p>=4?1:0);zc[i].classList.toggle('a',p===5);}
+ vc.forEach((d,k)=>{pos(d,p>=2?134:440,RY(1)+k*46,p>=2?1:0);d.classList.toggle(k?'hB':'hA',p===3&&row>=0&&row<4);});
+ dec.forEach(o=>o.d.style.opacity=st.ph>=o.min?1:0);zl.textContent=p===5?'a':'z';tl.style.opacity=p===5?1:0;}
+function updateStage(){const show=st.step===3,cap=el('phCap');SG.style.display=show?'block':'none';cap.style.display=show?'block':'none';if(!show)return;
+ const r=run(net,st.x,st.y),col=v=>v<0?'#e2574c':'#2f6fd0';
+ for(let i=0;i<4;i++){for(let c=0;c<2;c++){Wc[i][c].textContent=fmt(net.W1[i][c]);Wc[i][c].style.color=col(net.W1[i][c]);}
+  Wv[i].textContent=fmt(net.W1[i][0]*st.x+net.W1[i][1]*st.y);bc[i].textContent=fmt(net.b1[i]);bc[i].style.color='#2b7a4b';
+  zc[i].textContent=st.ph===5?fmt(r.a[i]):fmt(r.z[i]);}
+ vc[0].textContent=st.x.toFixed(2);vc[1].textContent=st.y.toFixed(2);
+ let t=CAP[st.ph];
+ if(st.ph===3){const k=st.row;t+=(k>=0&&k<4)?'<div class="fm" style="font-size:12px">рядок №'+(k+1)+': <span class="cAt"><b>('+fmt(net.W1[k][0])+')·'+st.x.toFixed(2)+'</b></span> + <span class="cBt"><b>('+fmt(net.W1[k][1])+')·'+st.y.toFixed(2)+'</b></span> = <b>'+fmt(net.W1[k][0]*st.x+net.W1[k][1]*st.y)+'</b></div>':'<div class="fm" style="font-size:12px">чотири суми за один хід</div>';}
+ cap.innerHTML=t;layout();}
+el('prev').onclick=()=>{if(st.step===3&&st.ph>0)setPhase(st.ph-1);else{st.step--;if(st.step===3)setPhase(PH-1);}draw();};
+el('next').onclick=()=>{if(st.step===STEPS.length-1){go(2);return;}if(st.step===3&&st.ph<PH-1)setPhase(st.ph+1);else{st.step++;if(st.step===3)setPhase(0);}draw();};
+
+/* ---------- 3. Навчання: промах, два пробні постріли, внесок ваги ---------- */
+const PHY={V0:407.6,G:100,KAX:.0082,KPERP:.10,KLEAF:.134,VLO:20,VHI:105.4,WMAX:25.4,px:134.5,py:9.2,bar:15.5,wallX:84,wallTop:23.8,rim:4.1};
+const smo=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
+function shoot(thD,w,rec){const P=PHY,h=1/240,t=thD*Math.PI/180,c=Math.cos(t),sn=Math.sin(t),Wx=P.WMAX*w,pts=[];
+ let x=P.px-P.bar*c,y=P.py+P.bar*sn,vx=-P.V0*c,vy=P.V0*sn,phi=Math.PI-t,age=0,cd=0,n=0;
+ while(age<14){const ux=vx-Wx,uy=vy,sp=Math.hypot(ux,uy)||1e-6;let fx=0,fy=-P.G;
+  const stall=1-smo((sp-P.VLO)/(P.VHI-P.VLO));let d=Math.atan2(vy,vx)-phi;d=Math.atan2(Math.sin(d),Math.cos(d));
+  phi+=d*Math.min(1,h*12)*(1-stall)+(2.2+w*2.6)*h*stall;const ax=Math.cos(phi),ay=Math.sin(phi),par=ux*ax+uy*ay,ka=P.KAX*(1-stall);
+  fx+=-ka*Math.abs(par)*par*ax;fy+=-ka*Math.abs(par)*par*ay;const wp=Math.abs(Wx*ay),kp=P.KPERP*(1-stall);
+  fx+=kp*wp*(Wx*ay*ay);fy+=kp*wp*(-Wx*ax*ay);const kl=P.KLEAF*stall;fx+=-kl*sp*ux;fy+=-kl*sp*uy;
+  vx+=fx*h;vy+=fy*h;x+=vx*h;y+=vy*h;age+=h;if(cd>0)cd-=h;
+  if(cd<=0&&Math.abs(x-P.wallX)<1.9&&y<P.wallTop&&y>3){const g=Math.sign(vx)||1;vx=-g*(Math.abs(vx)*.3+2.5);if(vy<0&&y>P.wallTop-2.2)vy=Math.abs(vy)*.3;vy*=.55;cd=.4;}
+  if(rec&&(n++%6===0))pts.push([x,y]);
+  if(y<=P.rim+1.3&&vy<=0&&age>.05)return{xL:x,pts:rec?pts.concat([[x,y]]):0};if(y<=.1)return{xL:x,pts:pts};}
+ return{xL:x,pts:pts};}
+const NOV={W1:[[0.97,1.12],[-0.18,1.31],[-1.63,0.94],[0.15,0.57]],b1:[0,0,0,0],W2:[-0.02,-0.63,0.55,-1.13],b2:0};
+
+const T={step:0,w:.55,p:45,net:clone(NOV),tries:0,busy:false};T.y=(75-T.p)/70;
+const GM=el('game'),angOf=(n,act)=>C0+R0*run(n,T.w,T.y,act).v,missOf=(n,act)=>shoot(angOf(n,act),T.w).xL-T.p,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+function aim(f){try{GM.contentWindow.postMessage({type:'aim',theta:angOf(T.net),wind:T.w,plate:T.p,fire:!!f},'*')}catch(e){}}
+GM.addEventListener('load',()=>setTimeout(()=>aim(0),500));
+const msTxt=m=>Math.abs(m)<3?'влучання!':(m<0?'переліт ':'недоліт ')+Math.abs(m).toFixed(0)+' м';
+function showMiss(){const m=missOf(T.net),e=el('missLbl');e.textContent=msTxt(m);e.style.color=Math.abs(m)<3?'#2b7a4b':'#e2574c';return m;}
+function grads(n,act){const r=run(n,T.w,T.y,act),th=C0+R0*r.v,m=shoot(th,T.w).xL-T.p,S=(shoot(th+.05,T.w).xL-shoot(th-.05,T.w).xL)/.1;
+ const dzo=2*m/100*S*R0*(1-r.v*r.v),g={W1:[],b1:[],W2:[],b2:dzo,m,S};
+ for(let j=0;j<4;j++){g.W2[j]=dzo*r.a[j];const dz=dzo*n.W2[j]*(act==='relu'?(r.z[j]>0?1:0):1-r.a[j]*r.a[j]);g.W1[j]=[dz*T.w,dz*T.y];g.b1[j]=dz;}return g;}
+let LR=.0025;
+function applyG(n,g,k){for(let j=0;j<4;j++){n.W2[j]-=k*g.W2[j];n.b1[j]-=k*g.b1[j];n.W1[j][0]-=k*g.W1[j][0];n.W1[j][1]-=k*g.W1[j][1];}n.b2-=k*g.b2;}
+/* --- схема мережі --- */
+const NI=[[40,125],[40,225]],NH=[[175,40],[175,135],[175,230],[175,320]],NO=[315,180];
+function netSVG(n,ch,pulse){const E=[];
+ for(let j=0;j<4;j++)for(let i=0;i<2;i++)E.push([NI[i],NH[j],n.W1[j][i],ch?Math.abs(ch.W1[j][i]):0,1]);
+ for(let j=0;j<4;j++)E.push([NH[j],NO,n.W2[j],ch?Math.abs(ch.W2[j]):0,0]);
+ let o='';const L=e=>'x1="'+e[0][0]+'" y1="'+e[0][1]+'" x2="'+e[1][0]+'" y2="'+e[1][1]+'"';
+ E.forEach(e=>{if(e[3]>.01)o+='<line class="fl" '+L(e)+' stroke="#e8a33d" stroke-width="'+(9+Math.min(6,e[3]*10))+'"/>';});
+ E.forEach(e=>o+='<line '+L(e)+' stroke="'+col(e[2],.85)+'" stroke-width="'+(1+3.4*Math.min(1,Math.abs(e[2])/1.5))+'"/>');
+ const r=run(n,T.w,T.y);
+ NI.forEach((p,i)=>o+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="22" fill="#f2ecdd" stroke="#2b241d"/><text x="'+p[0]+'" y="'+(p[1]+4)+'" font-size="11" text-anchor="middle">'+(i?'відст.':'вітер')+'</text>');
+ NH.forEach((p,j)=>o+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="20" fill="'+col(r.a[j],Math.abs(r.a[j])*.85+.08)+'" stroke="#2b241d"/>');
+ o+='<circle cx="'+NO[0]+'" cy="'+NO[1]+'" r="28" fill="#f2ecdd" stroke="#2b241d" stroke-width="1.5"/><text x="'+NO[0]+'" y="'+(NO[1]+4)+'" font-size="13" text-anchor="middle">'+angOf(n).toFixed(0)+'°</text>';
+ if(pulse){o+='<text x="'+NO[0]+'" y="'+(NO[1]-38)+'" font-size="12" text-anchor="middle" fill="#e2574c">помилка!</text>';
+  E.forEach(e=>{o+='<circle r="6" fill="#e2574c" opacity=".9"><animateMotion data-d="'+(e[4]?1100:0)+'" dur="1s" begin="indefinite" fill="freeze" path="M'+e[1][0]+' '+e[1][1]+' L'+e[0][0]+' '+e[0][1]+'"/></circle>';});}
+ return o;}
+function bpStep(){if(T.busy)return;T.busy=true;const g=grads(T.net);
+ const sv=el('nsvg');sv.innerHTML=netSVG(T.net,null,1);
+ sv.querySelectorAll('animateMotion').forEach(a=>setTimeout(()=>a.beginElement&&a.beginElement(),+a.dataset.d));
+ setTimeout(()=>{applyG(T.net,g,LR);const ch={W1:g.W1.map(r=>r.map(v=>v*LR)),W2:g.W2.map(v=>v*LR)};T.tries++;
+  sv.innerHTML=netSVG(T.net,ch,0);showMiss();el('tries').textContent='спроба '+T.tries;aim(true);T.busy=false;},2300);}
+/* --- рельєф: помилка = (промах/10)² для однієї «ручки» чи двох --- */
+const A0=-4,A1=1.5,B0=-2.5,B1=3;
+const lossAt=(a,b)=>{const n=clone(NOV);n.W1[1][0]=a;if(b!=null)n.W1[1][1]=b;return(missOf(n)/10)**2;};
+const arrow=(c,x1,y1,x2,y2,col,w)=>{c.strokeStyle=c.fillStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();const a=Math.atan2(y2-y1,x2-x1);
+ if(Math.hypot(x2-x1,y2-y1)>6){c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-9*Math.cos(a-.4),y2-9*Math.sin(a-.4));c.lineTo(x2-9*Math.cos(a+.4),y2-9*Math.sin(a+.4));c.fill();}};
+let K1=null;const S1={w:-3.5,path:[]};
+function d1(){if(!K1){K1=[];for(let i=0;i<=60;i++){const w=A0+(A1-A0)*i/60;K1.push([w,lossAt(w)]);}K1.ymax=Math.max(...K1.map(p=>p[1]))*1.05;}
+ const X=w=>30+(w-A0)/(A1-A0)*310,Y=v=>215-v/K1.ymax*185,h=.1,w=S1.w,L0=lossAt(w),La=lossAt(w-h),Lb=lossAt(w+h),sl=(Lb-La)/(2*h),lr=+el('l1').value;
+ let o='<line x1="30" y1="215" x2="345" y2="215" stroke="#2b241d"/><line x1="30" y1="20" x2="30" y2="215" stroke="#2b241d"/><text x="190" y="240" font-size="12" text-anchor="middle">ручка (вага)</text><text x="12" y="120" font-size="12" transform="rotate(-90 12 120)" text-anchor="middle">помилка</text>';
+ o+='<path d="'+K1.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')+'" fill="none" stroke="#2b241d" stroke-width="2.4"/>';
+ S1.path.forEach(q=>o+='<circle cx="'+X(q)+'" cy="'+Y(lossAt(q))+'" r="3.5" fill="#2b241d" opacity=".3"/>');
+ const t0=cl(w-.6,A0,A1),t1=cl(w+.6,A0,A1);
+ o+='<line x1="'+X(t0)+'" y1="'+Y(L0+sl*(t0-w))+'" x2="'+X(t1)+'" y2="'+Y(L0+sl*(t1-w))+'" stroke="#e8a33d" stroke-width="2.5"/>';
+ o+='<circle cx="'+X(w-h)+'" cy="'+Y(La)+'" r="4" fill="#e8a33d"/><circle cx="'+X(w+h)+'" cy="'+Y(Lb)+'" r="4" fill="#e8a33d"/>';
+ const dx=cl(-lr*sl,-3,3),x2=X(cl(w+dx,A0,A1));
+ o+='<line x1="'+X(w)+'" y1="'+(Y(L0)-16)+'" x2="'+x2+'" y2="'+(Y(L0)-16)+'" stroke="#2b7a4b" stroke-width="3"/><text x="'+((X(w)+x2)/2)+'" y="'+(Y(L0)-22)+'" font-size="11" text-anchor="middle" fill="#2b7a4b">крок</text>';
+ o+='<circle cx="'+X(w)+'" cy="'+Y(L0)+'" r="8" fill="#2b241d"/><text x="'+(X(w)+12)+'" y="'+(Y(L0)+16)+'" font-size="11" fill="#b9791a">нахил</text>';
+ el('c1').innerHTML=o;S1.sl=sl;}
+el('c1').onclick=e=>{const r=el('c1').getBoundingClientRect(),x=(e.clientX-r.left)/r.width*360;S1.w=cl(A0+(x-30)/310*(A1-A0),A0,A1);S1.path=[];d1();};
+el('b1s').onclick=()=>{S1.path.push(S1.w);S1.w=cl(S1.w-(+el('l1').value)*S1.sl,A0,A1);d1();};
+el('b1r').onclick=()=>{S1.w=-3.5;S1.path=[];d1();};el('l1').oninput=d1;
+const TER={pit:{n:'яма',f:(u,v)=>{const c=.82,q=.57,p=(u-.8)*c+(v+.6)*q,r=-(u-.8)*q+(v+.6)*c;return(p/1.7)**2+(r/.75)**2+.3*Math.sin(2*u+1)*Math.sin(2*v);}},
+ bowl:{n:'чаша',f:(u,v)=>((u+.5)**2+(v-.4)**2)/1.2},
+ two:{n:'дві ями',f:(u,v)=>3-3*Math.exp(-((u-1.5)**2+(v+1.2)**2))-2*Math.exp(-((u+1.6)**2+(v-1.4)**2)/1.4)+.15*(u*u+v*v)},
+ ravine:{n:'яр',f:(u,v)=>{const x=u*.7,y=v*.7+.6;return(1-x)**2+2*(y-x*x)**2;}}};
+const NC=56,H2=.3,S2={t:'pit',p:[-2.4,2.1],path:[],ph:0},ST={pit:[-2.4,2.1],bowl:[-2.5,-2],two:[-.3,.3],ravine:[-2,-1.5]},BS={};
+const GLB=['1 · крок убік','2 · крок угору','3 · нахили','4 · градієнт','5 · йдемо вниз'];
+const CP=['Робимо малий крок убік (завжди однаковий) і дивимось, як змінилась висота.','Те саме вгору: такий самий малий крок, і знову дивимось на висоту.','Скільки висоти додав крок — такий і нахил у цьому напрямку. Червоне — по горизонталі, синє — по вертикалі: куди висота росте.','Складаємо червоне й синє — виходить стрілка. Це і є <b>градієнт</b>: вона дивиться на найкрутіший підйом.','Нам треба вниз, тож ідемо в протилежний бік. Довжину кроку обирає повзунок.'];
+function base(){const k=S2.t;if(BS[k])return BS[k];const cv=document.createElement('canvas');cv.width=cv.height=336;const g=cv.getContext('2d');if(!g)return null;
+ const f=TER[k].f,v=[];let lo=1e9,hi=-1e9;for(let j=0;j<NC;j++)for(let i=0;i<NC;i++){const z=f(-3+6*(i+.5)/NC,3-6*(j+.5)/NC);v.push(z);lo=Math.min(lo,z);hi=Math.max(hi,z);}
+ v.forEach((z,q)=>{const t=Math.sqrt((z-lo)/(hi-lo));g.fillStyle='hsl('+(130-130*t)+',55%,'+(80-38*t)+'%)';g.fillRect(q%NC*6,Math.floor(q/NC)*6,6,6);});return BS[k]=cv;}
+function grad2(){const f=TER[S2.t].f,[a,b]=S2.p,f0=f(a,b),dx=f(a+H2,b)-f0,dy=f(a,b+H2)-f0;return{dx,dy,gx:dx/H2,gy:dy/H2};}
+function d2(){el('cap2').innerHTML=CP[S2.ph];el('b2n').textContent=S2.ph<4?GLB[S2.ph+1]:'зробити крок';
+ [...el('terr').children].forEach(b=>b.style.background=b.dataset.k===S2.t?'#2b241d':'none',b=>0);[...el('terr').children].forEach(b=>b.style.color=b.dataset.k===S2.t?'#f2ecdd':'');
+ const c=el('c2').getContext('2d'),bs=base();if(!c||!bs)return;c.drawImage(bs,0,0);
+ const [a,b]=S2.p,{dx,dy,gx,gy}=grad2(),sc=Math.min(.5,1.6/(Math.hypot(gx,gy)||1)),lr=+el('l2').value,ph=S2.ph;
+ const Q=(u,v)=>[(u+3)/6*336,(3-v)/6*336],AR=(u1,v1,u2,v2,col,w)=>{const p=Q(u1,v1),q=Q(u2,v2);arrow(c,p[0],p[1],q[0],q[1],col,w);},
+  TX=(u,v,t,col)=>{const p=Q(u,v);c.fillStyle=col;c.font='12px IBM Plex Mono';c.fillText(t,p[0],p[1]);},sg=d=>(d>=0?'↑ вище на ':'↓ нижче на ')+Math.abs(d).toFixed(2);
+ c.strokeStyle='#2b241d';c.lineWidth=1.5;c.beginPath();S2.path.concat([[a,b]]).forEach((q,i)=>{const p=Q(q[0],q[1]);i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]);});c.stroke();
+ if(ph<=1){AR(a,b,a+H2,b,'#2b241d',3);TX(a+.1,b-.2,sg(dx),'#2b241d');}
+ if(ph===1){AR(a,b,a,b+H2,'#2b241d',3);TX(a+.12,b+H2+.15,sg(dy),'#2b241d');}
+ if(ph>=2){AR(a,b,a+gx*sc,b,'#e2574c',3.5);AR(a,b,a,b+gy*sc,'#2f6fd0',3.5);}
+ if(ph>=3){c.setLineDash([4,4]);AR(a+gx*sc,b,a+gx*sc,b+gy*sc,'#2f6fd0',1.5);AR(a,b+gy*sc,a+gx*sc,b+gy*sc,'#e2574c',1.5);c.setLineDash([]);AR(a,b,a+gx*sc,b+gy*sc,'#2b241d',4);TX(a+gx*sc+.1,b+gy*sc+.1,'градієнт','#2b241d');}
+ if(ph>=4)AR(a,b,a-cl(lr*gx,-1.5,1.5),b-cl(lr*gy,-1.5,1.5),'#2b7a4b',4);
+ c.fillStyle='#fff';c.strokeStyle='#2b241d';c.lineWidth=2;const p=Q(a,b);c.beginPath();c.arc(p[0],p[1],7,0,7);c.fill();c.stroke();}
+function mv2(){const {gx,gy}=grad2(),lr=+el('l2').value;S2.path.push(S2.p.slice());S2.p=[cl(S2.p[0]-cl(lr*gx,-1.5,1.5),-3,3),cl(S2.p[1]-cl(lr*gy,-1.5,1.5),-3,3)];S2.ph=0;d2();}
+el('terr').innerHTML=Object.keys(TER).map(k=>'<button class="btn" data-k="'+k+'" style="padding:5px 12px">'+TER[k].n+'</button>').join('');
+el('terr').onclick=e=>{const k=e.target.dataset.k;if(!k)return;S2.t=k;S2.p=ST[k].slice();S2.path=[];S2.ph=0;d2();};
+el('c2').onclick=e=>{const r=el('c2').getBoundingClientRect();S2.p=[-3+(e.clientX-r.left)/r.width*6,3-(e.clientY-r.top)/r.height*6];S2.path=[];S2.ph=0;d2();};
+el('b2n').onclick=()=>{if(S2.ph<4){S2.ph++;d2();}else mv2();};
+el('b2r').onclick=()=>{S2.p=ST[S2.t].slice();S2.path=[];S2.ph=0;d2();};el('l2').oninput=d2;
+el('b2m').onclick=()=>{let k=0;const id=setInterval(()=>{mv2();if(++k>=10)clearInterval(id);},260);};
+/* --- шестерні --- */
+const GL=['промах','кут','вихід','нейрон 2','ручка'];let scr=0,ACT='tanh';
+const actF=z=>ACT==='tanh'?Math.tanh(z):Math.max(0,z),dact=z=>ACT==='tanh'?1-Math.tanh(z)**2:(z>0?1:0);
+function gears(){const n=clone(NOV);n.b1[1]=scr;const w=+el('kw').value;n.W1[1][0]=w;
+ const r=run(n,T.w,T.y),z2=r.z[1],a2=actF(z2),A=r.a.slice();A[1]=a2;const zo=A.reduce((q,x,j)=>q+n.W2[j]*x,n.b2),th=C0+R0*Math.tanh(zo),sens=dact(z2),k=(w-NOV.W1[1][0])*70,tn=ACT==='tanh';
+ let o='';for(let i=0;i<5;i++){const cx=40+66*i,cy=48,R=i===3?10+17*sens:26,rot=i===4?k:k*sens*(((4-i)%2)?-1:1);
+  o+='<g transform="rotate('+rot.toFixed(1)+' '+cx+' '+cy+')"><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+(i===3&&sens<.15?'#999':'#2b241d')+'" stroke-width="8" stroke-dasharray="7 5"/><circle cx="'+cx+'" cy="'+cy+'" r="'+(R-8)+'" fill="'+(i===4?'#e8a33d':'#f2ecdd')+'" stroke="#2b241d"/><line x1="'+cx+'" y1="'+cy+'" x2="'+cx+'" y2="'+(cy-R+8)+'" stroke="#2b241d" stroke-width="2"/></g><text x="'+cx+'" y="96" font-size="11" text-anchor="middle">'+GL[i]+'</text>';}
+ // механізм активації нейрона 2: вхід z → [храповик | просковзувач] → голос a
+ const zA=cl(z2,-6,6)*25,oA=tn?a2*70:(z2>0?cl(z2,0,6)*25:0),disc=(cx,ang,col)=>'<g transform="rotate('+ang.toFixed(1)+' '+cx+' 168)"><circle cx="'+cx+'" cy="168" r="36" fill="#f2ecdd" stroke="#2b241d" stroke-width="2"/><circle cx="'+cx+'" cy="168" r="32" fill="none" stroke="#2b241d" stroke-dasharray="2 8"/><line x1="'+cx+'" y1="168" x2="'+cx+'" y2="136" stroke="'+col+'" stroke-width="4"/></g>';
+ o+='<text x="175" y="118" font-size="11" text-anchor="middle" opacity=".6">всередині нейрона 2</text>'+disc(60,zA,'#2b241d')+disc(290,oA,'#e8a33d')+'<line x1="96" y1="168" x2="148" y2="168" stroke="#2b241d" stroke-width="3"/><line x1="202" y1="168" x2="254" y2="168" stroke="#2b241d" stroke-width="3"/>';
+ if(tn){o+='<rect x="148" y="146" width="8" height="44" fill="#2b241d"/><rect x="194" y="146" width="8" height="44" fill="#2b241d"/><path d="M156 168 l6 -12 l10 24 l10 -24 l10 24 l6 -12" fill="none" stroke="#2b241d" stroke-width="2"/><text x="175" y="205" font-size="11" text-anchor="middle">просковзувач (tanh)</text>';
+  if(sens<.15)o+='<text x="175" y="140" font-size="12" text-anchor="middle" fill="#e2574c">прослизає!</text>';}
+ else{const bl=z2<=0;o+='<path d="M150 190 l8 -14 l8 14 l8 -14 l8 14 l8 -14 l8 14 l4 0" fill="none" stroke="#2b241d" stroke-width="2"/><polygon points="'+(bl?'168,150 178,150 176,176':'160,152 170,152 174,174')+'" fill="'+(bl?'#e2574c':'#2b7a4b')+'"/><text x="175" y="205" font-size="11" text-anchor="middle">храповик (ReLU)</text>';
+  if(bl)o+='<text x="175" y="140" font-size="12" text-anchor="middle" fill="#e2574c">заблоковано</text>';}
+ o+='<text x="60" y="222" font-size="11" text-anchor="middle">вхід z = '+fmt(z2)+'</text><text x="290" y="222" font-size="11" text-anchor="middle">голос a = '+fmt(a2)+'</text><text x="175" y="242" font-size="12" text-anchor="middle" fill="'+(sens<.15?'#e2574c':'#2b7a4b')+'">чутливість (нахил) = '+sens.toFixed(2)+'</text>';
+ el('gsvg').innerHTML=o;const m=shoot(th,T.w).xL-T.p;
+ el('missLbl').textContent=msTxt(m);el('missLbl').style.color=Math.abs(m)<3?'#2b7a4b':'#e2574c';
+ el('kr').textContent=scr?(tn?'заспокоїти нейрон':'вимкнути «на 4»'):(tn?'нейрон кричить':'увімкнути «на 4»');
+ el('ak1').style.cssText=tn?'background:#2b241d;color:#f2ecdd':'';el('ak2').style.cssText=tn?'':'background:#2b241d;color:#f2ecdd';
+ const S=(shoot(th+.05,T.w).xL-shoot(th-.05,T.w).xL)/.1,R2=Math.tanh(zo),f=[S,R0*(1-R2*R2),n.W2[1],sens,T.w];
+ el('det2').innerHTML='<p class="m" style="font-size:12px">Внесок ручки в промах — добуток п’яти «шестерень»:</p><table class="mx" style="width:100%">'+['промах → кут','кут → вихід 23·(1−v²)','вага виходу','активація нейрона 2','вітер'].map((t,i)=>'<tr'+(i===3?' class="hl"':'')+'><td style="text-align:left">'+t+'</td><td>'+fmt(f[i])+'</td></tr>').join('')+'</table><p class="m" style="font-size:12px;margin-top:6px">разом: <b>'+fmt(f.reduce((p,q)=>p*q,1))+'</b> м на одиницю ручки. Одна шестерня з нулем — і добуток нуль.</p>';
+ actGraph();}
+function actGraph(){const z=+el('zs').value,tn=ACT==='tanh',X=u=>170+u*24,Y=q=>tn?95-q*62:150-q*22,a=actF(z),s=dact(z),F='font-family="IBM Plex Mono" font-size="10"';let o='',p='';
+ if(tn)[[-6,-2],[2,6]].forEach(q=>o+='<rect x="'+X(q[0])+'" y="'+Y(1)+'" width="'+(X(q[1])-X(q[0]))+'" height="'+(Y(-1)-Y(1))+'" fill="#e2574c" opacity=".09"/>');
+ o+='<line x1="'+X(-6)+'" y1="'+Y(0)+'" x2="'+X(6)+'" y2="'+Y(0)+'" stroke="#2b241d" opacity=".5"/><line x1="'+X(0)+'" y1="8" x2="'+X(0)+'" y2="182" stroke="#2b241d" opacity=".5"/>';
+ for(let u=-6;u<=6;u+=2)o+='<text x="'+X(u)+'" y="'+(Y(0)+14)+'" '+F+' text-anchor="middle" opacity=".7">'+(u<0?'−':'')+Math.abs(u)+'</text>';
+ (tn?[1,-1]:[2,4,6]).forEach(q=>o+='<text x="'+(X(-6)-3)+'" y="'+(Y(q)+3)+'" '+F+' text-anchor="end">'+(q<0?'−':tn?'+':'')+Math.abs(q)+'</text><line x1="'+X(-6)+'" y1="'+Y(q)+'" x2="'+X(6)+'" y2="'+Y(q)+'" stroke="#2b241d" stroke-dasharray="3 4" opacity=".3"/>');
+ for(let u=-6;u<=6.01;u+=.2)p+=(p?'L':'M')+X(u).toFixed(1)+' '+Y(actF(u)).toFixed(1);
+ o+='<path d="'+p+'" fill="none" stroke="#2b241d" stroke-width="2.2"/><line x1="'+X(z-1.6)+'" y1="'+Y(a-1.6*s)+'" x2="'+X(z+1.6)+'" y2="'+Y(a+1.6*s)+'" stroke="#e8a33d" stroke-width="3"/><circle cx="'+X(z)+'" cy="'+Y(a)+'" r="5" fill="#e8a33d"/>';
+ if(tn)o+='<text x="'+X(-4)+'" y="'+(Y(-1)+26)+'" '+F+' text-anchor="middle" fill="#e2574c">кричить</text><text x="'+X(4)+'" y="'+(Y(1)-14)+'" '+F+' text-anchor="middle" fill="#e2574c">кричить</text>';
+ el('asv').innerHTML=o;
+ el('atx').innerHTML=tn?'нахил = <b>1 − a²</b> = 1 − ('+fmt(a)+')² = <b>'+s.toFixed(2)+'</b>'+(s<.1?'<br>майже нуль: нейрон «кричить», ручки його не чують':''):(z>0?'z > 0: нахил = <b>1</b> — храповик передає':'z < 0: нахил = <b>0</b> — храповик заблокований');}
+el('kw').oninput=gears;el('zs').oninput=actGraph;el('kr').onclick=()=>{scr=scr?0:4;gears();};
+el('ak1').onclick=()=>{ACT='tanh';scr=0;gears();};el('ak2').onclick=()=>{ACT='relu';scr=0;gears();};
+/* --- каркас вкладки --- */
+const SC=[['Пристрілка','Мозок-новачок ще нічого не вміє. Стріляємо — і бачимо, наскільки схибили.'],
+ ['Помилка біжить назад','Кожне число мозку — це <b>ручка</b> (учені кажуть «вага»): підкрутиш її — гармата стріляє інакше. Червона хвиля від виходу показує, які ручки й куди крутити.'],
+ ['Одна ручка','Крутимо одну ручку (одне число мозку). Чим вище кулька, тим більший промах. Нахил підказує, куди котитись; знаходимо його маленьким кроком убік. Спробуйте великий крок!'],
+ ['Дві ручки','Тепер ручок дві — це карта: зелене низько, червоне високо. Кнопка «далі» показує кадр за кадром, як знайти, куди котитись. Пробуйте різні рельєфи, старти й кроки.'],
+ ['А в мозку їх 17','Намалювати 17 вимірів не можна, але правило те саме: для кожної ручки свій нахил — і крок вниз. Усі ручки крутяться разом.'],
+ ['Важелі й шестерні','Від промаху до ручки — ланцюжок шестерень. Крутіть ручку: шестерні зсувають кут, а кут — падіння риби. Усередині нейрона — механізм: просковзувач або храповик. Спробуйте обидва.'],
+ ['Зворотне поширення','Уся мережа як механізм: ремені — це ручки (ваги), стискувачі — активації. Дивіться, як помилка біжить назад і що вона підкручує.']];
+function tdraw(){const s=T.step;aim(0);
+ [1,2,3,4,5,6].forEach(i=>el('p'+i).hidden=s!==i);el('lcol').style.display=s===6?'none':'';el('an2').style.gridTemplateColumns=s===6?'1fr':'';
+ el('tNo').textContent='Крок '+(s+1)+' / '+SC.length;el('tT').textContent=SC[s][0];el('tD').innerHTML=SC[s][1];
+ if(s===1){el('nsvg').innerHTML=netSVG(T.net,null,0);showMiss();}
+ else if(s===5)gears();else showMiss();
+ if(s===2)d1();if(s===3)d2();if(s===4)el('nsvg2').innerHTML=netSVG(NOV,null,0)+'<text x="180" y="12" font-size="12" text-anchor="middle" fill="#e2574c">17 ручок</text>';
+ if(s===6){BP.ph=0;BP.g=grads(bnet(),BP.act);bpDraw();}
+ el('tprev').disabled=s===0;el('tnext').disabled=s===SC.length-1;}
+
+/* --- 7. Зворотне поширення: велика механічна схема --- */
+const BP={ph:0,g:null,chg:null,act:'tanh',netR:clone(NOV)},bnet=()=>BP.act==='relu'?BP.netR:T.net;
+const CBR={0:'<b>Вперед.</b> Обертання від вітру й відстані (їхні ручки можна крутити!) біжить ременями. На кожному нейроні — <b>храповик</b>: додатну суму він пропускає, від’ємну глушить. Крутіть вітер — храповики клацають.',4:'<b>Храповик.</b> Помилка доходить до храповика нейрона. Відкритий — пропускає все як є. Закритий — <b>блокує</b>: цей нейрон зараз нічого не чує, і його ремені не вчаться.'};
+const NXT=['Помилка','Ремені виходу','Нейрони','Стискувач','Ремені входу','Підкрутити','Ще раз'];
+const CB=['<b>Вперед.</b> Обертання від вітру й відстані (їхні ручки можна крутити!) біжить ременями до виходу. Стискувачі стиснуті по-різному — залежно від натягу ременів.','<b>Помилка.</b> Постріл промазав — вихід «відчув» це: кут треба було <b>DIR</b>.','<b>Ремені виходу.</b> Помилка пройшла вихідний стискувач (він її пригасив) і біжить назад. Де ремінь винен — підтягнути ▲, де — послабити ▼.','<b>Нейрони.</b> Помилка дійшла до кожного нейрона: яким голосом він мав би гукнути. Чим довша червона стрілка — тим більша вимога.','<b>Стискувач.</b> Але на шляху стоїть ще один стискувач — він <b>гасить</b> поправку. Нейрон, що «кричить», майже не чує помилки.','<b>Ремені входу.</b> Нарешті поправка доходить до ременів входу й до зсувів нейронів.','<b>Підкручено!</b> Усі ремені змінено одночасно, і новий постріл вийшов краще. Повторіть кілька разів — гармата навчиться.'];
+function bpTurn(i,dv){if(i===0)T.w=cl(T.w+dv,0,1);else{T.p=cl(Math.round((T.p-dv*55)*2)/2,20,75);T.y=(75-T.p)/70;}
+ BP.ph=0;BP.chg=null;BP.g=grads(bnet(),BP.act);K1=null;S1.path=[];bpDraw();aim(0);}
+function bpDraw(){const n=bnet(),AX=BP.act,RL=AX==='relu',r=run(n,T.w,T.y,AX),g=BP.g,ph=BP.ph,AI=[[80,160],[80,340]],HY=[70,195,320,445],HX=390,OY=255,SX=650,OX=835;
+ const mx=a=>Math.max(1e-9,...a.map(Math.abs)),f=r.z.map((z,j)=>RL?(z>0?1:0):1-r.a[j]*r.a[j]),dA=n.W2.map(w=>g.b2*w),dZ=g.b1,mA=mx(dA),mW1=mx(g.W1.flat()),mW2=mx(g.W2),mZ=mx(dZ),fo=1-r.v*r.v;
+ const tri=(x,y,val,m)=>{const q=Math.abs(val)/m;if(q<.05)return'<circle cx="'+x+'" cy="'+y+'" r="3" fill="#999"/>';const h=8+18*q,up=val<0;
+  return'<polygon points="'+(up?x+','+(y-h)+' '+(x-h*.8)+','+y+' '+(x+h*.8)+','+y:x+','+(y+h)+' '+(x-h*.8)+','+y+' '+(x+h*.8)+','+y)+'" fill="'+(up?'#2b7a4b':'#e8a33d')+'" stroke="#2b241d" stroke-width=".8"/>';};
+ const aL=(x,y,len,c)=>'<line x1="'+x+'" y1="'+y+'" x2="'+(x-len)+'" y2="'+y+'" stroke="'+c+'" stroke-width="5"/><polygon points="'+(x-len-11)+','+y+' '+(x-len)+','+(y-7)+' '+(x-len)+','+(y+7)+'" fill="'+c+'"/>';
+ const ring=(cx,cy,R,rot,fill)=>'<g transform="rotate('+rot.toFixed(1)+' '+cx+' '+cy+')"><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="#2b241d" stroke-width="8" stroke-dasharray="7 5"/><circle cx="'+cx+'" cy="'+cy+'" r="'+(R-8)+'" fill="'+fill+'" stroke="#2b241d"/><line x1="'+cx+'" y1="'+cy+'" x2="'+cx+'" y2="'+(cy-R+8)+'" stroke="#2b241d" stroke-width="2"/></g>';
+ const belt=(x1,y1,x2,y2,w,flow)=>'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col(w,.85)+'" stroke-width="'+(2+6*Math.min(1,Math.abs(w)/1.5))+'"/>'+(flow?'<line class="flow" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#f2ecdd" stroke-width="2"/>':'');
+ const clutch=(x0,y,a,sat,h)=>{const gap=34-24*Math.min(1,Math.abs(a)),k=gap/34,c=sat?'#999':'#2b241d',xr=x0+8+gap;
+  return'<rect x="'+x0+'" y="'+(y-h)+'" width="8" height="'+2*h+'" fill="'+c+'"/><rect x="'+xr+'" y="'+(y-h)+'" width="8" height="'+2*h+'" fill="'+c+'"/><path d="M'+(x0+8)+' '+y+' l'+5*k+' -12 l'+8*k+' 24 l'+8*k+' -24 l'+8*k+' 24 l'+5*k+' -12" fill="none" stroke="'+c+'" stroke-width="2"/><line x1="'+(xr+8)+'" y1="'+y+'" x2="'+(x0+50)+'" y2="'+y+'" stroke="'+c+'" stroke-width="3"/>';};
+ const ratchet=(x0,y,open)=>{const c=open?'#2b7a4b':'#e2574c',cx=x0+25;
+  return'<circle cx="'+cx+'" cy="'+y+'" r="15" fill="#f2ecdd" stroke="#2b241d" stroke-width="2"/><circle cx="'+cx+'" cy="'+y+'" r="10" fill="none" stroke="#2b241d" stroke-width="5" stroke-dasharray="3 4"/>'+
+  '<polygon points="'+(open?(cx-4)+','+(y-31)+' '+(cx+9)+','+(y-31)+' '+(cx+4)+','+(y-20):(cx-4)+','+(y-26)+' '+(cx+9)+','+(y-26)+' '+(cx+1)+','+(y-14))+'" fill="'+c+'" stroke="#2b241d"/>'+
+  '<line x1="'+x0+'" y1="'+y+'" x2="'+(x0+10)+'" y2="'+y+'" stroke="#2b241d" stroke-width="3"/><line x1="'+(x0+40)+'" y1="'+y+'" x2="'+(x0+50)+'" y2="'+y+'" stroke="'+(open?'#2b241d':'#ccc')+'" stroke-width="3"/>'+
+  (open?'':'<text x="'+(x0+44)+'" y="'+(y+5)+'" font-size="15" fill="#e2574c" text-anchor="middle">✕</text>');};
+ const dot=(x1,y1,x2,y2,d)=>'<circle r="6" fill="#e2574c"><animateMotion data-d="'+d+'" dur=".9s" begin="indefinite" fill="freeze" path="M'+x1+' '+y1+' L'+x2+' '+y2+'"/></circle>';
+ let o='',D='';const ch=BP.chg;
+ for(let j=0;j<4;j++)for(let i=0;i<2;i++){const x1=AI[i][0]+34,y1=AI[i][1],x2=HX-32,y2=HY[j];
+  if(ph===6&&ch&&Math.abs(ch.W1[j][i])>.003)o+='<line class="fl" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#e8a33d" stroke-width="'+(10+10*Math.abs(ch.W1[j][i])/ch.m1)+'"/>';
+  o+=belt(x1,y1,x2,y2,n.W1[j][i],ph===0);if(ph===5){o+=tri((x1+x2)/2,(y1+y2)/2-10,g.W1[j][i],mW1);D+=dot(x2,y2,x1,y1,0);}}
+ for(let j=0;j<4;j++){const x1=500,y1=HY[j],x2=SX-28,y2=OY+(j-1.5)*12;
+  if(ph===6&&ch&&Math.abs(ch.W2[j])>.002)o+='<line class="fl" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#e8a33d" stroke-width="'+(10+10*Math.abs(ch.W2[j])/ch.m2)+'"/>';
+  o+=belt(x1,y1,x2,y2,n.W2[j],ph===0);if(ph>=2&&ph<=5)o+=tri((x1+x2)/2,(y1+y2)/2-10,g.W2[j],mW2);if(ph===2)D+=dot(x2,y2,x1,y1,700);}
+ [[T.w,'вітер '+Math.round(T.w*100)+'%',T.w],[T.y,'відстань '+Math.round(134.5-T.p)+' м',T.y/.786]].forEach((q,i)=>{o+=ring(AI[i][0],AI[i][1],34,q[2]*180,'#f2ecdd')+'<text x="'+AI[i][0]+'" y="'+(AI[i][1]+58)+'" font-size="14" text-anchor="middle">'+q[1]+'</text><text x="'+AI[i][0]+'" y="'+(AI[i][1]-44)+'" font-size="12" text-anchor="middle" fill="#2b7a4b">↻ крути</text>';});
+ for(let j=0;j<4;j++){const y=HY[j],sat=f[j]<.15;o+=ring(HX,y,32,r.z[j]*25,col(r.a[j],Math.min(1,Math.abs(r.a[j])*.8+.1)))+(RL?ratchet(450,y,r.z[j]>0):clutch(450,y,r.a[j],sat,22));
+  if(ph>=3&&ph<=5)o+=aL(505,y-32,8+34*Math.abs(dA[j])/mA,'#e2574c');
+  if(ph>=4&&ph<=5)o+=aL(445,y-32,8+34*Math.abs(dZ[j])/mA,'#e2574c')+'<text x="475" y="'+(y-40)+'" font-size="12" text-anchor="middle" fill="#e2574c">'+(RL?(f[j]?'пропускає все':'блокує'):'гасить до '+Math.round(f[j]*100)+'%')+'</text>';
+  if(ph===5)o+=tri(HX,y-42,dZ[j],mZ);}
+ o+='<text x="475" y="475" font-size="11" text-anchor="middle">'+(RL?'храповики нейронів (ReLU)':'стискувачі нейронів (tanh)')+'</text>';
+ o+=ring(SX,OY,26,r.zo*25,'#f2ecdd')+'<text x="'+SX+'" y="'+(OY+5)+'" font-size="16" text-anchor="middle">Σ</text><line x1="'+(SX+26)+'" y1="'+OY+'" x2="700" y2="'+OY+'" stroke="#2b241d" stroke-width="3"/>'+clutch(700,OY,r.v,fo<.15,22)+'<line x1="750" y1="'+OY+'" x2="'+(OX-52)+'" y2="'+OY+'" stroke="#2b241d" stroke-width="3"/><text x="725" y="'+(OY+42)+'" font-size="11" text-anchor="middle">вихідний стискувач</text>';
+ const deg=r.v*80;o+='<circle cx="'+OX+'" cy="'+OY+'" r="52" fill="#f2ecdd" stroke="#2b241d" stroke-width="3"/><circle cx="'+OX+'" cy="'+OY+'" r="46" fill="none" stroke="#2b241d" stroke-dasharray="2 8"/><line x1="'+OX+'" y1="'+OY+'" x2="'+OX+'" y2="'+(OY-42)+'" stroke="#e8a33d" stroke-width="6" transform="rotate('+deg.toFixed(1)+' '+OX+' '+OY+')"/><circle cx="'+OX+'" cy="'+OY+'" r="7" fill="#2b241d"/><text x="'+OX+'" y="'+(OY+82)+'" font-size="17" text-anchor="middle">кут '+angOf(n,AX).toFixed(0)+'°</text>';
+ let dir='';if(ph>=1){dir=Math.abs(g.m)<3?'майже той':(-Math.sign(g.m*g.S)>0?'більший ↑':'менший ↓');
+  if(ph===1)o+='<circle cx="'+OX+'" cy="'+OY+'" r="62" fill="none" stroke="#e2574c" stroke-width="4" stroke-dasharray="8 6"/>';
+  if(ph<=5)o+='<text x="'+OX+'" y="'+(OY-86)+'" font-size="17" text-anchor="middle" fill="#e2574c">треба '+dir+'</text>'+aL(800,OY-62,70,'#e2574c');
+  if(ph>=2&&ph<=5)o+=aL(695,OY-62,10+60*fo,'#e2574c')+'<text x="725" y="'+(OY-74)+'" font-size="12" text-anchor="middle" fill="#e2574c">гасить до '+Math.round(fo*100)+'%</text>';}
+ if(ph===2)D+=dot(OX-52,OY,SX+26,OY,0);
+ el('bsvg').innerHTML=o+D;el('bsvg').querySelectorAll('animateMotion').forEach(a=>setTimeout(()=>a.beginElement&&a.beginElement(),+a.dataset.d));
+ el('bpCap').innerHTML=(RL&&CBR[ph]?CBR[ph]:CB[ph]).replace('DIR',dir);
+ el('bAk1').style.cssText='padding:4px 12px;'+(RL?'':'background:#2b241d;color:#f2ecdd');el('bAk2').style.cssText='padding:4px 12px;'+(RL?'background:#2b241d;color:#f2ecdd':'');
+ el('bAkN').textContent=RL?'вихід усе одно tanh: кут лишається в межах':'';
+ el('bpDetT').innerHTML='<table class="mx" style="width:100%;font-size:12px"><tr><td></td><td>промах→кут</td><td>кут←вихід</td><td>вага виходу</td><td>стискувач</td><td>вітер</td><td>разом</td></tr>'+[0,1,2,3].map(j=>{const fc=[g.S,R0*fo,n.W2[j],f[j],T.w],P=fc.reduce((p,q)=>p*q,1);return'<tr><td style="text-align:left">нейрон '+(j+1)+'</td>'+fc.map(v=>'<td>'+fmt(v)+'</td>').join('')+'<td><b>'+fmt(P)+'</b></td></tr>';}).join('')+'</table>';el('bpn').textContent=NXT[ph]+' →';
+ const m=missOf(n,AX);el('bpMiss').textContent=msTxt(m);el('bpMiss').style.color=Math.abs(m)<3?'#2b7a4b':'#e2574c';}
+(function(){const bs=el('bsvg'),CY=[160,340];let DR=null;
+ const pt=e=>{const p=bs.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(bs.getScreenCTM().inverse());};
+ bs.addEventListener('pointerdown',e=>{if(!bs.createSVGPoint)return;const p=pt(e),i=[0,1].find(k=>Math.hypot(p.x-80,p.y-CY[k])<50);if(i===undefined)return;DR={i,a:Math.atan2(p.y-CY[i],p.x-80)};bs.setPointerCapture&&bs.setPointerCapture(e.pointerId);e.preventDefault();});
+ bs.addEventListener('pointermove',e=>{if(!DR)return;const p=pt(e),a=Math.atan2(p.y-CY[DR.i],p.x-80);let d=a-DR.a;d=Math.atan2(Math.sin(d),Math.cos(d));DR.a=a;bpTurn(DR.i,d/Math.PI);});
+ bs.addEventListener('pointerup',()=>{DR=null;});})();
+el('bpn').onclick=()=>{if(BP.ph===6){BP.ph=0;BP.chg=null;BP.g=grads(bnet(),BP.act);}
+ else if(BP.ph===5){const g=BP.g;BP.chg={W1:g.W1.map(r=>r.map(v=>v*LR)),W2:g.W2.map(v=>v*LR)};BP.chg.m1=Math.max(1e-9,...BP.chg.W1.flat().map(Math.abs));BP.chg.m2=Math.max(1e-9,...BP.chg.W2.map(Math.abs));applyG(bnet(),g,LR);BP.ph=6;}
+ else BP.ph++;bpDraw();};
+el('bAk1').onclick=()=>{BP.act='tanh';BP.ph=0;BP.chg=null;BP.g=grads(bnet(),BP.act);bpDraw();};
+el('bAk2').onclick=()=>{BP.act='relu';BP.ph=0;BP.chg=null;BP.g=grads(bnet(),BP.act);bpDraw();};
+el('bpr').onclick=()=>{if(BP.act==='relu')BP.netR=clone(NOV);else T.net=clone(NOV);BP.ph=0;BP.chg=null;BP.g=grads(bnet(),BP.act);bpDraw();};
+el('tprev').onclick=()=>{T.step--;tdraw();};el('tnext').onclick=()=>{T.step++;tdraw();};
+el('shot').onclick=()=>{aim(true);showMiss();};
+el('bp').onclick=bpStep;el('bn').onclick=()=>{T.net=clone(NOV);T.tries=0;el('tries').textContent='';el('nsvg').innerHTML=netSVG(T.net,null,0);showMiss();aim(0);};
+
+/* --- таблиця «кут × вітер → падіння» (крок 0,5° і 5 % вітру): замінює польоти під час навчання --- */
+const XT=[[-580,-568,-556,-544,-532,-520,-508,-496,-484,-471,-459,-446,-434,-421,-409,-396,-383,-370,-357,-344,-331,-318,-305,-292,-278,-265,-251,-238,-224,-211,-197,-183,-169,-155,-141,-127,-113,-99,-85,-71,-56,-42,-27,-13,2,16,31,46,60,75,90,105,120,135,150,166,181,196,212,227,243,258,274,289,305,321,337,352,368,384,400,417,433,449,465,481,498,514,531,547,564,580,597,614,631,648,664,681,698,715,733,750,767,784,802,819,836,854,872,889,907],[-546,-534,-521,-508,-496,-483,-470,-457,-444,-431,-418,-405,-392,-378,-365,-352,-338,-325,-311,-297,-284,-270,-256,-242,-228,-214,-200,-186,-172,-158,-144,-129,-115,-100,-86,-71,-57,-42,-27,-13,2,17,32,47,62,77,92,108,123,138,153,169,184,200,215,231,247,262,278,294,310,326,342,358,374,390,406,422,439,455,471,488,504,521,537,554,570,587,604,621,638,654,671,688,705,722,740,757,774,791,809,816,848,864,878,896,913,931,949,966,984],[-512,-499,-486,-472,-459,-445,-432,-418,-405,-391,-377,-363,-349,-336,-321,-307,-293,-279,-265,-251,-236,-222,-208,-193,-179,-164,-149,-135,-120,-105,-90,-75,-60,-45,-30,-15,0,15,30,46,61,76,92,107,123,138,154,170,185,201,217,233,249,265,281,297,313,329,345,361,378,394,410,427,443,460,476,493,509,526,543,559,576,593,610,627,644,661,678,695,712,729,746,764,781,798,815,819,860,872,885,903,920,938,956,974,991,1009,1027,1045,1063],[-479,-465,-451,-437,-423,-408,-394,-380,-365,-351,-336,-322,-307,-293,-278,-263,-249,-234,-219,-204,-189,-174,-159,-144,-129,-114,-98,-83,-68,-52,-37,-22,-6,10,25,41,56,72,88,104,120,136,152,168,184,200,216,232,248,264,281,297,313,330,346,363,379,396,412,429,446,462,479,496,513,530,547,564,580,597,615,632,649,666,683,700,718,735,752,770,787,804,820,819,869,881,892,910,927,945,963,981,999,1016,1034,1052,1070,1088,1106,1124,1142],[-446,-431,-416,-401,-386,-371,-356,-341,-326,-311,-296,-281,-266,-250,-235,-220,-204,-188,-173,-158,-142,-126,-111,-95,-79,-63,-47,-31,-16,0,16,33,49,65,81,97,113,130,146,162,179,195,212,228,245,261,278,295,311,328,345,362,378,395,412,429,446,463,480,497,514,531,549,566,583,600,618,635,652,670,687,705,722,739,757,775,792,810,817,818,875,886,898,916,934,952,970,988,1006,1024,1042,1060,1078,1096,1114,1132,1150,1168,1186,1205,1223],[-413,-397,-381,-366,-350,-335,-319,-303,-287,-271,-256,-240,-224,-208,-192,-175,-159,-143,-127,-111,-95,-78,-62,-46,-29,-13,4,20,37,53,70,87,103,120,137,154,170,187,204,221,238,255,272,289,306,323,340,358,375,392,409,427,444,461,479,496,513,531,549,566,584,601,619,636,654,672,689,707,725,743,760,778,796,814,818,832,883,892,904,922,940,958,976,994,1012,1030,1048,1067,1085,1103,1121,1139,1158,1176,1194,1213,1231,1249,1268,1286,1305],[-380,-363,-347,-331,-314,-298,-281,-265,-249,-232,-215,-199,-182,-165,-149,-132,-115,-98,-81,-64,-47,-31,-13,4,21,38,55,72,89,106,124,141,158,176,193,210,228,245,263,280,298,315,333,350,368,386,404,421,439,457,474,492,510,528,546,564,582,600,617,635,653,671,690,708,726,744,762,780,798,816,818,834,834,902,915,926,944,962,981,999,1018,1036,1054,1073,1091,1110,1128,1147,1165,1183,1202,1220,1239,1258,1276,1295,1313,1332,1351,1369,1388],[-347,-330,-313,-296,-278,-261,-244,-227,-209,-192,-175,-157,-140,-123,-105,-88,-70,-53,-35,-17,0,18,35,53,71,89,106,124,142,160,178,195,214,232,249,267,286,304,321,340,358,376,394,412,430,449,467,485,503,522,540,558,577,595,613,632,650,669,687,705,724,743,761,780,798,817,818,835,858,907,919,928,947,966,984,1003,1022,1040,1059,1078,1096,1115,1134,1152,1171,1190,1209,1228,1246,1265,1284,1302,1322,1340,1359,1378,1397,1415,1434,1453,1472],[-314,-296,-278,-261,-243,-225,-207,-189,-171,-153,-135,-117,-98,-80,-62,-44,-26,-7,11,29,47,66,84,103,121,140,158,176,195,213,232,251,269,288,306,325,344,362,381,400,418,437,456,475,493,512,531,550,569,587,606,625,644,663,682,701,720,739,758,777,795,814,818,825,858,909,921,928,947,966,985,1005,1024,1043,1062,1081,1100,1119,1138,1157,1176,1195,1214,1233,1253,1272,1291,1310,1329,1348,1367,1386,1405,1424,1443,1462,1481,1500,1519,1539,1557],[-282,-263,-244,-225,-207,-188,-169,-151,-132,-113,-94,-75,-56,-37,-19,0,19,38,57,76,95,114,133,152,172,191,210,229,248,267,287,306,325,344,363,383,402,421,441,460,479,499,518,537,557,576,596,615,634,654,673,693,712,732,751,770,790,809,818,822,846,873,919,939,946,965,985,1004,1024,1043,1063,1082,1101,1121,1140,1160,1179,1199,1218,1238,1257,1277,1296,1316,1335,1354,1373,1393,1412,1432,1451,1471,1490,1509,1529,1548,1567,1586,1606,1625,1645],[-249,-229,-210,-191,-171,-151,-132,-112,-93,-73,-54,-34,-14,5,25,45,64,84,104,123,143,163,183,203,222,242,262,282,302,322,342,361,382,401,422,441,461,481,501,521,541,561,581,601,621,641,661,681,701,721,741,761,781,801,821,819,829,868,893,935,956,961,981,1001,1021,1041,1061,1081,1101,1121,1141,1161,1181,1201,1220,1241,1260,1280,1300,1320,1340,1360,1379,1399,1419,1438,1458,1478,1498,1517,1537,1557,1576,1596,1615,1635,1654,1674,1693,1713,1732],[-216,-196,-176,-155,-135,-115,-95,-74,-54,-33,-13,7,28,48,69,89,110,130,150,171,191,212,232,253,274,294,315,335,356,376,397,418,438,459,480,500,521,542,562,583,604,624,645,666,686,707,727,748,769,789,810,818,823,850,868,906,949,954,975,995,1016,1036,1057,1077,1098,1118,1139,1159,1179,1200,1220,1241,1261,1282,1302,1322,1342,1362,1383,1403,1423,1444,1463,1484,1504,1524,1544,1564,1584,1604,1624,1644,1664,1683,1703,1723,1743,1762,1782,1802,1822],[-184,-163,-141,-120,-99,-78,-57,-36,-14,7,28,49,70,91,112,134,155,176,197,219,240,261,283,304,325,347,368,390,411,432,454,474,496,518,539,560,582,603,624,645,667,688,709,731,752,774,795,816,818,827,857,876,918,961,964,986,1007,1028,1049,1071,1092,1113,1134,1155,1176,1196,1218,1238,1260,1280,1301,1322,1342,1363,1384,1405,1425,1446,1467,1487,1508,1529,1549,1570,1590,1610,1631,1651,1672,1692,1712,1733,1753,1773,1793,1813,1833,1853,1873,1893,1913],[-151,-129,-108,-85,-63,-41,-19,2,25,46,69,91,113,135,157,179,201,223,245,267,289,312,334,355,378,400,422,444,466,488,510,532,554,577,598,621,643,665,687,709,731,753,775,797,819,819,829,862,882,912,970,972,994,1017,1038,1060,1081,1103,1125,1147,1168,1190,1212,1234,1255,1276,1297,1319,1340,1362,1383,1404,1426,1447,1468,1490,1511,1532,1553,1574,1595,1615,1637,1657,1678,1699,1720,1741,1761,1782,1802,1823,1843,1863,1884,1904,1925,1945,1965,1985,2005],[-118,-96,-73,-50,-27,-4,18,41,64,87,109,133,156,178,201,224,247,270,293,316,339,361,384,407,430,453,476,499,522,545,568,591,614,636,659,683,705,728,751,773,796,819,820,830,864,885,917,976,999,1000,1023,1046,1068,1090,1113,1135,1158,1180,1203,1225,1247,1269,1292,1313,1335,1357,1379,1401,1423,1445,1467,1489,1510,1532,1554,1575,1597,1619,1640,1662,1682,1704,1726,1746,1767,1789,1810,1831,1852,1872,1894,1914,1935,1955,1976,1997,2018,2038,2058,2079,2099],[-85,-62,-38,-15,9,33,57,80,104,128,151,175,199,222,246,270,294,317,341,365,389,412,436,460,484,508,531,555,579,603,626,650,674,697,721,745,768,792,815,818,829,863,886,907,980,1003,1003,1027,1050,1073,1096,1120,1143,1166,1189,1212,1236,1258,1281,1304,1327,1350,1372,1395,1417,1440,1463,1485,1507,1529,1553,1574,1597,1619,1641,1663,1685,1707,1729,1751,1772,1794,1815,1837,1859,1880,1901,1923,1944,1965,1986,2007,2028,2049,2070,2091,2112,2132,2152,2174,2194],[-53,-28,-4,21,45,70,94,119,144,169,193,218,242,267,291,317,340,365,390,414,439,464,488,513,537,562,587,612,636,661,686,710,735,759,784,808,818,826,841,883,905,943,1003,1003,1027,1051,1075,1100,1123,1147,1172,1195,1219,1243,1267,1290,1314,1338,1361,1385,1408,1431,1455,1478,1501,1525,1547,1571,1594,1616,1639,1662,1685,1707,1730,1752,1774,1797,1819,1841,1863,1885,1907,1929,1951,1972,1994,2016,2038,2059,2080,2102,2123,2144,2165,2186,2207,2228,2249,2269,2290],[-20,6,31,56,82,108,133,158,184,210,235,260,287,312,337,363,388,414,439,465,490,516,542,567,593,618,644,670,695,721,746,771,797,821,822,835,876,900,923,1001,1026,1025,1049,1074,1100,1124,1149,1174,1199,1223,1248,1272,1298,1322,1346,1370,1395,1419,1443,1468,1491,1515,1539,1563,1587,1611,1634,1657,1681,1705,1728,1750,1774,1797,1820,1842,1865,1888,1911,1934,1955,1978,2000,2023,2045,2067,2089,2111,2133,2154,2176,2198,2219,2241,2262,2283,2304,2326,2347,2367,2388],[14,40,67,93,119,145,172,198,224,251,278,304,330,357,383,411,437,464,490,516,543,570,596,622,649,676,702,728,755,781,807,818,827,844,891,916,959,1020,1017,1043,1069,1095,1121,1147,1173,1199,1224,1250,1275,1301,1327,1352,1377,1402,1427,1452,1477,1502,1528,1552,1576,1601,1626,1649,1674,1699,1722,1746,1771,1794,1817,1841,1865,1888,1911,1935,1959,1982,2004,2027,2051,2073,2096,2118,2141,2163,2186,2207,2230,2252,2273,2295,2317,2339,2360,2382,2403,2424,2445,2466,2487],[47,75,102,129,156,183,211,239,266,293,321,349,376,403,431,458,485,513,540,568,596,624,651,679,706,733,760,788,815,820,833,874,904,929,975,1038,1034,1061,1088,1115,1142,1169,1196,1221,1249,1276,1302,1328,1354,1381,1407,1433,1459,1485,1510,1536,1562,1588,1613,1638,1663,1688,1713,1739,1763,1788,1812,1836,1862,1886,1910,1934,1958,1982,2006,2029,2053,2076,2100,2123,2147,2169,2192,2215,2238,2261,2283,2306,2328,2350,2372,2394,2416,2437,2459,2480,2502,2523,2544,2565,2587],[81,109,138,165,194,223,250,280,308,336,365,393,422,450,478,507,535,564,593,622,650,678,707,736,764,793,821,822,838,885,914,940,990,1052,1048,1076,1105,1132,1160,1188,1215,1244,1270,1298,1326,1353,1381,1408,1435,1462,1489,1516,1543,1569,1595,1622,1648,1675,1700,1726,1752,1778,1803,1828,1854,1879,1905,1930,1955,1980,2003,2028,2052,2077,2101,2125,2149,2172,2197,2220,2244,2267,2290,2313,2336,2359,2382,2404,2427,2449,2471,2494,2515,2538,2559,2581,2603,2625,2645,2667,2688]];
+function xT(th,w){const t=cl((th-28)/.5,0,99.999),u=cl(w*20,0,19.999),it=Math.floor(t),iw=Math.floor(u),ft=t-it,fw=u-iw,a=XT[iw][it],b=XT[iw][it+1],c=XT[iw+1][it],d=XT[iw+1][it+1];
+ return[((a*(1-ft)+b*ft)*(1-fw)+(c*(1-ft)+d*ft)*fw)/10,(((b-a)*(1-fw)+(d-c)*fw)/.5)/10];}
+/* --- 4. Епохи --- */
+const E={net:null,ep:0,hist:[],t:0,m:null,v:null,R:null,D:null,tm:null};
+const mb32=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const eLR=()=>.003*Math.pow(.2/.003,+el('elr').value/100);
+const eFlat=n=>[...n.W1.flat(),...n.b1,...n.W2,n.b2];
+const eSet=(n,p)=>{let k=0;for(let j=0;j<4;j++){n.W1[j][0]=p[k++];n.W1[j][1]=p[k++];}for(let j=0;j<4;j++)n.b1[j]=p[k++];for(let j=0;j<4;j++)n.W2[j]=p[k++];n.b2=p[k++];};
+function eInit(){clearInterval(E.tm);E.tm=null;E.net=clone(NOV);E.ep=0;E.hist=[];E.t=0;E.m=new Float64Array(17);E.v=new Float64Array(17);E.R=mb32(7);E.D=[];for(let i=0;i<300;i++)E.D.push([E.R(),20+55*E.R()]);}
+function eEpoch(){const n=E.net,R=E.R,D=E.D,lr=eLR();let loss=0;
+ for(let i=D.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[D[i],D[j]]=[D[j],D[i]];}
+ for(let b=0;b<300;b+=30){const g=new Float64Array(17);
+  for(let q=b;q<b+30;q++){const[w,pl]=D[q],y=(75-pl)/70,r=run(n,w,y),th=C0+R0*r.v,[xl,S]=xT(th,w),mi=xl-pl;loss+=(mi/10)**2;const dzo=2*mi/100*S*R0*(1-r.v*r.v)/30;
+   for(let j=0;j<4;j++){const dz=dzo*n.W2[j]*(1-r.a[j]*r.a[j]);g[2*j]+=dz*w;g[2*j+1]+=dz*y;g[8+j]+=dz;g[12+j]+=dzo*r.a[j];}g[16]+=dzo;}
+  const p=eFlat(n);E.t++;for(let i=0;i<17;i++){E.m[i]=.9*E.m[i]+.1*g[i];E.v[i]=.999*E.v[i]+.001*g[i]*g[i];p[i]-=lr*(E.m[i]/(1-.9**E.t))/(Math.sqrt(E.v[i]/(1-.999**E.t))+1e-8);}eSet(n,p);}
+ E.ep++;E.hist.push(10*Math.sqrt(loss/300));}
+function eMap(){let ok=0,h='<tr><th></th>'+[...Array(10)].map((_,i)=>'<th>'+Math.round(i/9*100)+'%</th>').join('')+'</tr>';
+ for(let j=0;j<10;j++){const pl=20+55*j/9,y=(75-pl)/70;h+='<tr><th>'+Math.round(134.5-pl)+' м</th>';
+  for(let i=0;i<10;i++){const w=i/9,a=Math.abs(shoot(C0+R0*run(E.net,w,y).v,w).xL-pl);if(a<3)ok++;h+='<td style="cursor:default;background:'+(a<3?'rgba(43,122,75,.65)':a<6?'rgba(232,163,61,.6)':'rgba(226,87,76,.45)')+'"></td>';}h+='</tr>';}
+ el('hm').innerHTML=h;el('hmN').textContent='влучань: '+ok+' із 100';}
+function eChart(){const H=E.hist,mx=Math.max(60,H.length),X=i=>34+i/mx*312,Y=v=>165-Math.min(1,v/25)*140,F='font-family="IBM Plex Mono" font-size="10"';
+ let o='<line x1="34" y1="165" x2="350" y2="165" stroke="#2b241d"/><line x1="34" y1="20" x2="34" y2="165" stroke="#2b241d"/><text x="190" y="184" '+F+' text-anchor="middle">епохи →</text><text x="8" y="95" '+F+' transform="rotate(-90 8 95)" text-anchor="middle">типовий промах, м</text>';
+ [0,10,20].forEach(v=>o+='<text x="30" y="'+(Y(v)+3)+'" '+F+' text-anchor="end">'+v+'</text>');
+ if(H.length)o+='<path d="'+H.map((v,i)=>(i?'L':'M')+X(i+1).toFixed(1)+' '+Y(v).toFixed(1)).join('')+'" fill="none" stroke="#2f6fd0" stroke-width="2.2"/>';
+ el('esvg').innerHTML=o;el('eInfo').textContent='епоха '+E.ep+(H.length?' · типовий промах '+H[H.length-1].toFixed(1)+' м':'')+' · крок '+eLR().toFixed(3);}
+function edraw(){eChart();eMap();el('enet').innerHTML=netSVG(E.net,null,0);el('ePlay').textContent=E.tm?'⏸ пауза':'▶ вчитись';}
+el('ePlay').onclick=()=>{if(E.tm){clearInterval(E.tm);E.tm=null;edraw();return;}
+ E.tm=setInterval(()=>{eEpoch();eChart();if(E.ep%3===0){eMap();el('enet').innerHTML=netSVG(E.net,null,0);}if(E.ep>=500){clearInterval(E.tm);E.tm=null;edraw();}},70);edraw();};
+el('eStep').onclick=()=>{eEpoch();edraw();};
+el('eReset').onclick=()=>{eInit();edraw();};el('elr').oninput=eChart;
+
+/* --- звук: поза своєю вкладкою гра мовчить --- */
+let CUR='G';
+function muteAll(){[['gMain','G'],['game','2'],['gShoot','5']].forEach(q=>{try{el(q[0]).contentWindow.postMessage({type:'mute',on:CUR!==q[1]},'*')}catch(e){}});}
+['gMain','game','gShoot'].forEach(id=>el(id).addEventListener('load',()=>setTimeout(muteAll,250)));
+/* --- 5. Стрільба --- */
+let BRAIN_FN=(w,y)=>run(E.net,w,y).v,BRAIN_SRC=()=>'Мозок з вкладки «Епохи»: навчався '+E.ep+' епох'+(E.ep?'':' (ще новачок — навчіть його!)');
+const SH={w:.45,p:35.5},GS=()=>el('gShoot').contentWindow;
+function shAim(f){const th=C0+R0*BRAIN_FN(SH.w,(75-SH.p)/70),m=shoot(th,SH.w).xL-SH.p;
+ try{GS().postMessage({type:'aim',theta:th,wind:SH.w,plate:SH.p,fire:!!f},'*')}catch(e){}
+ el('shInfo').textContent='кут '+th.toFixed(1)+'° · '+msTxt(m);el('shInfo').style.color=Math.abs(m)<3?'#2b7a4b':'#e2574c';el('shSrc').textContent=BRAIN_SRC();}
+el('shFire').onclick=()=>shAim(true);el('gShoot').addEventListener('load',()=>setTimeout(()=>shAim(0),500));
+/* --- 6. Лабораторія: світи, мережа, три способи вчитись --- */
+const AC={tanh:{n:'tanh (стискає −1…+1)',f:Math.tanh,d:a=>1-a*a},relu:{n:'ReLU (від’ємне → 0)',f:z=>z>0?z:0,d:(a,z)=>z>0?1:0},sig:{n:'сигмоїда (0…1)',f:z=>1/(1+Math.exp(-z)),d:a=>a*(1-a)},lin:{n:'без стискача',f:z=>z,d:()=>1}};
+let DEC=.5;const SB={V0:400,G:100,KAX:.013,KPERP:.30,KLEAF:.10,VLO:20,VHI:70,WMAX:12.5,px:134.5,py:9.2,bar:15.5,rim:4.1,wallX:84,wallTop:23.8,win:null,roof:null,leftX:-3};
+const WLD={
+ smooth:{n:'Гладкий',amin:29,C:{leftX:-1e9,V0:407.6,WMAX:25.4,KAX:.0082,KPERP:.10,KLEAF:.134,VHI:105.4},d:'Як у грі: сильний вітер, низька стіна. Правильний кут один — функція гладка.'},
+ win:{n:'Стіна з вікном',amin:3,C:{V0:249,WMAX:9.6,wallTop:51,win:[7,29]},d:'Висока стіна з вікном. Рибу можна пустити низько крізь вікно або високою дугою над стіною — <b>два правильних кути</b>. Посередині — стіна.'},
+ combo:{n:'Вікно + стеля',amin:3,C:{V0:242,WMAX:9.9,wallTop:45,win:[8,23],roof:{xa:31,xb:42,y:31,th:2,e:.32}},d:'Стіна з вікном і стеля над нею: низько крізь вікно чи високо повз стелю. Місцями два правильних кути.'},
+ roof:{n:'Лише стеля',amin:3,C:{V0:242,WMAX:12.4,wallTop:0,roof:{xa:26,xb:40,y:31,th:2,e:.59}},d:'Стіни нема, зверху стеля. Можна пройти під нею або перелетіти — місцями два правильних кути.'}};
+function shootW(thD,w,P,rec){const h=1/240,t=thD*Math.PI/180,c=Math.cos(t),sn=Math.sin(t),Wx=P.WMAX*w,pts=[],win=P.win,roof=P.roof,rt=P.rim+1.3;
+ let x=P.px-P.bar*c,y=P.py+P.bar*sn,vx=-P.V0*c,vy=P.V0*sn,phi=Math.PI-t,age=0,cd=0,rcd=0,wh=0,rh=0,wn=0,n=0,ap=y;
+ const fin=e=>({xL:x,end:e,wh,rh,wn,pts,ap,ok:e==='catch'&&!wh&&!rh});
+ while(age<14){const ux=vx-Wx,uy=vy,sp=Math.hypot(ux,uy)||1e-6;let fx=0,fy=-P.G;
+  const stall=1-smo((sp-P.VLO)/(P.VHI-P.VLO));let d=Math.atan2(vy,vx)-phi;d=Math.atan2(Math.sin(d),Math.cos(d));
+  phi+=d*Math.min(1,h*12)*(1-stall)+(2.2+w*2.6)*h*stall;const ax=Math.cos(phi),ay=Math.sin(phi),par=ux*ax+uy*ay,ka=P.KAX*(1-stall);
+  fx+=-ka*Math.abs(par)*par*ax;fy+=-ka*Math.abs(par)*par*ay;const wp=Math.abs(Wx*ay),kp=P.KPERP*(1-stall);
+  fx+=kp*wp*(Wx*ay*ay);fy+=kp*wp*(-Wx*ax*ay);const kl=P.KLEAF*stall;fx+=-kl*sp*ux;fy+=-kl*sp*uy;
+  vx+=fx*h;vy+=fy*h;x+=vx*h;y+=vy*h;age+=h;if(cd>0)cd-=h;if(rcd>0)rcd-=h;if(y>ap)ap=y;if(rec&&(n++%5===0))pts.push([x,y]);
+  if(win&&Math.abs(x-P.wallX)<1.9&&y>win[0]&&y<win[1])wn=1;
+  if(cd<=0&&Math.abs(x-P.wallX)<1.9&&y<P.wallTop&&y>3&&!(win&&y>win[0]&&y<win[1])){wh++;const g=Math.sign(vx)||1;vx=-g*(Math.abs(vx)*.3+2.5);if(vy<0&&y>P.wallTop-2.2)vy=Math.abs(vy)*.3;vy*=.55;cd=.4;}
+  if(roof&&x>roof.xa&&x<roof.xb&&y>roof.y&&y<roof.y+roof.th){if(vy>0&&rcd<=0){rh++;vy=-Math.abs(vy)*roof.e;vx*=.6;rcd=.3;}else if(vy<=0)return fin('roofTop');}
+  if(y<=rt&&vy<=0&&age>.05){if(rec)pts.push([x,y]);return fin('catch');}
+  if(y<=.1)return fin('ground');if(x<P.leftX)return fin('out');}
+ return fin('timeout');}
+/* таблиця «кут × вітер → падіння», розв'язки (правильні кути) і сітка клітинок — рахуємо один раз для світу */
+const WS={};
+function wsetup(key){if(WS[key])return WS[key];const D=WLD[key],P=Object.assign({},SB,D.C),na=Math.round((78-D.amin)/.5)+1,R=[];
+ for(let i=0;i<21;i++){const r={x:new Float64Array(na),ok:new Uint8Array(na),wh:new Uint8Array(na),rh:new Uint8Array(na),wn:new Uint8Array(na)};
+  for(let k=0;k<na;k++){const s=shootW(D.amin+k*.5,i/20,P);r.x[k]=s.xL;r.ok[k]=s.ok?1:0;r.wh[k]=s.wh;r.rh[k]=s.rh;r.wn[k]=s.wn;}R.push(r);}
+ const S={key,D,P,R,na,amin:D.amin,Cm:key==='smooth'?C0:(D.amin+78)/2,Rm:key==='smooth'?R0:(78-D.amin)/2,cells:[],multi:false,lo:-1e9,hi:1e9};
+ for(let i=0;i<21;i++)for(let p=20;p<=75;p++){const s=wsols(S,i,p);if(s.length)S.cells.push({i,w:i/20,p,y:(75-p)/70,s});}
+ for(const c of S.cells)if(c.s.length>1){S.multi=true;S.lo=Math.max(S.lo===-1e9?-1e9:S.lo,c.s[0]);S.hi=Math.min(S.hi,c.s[c.s.length-1]);}
+ let my=60;for(let q=0;q<S.cells.length;q+=9){const c=S.cells[q];for(const a of c.s)my=Math.max(my,shootW(a,c.w,P).ap);}S.ymax=Math.min(175,my*1.05);
+ return WS[key]=S;}
+function wsols(S,i,p){const o=[],r=S.R[i];for(let k=0;k<S.na-1;k++){if(!r.ok[k]||!r.ok[k+1]||Math.abs(r.x[k+1]-r.x[k])>8)continue;const d0=r.x[k]-p,d1=r.x[k+1]-p;if(d0===0||d0*d1<0)o.push(S.amin+(k+(d0===d1?0:d0/(d0-d1)))*.5);}
+ const cl=[];for(const a of o){if(cl.length&&a-cl[cl.length-1][cl[cl.length-1].length-1]<=1)cl[cl.length-1].push(a);else cl.push([a]);}return cl.map(c=>c.reduce((s,v)=>s+v,0)/c.length);}
+/* швидкий «пробний постріл» по таблиці (інтерполяція) */
+function look(S,th,w){const f=(th-S.amin)/.5;if(f<0||f>S.na-1.001)return null;const k=Math.floor(f),a=f-k,fw=w*20,i=Math.min(19,Math.floor(fw)),b=fw-i;let x=0,bad=0,wn=0;
+ for(const[ii,wi]of[[i,1-b],[i+1,b]]){const r=S.R[ii];x+=wi*(r.x[k]*(1-a)+r.x[k+1]*a);bad|=!(r.ok[k]&&r.ok[k+1]);wn+=wi*(r.wn[k]*(1-a)+r.wn[k+1]*a);}
+ const r0=S.R[i];return{x,bad,wn:wn>.5,bounces:r0.wh[k]+r0.rh[k],wh:r0.wh[k]|r0.rh[k]};}
+function lbReward(r,p){let R=-Math.abs(r.x-p);if(Math.abs(r.x-p)<3&&!r.bad)R+=100;if(r.wh&&!r.wn)R-=50;if(r.wn)R+=25;R-=5*r.bounces;return R/100;}
+const LB={L:1,n1:4,n2:4,a1:'tanh',a2:'tanh',seed:1,net:null,mom:null,t:0,ep:0,hist:[],tm:null,R:null,world:'smooth',mode:'self',teach:'avg',sw:.5,sp:45,S:null,ok:0,fam:null};
+const PRE=[['1 нейрон, без стискача',1,1,1,'lin','lin'],['2 tanh',1,2,2,'tanh','tanh'],['4 tanh',1,4,4,'tanh','tanh'],['8 ReLU',1,8,8,'relu','relu'],['4 + 4 tanh',2,4,4,'tanh','tanh'],['5 + 5 ReLU',2,5,5,'relu','relu'],['6 + 6 ReLU',2,6,6,'relu','relu']];
+const MODES={teach:'З учителем',self:'Сам (за промахом)',rl:'Пристрілка (нагорода)'};
+['lA1','lA2'].forEach(id=>el(id).innerHTML=Object.keys(AC).map(k=>'<option value="'+k+'">'+AC[k].n+'</option>').join(''));
+el('labPre').innerHTML='<span class="m" style="font-size:11px;opacity:.6;align-self:center">приклади:</span>'+PRE.map((p,i)=>'<button class="btn" data-i="'+i+'" style="padding:4px 9px;font-size:11px">'+p[0]+'</button>').join('');
+el('lWorlds').innerHTML=Object.keys(WLD).map(k=>'<button class="btn" data-k="'+k+'" style="padding:4px 10px">'+WLD[k].n+'</button>').join('');
+el('lModes').innerHTML=Object.keys(MODES).map(k=>'<button class="btn" data-k="'+k+'" style="padding:4px 10px">'+MODES[k]+'</button>').join('');
+el('lTeach').innerHTML='<button class="btn" data-k="avg" style="padding:4px 10px">«посередині»</button><button class="btn" data-k="wta" style="padding:4px 10px">«найближчий до твого»</button>';
+const lbLR=()=>.003*Math.pow(.2/.003,+el('lLR').value/100),lbCount=()=>LB.sz.slice(1).reduce((s,m,l)=>s+m*LB.sz[l]+m,0);
+function lbBuild(){clearInterval(LB.tm);LB.tm=null;LB.S=wsetup(LB.world);const sz=[2,LB.n1].concat(LB.L===2?[LB.n2]:[],[1]),ac=[LB.a1].concat(LB.L===2?[LB.a2]:[],['tanh']),R=mb32(LB.seed*31+5),gs=()=>Math.sqrt(-2*Math.log(R()+1e-9))*Math.cos(6.2832*R());
+ LB.sz=sz;LB.net=sz.slice(1).map((m,l)=>({act:ac[l],W:Array.from({length:m},()=>Array.from({length:sz[l]},()=>gs()*1.2/Math.sqrt(sz[l]/2))),b:new Array(m).fill(ac[l]==='relu'?.1:0)}));
+ LB.mom=LB.net.map(L=>({mW:L.W.map(r=>r.map(()=>0)),vW:L.W.map(r=>r.map(()=>0)),mb:L.b.map(()=>0),vb:L.b.map(()=>0)}));LB.t=0;LB.ep=0;LB.hist=[];LB.R=mb32(11);LB.ok=0;LB.fam=null;}
+function lbFwd(net,x,y){const A=[[x,y]],Z=[];net.forEach((L,l)=>{const a=A[l],z=L.W.map((r,j)=>r.reduce((s,w,i)=>s+w*a[i],L.b[j]));Z.push(z);A.push(z.map(AC[L.act].f));});return{A,Z,v:A[A.length-1][0]};}
+const lbAng=(net,S,w,y)=>S.Cm+S.Rm*lbFwd(net,w,y).v;
+function lbEpoch(){const net=LB.net,S=LB.S,R=LB.R,mode=LB.mode,N=S.cells.length,lr=lbLR()*(1-DEC*Math.min(1,LB.ep/800));let loss=0,cn=0;
+ for(let st=0;st<10;st++){const G=net.map(L=>({W:L.W.map(r=>r.map(()=>0)),b:L.b.map(()=>0)}));
+  for(let q=0;q<30;q++){const c=S.cells[Math.floor(R()*N)],f=lbFwd(net,c.w,c.y),v=f.v,mu=S.Cm+S.Rm*v,r0=look(S,mu,c.w);let dth=0,ok=true;
+   const ms=r0&&!r0.bad?Math.min(30,Math.abs(r0.x-c.p)):30;loss+=ms*ms;cn++;
+   if(mode==='teach'){let tg;if(LB.teach==='avg')tg=c.s.reduce((a,b)=>a+b,0)/c.s.length;else{tg=c.s[0];for(const t of c.s)if(Math.abs(t-mu)<Math.abs(tg-mu))tg=t;}dth=2*(mu-tg)/8464*40;}
+   else if(mode==='self'){const r1=look(S,mu+.25,c.w),r2=look(S,mu-.25,c.w);if(!r0||!r1||!r2||r0.bad||r1.bad||r2.bad)ok=false;else{const Sx=(r1.x-r2.x)/.5;if(Math.abs(Sx)>40)ok=false;else dth=2*(r0.x-c.p)/100*Sx;}}
+   else{let bt=null,br=-1e9;for(let k=0;k<12;k++){const th=k===0?mu:mu+6*gsn(R)*(k%3===0?4:1),r=look(S,th,c.w);if(!r)continue;const rw=lbReward(r,c.p);if(rw>br){br=rw;bt=th;}}
+    if(bt===null||br<.5)ok=false;else dth=2*(mu-bt)/8464*40;}
+   if(!ok)continue;let dz=[dth*S.Rm*(1-v*v)/30];
+   for(let l=net.length-1;l>=0;l--){const L=net[l],a=f.A[l];dz.forEach((d,j)=>{G[l].b[j]+=d;a.forEach((ai,i)=>G[l].W[j][i]+=d*ai);});
+    if(l>0){const pv=net[l-1];dz=a.map((ai,i)=>{let t=0;dz.forEach((d,j)=>t+=d*L.W[j][i]);return t*AC[pv.act].d(ai,f.Z[l-1][i]);});}}}
+  LB.t++;const t=LB.t,up=(p,m,v,gr)=>{m=.9*m+.1*gr;v=.999*v+.001*gr*gr;return[p-lr*(m/(1-.9**t))/(Math.sqrt(v/(1-.999**t))+1e-8),m,v];};
+  net.forEach((L,l)=>{const M=LB.mom[l];L.W.forEach((r,j)=>r.forEach((w,i)=>{const u=up(w,M.mW[j][i],M.vW[j][i],G[l].W[j][i]);r[i]=u[0];M.mW[j][i]=u[1];M.vW[j][i]=u[2];}));
+   L.b.forEach((w,j)=>{const u=up(w,M.mb[j],M.vb[j],G[l].b[j]);L.b[j]=u[0];M.mb[j]=u[1];M.vb[j]=u[2];});});}
+ LB.ep++;LB.hist.push(Math.sqrt(loss/Math.max(1,cn)));}
+const gsn=R=>Math.sqrt(-2*Math.log(R()+1e-9))*Math.cos(6.2832*R());
+function lbNetSVG(){const sz=LB.sz,X=l=>50+l*(320/(sz.length-1)),Y=(l,j)=>150+(j-(sz[l]-1)/2)*(sz[l]>6?30:38),f=lbFwd(LB.net,LB.sw,(75-LB.sp)/70);let o='';
+ LB.net.forEach((L,l)=>L.W.forEach((r,j)=>r.forEach((w,i)=>o+='<line x1="'+X(l)+'" y1="'+Y(l,i)+'" x2="'+X(l+1)+'" y2="'+Y(l+1,j)+'" stroke="'+col(w,.8)+'" stroke-width="'+(.6+3.4*Math.min(1,Math.abs(w)/1.5))+'"/>')));
+ sz.forEach((m,l)=>{for(let j=0;j<m;j++){const a=f.A[l][j],last=l===sz.length-1;o+='<circle cx="'+X(l)+'" cy="'+Y(l,j)+'" r="'+(l===0||last?16:13)+'" fill="'+(l===0?'#f2ecdd':col(Math.max(-1,Math.min(1,a)),Math.min(1,Math.abs(a))*.8+.1))+'" stroke="#2b241d"/>';}
+  const lab=l===0?'вітер, відстань':l===sz.length-1?'кут (tanh)':LB.net[l-1].act;o+='<text x="'+X(l)+'" y="'+(Y(l,sz[l]-1)+36)+'" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">'+lab+'</text>';});
+ return o;}
+/* сцена: світ збоку, правильні траєкторії (сірі), постріл мозку (кольоровий) */
+function lbScene(){const S=LB.S,P=S.P,w=LB.sw,p=LB.sp,X=x=>18+(x+8)/148*564,Y=y=>252-y/S.ymax*236,F='font-family="IBM Plex Mono" font-size="10"';
+ const ys=wsetupSols(S,w,p),mu=lbAng(LB.net,S,w,(75-p)/70),r=shootW(mu,w,P,true),hit=r.ok&&Math.abs(r.xL-p)<3;
+ let o='<line x1="0" y1="'+Y(0)+'" x2="600" y2="'+Y(0)+'" stroke="#2b241d"/>';
+ if(P.wallTop>0){const wt=P.wallTop,wx=P.wallX-1.9,ww=3.8;if(P.win){o+='<rect x="'+X(wx)+'" y="'+Y(P.win[0])+'" width="'+(ww/148*564)+'" height="'+(Y(0)-Y(P.win[0]))+'" fill="#6b5d4a"/><rect x="'+X(wx)+'" y="'+Y(wt)+'" width="'+(ww/148*564)+'" height="'+(Y(P.win[1])-Y(wt))+'" fill="#6b5d4a"/><text x="'+(X(wx)-6)+'" y="'+(Y(P.win[1])+10)+'" '+F+' text-anchor="end" opacity=".7">вікно</text>';}else o+='<rect x="'+X(wx)+'" y="'+Y(wt)+'" width="'+(ww/148*564)+'" height="'+(Y(0)-Y(wt))+'" fill="#6b5d4a"/>';}
+ if(P.roof){const q=P.roof;o+='<rect x="'+X(q.xa)+'" y="'+Y(q.y+q.th)+'" width="'+((q.xb-q.xa)/148*564)+'" height="'+Math.max(3,(q.th/S.ymax*236))+'" fill="#6b5d4a"/><text x="'+X((q.xa+q.xb)/2)+'" y="'+(Y(q.y)-6)+'" '+F+' text-anchor="middle" opacity=".7">стеля</text>';}
+ o+='<rect x="'+X(p-12)+'" y="'+(Y(0)-4)+'" width="'+(24/148*564)+'" height="5" fill="#e8a33d" stroke="#2b241d"/>';
+ const pth=pts=>'M'+pts.map(q=>X(q[0]).toFixed(1)+' '+Y(Math.min(q[1],S.ymax*1.2)).toFixed(1)).join('L');
+ ys.forEach(a=>{const s=shootW(a,w,P,true);o+='<path d="'+pth(s.pts)+'" fill="none" stroke="#2b241d" stroke-opacity=".35" stroke-width="1.6" stroke-dasharray="4 3"/>';});
+ o+='<path d="'+pth(r.pts)+'" fill="none" stroke="'+(hit?'#2b7a4b':'#e2574c')+'" stroke-width="2.6"/>';
+ const bx=X(P.px),by=Y(P.py);o+='<g transform="translate('+bx+' '+by+') rotate('+(-(180-mu)).toFixed(1)+')"><rect x="0" y="-4" width="24" height="8" fill="#2b241d"/></g><circle cx="'+bx+'" cy="'+by+'" r="7" fill="#2b241d"/>';
+ el('lscene').innerHTML=o;
+ const dm=r.end==='roofTop'?'сіла на стелю':r.wh?'вдарилась об стіну/стелю':(Math.abs(r.xL-p)<3&&r.ok?'влучання!':(r.xL<p?'недоліт ':'переліт ')+Math.abs(r.xL-p).toFixed(0)+' м');
+ el('lSI').innerHTML='кут мозку <b>'+mu.toFixed(1)+'°</b> → '+dm+' · правильні кути (сірі): <b>'+(ys.length?ys.map(a=>a.toFixed(1)+'°').join(' і '):'—')+'</b>';el('lSI').style.color=hit?'#2b7a4b':'#2b241d';}
+function wsetupSols(S,w,p){const fw=w*20,i=Math.round(fw);return wsols(S,Math.min(20,i),p);}
+function lbMap(){const S=LB.S,P=S.P;let ok=0,fam={lo:0,mid:0,hi:0,loH:0,hiH:0},h='<tr><th></th>'+[...Array(10)].map((_,i)=>'<th>'+Math.round(i/9*100)+'%</th>').join('')+'</tr>';
+ for(let j=0;j<10;j++){const pl=20+55*j/9,y=(75-pl)/70;h+='<tr><th>'+Math.round(134.5-pl)+'</th>';
+  for(let i=0;i<10;i++){const w=i/9,mu=lbAng(LB.net,S,w,y),r=shootW(mu,w,P),a=Math.abs(r.xL-pl),hit=r.ok&&a<3;if(hit)ok++;
+   const f=mu<=S.lo+1.5?'lo':mu>=S.hi-1.5?'hi':'mid';fam[f]++;if(hit&&f!=='mid')fam[f+'H']++;
+   h+='<td style="cursor:default;background:'+(hit?'rgba(43,122,75,.65)':(r.ok&&a<6)?'rgba(232,163,61,.6)':'rgba(226,87,76,.45)')+'"></td>';}h+='</tr>';}
+ el('lhm').innerHTML=h;LB.ok=ok;LB.fam=S.multi?fam:null;}
+function lbChart(){const H=LB.hist,mx=Math.max(60,H.length),X=i=>34+i/mx*312,Y=v=>140-Math.min(1,v/30)*115,F='font-family="IBM Plex Mono" font-size="10"';
+ let o='<line x1="34" y1="140" x2="350" y2="140" stroke="#2b241d"/><line x1="34" y1="20" x2="34" y2="140" stroke="#2b241d"/><text x="190" y="162" '+F+' text-anchor="middle">епохи →</text><text x="8" y="80" '+F+' transform="rotate(-90 8 80)" text-anchor="middle">типовий промах, м</text>';
+ [0,10,20,30].forEach(v=>o+='<text x="30" y="'+(Y(v)+3)+'" '+F+' text-anchor="end">'+v+'</text>');
+ if(H.length)o+='<path d="'+H.map((v,i)=>(i?'L':'M')+X(i+1).toFixed(1)+' '+Y(v).toFixed(1)).join('')+'" fill="none" stroke="#2f6fd0" stroke-width="2.2"/>';el('lchart').innerHTML=o;}
+const tog=(id,k)=>el(id).querySelectorAll('button').forEach(b=>{const on=b.dataset.k===k;b.style.background=on?'#2b241d':'';b.style.color=on?'#f2ecdd':'';});
+const MDT={teach:'<b>Вчитель</b> знає ідеальний кут і каже його мережі; мережа підтягується до відповіді.',
+ self:'<b>Сам.</b> Учителя нема. Мережа бачить лише метри промаху й <b>нахил</b> — куди крутити ручки, щоб промах зменшився. Як спуск в яму: працює, поки яма одна й гладка.',
+ rl:'<b>Пристрілка.</b> Мозок пробує кілька кутів, гра дає очки (див. «Нагорода»), найкращий постріл стає зразком. Нахил не потрібен — стрибки крізь вікно нагорода бачить.'};
+function ldraw(light){if(!LB.net)lbBuild();const S=LB.S;
+ el('lnet').innerHTML=lbNetSVG();lbChart();if(!light)lbMap();lbScene();tog('lWorlds',LB.world);tog('lModes',LB.mode);tog('lTeach',LB.teach);
+ el('lWd').innerHTML=WLD[LB.world].d;el('kTeach').style.display=(LB.mode==='teach'&&S.multi)?'':'none';
+ el('lMd').innerHTML=MDT[LB.mode]+(LB.mode==='teach'&&S.multi?(LB.teach==='avg'?' Правильних кутів два, а вчитель-«посередині» каже середнє — і гармата стріляє в стіну.':' Вчитель підказує той з двох правильних кутів, що ближчий до мозку, — мережа вибирає гілку сама.'):'')+(LB.mode==='self'&&S.multi?' <i>Тут нахил бачить лише найближчу яму.</i>':'');
+ el('lRew').style.display=LB.mode==='rl'?'':'none';
+ el('lL1').style.cssText=LB.L===1?'padding:4px 12px;background:#2b241d;color:#f2ecdd':'padding:4px 12px';el('lL2').style.cssText=LB.L===2?'padding:4px 12px;background:#2b241d;color:#f2ecdd':'padding:4px 12px';
+ el('kN2').style.display=el('kA2').style.display=LB.L===2?'':'none';el('oN1').textContent=LB.n1;el('oN2').textContent=LB.n2;el('lPlay').textContent=LB.tm?'⏸ пауза':'▶ вчитись';
+ el('lSend').disabled=LB.world!=='smooth';el('lSend').title=LB.world!=='smooth'?'Гармата в грі стріляє лише в гладкому світі':'';
+ const H=LB.hist,fm=LB.fam;el('lInfo').innerHTML='ручок: <b>'+lbCount()+'</b> · епоха '+LB.ep+(H.length?' · типовий промах '+H[H.length-1].toFixed(1)+' м':'')+'<br>влучань: <b>'+LB.ok+'</b> із 100'+(LB.ok>=90?' — <b style="color:#2b7a4b">мету досягнуто!</b> Спробуйте менше ручок.':'')
+  +(fm?'<br>мозок стріляє низько: '+fm.lo+' · високо: '+fm.hi+' · посередині: '+fm.mid+' (з 100). Влучань низько '+fm.loH+', високо '+fm.hiH+'.':'')
+  +(LB.net.slice(0,-1).every(L=>L.act==='lin')?'<br><span style="opacity:.7">Увага: у схованих шарах стискачів немає, але вихід кута усе одно tanh — цей «вигин» лишається, тому й одна пряма непогано влучає.</span>':'');}
+function lbSet(p){Object.assign(LB,p);lbBuild();ldraw();}
+function lbWorld(k){clearInterval(LB.tm);LB.tm=null;if(!WS[k]){el('lInfo').textContent='Рахую світ…';setTimeout(()=>lbSet({world:k}),30);}else lbSet({world:k});}
+el('lWorlds').onclick=e=>{const k=e.target.dataset.k;if(k)lbWorld(k);};
+el('lModes').onclick=e=>{const k=e.target.dataset.k;if(k)lbSet({mode:k});};
+el('lTeach').onclick=e=>{const k=e.target.dataset.k;if(k)lbSet({teach:k});};
+el('lSW').oninput=()=>{LB.sw=+el('lSW').value/100;ldraw(true);lbScene();};el('lSD').oninput=()=>{LB.sp=20+55*(1-(+el('lSD').value/100));ldraw(true);};
+el('labPre').onclick=e=>{const i=e.target.dataset.i;if(i===undefined)return;const p=PRE[i];lbSet({L:p[1],n1:p[2],n2:p[3],a1:p[4],a2:p[5]});el('lN1').value=p[2];el('lN2').value=p[3];el('lA1').value=p[4];el('lA2').value=p[5];};
+el('lL1').onclick=()=>lbSet({L:1});el('lL2').onclick=()=>lbSet({L:2});
+el('lN1').oninput=()=>lbSet({n1:+el('lN1').value});el('lN2').oninput=()=>lbSet({n2:+el('lN2').value});
+el('lA1').onchange=()=>lbSet({a1:el('lA1').value});el('lA2').onchange=()=>lbSet({a2:el('lA2').value});
+el('lLR').oninput=()=>lbChart();el('lNew').onclick=()=>lbSet({seed:LB.seed+1});el('lStep').onclick=()=>{lbEpoch();ldraw();};
+el('lPlay').onclick=()=>{if(LB.tm){clearInterval(LB.tm);LB.tm=null;ldraw();return;}
+ LB.tm=setInterval(()=>{for(let k=0;k<3;k++)lbEpoch();lbChart();if(LB.ep%12===0)ldraw();if(LB.ep>=1500){clearInterval(LB.tm);LB.tm=null;ldraw();}},70);ldraw();};
+el('lSend').onclick=()=>{if(LB.world!=='smooth')return;const snap=JSON.parse(JSON.stringify(LB.net)),d=LB.sz.slice(1,-1).map((m,l)=>m+' '+LB.net[l].act).join(' + ');BRAIN_FN=(w,y)=>lbFwd(snap,w,y).v;BRAIN_SRC=()=>'Мозок з Лабораторії: '+d+' ('+lbCount()+' ручок), влучань '+LB.ok+' із 100';el('lSend').textContent='відправлено ✓';setTimeout(()=>el('lSend').textContent='→ у гармату',1600);};
+/* --- синхронізація з вбудованою грою: вітер і тарілка, які крутить дитина --- */
+addEventListener('message',e=>{const m=e.data;if(!m||m.type!=='state')return;
+ if(e.source===GS()){if(Math.abs(m.wind-SH.w)<1e-9&&Math.abs(m.plate-SH.p)<1e-9)return;SH.w=m.wind;SH.p=m.plate;shAim(0);return;}
+ if(e.source!==GM.contentWindow)return;
+ if(Math.abs(m.wind-T.w)<1e-9&&Math.abs(m.plate-T.p)<1e-9)return;
+ T.w=m.wind;T.p=m.plate;T.y=(75-T.p)/70;K1=null;S1.path=[];BP.g=null;clearTimeout(T.tm);T.tm=setTimeout(()=>{if(!el('s2').hidden)tdraw();},150);});
+eInit();go('G');
+draw();
+</script></body></html>

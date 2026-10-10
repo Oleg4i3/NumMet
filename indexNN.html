@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Математичні основи побудови нейронних мереж</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Literata:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- Загальні налаштування --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        /* --- БОКОВЕ МЕНЮ (SIDEBAR) --- */
+        #sidebar {
+            min-width: 280px;
+            max-width: 280px;
+            background: #2c3e50;
+            color: #fff;
+            transition: all 0.3s;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.active {
+            margin-left: -280px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #1a252f;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .category {
+            padding: 15px 20px 5px 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .subcat { padding: 12px 20px 2px; font-size: 0.8rem; color: #8fb8de; font-style: italic; }
+
+        .menu-btn {
+            padding: 12px 20px;
+            font-size: 0.95rem;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            color: #bdc3c7;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: #34495e;
+            color: #fff;
+        }
+
+        .menu-btn.selected {
+            background: #34495e;
+            color: #fff;
+            border-left: 4px solid #3498db;
+        }
+
+       /* --- ОСНОВНИЙ КОНТЕНТ --- */
+        #content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .top-navbar {
+            /* Змінюємо позиціонування на absolute, щоб вона не займала місце */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 15px;
+            z-index: 10;
+            
+            /* Прибираємо фон та тінь */
+            background: transparent;
+            box-shadow: none;
+            
+            /* Важливо: дозволяємо кліки крізь прозору панель по iframe */
+            pointer-events: none; 
+            
+            display: flex;
+            align-items: center;
+        }
+
+   #sidebarCollapse {
+            background: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            
+            /* Тінь для контрасту на світлому фоні */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            
+            /* --- ВАЖЛИВІ ЗМІНИ ТУТ --- */
+            
+            /* 0.5 означає 50% видимості (можна змінити від 0.1 до 1.0) */
+            opacity: 0.5; 
+            
+            /* Плавна анімація для всіх властивостей (кольору та прозорості) */
+            transition: all 0.3s ease;
+            
+            /* Не забуваємо про клікабельність (з попереднього кроку) */
+            pointer-events: auto; 
+        }
+
+        #sidebarCollapse:hover {
+            background: #2980b9;
+            
+            /* При наведенні робимо кнопку повністю видимою */
+            opacity: 1; 
+        }
+
+        /* Ховаємо заголовок, щоб не заважав */
+        .current-title {
+            display: none; 
+        }
+
+        .iframe-container {
+            flex-grow: 1;
+            background: #ecf0f1;
+            position: relative;
+            height: 100%; /* Тепер займає всю висоту */
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block; /* Прибирає можливі відступи знизу */
+        }
+        /* --- СТАРТОВА СТОРІНКА --- */
+        .welcome {
+            --ink: #14213d;
+            --ink-soft: #2b3a55;
+            --muted: #56627a;
+            --rule: #d5dce6;
+            --paper: #f5f7fa;
+            --accent: #2f6fdb;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            overflow-y: auto;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .welcome-inner {
+            box-sizing: border-box;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 76px 40px 36px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas:
+                "head"
+                "demo"
+                "toc"
+                "about"
+                "foot";
+            row-gap: 36px;
+        }
+        .w-head { grid-area: head; }
+        .w-head h1 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: clamp(2.3rem, 4.1vw, 3.5rem);
+            line-height: 1.06;
+            letter-spacing: -0.012em;
+        }
+        .w-sub {
+            margin: 12px 0 0;
+            font-size: 1.15rem;
+            color: var(--muted);
+        }
+        .w-lead {
+            margin: 26px 0 0;
+            max-width: 64ch;
+            font-size: 1rem;
+            line-height: 1.65;
+            color: var(--ink-soft);
+        }
+
+        /* банер з анімацією (лише прикраса) */
+        .demo {
+            grid-area: demo;
+            background: #fff;
+            border: 1px solid var(--rule);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo iframe {
+            width: 100%;
+            height: clamp(300px, 42vh, 400px);
+            border: none;
+            display: block;
+            background: transparent;
+        }
+
+        /* розділи курсу */
+        .toc { grid-area: toc; }
+        .toc-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            padding-bottom: 10px;
+        }
+        .toc-head h2 {
+            margin: 0;
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+        }
+        .toc-head span { font-size: 0.85rem; color: var(--muted); }
+        .toc-row {
+            display: grid;
+            grid-template-columns: 2rem minmax(0, 1fr) auto;
+            align-items: baseline;
+            column-gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 0;
+            border: none;
+            border-top: 1px solid var(--rule);
+            background: none;
+            font: inherit;
+            text-align: left;
+            color: var(--ink);
+            cursor: pointer;
+        }
+        .toc-row:last-child { border-bottom: 1px solid var(--rule); }
+        .toc-num {
+            font-family: 'Literata', Georgia, 'Times New Roman', serif;
+            font-size: 1.1rem;
+            color: var(--muted);
+        }
+        .toc-title { font-size: 1rem; font-weight: 500; line-height: 1.4; }
+        .toc-count { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+        .toc-row:hover .toc-title,
+        .toc-row:hover .toc-num { color: var(--accent); }
+
+        .welcome button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .w-flagnote { margin-top: 12px; font-size: 0.95rem; color: var(--muted); }
+        .w-flag {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #6f42c1;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .w-about {
+            grid-area: about;
+            margin: 0;
+            max-width: 68ch;
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--ink-soft);
+        }
+        .w-foot {
+            grid-area: foot;
+            margin: 8px 0 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 700px) {
+            .welcome-inner { padding: 72px 20px 28px; row-gap: 28px; }
+        }
+
+		
+		
+		/* --- Стиль для бейджика NEW --- */
+.badge-new {
+    background-color: #e74c3c; /* Яскравий червоний */
+    color: white;
+    font-size: 0.6rem;
+   
+    padding: 1px 2px;
+    border-radius: 2px;
+    margin-left: 4px; /* Відступ від тексту кнопки */
+    display: inline-block;
+    vertical-align: middle;
+    
+    
+    /* Анімація */
+    animation: pulse-glow 1s infinite;
+}
+
+/* Анімація пульсації (тінь розходиться) */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
+}
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3>МАТЕМАТИЧНІ ОСНОВИ ПОБУДОВИ НЕЙРОННИХ МЕРЕЖ</h3>
+        </div>
+    <div class="category">1. Фундамент: як влаштована й навчається нейромережа</div>
+        <button class="menu-btn" onclick="openSim('NN_____total.html', 'Огляд нейромереж', this)">Огляд: типи нейромереж, архітектури та методи навчання</button>
+        <button class="menu-btn" onclick="openSim('nnSwitch.html', 'Життєвий цикл', this)">Життєвий цикл нейромережі: структура, робота й навчання (хрестики-нулики)</button>
+        <button class="menu-btn" onclick="openSim('brain.html', 'Лабораторний стенд', this)">Лабораторний стенд: конструктор нейромереж (ReLU, багатошаровість, негладка фізика)</button>
+        <button class="menu-btn" onclick="openSim('self-attention.html', 'Увага', this)">Алгебраїчні методи механізму уваги LLM (Матриці, вектори) </button>
+<div class="category">2. Математичні основи</div>
+<div class="subcat">Матриці та спектри</div>
+        <button class="menu-btn" onclick="openSim('matrix-lab.html', 'Оператор', this)">Матриці як лінійні оператори</button>
+        <button class="menu-btn" onclick="openSim('vector-basis.html', 'basis', this)">Розклад вектора в ортогональному базисі - основа кодування з втратами </button>
+        <button class="menu-btn" onclick="openSim('s.html', 'spectrum', this)">Базис та спектр </button>
+        <button class="menu-btn" onclick="openSim('DCT.html', 'DCT', this)">Дискретне косинусне перетворення (DCT) як приклад розкладу вектора в ортогональному базисі  </button>
+        <button class="menu-btn" onclick="openSim('MatrixNorm_SVD_Spectral_Decomposition.html', 'Норми та Спектр', this)">Норми та спектри матриць. SVD</button>
+        <button class="menu-btn" onclick="openSim('eigen.html', 'eigenvectors', this)">Ітераційні чисельні методи знаходження власних чисел і векторів</button>
+        <button class="menu-btn" onclick="openSim('deflation2.html', 'Степеневі ітерації', this)">Метод степеневих ітерацій з дефляцією для чисельного знаходження власних векторів</button>
+        <button class="menu-btn" onclick="openSim('pagerank.html', 'pagerank', this)">Алгорим PageRank</button>
+        <button class="menu-btn" onclick="openSim('LowRank_approx_3D.html', 'Low Rank Approx (3D)', this)">Низькорангова апроксимація (LowRank 3D→2D→1D)</button>
+        <button class="menu-btn" onclick="openSim('condNumber.html', 'Число обумовленості', this)">Число обумовленості</button>
+        <button class="menu-btn" onclick="openSim('isomorphism.html', 'Спектр графів', this)">Спектр графів </button>
+<div class="subcat">Кластеризація та зменшення розмірності</div>
+        <button class="menu-btn" onclick="openSim('PCA2.html', 'PCA', this)">Метод головних компонентів (PCA)  </button>
+        <button class="menu-btn" onclick="openSim('kNN.html', 'kNN', this)">Метод kNN</button>
+        <button class="menu-btn" onclick="openSim('k-means-2D3D.html', 'Метод k-means', this)">Метод k-means (2D/3D) </button>
+        <button class="menu-btn" onclick="openSim('ClasterPlus.html', 'HDBSCAN', this)">HDBSCAN кластерізація</button>
+        <button class="menu-btn" onclick="openSim('Graph_spectral_Clastering_.html', 'Спектральна кластеризація', this)">Спектральні та інші методи кластеризації </button>
+<div class="subcat">МНК, диференціювання й оптимізація</div>
+        <button class="menu-btn" onclick="openSim('LSM5.html', 'МНК', this)">Метод найменших квадратів</button>
+        <button class="menu-btn" onclick="openSim('autodiff.html', 'Автодиф', this)">Автоматичне диференціювання</button>
+        <button class="menu-btn" onclick="openSim('gradient.html', 'Градієнтна оптимізація', this)">Градієнтні методи оптимізації</button>
+        <button class="menu-btn" onclick="openSim('global_Optimisation.html', 'Глобальна оптимізація', this)">Глобальна оптимізація</button>
+<div class="category">3. Приклади-симулятори: чисельні методи ШІ</div>
+        <button class="menu-btn" onclick="openSim('gauss-seidel-robot.html', 'Зейделя', this)">Застосунок ітераціних методів: дрон в лабіринті  </button>
+        <button class="menu-btn" onclick="openSim('rSVD-3D.html', 'rSVD', this)"> Стиснення даних на основі rSVD  </button>
+        <button class="menu-btn" onclick="openSim('K-SVD8.html', 'K-SVD', this)">Одношарова нейромережа для денойзінгу на основі K-SVD </button>
+        <button class="menu-btn" onclick="openSim('PCA-SVD.html', 'PCA+SVD', this)">PCA+SVD: Детектування аномалій  </button>
+        <button class="menu-btn" onclick="openSim('Vocoder.html', 'Vocoder', this)">Vocoder на основі лінійного передбачення</button>
+        <button class="menu-btn" onclick="openSim('vocoder_encoder2.html', 'Autoencoder', this)">Нейронна мережа автоенкодер</button>
+        <button class="menu-btn" onclick="openSim('classifier.html', 'NN-softmax', this)">Нейромережа-класифікатор (розпізнавання голосу)</button>
+        <button class="menu-btn" onclick="openSim('NNcat5.html', 'NN-cat', this)">Машинний зір: Багатошаровий перцептрон</button>
+        <button class="menu-btn" onclick="openSim('CNN-plus.html', 'CNN', this)">Згорткова нейромережа </button>
+        <button class="menu-btn" onclick="openSim('CNNdeep7.html', 'СNN-cat', this)">Машинний зір: Згорткові нейромережі і глибоке навчання</button>
+        <button class="menu-btn" onclick="openSim('graphNeuralNetwork.html', 'GNN', this)">Вступ до графових нейромереж</button>
+        <button class="menu-btn" onclick="openSim('cat.html', 'DDPM', this)">Дифузійні моделі для генерації зображень </button>
+        <div style="height: 50px;"></div>
+    </nav>
+
+    <div id="content">
+        <div class="top-navbar">
+            <button type="button" id="sidebarCollapse">
+                <span>☰</span>
+            </button>
+            <span class="current-title" id="pageTitle">Оберіть тему</span>
+        </div>
+
+        <div class="iframe-container">
+            <div class="welcome" id="startMessage">
+                <div class="welcome-inner">
+                    <header class="w-head">
+                        <h1>Математичні основи побудови нейронних мереж</h1>
+                        <p class="w-sub">Інтерактивний навчальний посібник · вибіркова дисципліна</p>
+                        <p class="w-lead">Оберіть тему в меню: кнопка ☰ у верхньому лівому куті відкриває й ховає його. На кожній сторінці є спойлер «Теоретична довідка» — уважно прочитайте її, щоб зрозуміти, що відбувається в симуляції.</p>
+                    </header>
+
+                    <div class="demo">
+                        <iframe src="welcomeNN.html" title="Анімація" scrolling="no"></iframe>
+                    </div>
+
+                    <nav class="toc" aria-label="Розділи курсу">
+                        <div class="toc-head"><h2>Розділи курсу</h2><span id="tocStats"></span></div>
+                        <div id="tocList"></div>
+                    </nav>
+
+                    <p class="w-about">Нейромережа — це композиція матричних операцій та нелінійних функцій, параметри якої підбирають чисельною оптимізацією. Курс іде в три кроки. Спочатку фундамент: огляд типів нейромереж, повний життєвий цикл (структура, робота, навчання), лабораторний стенд, де можна самому зібрати мережу, і механізм уваги як основа сучасних моделей. Далі математичні основи: матриці й спектри, кластеризація та зниження розмірності, метод найменших квадратів, автоматичне диференціювання та градієнтна оптимізація. Наприкінці симулятори, де ці методи працюють у задачах ШІ: від низькорангового стиснення (по суті, лінійної мережі без активації) до згорткових, графових і дифузійних моделей.</p>
+
+                    <p class="w-foot">© КАІ Кафедра комп'ютерних інформаційних технологій</p>
+                </div>
+            </div>
+            <iframe id="simFrame" name="simFrame" src=""></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    const sidebar = document.getElementById('sidebar');
+    const collapseBtn = document.getElementById('sidebarCollapse');
+
+    collapseBtn.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+    });
+
+    /* --- Стартова сторінка: зміст будується з бічного меню (його саме не змінюємо) --- */
+    (function buildWelcome() {
+        function plural(n, f) {
+            const m10 = n % 10, m100 = n % 100;
+            if (m10 === 1 && m100 !== 11) return f[0];
+            if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return f[1];
+            return f[2];
+        }
+        const list = document.getElementById('tocList');
+        if (!list) return;
+        const cats = Array.from(document.querySelectorAll('#sidebar .category'));
+        let total = 0;
+        cats.forEach(function (cat) {
+            let n = 0, el = cat.nextElementSibling;
+            while (el && !el.classList.contains('category')) {
+                if (el.classList.contains('menu-btn')) n++;
+                el = el.nextElementSibling;
+            }
+            total += n;
+            const clone = cat.cloneNode(true);
+            clone.querySelectorAll('.badge-new').forEach(function (b) { b.remove(); });
+            const text = clone.textContent.replace(/\s+/g, ' ').trim();
+            const m = text.match(/^(\d+)\.\s*(.*)$/);
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'toc-row';
+            row.innerHTML = '<span class="toc-num"></span><span class="toc-title"></span><span class="toc-count"></span>';
+            row.children[0].textContent = m ? m[1] : '';
+            row.children[1].textContent = m ? m[2] : text;
+            row.children[2].textContent = n + ' ' + plural(n, ['тема', 'теми', 'тем']);
+            row.addEventListener('click', function () {
+                sidebar.classList.remove('active');
+                const top = cat.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+                sidebar.scrollTo({ top: top, behavior: 'smooth' });
+            });
+            list.appendChild(row);
+        });
+        document.getElementById('tocStats').textContent =
+            total + ' ' + plural(total, ['тема', 'теми', 'тем']);
+    })();
+
+    function openSim(file, title, btn) {
+        const iframe = document.getElementById('simFrame');
+        const pageTitle = document.getElementById('pageTitle');
+        const startMsg = document.getElementById('startMessage');
+        
+        // Встановлюємо адресу посилання
+        iframe.src = file;
+        pageTitle.innerText = title;
+        
+        if(startMsg) startMsg.style.display = 'none';
+
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+       // sidebar.classList.add('active');
+        // Автоматичне згортання меню на мобільних пристроях
+        if (window.innerWidth < 1800) {
+            sidebar.classList.add('active');
+        }
+    }
+	
+	window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const simFile = urlParams.get('sim'); // зчитує ключ ?sim=...
+    
+    if (simFile) {
+        // Шукаємо кнопку, яка викликає openSim з цим файлом
+        const targetBtn = document.querySelector(`button[onclick*='${simFile}']`);
+        if (targetBtn) {
+            targetBtn.click();
+        }
+    }
+});
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
