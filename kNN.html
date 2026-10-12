@@ -104,7 +104,7 @@
             padding: 4px;
             margin-bottom: 15px;
         }
-        .mode-option, .t1-mode {
+        .mode-option, .t1-mode, .metric-opt {
             flex: 1;
             text-align: center;
             padding: 8px;
@@ -114,7 +114,7 @@
             font-weight: bold;
             transition: 0.2s;
         }
-        .mode-option.active, .t1-mode.active {
+        .mode-option.active, .t1-mode.active, .metric-opt.active {
             background: white;
             color: #007aff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -262,6 +262,37 @@
         }
 
         .hidden { display: none !important; }
+
+        /* TAB 3: METRICS */
+        .metrics-page {
+            width: 1200px;
+            box-sizing: border-box;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        .metrics-head { text-align: center; margin-bottom: 18px; }
+        .metrics-head h2 { margin: 0 0 6px; color: #2c3e50; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .metric-card {
+            border: 1px solid #e3e6ea;
+            border-top-width: 4px;
+            border-radius: 10px;
+            padding: 14px 16px;
+            background: #fcfcfd;
+        }
+        .metric-card h3 { margin: 0 0 4px; }
+        .metric-card .mnemonic { font-size: 0.88em; color: #555; margin: 0 0 6px; }
+        .metric-card .view-title { font-size: 0.78em; font-weight: bold; text-transform: uppercase; color: #777; margin: 10px 0 4px; letter-spacing: .03em; }
+        .metric-card canvas.c2d { width: 100%; height: auto; display: block; background: #fff; border: 1px solid #eee; border-radius: 6px; }
+        .metric-card .c3d { width: 100%; height: 260px; background: #fff; border: 1px solid #eee; border-radius: 6px; cursor: grab; overflow: hidden; position: relative; }
+        .metric-card .c3d:active { cursor: grabbing; }
+        .metric-card .c3d canvas { display: block; }
+        .metrics-foot {
+            margin-top: 18px; padding: 12px 16px; border-radius: 8px;
+            background: #f0f7ff; border: 1px solid #cce5ff; font-size: 0.92em; line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -293,11 +324,13 @@
             <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">2. Математичне обґрунтування</h3>
             
             <h4>А. Метрики відстані</h4>
-            <p>Найчастіше використовується <strong>Евклідова відстань</strong>. Для двох точок $A$ та $B$ у просторі з $n$ ознак:</p>
-            $$ d(A, B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} $$
-            
-            <p>Якщо ознаки мають зовсым різний характер\природу (рух тільки по сітці), використовують <strong>Манхеттенську відстань</strong>:</p>
-            $$ d_{manhattan}(A, B) = \sum_{i=1}^{n} |A_i - B_i| $$
+            <p>Формули та геометрія трьох основних метрик (Манхеттен, Евклід, Чебишев) зібрані на вкладці «3. Метрики». Тут — по одному прикладу з машинного навчання:</p>
+            <ul style="line-height: 1.6;">
+                <li><strong>Манхеттенська (L1):</strong> регресія рамок у детекторах об'єктів у комп'ютерному зорі (smooth L1) — менш чутлива до викидів, ніж квадрат помилки. Пов'язана з лапласівським шумом: MAE — це максимальна правдоподібність за лапласівського шуму, а в диференціальній приватності шум Лапласа калібрують саме за L1-чутливістю. Для даних із важкими хвостами (фінансові доходності) L1 також стійкіша.
+                    Для ознак різної природи, що не залежать одна від одної (жанрові оцінки фільмів), це теж часто природніший вибір.</li>
+                <li><strong>Евклідова (L2):</strong> метрика за замовчуванням — відстань «по прямій», квадратична функція втрат (MSE), L2-регуляризація ваг (weight decay), kNN і k-means на нормалізованих ознаках.</li>
+                <li><strong>Чебишева (L∞):</strong> adversarial-атаки на класифікатори зображень (FGSM, PGD): дозволяється змінити кожен піксель не більше ніж на $\varepsilon$ — це куля в нормі L∞, тобто «найгірший випадок» по кожній ознаці.</li>
+            </ul>
 
             <h4>Б. Важливість Нормалізації</h4>
             <p>
@@ -342,15 +375,27 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('classification')">1. Класифікація (Дані)</button>
         <button class="tab-btn" onclick="switchTab('clustering')">2. Фільми (Рекомендації + Кластери)</button>
+        <button class="tab-btn" onclick="switchTab('metrics')">3. Метрики</button>
     </div>
 
-    <div class="app-container">
+    <div class="app-container" id="app-container">
         <div class="sidebar">
             
             <div id="controls-tab1">
                 <div class="mode-switch">
                     <div id="t1-mode-knn" class="t1-mode active" onclick="setT1Mode('knn')">🔍 Класифікація kNN</div>
                     <div id="t1-mode-centers" class="t1-mode" onclick="setT1Mode('centers')">🎯 Задати центри</div>
+                </div>
+                <label style="margin-bottom:4px;">Метрика відстані:</label>
+                <div class="mode-switch" style="margin-bottom:8px;">
+                    <div class="metric-opt active" data-metric="euclid" onclick="setMetric('euclid')">Евклідова</div>
+                    <div class="metric-opt" data-metric="manhattan" onclick="setMetric('manhattan')">Манхеттенська</div>
+                </div>
+                <div class="metric-note result-box" data-metric="euclid" style="margin:0 0 12px; font-size:0.8em; line-height:1.4;">
+                    $d=\sqrt{\sum (A_i-B_i)^2}$ — «по прямій». Для координат на площині це найприродніший вибір: області сусідів — кола.
+                </div>
+                <div class="metric-note result-box hidden" data-metric="manhattan" style="margin:0 0 12px; font-size:0.8em; line-height:1.4;">
+                    $d=\sum |A_i-B_i|$ — «по сітці». Області сусідів стають ромбами, межі Вороного — ламаними. Для геометричних точок це радше цікавий експеримент; для жанрів фільмів дивіться другу вкладку.
                 </div>
                 <div id="t1-knn-controls">
                 <div class="control-group">
@@ -392,6 +437,21 @@
                 <div class="mode-switch">
                     <div id="mode-rec" class="mode-option active" onclick="setMode('recommend')">🔍 Рекомендації</div>
                     <div id="mode-edit" class="mode-option" onclick="setMode('edit_centers')">🎯 Редагувати Центри</div>
+                </div>
+
+                <label style="margin-bottom:4px;">Метрика відстані:</label>
+                <div class="mode-switch" style="margin-bottom:8px;">
+                    <div class="metric-opt active" data-metric="euclid" onclick="setMetric('euclid')">Евклідова</div>
+                    <div class="metric-opt" data-metric="manhattan" onclick="setMetric('manhattan')">Манхеттенська</div>
+                </div>
+                <div class="metric-note result-box" data-metric="euclid" style="margin:0 0 12px; font-size:0.8em; line-height:1.4;">
+                    Відстань «по прямій». Зручно, коли осі — однорідні геометричні величини, але різниця за однією ознакою зводиться в квадрат і може «перекрити» решту.
+                </div>
+                <div class="metric-note result-box hidden" data-metric="manhattan" style="margin:0 0 12px; font-size:0.8em; line-height:1.4; background:#fff8e1; border-color:#ffe08a;">
+                    💡 <b>Для класифікації фільмів за жанрами Манхеттен може бути релевантнішим.</b>
+                    Кожна шкала (комедія↔драма, екшн↔романтика, фантастика↔реалізм) — окрема незалежна ознака, а різниця смаків — це просто сума розбіжностей по жанрах.
+                    Манхеттен не підносить їх до квадрата, тож один різкий розрив за жанром не домінує над рештою, а метрика менш чутлива до викидів і краще поводиться при багатьох ознаках.
+                    <br><small>Тут ознак лише 2–3, тому різниця помітна лише подекуди: порівняйте список рекомендацій та межі областей Вороного в обох метриках.</small>
                 </div>
 
                 <div class="control-group">
@@ -472,6 +532,55 @@
         </div>
     </div>
 
+    <!-- ВКЛАДКА 3: МЕТРИКИ -->
+    <div id="metrics-page" class="metrics-page hidden">
+        <div class="metrics-head">
+            <h2>Три основні метрики: нагадування</h2>
+            <div>Усі вони — частинні випадки норми Мінковського:
+                $$ \|x\|_p = \left(\sum_{i=1}^{n} |x_i|^p\right)^{1/p}, \qquad p = 1,\ 2,\ \infty $$
+                <small style="color:#666;">Одинична «гіперсфера» — множина точок, що лежать від початку координат на відстані не більше 1. Її форма залежить від метрики. Крутіть 3D-фігури мишкою.</small>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card" style="border-top-color:#e67e22;">
+                <h3 style="color:#e67e22;">Манхеттенська (L1)</h3>
+                <p class="mnemonic">Сума кроків по кожній осі — як їхати кварталами міста.</p>
+                $$ d_1(A,B) = \sum_{i=1}^{n} |A_i - B_i| $$
+                <div class="view-title">2D: ромб, $|x|+|y| \le 1$</div>
+                <canvas class="c2d" id="c2d-l1" width="340" height="240"></canvas>
+                <div class="view-title">3D: октаедр, $|x|+|y|+|z| \le 1$</div>
+                <div class="c3d" id="c3d-l1"></div>
+            </div>
+
+            <div class="metric-card" style="border-top-color:#007aff;">
+                <h3 style="color:#007aff;">Евклідова (L2)</h3>
+                <p class="mnemonic">Відстань «по прямій» — як летить птах.</p>
+                $$ d_2(A,B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} $$
+                <div class="view-title">2D: коло, $x^2+y^2 \le 1$</div>
+                <canvas class="c2d" id="c2d-l2" width="340" height="240"></canvas>
+                <div class="view-title">3D: куля, $x^2+y^2+z^2 \le 1$</div>
+                <div class="c3d" id="c3d-l2"></div>
+            </div>
+
+            <div class="metric-card" style="border-top-color:#8e44ad;">
+                <h3 style="color:#8e44ad;">Чебишева (L∞)</h3>
+                <p class="mnemonic">Найбільша різниця по одній ознаці — як хід короля в шахах.</p>
+                $$ d_\infty(A,B) = \max_{i} |A_i - B_i| $$
+                <div class="view-title">2D: квадрат, $\max(|x|,|y|) \le 1$</div>
+                <canvas class="c2d" id="c2d-linf" width="340" height="240"></canvas>
+                <div class="view-title">3D: куб, $\max(|x|,|y|,|z|) \le 1$</div>
+                <div class="c3d" id="c3d-linf"></div>
+            </div>
+        </div>
+
+        <div class="metrics-foot">
+            <strong>Вкладеність:</strong> $\|x\|_\infty \le \|x\|_2 \le \|x\|_1$, тому ромб ⊂ коло ⊂ квадрат (на 2D-малюнках інші фігури показані пунктиром).
+            Це означає, що однакова відстань «1» у різних метриках охоплює різні множини сусідів — саме тому вибір метрики змінює результат kNN.
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // --- DATASET: MOVIES ---
         const moviesDB = [
@@ -501,6 +610,26 @@
 
         // --- GLOBAL STATE ---
         let currentTab = 'classification';
+
+        // --- МЕТРИКА ВІДСТАНІ (глобальна для обох вкладок) ---
+        let metric = 'euclid'; // 'euclid' | 'manhattan'
+        function dist(ax, ay, bx, by) {
+            return metric === 'euclid' ? Math.hypot(ax - bx, ay - by) : Math.abs(ax - bx) + Math.abs(ay - by);
+        }
+        // "Куля" радіуса r: коло для Евкліда, ромб для Манхеттена
+        function ballPath(ctx, x, y, r) {
+            ctx.beginPath();
+            if (metric === 'euclid') ctx.arc(x, y, r, 0, Math.PI * 2);
+            else { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
+        }
+        function setMetric(m) {
+            metric = m;
+            document.querySelectorAll('.metric-opt').forEach(el => el.classList.toggle('active', el.dataset.metric === m));
+            document.querySelectorAll('.metric-note').forEach(el => el.classList.toggle('hidden', el.dataset.metric !== m));
+            document.getElementById('t1-trials-box').classList.add('hidden'); // результати серії застаріли
+            drawTab1();
+            runClustering();
+        }
         
         // Tab 1 Variables
         let K1 = 5;
@@ -601,7 +730,7 @@
             return points.map(p => {
                 let best = 0, bd = Infinity;
                 centers.forEach((c, i) => {
-                    const d = Math.hypot(p.x - c.x, p.y - c.y);
+                    const d = dist(p.x, p.y, c.x, c.y);
                     if (d < bd) { bd = d; best = i; }
                 });
                 return best;
@@ -673,7 +802,7 @@
                     for (let y = 0; y < h; y += res) {
                         let bd = Infinity, bi = 0;
                         userCenters.forEach((c, i) => {
-                            const d = Math.hypot(x + res / 2 - c.x, y + res / 2 - c.y);
+                            const d = dist(x + res / 2, y + res / 2, c.x, c.y);
                             if (d < bd) { bd = d; bi = i; }
                         });
                         ctx1.fillStyle = CENTER_COLORS[bi];
@@ -717,7 +846,7 @@
             ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
             if (t1Mode === 'centers') { drawCentersMode(); return; }
 
-            const pDist = points.map(p => ({...p, d: Math.hypot(p.x - mousePos.x, p.y - mousePos.y)}));
+            const pDist = points.map(p => ({...p, d: dist(p.x, p.y, mousePos.x, mousePos.y)}));
             pDist.sort((a,b) => a.d - b.d);
             const neighbors = pDist.slice(0, K1);
 
@@ -728,7 +857,7 @@
 
             if(mousePos.x > 0) {
                 const maxDist = neighbors.length ? neighbors[neighbors.length-1].d : 0;
-                ctx1.beginPath(); ctx1.arc(mousePos.x, mousePos.y, maxDist, 0, Math.PI*2);
+                ballPath(ctx1, mousePos.x, mousePos.y, maxDist);
                 ctx1.fillStyle = 'rgba(0,122,255,0.05)'; ctx1.fill(); ctx1.strokeStyle = 'rgba(0,122,255,0.2)'; ctx1.stroke();
 
                 neighbors.forEach(n => {
@@ -859,7 +988,7 @@
                 let minDist = Infinity;
                 let closestCenterIndex = -1;
                 centers.forEach((c, idx) => {
-                    const d = Math.hypot(m.sx - c.sx, m.sy - c.sy);
+                    const d = dist(m.sx, m.sy, c.sx, c.sy);
                     if(d < minDist) { minDist = d; closestCenterIndex = idx; }
                 });
                 const isOutlier = minDist > (radius * (w/100) * 0.8);
@@ -895,7 +1024,7 @@
                 const scored = moviesRender
                     .filter(m => m.id !== selectedMovieId)
                     .map(m => {
-                        return { ...m, dist: Math.hypot(m.sx - selectedMovieObj.sx, m.sy - selectedMovieObj.sy) };
+                        return { ...m, dist: dist(m.sx, m.sy, selectedMovieObj.sx, selectedMovieObj.sy) };
                     });
                 
                 scored.sort((a,b) => a.dist - b.dist);
@@ -953,7 +1082,7 @@
                     let minDist = Infinity;
                     let cIndex = -1;
                     for(let i=0; i<centers.length; i++) {
-                        const d = Math.hypot(x - centers[i].sx, y - centers[i].sy);
+                        const d = dist(x, y, centers[i].sx, centers[i].sy);
                         if(d < minDist) { minDist = d; cIndex = i; }
                     }
                     if(minDist < radiusPx) {
@@ -967,6 +1096,138 @@
             }
         }
 
+        // --- TAB 3: МЕТРИКИ (одиничні "кулі" у 2D та 3D) ---
+        let metricsActive = false, metricsInited = false, metricsLoop = false;
+        const BALLS = [
+            { id: 'l1',   color: '#e67e22', label: 'd₁ = 2' },
+            { id: 'l2',   color: '#007aff', label: 'd₂ ≈ 1.41' },
+            { id: 'linf', color: '#8e44ad', label: 'd∞ = 1' }
+        ];
+
+        function draw2DBall(id) {
+            const cv = document.getElementById('c2d-' + id), c = cv.getContext('2d');
+            const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2, R = 85;
+            c.clearRect(0, 0, W, H);
+
+            // осі та позначки ±1
+            c.strokeStyle = '#bbb'; c.lineWidth = 1; c.setLineDash([]);
+            c.beginPath(); c.moveTo(10, cy); c.lineTo(W - 10, cy); c.moveTo(cx, 10); c.lineTo(cx, H - 10); c.stroke();
+            c.fillStyle = '#777'; c.font = '11px sans-serif';
+            c.textAlign = 'center'; c.textBaseline = 'top';
+            [-1, 1].forEach(s => { c.beginPath(); c.moveTo(cx + s * R, cy - 4); c.lineTo(cx + s * R, cy + 4); c.stroke(); c.fillText(s, cx + s * R, cy + 7); });
+            c.textAlign = 'left'; c.textBaseline = 'middle';
+            [-1, 1].forEach(s => { c.beginPath(); c.moveTo(cx - 4, cy - s * R); c.lineTo(cx + 4, cy - s * R); c.stroke(); c.fillText(s, cx + 7, cy - s * R); });
+
+            const shape = kind => {
+                c.beginPath();
+                if (kind === 'l2') c.arc(cx, cy, R, 0, Math.PI * 2);
+                else if (kind === 'l1') { c.moveTo(cx, cy - R); c.lineTo(cx + R, cy); c.lineTo(cx, cy + R); c.lineTo(cx - R, cy); c.closePath(); }
+                else c.rect(cx - R, cy - R, 2 * R, 2 * R);
+            };
+
+            // інші фігури — пунктиром (для порівняння вкладеності)
+            BALLS.forEach(b => {
+                if (b.id === id) return;
+                c.setLineDash([5, 4]); c.strokeStyle = '#aaa'; c.lineWidth = 1.2;
+                shape(b.id); c.stroke();
+            });
+            c.setLineDash([]);
+
+            // поточна фігура
+            const me = BALLS.find(b => b.id === id);
+            shape(id); c.fillStyle = me.color + '33'; c.fill();
+            c.strokeStyle = me.color; c.lineWidth = 2.5; c.stroke();
+
+            // приклад: точка (1, 1) і її відстань до початку координат у цій метриці
+            c.beginPath(); c.arc(cx + R, cy - R, 4.5, 0, Math.PI * 2); c.fillStyle = '#333'; c.fill();
+            c.fillStyle = '#333'; c.font = 'bold 12px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle';
+            c.fillText('(1, 1):  ' + me.label, cx + R + 8, cy - R - 12);
+        }
+
+        // Спільний кут обертання для всіх трьох 3D-сцен — легше порівнювати
+        let rotX = 0.5, rotY = 0.6, dragging = false, lastX = 0, lastY = 0;
+        const scenes3D = [];
+
+        function init3D() {
+            if (typeof THREE === 'undefined') {
+                BALLS.forEach(b => document.getElementById('c3d-' + b.id).innerHTML =
+                    '<div style="padding:20px; color:#999; font-size:0.9em;">Не вдалося завантажити three.js (потрібен інтернет).</div>');
+                return;
+            }
+            BALLS.forEach(b => {
+                const el = document.getElementById('c3d-' + b.id);
+                el.style.touchAction = 'none';
+                let renderer;
+                try {
+                    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                } catch (e) {
+                    el.innerHTML = '<div style="padding:20px; color:#999; font-size:0.9em;">WebGL недоступний у цьому браузері.</div>';
+                    return;
+                }
+                const W = el.clientWidth, H = el.clientHeight;
+                renderer.setPixelRatio(window.devicePixelRatio || 1);
+                renderer.setSize(W, H);
+                el.appendChild(renderer.domElement);
+
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+                camera.position.set(0, 0, 5.2);
+
+                const group = new THREE.Group();
+                let geo;
+                if (b.id === 'l1') geo = new THREE.OctahedronGeometry(1, 0);      // вершини (±1,0,0), (0,±1,0), (0,0,±1)
+                else if (b.id === 'l2') geo = new THREE.SphereGeometry(1, 24, 16);
+                else geo = new THREE.BoxGeometry(2, 2, 2);
+
+                const col = new THREE.Color(b.color);
+                group.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+                    color: col, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false
+                })));
+                const edges = (b.id === 'l2') ? new THREE.WireframeGeometry(geo) : new THREE.EdgesGeometry(geo);
+                group.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
+                    color: col, transparent: b.id === 'l2', opacity: b.id === 'l2' ? 0.45 : 1
+                })));
+
+                // осі x (червона), y (зелена), z (синя)
+                [[1.6, 0, 0, 0xd62828], [0, 1.6, 0, 0x2a9d3f], [0, 0, 1.6, 0x1d4ed8]].forEach(a => {
+                    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-a[0], -a[1], -a[2]), new THREE.Vector3(a[0], a[1], a[2])]);
+                    group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: a[3] })));
+                });
+
+                scene.add(group);
+                scenes3D.push({ renderer, scene, camera, group });
+
+                el.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+            });
+            window.addEventListener('pointermove', e => {
+                if (!dragging) return;
+                rotY += (e.clientX - lastX) * 0.01;
+                rotX += (e.clientY - lastY) * 0.01;
+                rotX = Math.max(-1.5, Math.min(1.5, rotX));
+                lastX = e.clientX; lastY = e.clientY;
+            });
+            window.addEventListener('pointerup', () => { dragging = false; });
+        }
+
+        function animate3D() {
+            if (!metricsActive) { metricsLoop = false; return; }
+            requestAnimationFrame(animate3D);
+            if (!dragging) rotY += 0.006;
+            scenes3D.forEach(s => {
+                s.group.rotation.set(rotX, rotY, 0);
+                s.renderer.render(s.scene, s.camera);
+            });
+        }
+
+        function initMetricsTab() {
+            if (!metricsInited) {
+                metricsInited = true;
+                BALLS.forEach(b => draw2DBall(b.id));
+                init3D();
+            }
+            if (!metricsLoop) { metricsLoop = true; animate3D(); }
+        }
+
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -976,6 +1237,12 @@
             const tab2Controls = document.getElementById('controls-tab2');
             const canvas1Area = document.getElementById('knn-canvas');
             const movieArea = document.getElementById('movie-container');
+
+            // Вкладка 3 — окрема сторінка без бічної панелі
+            metricsActive = (tab === 'metrics');
+            document.getElementById('app-container').style.display = metricsActive ? 'none' : 'flex';
+            document.getElementById('metrics-page').classList.toggle('hidden', !metricsActive);
+            if (metricsActive) { initMetricsTab(); return; }
 
             if(tab === 'classification') {
                 tab1Controls.classList.remove('hidden');
