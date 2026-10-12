@@ -104,7 +104,7 @@
             padding: 4px;
             margin-bottom: 15px;
         }
-        .mode-option {
+        .mode-option, .t1-mode {
             flex: 1;
             text-align: center;
             padding: 8px;
@@ -114,7 +114,7 @@
             font-weight: bold;
             transition: 0.2s;
         }
-        .mode-option.active {
+        .mode-option.active, .t1-mode.active {
             background: white;
             color: #007aff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -204,6 +204,9 @@
         }
         .movie-point.neighbor {
             border-color: #28a745; /* Green */
+            border-width: 3px;
+            box-shadow: 0 0 0 3px rgba(40,167,69,0.35);
+            z-index: 6;
         }
         .movie-point.outlier {
             opacity: 0.3;
@@ -312,7 +315,18 @@
                 $$ w_i = \frac{1}{d(x, x_i)^2} $$
             </p>
 
-            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">3. Навіщо kNN в Machine Learning?</h3>
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">3. Звідки беруться центри кластерів?</h3>
+            <p>
+                У цьому симуляторі центри <strong>задає людина</strong> (або випадок) — алгоритм їх не шукає. Кожна точка просто відноситься до найближчого центру:
+                $$ c(x) = \arg\min_{j} d(x, C_j) $$
+                Якість результату повністю залежить від початкового вибору $C_1,\dots,C_k$ — на вкладці «Задати центри» це видно по відсотку правильної кластеризації та по розкиду результатів серії випадкових спроб.
+            </p>
+            <p>
+                <strong>k-means</strong> вирішує цю проблему: він <em>сам</em> знаходить центри, повторюючи два кроки — (1) віднести точки до найближчих центрів, (2) перерахувати кожен центр як середнє своїх точок
+                $C_j = \frac{1}{|S_j|}\sum_{x \in S_j} x$ — доки центри не перестануть зміщуватися. (Це окремий алгоритм, він має власний симулятор.)
+            </p>
+
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">4. Навіщо kNN в Machine Learning?</h3>
             <p>Попри простоту, kNN залишається важливим інструментом у сучасному Data Science:</p>
             <ul style="line-height: 1.6;">
                 <li><strong>Рекомендаційні системи:</strong> "Користувачі, схожі на вас, дивилися цей фільм". Це основа колаборативної фільтрації.</li>
@@ -334,12 +348,41 @@
         <div class="sidebar">
             
             <div id="controls-tab1">
+                <div class="mode-switch">
+                    <div id="t1-mode-knn" class="t1-mode active" onclick="setT1Mode('knn')">🔍 Класифікація kNN</div>
+                    <div id="t1-mode-centers" class="t1-mode" onclick="setT1Mode('centers')">🎯 Задати центри</div>
+                </div>
+                <div id="t1-knn-controls">
                 <div class="control-group">
                     <label>Параметр K (Сусіди): <span id="k-value-disp" style="color:#007aff;">5</span></label>
-                    <input type="range" min="1" max="15" value="5 oninput="updateK1(this.value)">
+                    <input type="range" min="1" max="15" value="5" oninput="updateK1(this.value)">
                 </div>
                 <div id="vote-stats" class="result-box">
                     <em>Рухайте мишкою по полю...</em>
+                </div>
+                </div>
+
+                <!-- ЦЕНТРИ ВРУЧНУ -->
+                <div id="t1-centers-controls" class="hidden">
+                    <div class="result-box" style="margin-top:0; font-size:0.85em; line-height:1.4; background:#fff8e1; border-color:#ffe08a;">
+                        <strong>Центри самі не знаходяться.</strong> Алгоритм лише відносить кожну точку до найближчого з <em>заданих нами</em> центрів. 
+                        Задайте їх кліком по полю (клік по центру — видалити) або випадково й подивіться, як від цього залежить якість.
+                        <br><small>У k-means центри перераховуються ітеративно — див. окремий симулятор.</small>
+                    </div>
+                    <div class="control-group" style="margin-top:10px;">
+                        <label>Кількість центрів k: <span id="t1-k-disp" style="color:#007aff;">3</span></label>
+                        <input type="range" id="t1-kc-slider" min="2" max="6" value="3" oninput="document.getElementById('t1-k-disp').innerText=this.value">
+                    </div>
+                    <button class="action-btn" onclick="t1RandomCenters()">🎲 Випадкові центри (k точок з даних)</button>
+                    <button class="action-btn secondary-btn" onclick="t1ClearCenters()">❌ Очистити центри</button>
+                    <button class="action-btn" style="background:#8e44ad;" onclick="t1RunTrials()">📊 Серія з 200 випадкових спроб</button>
+                    <div id="t1-center-stats" class="result-box"><em>Клікніть по полю, щоб поставити центр...</em></div>
+                    <div id="t1-trials-box" class="result-box hidden"></div>
+                </div>
+                <div class="control-group" style="border-top:1px solid #ddd; padding-top:10px; margin-top:10px;">
+                    <label>Ступінь скупченості при генерації: <span id="clump-disp" style="color:#007aff;">50</span>%</label>
+                    <input type="range" id="clump-slider" min="0" max="100" value="50" oninput="updateClump(this.value)">
+                    <small style="color:#777;">0% — дані розмазані по всьому полю, 100% — щільні згустки без шуму</small>
                 </div>
                 <button class="action-btn" onclick="generateRandomPoints()">Перегенерувати Дані</button>
             </div>
@@ -373,21 +416,28 @@
                 </div>
 
                 <div id="centers-controls">
+                    <div style="font-size:0.8em; background:#fff8e1; border:1px solid #ffe08a; border-radius:6px; padding:8px; margin-bottom:8px;">
+                        ⚠️ Центри тут <strong>обираємо ми</strong> (клік по фільму). Алгоритм їх не знаходить — на відміну від k-means.
+                    </div>
                     <button class="action-btn" onclick="randomizeCenters()">🎲 Випадкові Центри</button>
                     <button class="action-btn secondary-btn" onclick="clearCenters()">❌ Очистити всі центри</button>
                 </div>
 
                 <div id="rec-info-box" class="result-box" style="margin-top:15px;">
-                    <label>Кількість рекомендацій (k): <span id="rec-k-disp">4</span></label>
-                    <input type="range" min="1" max="5" value="4" oninput="updateRecK(this.value)">
+                    <label>Скільки найближчих сусідів брати, k = <span id="rec-k-disp">4</span></label>
+                    <input type="range" id="rec-k-slider" min="1" max="5" value="4" oninput="updateRecK(this.value)">
+                    <small style="color:#555; display:block; line-height:1.4;">
+                        Це і є параметр <b>k</b> з kNN: клікніть на фільм — і система порекомендує <b>k</b> найближчих до нього на карті (сині пунктирні лінії, зелені рамки).
+                        Менше k — вужча добірка, більше k — ширша.
+                    </small>
                     <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
-                    
+
                     <strong>Ви обрали:</strong>
                     <div id="selected-movie-name" style="margin-bottom: 5px; font-weight: bold; color:#007aff;">(Клікніть на фільм)</div>
-                    <strong>Схожі фільми:</strong>
-                    <ul id="rec-list" style="padding-left: 20px; font-size: 0.9em; margin: 5px 0;">
+                    <strong>Рекомендуємо (від найближчого):</strong>
+                    <ol id="rec-list" style="padding-left: 20px; font-size: 0.9em; margin: 5px 0;">
                         <li>...</li>
-                    </ul>
+                    </ol>
                 </div>
 
 
@@ -492,6 +542,15 @@
                 mousePos = { x: -100, y: -100 };
                 requestAnimationFrame(drawTab1);
             });
+            canvas1.addEventListener('click', e => {
+                if (t1Mode !== 'centers') return;
+                const rect = canvas1.getBoundingClientRect();
+                const x = e.clientX - rect.left, y = e.clientY - rect.top;
+                const hit = userCenters.findIndex(c => Math.hypot(c.x - x, c.y - y) < 14);
+                if (hit >= 0) userCenters.splice(hit, 1);
+                else if (userCenters.length < CENTER_COLORS.length) userCenters.push({ x, y });
+                drawTab1();
+            });
             generateRandomPoints();
         }
 
@@ -505,19 +564,158 @@
             points = [];
             const w = canvas1.width || 800;
             const h = canvas1.height || 600;
-            for(let i=0; i<30; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 0 }); 
-            for(let i=0; i<30; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 1 });
+            const clump = parseInt(document.getElementById('clump-slider').value) / 100; // 0..1
+            const noiseN = Math.round(60 * (1 - clump));      // розкидані точки (шум): 60 → 0
+            const spread = 300 - 280 * clump;                  // розмір згустку, px: 300 → 20
+            for(let i=0; i<noiseN; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 0 });
+            for(let i=0; i<noiseN; i++) points.push({ x: Math.random()*w, y: Math.random()*h, type: 1 });
             for(let i=0; i<15; i++) {
-                points.push({ x: w*0.25+(Math.random()-0.5)*150, y: h*0.3+(Math.random()-0.5)*150, type: 0 });
-                points.push({ x: w*0.75+(Math.random()-0.5)*150, y: h*0.7+(Math.random()-0.5)*150, type: 1 });
-                points.push({ x: w*0.5+(Math.random()-0.5)*150, y: h*0.6+(Math.random()-0.5)*150, type: 2 });
+                points.push({ x: w*0.25+(Math.random()-0.5)*spread, y: h*0.3+(Math.random()-0.5)*spread, type: 0 });
+                points.push({ x: w*0.75+(Math.random()-0.5)*spread, y: h*0.7+(Math.random()-0.5)*spread, type: 1 });
+                points.push({ x: w*0.5+(Math.random()-0.5)*spread, y: h*0.6+(Math.random()-0.5)*spread, type: 2 });
             }
             drawTab1();
+        }
+
+        function updateClump(val) {
+            document.getElementById('clump-disp').innerText = val;
+            generateRandomPoints();
+            document.getElementById('t1-trials-box').classList.add('hidden');
+        }
+
+        // --- TAB 1: РЕЖИМ "ЗАДАТИ ЦЕНТРИ" ---
+        let t1Mode = 'knn';
+        let userCenters = [];
+        const CENTER_COLORS = ['#ff9f1a', '#8e44ad', '#16a085', '#f1c40f', '#795548', '#e84393'];
+
+        function setT1Mode(mode) {
+            t1Mode = mode;
+            document.getElementById('t1-mode-knn').classList.toggle('active', mode === 'knn');
+            document.getElementById('t1-mode-centers').classList.toggle('active', mode === 'centers');
+            document.getElementById('t1-knn-controls').classList.toggle('hidden', mode !== 'knn');
+            document.getElementById('t1-centers-controls').classList.toggle('hidden', mode !== 'centers');
+            drawTab1();
+        }
+
+        function assignToCenters(centers) {
+            return points.map(p => {
+                let best = 0, bd = Infinity;
+                centers.forEach((c, i) => {
+                    const d = Math.hypot(p.x - c.x, p.y - c.y);
+                    if (d < bd) { bd = d; best = i; }
+                });
+                return best;
+            });
+        }
+
+        // Purity: частка точок, що збіглися з більшістю істинних міток свого кластера
+        function evalCenters(centers) {
+            if (!centers.length) return null;
+            const a = assignToCenters(centers);
+            const counts = centers.map(() => [0, 0, 0]);
+            a.forEach((ci, i) => counts[ci][points[i].type]++);
+            let good = 0;
+            counts.forEach(c => good += Math.max(...c));
+            return { pct: good / points.length * 100, counts };
+        }
+
+        function pickRandomCenters(k) {
+            return [...points].sort(() => Math.random() - 0.5).slice(0, k).map(p => ({ x: p.x, y: p.y }));
+        }
+
+        function t1RandomCenters() {
+            userCenters = pickRandomCenters(parseInt(document.getElementById('t1-kc-slider').value));
+            drawTab1();
+        }
+
+        function t1ClearCenters() {
+            userCenters = [];
+            document.getElementById('t1-trials-box').classList.add('hidden');
+            drawTab1();
+        }
+
+        function t1RunTrials() {
+            const k = parseInt(document.getElementById('t1-kc-slider').value);
+            const N = 200;
+            const res = [];
+            let best = null;
+            for (let i = 0; i < N; i++) {
+                const cs = pickRandomCenters(k);
+                const r = evalCenters(cs).pct;
+                res.push(r);
+                if (!best || r > best.r) best = { r, cs };
+            }
+            const min = Math.min(...res), max = Math.max(...res);
+            const mean = res.reduce((a, b) => a + b, 0) / N;
+            const bins = new Array(14).fill(0); // 30..100, крок 5
+            res.forEach(r => bins[Math.min(13, Math.max(0, Math.floor((r - 30) / 5)))]++);
+            const bmax = Math.max(...bins);
+            let bars = '<div style="display:flex; align-items:flex-end; height:60px; gap:2px; margin:8px 0 2px;">';
+            bins.forEach(b => bars += `<div style="flex:1; background:#8e44ad; height:${b / bmax * 100}%; min-height:1px;" title="${b}"></div>`);
+            bars += '</div><div style="display:flex; justify-content:space-between; font-size:0.75em; color:#777;"><span>30%</span><span>65%</span><span>100%</span></div>';
+            document.getElementById('t1-trials-box').classList.remove('hidden');
+            document.getElementById('t1-trials-box').innerHTML =
+                `<strong>${N} випадкових наборів із k=${k} центрів:</strong><br>` +
+                `Найгірший: <b>${min.toFixed(0)}%</b> · Середній: <b>${mean.toFixed(0)}%</b> · Найкращий: <b>${max.toFixed(0)}%</b>` +
+                bars +
+                `<small>Той самий алгоритм, ті самі дані — а якість відрізняється в рази. Вибір центрів повністю на нас.</small>` +
+                `<button class="action-btn secondary-btn" id="t1-apply-best">Показати найкращий набір</button>`;
+            document.getElementById('t1-apply-best').onclick = () => { userCenters = best.cs; drawTab1(); };
+        }
+
+        function drawCentersMode() {
+            const w = canvas1.width, h = canvas1.height;
+            // Області впливу центрів (діаграма Вороного)
+            if (userCenters.length) {
+                const res = 8;
+                ctx1.globalAlpha = 0.18;
+                for (let x = 0; x < w; x += res) {
+                    for (let y = 0; y < h; y += res) {
+                        let bd = Infinity, bi = 0;
+                        userCenters.forEach((c, i) => {
+                            const d = Math.hypot(x + res / 2 - c.x, y + res / 2 - c.y);
+                            if (d < bd) { bd = d; bi = i; }
+                        });
+                        ctx1.fillStyle = CENTER_COLORS[bi];
+                        ctx1.fillRect(x, y, res, res);
+                    }
+                }
+                ctx1.globalAlpha = 1;
+            }
+            // Точки з істинними класами
+            points.forEach(p => {
+                ctx1.beginPath(); ctx1.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                ctx1.fillStyle = CLASS_COLORS[p.type]; ctx1.fill();
+            });
+            // Центри
+            userCenters.forEach((c, i) => {
+                ctx1.fillStyle = CENTER_COLORS[i];
+                ctx1.fillRect(c.x - 9, c.y - 9, 18, 18);
+                ctx1.lineWidth = 3; ctx1.strokeStyle = '#fff'; ctx1.strokeRect(c.x - 9, c.y - 9, 18, 18);
+                ctx1.lineWidth = 1; ctx1.strokeStyle = '#000'; ctx1.strokeRect(c.x - 11, c.y - 11, 22, 22);
+                ctx1.fillStyle = '#fff'; ctx1.font = 'bold 11px sans-serif'; ctx1.textAlign = 'center'; ctx1.textBaseline = 'middle';
+                ctx1.fillText(i + 1, c.x, c.y + 1);
+            });
+            ctx1.lineWidth = 1;
+
+            // Статистика
+            const box = document.getElementById('t1-center-stats');
+            const r = evalCenters(userCenters);
+            if (!r) { box.innerHTML = '<em>Клікніть по полю, щоб поставити центр...</em>'; return; }
+            const names = ['A', 'B', 'C'];
+            let html = `<strong>Відсоток правильної кластеризації: <span style="font-size:1.3em; color:${r.pct >= 80 ? '#28a745' : r.pct >= 60 ? '#e67e22' : '#dc3545'}">${r.pct.toFixed(0)}%</span></strong>` +
+                `<br><small>частка точок, чий клас збігається з переважним класом її кластера</small><hr style="border:0; border-top:1px solid #eee; margin:8px 0;">`;
+            r.counts.forEach((c, i) => {
+                html += `<div style="font-size:0.85em;"><span style="display:inline-block;width:10px;height:10px;background:${CENTER_COLORS[i]};margin-right:5px;"></span>` +
+                    `Центр ${i + 1}: ` + c.map((n, t) => `<span style="color:${CLASS_COLORS[t]}">${names[t]}=${n}</span>`).join(' ') + '</div>';
+            });
+            box.innerHTML = html;
         }
 
         function drawTab1() {
             if(currentTab !== 'classification') return;
             ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+            if (t1Mode === 'centers') { drawCentersMode(); return; }
 
             const pDist = points.map(p => ({...p, d: Math.hypot(p.x - mousePos.x, p.y - mousePos.y)}));
             pDist.sort((a,b) => a.d - b.d);
@@ -563,6 +761,7 @@
 
         function setMode(mode) {
             tab2Mode = mode;
+            document.getElementById('rec-k-slider').disabled = (mode !== 'recommend');
             document.querySelectorAll('.mode-option').forEach(el => el.classList.remove('active'));
             if(mode === 'recommend') {
                 document.getElementById('mode-rec').classList.add('active');
@@ -675,6 +874,7 @@
                 if(isSelected) classes += ` selected-target`;
                 
                 el.className = classes;
+                el.dataset.id = m.id;
                 el.style.left = (m.sx - (isCenter?22:19)) + 'px'; 
                 el.style.top = (m.sy - (isCenter?22:19)) + 'px';
                 el.innerHTML = m.icon + `<div class="movie-label">${m.title}</div>`;
@@ -701,6 +901,12 @@
                 scored.sort((a,b) => a.dist - b.dist);
                 const recs = scored.slice(0, KRec);
 
+                // Підсвітити рекомендовані фільми
+                recs.forEach(r => {
+                    const el = document.querySelector(`.movie-point[data-id="${r.id}"]`);
+                    if (el) el.classList.add('neighbor');
+                });
+
                 // Draw lines
                 recs.forEach(r => {
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -725,7 +931,7 @@
                 });
             } else if (tab2Mode === 'recommend' && !selectedMovieId) {
                 document.getElementById('selected-movie-name').innerText = "(Клікніть на фільм)";
-                document.getElementById('rec-list').innerHTML = '<li>...</li>';
+                document.getElementById('rec-list').innerHTML = '<li style="list-style:none; margin-left:-20px; color:#777;">Спочатку клікніть на фільм на карті</li>';
             }
 
             // Update Labels
@@ -789,7 +995,7 @@
         }
 
         function updateK1(val) {
-            K1 = val;
+            K1 = parseInt(val);
             document.getElementById('k-value-disp').innerText = val;
             if(currentTab === 'classification') drawTab1();
         }
