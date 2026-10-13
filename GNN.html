@@ -1,0 +1,1665 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Кільце на графі</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@500;600&display=swap">
+<style>
+/* Two scenarios (money-laundering ring, bot farm) share one five-step layout: problem and data -> the network for one account ->
+   all accounts and a choice of trained networks -> where the weights come from -> graphs the network has never seen.
+   Suspicion is the only warm accent. */
+:root {
+  --bg: #EDF0F3; --surface: #FFFFFF; --surface-2: #F4F6F8;
+  --ink: #14212B; --ink-2: #3F4F5F; --muted: #5C6C7F;
+  --line: #D3DAE1; --edge: #BAC5D0;
+  --accent: #17688C; --accent-ink: #FFFFFF; --accent-soft: #E1EFF6;
+  --calm: #A9B8C6; --alarm: #D6402A;
+  --pos: #17688C; --neg: #B4691F;
+  --on-calm: #14212B; --on-alarm: #FFFFFF;
+  --font-display: 'Unbounded', 'Golos Text', system-ui, sans-serif;
+  --font-body: 'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1820; --surface: #15222C; --surface-2: #1B2B37;
+    --ink: #E7EEF3; --ink-2: #B7C4CE; --muted: #8E9FAC;
+    --line: #2B3C49; --edge: #38505F;
+    --accent: #5DB8E0; --accent-ink: #06232F; --accent-soft: #183544;
+    --calm: #5B7184; --alarm: #FF6A4D; --pos: #5DB8E0; --neg: #E3A45A;
+    --on-calm: #E7EEF3; --on-alarm: #1A0A06;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1820; --surface: #15222C; --surface-2: #1B2B37;
+  --ink: #E7EEF3; --ink-2: #B7C4CE; --muted: #8E9FAC;
+  --line: #2B3C49; --edge: #38505F;
+  --accent: #5DB8E0; --accent-ink: #06232F; --accent-soft: #183544;
+  --calm: #5B7184; --alarm: #FF6A4D; --pos: #5DB8E0; --neg: #E3A45A;
+  --on-calm: #E7EEF3; --on-alarm: #1A0A06;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-inline: clamp(16px, 4vw, 32px); padding-block: 28px 64px; margin: 0;
+}
+.wrap { max-width: 1120px; margin-inline: auto; }
+h1, h2, h3, p, ul, ol { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+b, strong { font-weight: 600; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.hero { display: grid; gap: 10px; padding-bottom: 16px; }
+.hero h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.7rem, 4.6vw, 2.6rem); line-height: 1.12; letter-spacing: -0.01em; }
+.deck { max-width: 70ch; color: var(--ink-2); font-size: 1.05rem; }
+
+.stack, .part, .col, .hero, .tile, .prose { grid-template-columns: minmax(0, 1fr); }
+.stack { display: grid; gap: 30px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; min-width: 0; }
+.part { display: grid; gap: 14px; }
+.part-head { display: grid; gap: 4px; padding-top: 8px; }
+.part-head h2, .card > h2 { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.15rem, 2.6vw, 1.45rem); letter-spacing: -0.005em; }
+.card > h2 { font-size: 1.2rem; }
+.lead { max-width: 76ch; color: var(--ink-2); }
+h3 { font-family: var(--font-display); font-weight: 500; font-size: 0.95rem; letter-spacing: -0.005em; }
+.prose { display: grid; gap: 12px; max-width: 74ch; color: var(--ink-2); }
+.prose b { color: var(--ink); }
+
+/* controls */
+.row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; background: var(--surface-2); }
+.seg button { border: 0; background: transparent; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; color: var(--ink-2); text-align: left; }
+.seg button[aria-selected="true"], .seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
+.tabs { display: flex; max-width: 520px; }
+.tabs button { flex: 1 1 0; text-align: center; padding: 10px 14px; font-size: 1.02rem; }
+@media (max-width: 520px) { .tabs button { padding: 10px 6px; font-size: 0.95rem; } }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink-2); }
+.switch input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.sel { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sel { max-width: 100%; min-width: 0; }
+.sel select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-width: 0; width: min(100%, 460px); }
+
+/* layout of a step: a picture beside its numbers */
+.duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 16px; align-items: start; }
+.duo.wide-right { grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
+.col { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.plot { position: relative; background: var(--surface-2); border-radius: 6px; }
+.plot svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.scroll { overflow-x: auto; max-width: 100%; }
+.def { font-size: 13.5px; color: var(--ink-2); max-width: 76ch; background: var(--surface-2); border-radius: 6px; padding: 9px 12px; }
+.def b { color: var(--ink); }
+.def ul { margin: 6px 0 0; padding-left: 1.1em; display: grid; gap: 5px; }
+.footnote { font-size: 12.5px; color: var(--muted); max-width: 80ch; }
+.result { font-size: 1.02rem; color: var(--ink); max-width: 66ch; }
+.result .big { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: 12.5px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-2); background: var(--surface-2); }
+.pill.alarm { border-color: var(--alarm); color: var(--ink); }
+.status { font-size: 14px; color: var(--ink-2); min-height: 1.5em; }
+.status b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.cap { font-size: 13px; color: var(--ink-2); max-width: 70ch; }
+.charttitle { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+/* tables */
+table { border-collapse: collapse; width: 100%; }
+.t th, .t td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); text-align: left; font-size: 13.5px; font-variant-numeric: tabular-nums; vertical-align: top; }
+.t thead th { font-size: 12px; color: var(--muted); font-weight: 500; }
+.t tr.tot td, .t tr.tot th { font-weight: 600; border-bottom: 0; }
+.t td.r, .t th.r { text-align: right; padding: 6px 0 6px 14px; }
+.t .mono { font-family: var(--font-mono); font-size: 12.5px; }
+.t tfoot td { position: sticky; bottom: 0; background: var(--surface-2); border-bottom: 0; font-weight: 600; }
+.tscroll { max-height: 230px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; }
+.cmp th, .cmp td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); text-align: left; font-size: 13.5px; vertical-align: top; }
+.cmp thead th { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.cmp tbody th { font-weight: 600; color: var(--ink); width: 17%; }
+.cmp td { color: var(--ink-2); width: 41.5%; }
+.cmp[data-scn="ring"] td:nth-child(2), .cmp[data-scn="ring"] thead th:nth-child(2),
+.cmp[data-scn="bots"] td:nth-child(3), .cmp[data-scn="bots"] thead th:nth-child(3) { background: var(--accent-soft); padding-inline: 10px; }
+.cmp td { padding-left: 10px; }
+.cmp thead th { padding-left: 10px; }
+.cmp thead th:first-child { padding-left: 0; }
+@media (max-width: 700px) {
+  .cmp, .cmp tbody, .cmp tr, .cmp th, .cmp td { display: block; width: auto !important; }
+  .cmp thead { display: none; }
+  .cmp tr { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+  .cmp th, .cmp td { border-bottom: 0; padding: 0 !important; }
+  .cmp tbody th { font-size: 14px; }
+  .cmp td { border-radius: 6px; padding: 7px 10px !important; }
+  .cmp td::before { content: attr(data-l); display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  .cmp[data-scn="ring"] td:nth-child(2), .cmp[data-scn="bots"] td:nth-child(3) { background: var(--accent-soft); }
+  .cmp[data-scn="ring"] td:nth-child(3), .cmp[data-scn="bots"] td:nth-child(2) { background: var(--surface-2); }
+}
+
+/* graph marks */
+.e { stroke: var(--edge); stroke-width: 1; }
+.e.dim { stroke-opacity: 0.45; }
+.e.hl { stroke: var(--accent); stroke-width: 2; stroke-opacity: 1; }
+.truth-on .e.ff { stroke: var(--alarm); stroke-width: 1.5; stroke-opacity: 0.8; }
+.halo { display: none; fill: none; stroke: var(--alarm); stroke-width: 1.8; stroke-dasharray: 3 3; }
+.truth-on .halo { display: block; }
+.shape { fill: var(--calm); stroke: var(--surface-2); stroke-width: 1.5; transition: fill 0.25s; }
+.shape.sc { fill: color-mix(in srgb, var(--alarm) calc(var(--s) * 100%), var(--calm)); }
+.shape.flag { stroke: var(--ink); stroke-width: 3; }
+.node { cursor: pointer; }
+.node:hover .shape { stroke: var(--accent); stroke-width: 2.6; }
+.lab { fill: var(--on-calm); font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.lab.hi { fill: var(--on-alarm); }
+.selring { fill: none; stroke: var(--accent); stroke-width: 2.6; pointer-events: none; }
+.nbring { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 2 3; pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.legend > span { display: inline-flex; align-items: center; gap: 7px; }
+.scale { width: 90px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--calm), var(--alarm)); background: linear-gradient(in oklab 90deg, var(--calm), var(--alarm)); }
+.k-flag { width: 12px; height: 12px; border-radius: 50%; background: var(--calm); border: 3px solid var(--ink); }
+.k-halo { width: 16px; height: 16px; border-radius: 50%; border: 1.8px dashed var(--alarm); }
+.k-sel { width: 16px; height: 16px; border-radius: 50%; border: 2.6px solid var(--accent); }
+.k-nb { width: 16px; height: 16px; border-radius: 50%; border: 1.6px dashed var(--accent); }
+.k-bar { width: 22px; height: 10px; background: var(--muted); opacity: 0.6; border-radius: 2px; }
+.k-dia { width: 11px; height: 11px; background: var(--ink); transform: rotate(45deg); }
+.k-sm { width: 8px; height: 8px; border-radius: 50%; background: var(--calm); }
+.k-lg { width: 16px; height: 16px; border-radius: 50%; background: var(--calm); }
+
+/* strips and charts */
+.s-line { stroke: var(--line); stroke-width: 1; }
+.s-zero { stroke: var(--edge); stroke-width: 1; stroke-dasharray: 3 3; }
+.s-tick { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.s-name { fill: var(--ink-2); font-size: 12.5px; }
+.s-ax { fill: var(--muted); font-size: 12px; }
+.s-honest { fill: var(--calm); fill-opacity: 0.9; }
+.s-ring { fill: var(--alarm); stroke: var(--surface-2); stroke-width: 1.5; }
+.s-sel { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.s-selfill { fill: var(--accent); stroke: var(--surface-2); stroke-width: 1.5; }
+.c-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.c-line.alt { stroke: var(--ink); stroke-opacity: 0.8; }
+.c-ref { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.c-dot { fill: var(--accent); stroke: var(--surface-2); stroke-width: 2; }
+.c-dot.ring { fill: var(--surface-2); stroke: var(--ink); stroke-width: 2; }
+.c-tan { stroke: var(--alarm); stroke-width: 1.6; }
+.c-arrow { stroke: var(--ink); stroke-width: 1.6; }
+.h-bar { fill: var(--accent); fill-opacity: 0.85; }
+.h-bar.zero { fill: var(--alarm); fill-opacity: 0.85; }
+.h-val { fill: var(--ink-2); font-family: var(--font-mono); font-size: 11.5px; text-anchor: middle; }
+
+/* bars of the network comparison */
+.barlist { display: grid; gap: 3px; }
+.brow { display: grid; grid-template-columns: minmax(110px, 215px) minmax(0, 1fr) 3.2em; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; background: transparent; text-align: left; width: 100%; font-size: 13px; color: var(--ink-2); }
+button.brow { cursor: pointer; }
+button.brow:hover:not(:disabled) { border-color: var(--line); }
+button.brow:disabled { cursor: default; }
+.brow.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.bt { position: relative; height: 16px; background: var(--surface-2); border-radius: 3px; }
+.bf { position: absolute; left: 0; top: 0; bottom: 0; background: var(--muted); opacity: 0.55; border-radius: 3px; }
+.brow.on .bf { background: var(--accent); opacity: 0.9; }
+.bd { position: absolute; top: 50%; width: 11px; height: 11px; background: var(--ink); transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid var(--surface); }
+.bv { font-family: var(--font-mono); font-size: 12.5px; text-align: right; color: var(--ink); }
+.bw { font-size: 12px; color: var(--muted); grid-column: 2 / 4; }
+.baxis { display: grid; grid-template-columns: minmax(110px, 215px) minmax(0, 1fr) 3.2em; gap: 10px; padding: 0 6px; }
+.bticks { position: relative; height: 18px; border-top: 1px solid var(--line); }
+.bticks span { position: absolute; top: 2px; transform: translateX(-50%); font-size: 11px; font-family: var(--font-mono); color: var(--muted); }
+
+/* network schema */
+.net-line { fill: none; stroke-linecap: round; }
+.net-line.pos { stroke: var(--pos); }
+.net-line.neg { stroke: var(--neg); }
+.net-in { fill: var(--surface); stroke: var(--edge); stroke-width: 1.4; }
+.net-in.on { stroke: var(--ink-2); }
+.net-hid { stroke: var(--accent); stroke-width: 1.8; }
+.net-hid-bg { fill: var(--surface); }
+.net-n { cursor: pointer; }
+.net-n.sel .net-hid, .net-n.sel .net-out { stroke-width: 3.2; }
+.net-out { stroke: var(--ink); stroke-width: 1.8; }
+.net-t { fill: var(--ink); font-family: var(--font-mono); font-size: 13px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.net-t.big { font-size: 16px; font-weight: 500; }
+.net-t.ghost { fill: var(--muted); }
+.net-l { fill: var(--ink-2); font-size: 12.5px; }
+.net-l.r { text-anchor: end; }
+.net-l.m { text-anchor: middle; }
+.net-h { fill: var(--ink); font-size: 12.5px; font-weight: 600; }
+.net-h.m { text-anchor: middle; }
+.ghosted { opacity: 0.22; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.only-narrow { display: none; }
+@media (max-width: 640px) {
+  .brow { grid-template-columns: minmax(0, 1fr) 3.2em; row-gap: 3px; }
+  .brow > span:first-child { grid-column: 1 / -1; }
+  .baxis { grid-template-columns: minmax(0, 1fr) 3.2em; }
+  .baxis > span { display: none; }
+}
+@media (max-width: 700px) { .only-narrow { display: block; } }
+
+/* block diagram of a chosen network */
+.bk-box { fill: var(--surface); stroke: var(--edge); stroke-width: 1.4; }
+.bk-box.graph { stroke: var(--accent); stroke-width: 2; fill: var(--accent-soft); }
+.bk-box.out { stroke: var(--ink); }
+.bk-t { fill: var(--ink); font-size: 12px; text-anchor: middle; }
+.bk-t.b { font-weight: 600; }
+.bk-t.s { fill: var(--ink-2); font-size: 11px; }
+.bk-arrow { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+
+/* weights table */
+.wt { border-collapse: separate; border-spacing: 3px; width: 100%; }
+.wt th { font-weight: 500; color: var(--muted); text-align: left; font-size: 12px; padding: 2px 4px; }
+.wt th.c { text-align: center; }
+.wt td { text-align: center; font-family: var(--font-mono); font-size: 12.5px; padding: 6px 2px; border-radius: 4px; cursor: pointer;
+  background: color-mix(in srgb, var(--c) calc(var(--a) * 100%), var(--surface-2)); border: 1px solid transparent; }
+.wt td.pos { --c: var(--pos); }
+.wt td.neg { --c: var(--neg); }
+.wt td.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
+.wt td:hover { border-color: var(--ink-2); }
+.wt tr.sep th, .wt tr.sep td { padding-top: 10px; }
+
+/* explanation tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface); display: grid; gap: 8px; align-content: start; }
+.tile h3 { font-size: 0.9rem; }
+.tile p, .tile li { font-size: 14px; color: var(--ink-2); }
+.tile ol { padding-left: 1.2em; display: grid; gap: 4px; }
+.tile b { color: var(--ink); }
+.formula { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-2); border-radius: 6px; padding: 6px 9px; color: var(--ink); overflow-wrap: anywhere; }
+.notes ul { padding-left: 1.1em; display: grid; gap: 8px; max-width: 84ch; color: var(--ink-2); }
+.notes b { color: var(--ink); }
+.loading { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 82%, transparent); z-index: 5; font-size: 1.05rem; color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="wrap hero">
+  <p class="eyebrow">Навчальний симулятор · синтетичні дані</p>
+  <h1>Кільце на графі</h1>
+  <p class="deck" data-k="deck"></p>
+  <div class="seg tabs" role="tablist" aria-label="Сценарій" id="tabs">
+    <button type="button" role="tab" aria-selected="true" data-scn="ring">Кільце відмивання</button>
+    <button type="button" role="tab" aria-selected="false" data-scn="bots">Ботоферма</button>
+  </div>
+</header>
+
+<main class="wrap stack" id="app">
+
+  <!-- ===================== PROBLEM ===================== -->
+  <section class="card prose" aria-labelledby="h-task" style="gap:14px">
+    <h2 id="h-task" style="font-family:var(--font-display);font-weight:500;font-size:1.2rem">Задача</h2>
+    <p data-k="task1"></p>
+    <p data-k="task2"></p>
+    <div class="scroll">
+      <table class="t" id="feat-def">
+        <thead><tr><th>Число</th><th>Що це</th><th class="r">Типове значення</th><th class="r">Типовий розкид</th><th class="r">Підозріле значення</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="def" data-k="weak"></p>
+    <p class="footnote" data-k="toyNote"></p>
+  </section>
+
+  <!-- ===================== COMPARISON ===================== -->
+  <section class="card col" aria-labelledby="h-cmp" style="gap:12px">
+    <h2 id="h-cmp">Чим відрізняються ці два сценарії</h2>
+    <p class="lead" style="max-width:none">Механізм мережі в обох випадках той самий. Відрізняються входи (які числа відомі про вершину), форма групи й те, що з цього найкраще допомагає. Колонка поточної вкладки виділена. Статистику графів (зв'язки, кількість сусідів) пораховано на 300 згенерованих графах кожного типу.</p>
+    <div class="scroll">
+      <table class="cmp" id="cmp" data-scn="ring">
+        <thead><tr><th></th><th>Кільце відмивання</th><th>Ботоферма</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Де</th><td>Банк. Вершина — рахунок, лінія — між двома рахунками були перекази.</td><td>Соцмережа. Вершина — акаунт, лінія — підписка або взаємодія (лайки, репости).</td></tr>
+          <tr><th scope="row">Три числа вершини</th><td><b>Круглі суми</b> (% переказів із круглою сумою), <b>Транзит</b> (% грошей, що пішли далі за добу), <b>Обіг</b> (тис. грн за місяць).</td><td><b>Вік акаунта</b> (дні від створення), <b>Пости</b> (постів на добу), <b>Повтори</b> (% постів-дублікатів).</td></tr>
+          <tr><th scope="row">Куди зсунуто числа аномалії</th><td>Усі три вище типового, на 0,7 розкиду кожне.</td><td>Різні боки: вік нижче типового (−0,6 розкиду), пости й повтори вище (+0,6). Мережа сама вчить, яке число в який бік дивитись.</td></tr>
+          <tr><th scope="row">Чи схожі аномальні вершини між собою</th><td>Ні: розкид їхніх чисел такий самий, як у чесних.</td><td>Так: боти працюють за скриптом, тому розкид їхніх чисел вужчий (0,8 від звичайного). Вони «кучніше» лежать на графіках кроку 1.</td></tr>
+          <tr><th scope="row">Скільки аномальних</th><td>4 із 25 (16 %). Метрика: скільки справжніх у верхній четвірці.</td><td>8 із 40 (20 %). Метрика: скільки справжніх у верхній вісімці.</td></tr>
+          <tr><th scope="row">Форма групи</th><td>Мале кільце: 4 рахунки, гроші ідуть по колу, плюс один діагональний переказ. З 6 можливих пар зв'язані 5.</td><td>Щільний кластер: 8 акаунтів у колі підписок, а решта пар підписана одна на одну з імовірністю 50 %. Загалом зв'язано близько 64 % усіх пар.</td></tr>
+          <tr><th scope="row">Зв'язки з чесними</th><td>Мало: у середньому 0,85 лінії на рахунок кільця. Кільце ховається, мало з ким спілкуючись.</td><td>Багато: у середньому 2,35 на бота. Боти масово підписуються на звичайних користувачів для маскування.</td></tr>
+          <tr><th scope="row">Скільки сусідів</th><td>Майже як у чесних: 3,4 проти 3,9 у середньому. Але в групі майже немає хабів: 6 і більше сусідів мають 3 % рахунків кільця й 19 % чесних.</td><td>Помітно більше: 6,9 проти 4,4. 88 % ботів мають 5–9 сусідів, а 71 % чесних акаунтів — 2–4.</td></tr>
+          <tr><th scope="row">Частка сусідів із тієї ж групи</th><td>79 % сусідів рахунку кільця теж із кільця.</td><td>66 % сусідів бота теж боти; решту додають масові підписки.</td></tr>
+          <tr><th scope="row">Що найбільше допомагає мережі</th><td>Середнє по сусідах. Далі приблизно однаково допомагають другий графовий шар (сусіди сусідів) і кількість сусідів.</td><td>Середнє по сусідах, а найбільше — кількість сусідів: це окремий сильний сигнал, і його треба подати мережі окремим числом.</td></tr>
+          <tr><th scope="row">Що ускладнює пошук</th><td>Група мала, а числа слабкі: у верхню четвірку легко потрапляють чесні рахунки з випадково підвищеними числами або з кількома підозрілими сусідами.</td><td>Групу «розмазано» масовими підписками на чесних (у середньому 2,35 на бота), тому середнє по сусідах розбавлене. Самі числа ботів зсунуті слабко.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== STEP 1 ===================== -->
+  <section class="part" aria-labelledby="h1">
+    <div class="part-head">
+      <p class="eyebrow">Крок 1</p>
+      <h2 id="h1">Дані: що ми бачимо</h2>
+      <p class="lead" data-k="s1lead"></p>
+    </div>
+    <div class="duo">
+      <div class="col">
+        <div class="plot"><svg id="g1" viewBox="0 0 520 440" role="group" aria-label="Граф"></svg></div>
+        <div class="legend" id="leg1"></div>
+        <div class="row">
+          <label class="switch"><input type="checkbox" class="truth-chk"> <span data-k="truthSw"></span></label>
+        </div>
+      </div>
+      <div class="col">
+        <div id="s1-card" class="col"></div>
+        <div class="plot"><svg id="strips" viewBox="0 0 520 262" role="img" aria-label="Положення вибраного акаунта серед усіх за кожним із трьох чисел"></svg></div>
+        <p class="cap" id="strips-cap"></p>
+      </div>
+    </div>
+    <div class="card col" style="gap:10px">
+      <h3>Спроба без мережі: просто скласти три числа</h3>
+      <div class="row">
+        <button type="button" class="btn primary" id="btn-sum" data-k="sumBtn"></button>
+        <button type="button" class="btn" id="btn-sum-clear" hidden>Прибрати вибір</button>
+      </div>
+      <p class="result" id="sum-result"></p>
+    </div>
+  </section>
+
+  <!-- ===================== STEP 2 ===================== -->
+  <section class="part" aria-labelledby="h2">
+    <div class="part-head">
+      <p class="eyebrow">Крок 2</p>
+      <h2 id="h2">Мережа: як вона рахує оцінку для одного акаунта</h2>
+      <p class="lead" data-k="s2lead"></p>
+    </div>
+    <div class="row">
+      <span class="muted" id="s2-acct"></span>
+      <button type="button" class="btn small" id="btn-hub" data-k="btnHub"></button>
+      <button type="button" class="btn small" id="btn-leaf" data-k="btnLeaf"></button>
+    </div>
+    <div class="duo wide-right">
+      <div class="col">
+        <div class="plot"><svg id="g2" viewBox="0 0 520 440" role="group" aria-label="Граф: вибраний акаунт і його сусіди"></svg></div>
+        <div class="legend" id="leg2"></div>
+      </div>
+      <div class="col">
+        <div class="seg" id="phase-seg" role="radiogroup" aria-label="Етап розрахунку">
+          <button type="button" role="radio" aria-checked="true" data-ph="1">① Свої числа</button>
+          <button type="button" role="radio" aria-checked="false" data-ph="2">② Сусіди</button>
+          <button type="button" role="radio" aria-checked="false" data-ph="3">③ Нейрони</button>
+          <button type="button" role="radio" aria-checked="false" data-ph="4">④ Оцінка</button>
+        </div>
+        <div class="prose" style="max-width:none"><p id="phase-text"></p></div>
+        <div id="nbtable"></div>
+      </div>
+    </div>
+    <div class="plot scroll" style="max-width:860px"><svg id="net" viewBox="0 0 680 392" role="img" aria-label="Схема мережі: 6 входів, 4 приховані нейрони, 1 вихід" style="min-width:600px"></svg></div>
+    <p class="cap only-narrow">Схему можна прокрутити вбік пальцем.</p>
+    <div class="col" id="calc-wrap" style="max-width:700px">
+      <div class="chips" id="calc-chips"></div>
+      <div id="calc" class="col" style="gap:8px"></div>
+    </div>
+    <p class="def" data-k="whereGraph"></p>
+    <div class="def" data-k="layersBox"></div>
+  </section>
+
+  <!-- ===================== STEP 3 ===================== -->
+  <section class="part" aria-labelledby="h3">
+    <div class="part-head">
+      <p class="eyebrow">Крок 3</p>
+      <h2 id="h3">Весь граф: вибір навченої мережі</h2>
+      <p class="lead" data-k="s3lead"></p>
+    </div>
+    <div class="row">
+      <label class="sel">Мережа: <select class="model-sel" aria-label="Мережа"></select></label>
+      <label class="switch"><input type="checkbox" class="truth-chk"> <span data-k="truthSw"></span></label>
+    </div>
+    <div class="def" id="model-desc"></div>
+    <div class="plot" style="max-width:760px"><svg id="blocks" viewBox="0 0 560 124" role="img" aria-label="Блок-схема вибраної мережі"></svg></div>
+    <div class="duo">
+      <div class="col">
+        <div class="plot"><svg id="g3" viewBox="0 0 520 440" role="group" aria-label="Граф із оцінками мережі"></svg></div>
+        <div class="legend" id="leg3"></div>
+      </div>
+      <div class="col">
+        <p class="result" id="s3-result"></p>
+        <p class="result" id="s3-acct"></p>
+        <div class="charttitle" data-k="barsTitle"></div>
+        <div class="barlist" id="barlist"></div>
+        <div class="baxis"><span></span><div class="bticks" id="bticks"></div><span></span></div>
+        <div class="legend"><span><i class="k-bar"></i> середнє на 100 нових графах</span><span><i class="k-dia"></i> цей граф</span><span class="muted" data-k="barsHint"></span></div>
+        <p class="cap" id="bars-cap"></p>
+      </div>
+    </div>
+    <p class="def" data-k="whyBetter"></p>
+  </section>
+
+  <!-- ===================== STEP 4 ===================== -->
+  <section class="part" aria-labelledby="h4">
+    <div class="part-head">
+      <p class="eyebrow">Крок 4</p>
+      <h2 id="h4">Навчання: звідки взялись ваги</h2>
+      <p class="lead" data-k="s4lead"></p>
+    </div>
+    <div class="tiles">
+      <div class="tile">
+        <h3>Яке це навчання</h3>
+        <p data-k="t4learn"></p>
+      </div>
+      <div class="tile">
+        <h3>Функція втрат (loss): що мінімізуємо</h3>
+        <p data-k="t4loss"></p>
+        <table class="t"><thead><tr><th>Оцінка мережі</th><th class="r" data-k="grpAcc"></th><th class="r" data-k="honAcc"></th></tr></thead>
+          <tbody>
+            <tr><td>90 %</td><td class="r num">0,11</td><td class="r num">2,30</td></tr>
+            <tr><td>50 %</td><td class="r num">0,69</td><td class="r num">0,69</td></tr>
+            <tr><td>10 %</td><td class="r num">2,30</td><td class="r num">0,11</td></tr>
+          </tbody></table>
+        <p class="cap" style="margin-top:2px">Значення функції втрат мале, коли оцінка близька до правильної відповіді, і різко росте, коли мережа впевнено помиляється.</p>
+      </div>
+      <div class="tile">
+        <h3>Один крок навчання</h3>
+        <ol>
+          <li data-k="t4s1"></li>
+          <li>Порахувати середнє значення функції втрат.</li>
+          <li>Для кожної з 33 ваг знайти, у який бік і наскільки швидко змінюється функція втрат, якщо цю вагу трохи збільшити (це <b>похідна</b>; її знаходить метод зворотного поширення помилки).</li>
+          <li>Зсунути кожну вагу проти похідної.</li>
+        </ol>
+        <div class="formula">нова вага = стара вага − 1 × похідна</div>
+        <p class="cap">Це градієнтний спуск. Кроків робимо 300. Тут навчається мережа з кроку 2 (1 графовий шар, 4 нейрони); інші мережі зі списку навчено так само, на тих самих 40 графах.</p>
+      </div>
+    </div>
+
+    <div class="card col" style="gap:14px">
+      <div class="row">
+        <button type="button" class="btn" id="tr-reset">Почати з нуля (випадкові ваги)</button>
+        <button type="button" class="btn" id="tr-1">1 крок</button>
+        <button type="button" class="btn" id="tr-10">10 кроків</button>
+        <button type="button" class="btn primary" id="tr-all">Навчити до кінця (300)</button>
+      </div>
+      <p class="status" id="tr-status" aria-live="polite"></p>
+      <div class="duo">
+        <div class="col">
+          <div class="charttitle">Функція втрат падає</div>
+          <div class="plot"><svg id="chA" viewBox="0 0 520 250" role="img" aria-label="Середнє значення функції втрат залежно від кроку навчання"></svg></div>
+          <p class="cap" data-k="capA"></p>
+        </div>
+        <div class="col">
+          <div class="charttitle">Знаходить дедалі більше справжніх</div>
+          <div class="plot"><svg id="chB" viewBox="0 0 520 250" role="img" aria-label="Середня кількість знайдених аномалій залежно від кроку навчання"></svg></div>
+          <p class="cap">Перевірка на 60 нових графах, яких мережа не бачила під час навчання.</p>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="col">
+          <div class="charttitle">Усі 33 ваги мережі (клікніть вагу)</div>
+          <div class="scroll"><table class="wt" id="wtable"></table></div>
+          <p class="cap">Синій — додатна вага, бурштиновий — від'ємна; чим темніше, тим більша за модулем. У кроці 2 саме ці числа множать входи й нейрони.</p>
+        </div>
+        <div class="col">
+          <div class="charttitle" id="chC-title"></div>
+          <div class="plot"><svg id="chC" viewBox="0 0 520 250" role="img" aria-label="Функція втрат залежно від однієї ваги, решта ваг зафіксована"></svg></div>
+          <p class="cap" id="chC-note"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== STEP 5 ===================== -->
+  <section class="part" aria-labelledby="h5">
+    <div class="part-head">
+      <p class="eyebrow">Крок 5</p>
+      <h2 id="h5">Нові графи: ті самі ваги, без донавчання</h2>
+      <p class="lead" data-k="s5lead"></p>
+    </div>
+    <div class="row">
+      <button type="button" class="btn primary" id="btn-newS" data-k="btnNewS"></button>
+      <button type="button" class="btn primary" id="btn-newB" data-k="btnNewB"></button>
+      <label class="sel">Мережа: <select class="model-sel" aria-label="Мережа"></select></label>
+      <label class="switch"><input type="checkbox" class="truth-chk"> <span data-k="truthSw"></span></label>
+    </div>
+    <div class="duo">
+      <div class="col">
+        <div class="plot"><svg id="g5" viewBox="0 0 520 440" role="group" aria-label="Новий граф із оцінками мережі"></svg></div>
+        <div class="legend" id="leg5"></div>
+      </div>
+      <div class="col">
+        <p class="result" id="s5-result"></p>
+        <p class="result" id="s5-acct"></p>
+        <div class="charttitle" id="hist-title"></div>
+        <div class="plot"><svg id="hist" viewBox="0 0 520 230" role="img" aria-label="Розподіл кількості знайдених аномалій по 100 нових графах"></svg></div>
+        <p class="cap" id="hist-cap"></p>
+        <p class="def" id="s5-tally"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card notes" aria-labelledby="h-notes">
+    <h2 id="h-notes" style="font-family:var(--font-display);font-weight:500;font-size:1.1rem;margin-bottom:10px">Що тут спрощено і чому саме так</h2>
+    <ul id="notes"></ul>
+  </section>
+</main>
+
+<div class="loading" id="loading">Готую мережі…</div>
+
+<script>(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.RingLab = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ---------- random numbers ---------- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function gauss(rng) {
+    let u = 0;
+    while (u === 0) u = rng();
+    const v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  function shuffle(arr, rng) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  /* ---------- scenarios: the numbers of an account and the shape of the hidden group ---------- */
+  // Every number is stored as z = (value - typical) / typical spread; the page shows the raw value too.
+  // shift[f] is how far (in typical spreads) the hidden group sits from the typical value on number f;
+  // spread[f] is the group's own scatter relative to ordinary accounts (1 = same).
+  const D = 3;
+  const SCN = {
+    ring: {
+      id: 'ring', n: 25, nBig: 60, k: 4,
+      features: [
+        { id: 'round', name: 'Круглі суми', long: 'частка переказів із круглою сумою', unit: '%', mean: 20, sd: 8, lo: 0, hi: 100 },
+        { id: 'transit', name: 'Транзит', long: 'частка грошей, що пішли далі за добу', unit: '%', mean: 30, sd: 12, lo: 0, hi: 100 },
+        { id: 'volume', name: 'Обіг', long: 'обіг за місяць', unit: 'тис. грн', mean: 80, sd: 25, lo: 0, hi: 1e9 }
+      ],
+      shift: [0.7, 0.7, 0.7], spread: [1, 1, 1]
+    },
+    bots: {
+      id: 'bots', n: 40, nBig: 80, k: 8,
+      features: [
+        { id: 'age', name: 'Вік акаунта', long: 'скільки днів тому створено акаунт', unit: 'дн.', mean: 600, sd: 250, lo: 1, hi: 1e9 },
+        { id: 'posts', name: 'Пости', long: 'постів на добу', unit: 'на добу', mean: 4, sd: 2, lo: 0, hi: 1e9 },
+        { id: 'dup', name: 'Повтори', long: 'частка постів-дублікатів', unit: '%', mean: 10, sd: 6, lo: 0, hi: 100 }
+      ],
+      shift: [-0.6, 0.6, 0.6], spread: [0.8, 0.8, 0.8]
+    }
+  };
+  function rawOf(scn, f, z) {
+    const F = SCN[scn].features[f];
+    return Math.min(F.hi, Math.max(F.lo, F.mean + F.sd * z));
+  }
+
+  /* ---------- graph generation ---------- */
+  function neighbourMeans(G) {
+    const { n, nb, X } = G, M = new Float64Array(n * D);
+    for (let i = 0; i < n; i++) {
+      const L = nb[i];
+      if (!L.length) { for (let f = 0; f < D; f++) M[i * D + f] = X[i * D + f]; continue; }
+      const inv = 1 / L.length;
+      for (const j of L) for (let f = 0; f < D; f++) M[i * D + f] += X[j * D + f] * inv;
+    }
+    return M;
+  }
+  // scn: 'ring' | 'bots'. opt: { n, k, signal (multiplier of the shifts), camo }
+  function gen(scn, seed, opt) {
+    const S = SCN[scn];
+    const o = Object.assign({ n: S.n, k: S.k, signal: 1, camo: scn === 'ring' ? 0.15 : 0.5 }, opt || {});
+    const n = o.n, k = o.k, nl = n - k;
+    const r = mulberry32(seed * 7919 + (scn === 'ring' ? 5 : 11));
+    const adj = Array.from({ length: n }, () => new Set());
+    const add = (a, b) => { if (a !== b) { adj[a].add(b); adj[b].add(a); } };
+    const pool = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < i; j++) { add(i, j); pool.push(i, j); }
+    for (let i = 3; i < nl; i++) {
+      const ch = new Set(); let g = 0;
+      while (ch.size < 2 && g++ < 60) ch.add(pool[Math.floor(r() * pool.length)]);
+      ch.forEach(t => { add(i, t); pool.push(i, t); });
+    }
+    const F = Array.from({ length: k }, (_, i) => nl + i);
+    if (scn === 'ring') {
+      // a cycle of transfers plus one chord; each member has a few links to ordinary accounts
+      for (let a = 0; a < k; a++) add(F[a], F[(a + 1) % k]);
+      if (k >= 4) add(F[0], F[2]);
+      for (let a = 0; a < k; a++) for (let t = 0; t < 4; t++) if (r() < o.camo) add(F[a], Math.floor(r() * nl));
+      add(F[0], Math.floor(r() * nl));
+    } else {
+      // a dense cluster: most pairs of bots follow each other; every bot also mass-follows ordinary accounts
+      for (let a = 0; a < k; a++) add(F[a], F[(a + 1) % k]);
+      for (let a = 0; a < k; a++) for (let b = a + 2; b < k; b++) if (r() < 0.5) add(F[a], F[b]);
+      for (let a = 0; a < k; a++) for (let t = 0; t < 5; t++) if (r() < o.camo) add(F[a], pool[Math.floor(r() * pool.length)] % nl);
+    }
+    const X0 = new Float64Array(n * D), y0 = new Int8Array(n);
+    for (let i = 0; i < n; i++) {
+      y0[i] = i >= nl ? 1 : 0;
+      for (let f = 0; f < D; f++) {
+        const z = gauss(r);
+        X0[i * D + f] = y0[i] ? S.shift[f] * o.signal + z * S.spread[f] : z;
+      }
+    }
+    // relabel so that the hidden group is not simply the last accounts
+    const perm = shuffle(Array.from({ length: n }, (_, i) => i), mulberry32(seed * 104729 + 17));
+    const X = new Float64Array(n * D), y = new Int8Array(n);
+    const nb = Array.from({ length: n }, () => []);
+    for (let i = 0; i < n; i++) {
+      const p = perm[i];
+      y[p] = y0[i];
+      for (let f = 0; f < D; f++) X[p * D + f] = X0[i * D + f];
+      nb[p] = Array.from(adj[i]).map(j => perm[j]).sort((a, b) => a - b);
+    }
+    const edges = [];
+    for (let i = 0; i < n; i++) for (const j of nb[i]) if (i < j) edges.push([i, j]);
+    const ring = [];
+    for (let i = 0; i < n; i++) if (y[i]) ring.push(i);
+    const G = { scn, seed, n, k, d: D, X, y, nb, edges, ring, opt: o };
+    G.M = neighbourMeans(G);
+    return G;
+  }
+
+  /* ---------- force layout, positions in [0,1]^2 ---------- */
+  function layout(G, iters) {
+    const n = G.n, nb = G.nb;
+    const rng = mulberry32(G.seed * 7919 + 13);
+    const pos = new Float64Array(n * 2);
+    for (let i = 0; i < n * 2; i++) pos[i] = rng();
+    const kk = 0.85 * Math.sqrt(1 / n);
+    let temp = 0.12;
+    const disp = new Float64Array(n * 2);
+    for (let it = 0; it < (iters || 300); it++) {
+      disp.fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const dx = pos[2 * i] - pos[2 * j], dy = pos[2 * i + 1] - pos[2 * j + 1];
+          const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+          const f = (kk * kk) / dist / dist;
+          disp[2 * i] += dx * f; disp[2 * i + 1] += dy * f;
+          disp[2 * j] -= dx * f; disp[2 * j + 1] -= dy * f;
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        for (const j of nb[i]) {
+          if (j < i) continue;
+          const dx = pos[2 * i] - pos[2 * j], dy = pos[2 * i + 1] - pos[2 * j + 1];
+          const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+          const f = dist / kk;
+          disp[2 * i] -= dx * f; disp[2 * i + 1] -= dy * f;
+          disp[2 * j] += dx * f; disp[2 * j + 1] += dy * f;
+        }
+        disp[2 * i] -= (pos[2 * i] - 0.5) * 0.6;
+        disp[2 * i + 1] -= (pos[2 * i + 1] - 0.5) * 0.6;
+      }
+      for (let i = 0; i < n; i++) {
+        const len = Math.sqrt(disp[2 * i] ** 2 + disp[2 * i + 1] ** 2) + 1e-9;
+        const s = Math.min(len, temp) / len;
+        pos[2 * i] += disp[2 * i] * s;
+        pos[2 * i + 1] += disp[2 * i + 1] * s;
+      }
+      temp *= 0.985;
+    }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      x0 = Math.min(x0, pos[2 * i]); x1 = Math.max(x1, pos[2 * i]);
+      y0 = Math.min(y0, pos[2 * i + 1]); y1 = Math.max(y1, pos[2 * i + 1]);
+    }
+    const sx = 1 / Math.max(x1 - x0, 1e-6), sy = 1 / Math.max(y1 - y0, 1e-6);
+    for (let i = 0; i < n; i++) { pos[2 * i] = (pos[2 * i] - x0) * sx; pos[2 * i + 1] = (pos[2 * i + 1] - y0) * sy; }
+    return pos;
+  }
+
+  /* ---------- the network ----------
+     A model is a list of layers followed by one output neuron.
+       { kind: 'graph', h }  graph layer: every account gets [its own numbers, mean of its neighbours' numbers] -> h neurons
+       { kind: 'dense', h }  ordinary layer of h neurons: only the account's own numbers
+     So k graph layers see k steps along the links (neighbours, neighbours of neighbours, ...).
+     Parameters live in one flat array. A graph layer's weight matrix has 2*din rows: first din rows for the
+     account's own numbers, the next din rows for the neighbour mean. */
+  function makeModel(layers, act, deg) {
+    const m = { layers, act: act || 'relu', deg: !!deg, din: D + (deg ? 1 : 0), blocks: [], size: 0 };
+    let d = m.din;
+    layers.forEach(L => {
+      const inDim = L.kind === 'graph' ? 2 * d : d;
+      m.blocks.push({ W: m.size, b: m.size + inDim * L.h, inDim, h: L.h, din: d, kind: L.kind });
+      m.size += inDim * L.h + L.h; d = L.h;
+    });
+    m.out = { w: m.size, b: m.size + d, d };
+    m.size += d + 1;
+    return m;
+  }
+  function initTheta(m, seed) {
+    const r = mulberry32(seed), th = new Float64Array(m.size);
+    m.blocks.forEach(B => { for (let q = 0; q < B.inDim * B.h; q++) th[B.W + q] = gauss(r) * Math.sqrt(1 / B.inDim); });
+    for (let c = 0; c < m.out.d; c++) th[m.out.w + c] = gauss(r) * Math.sqrt(1 / m.out.d);
+    return th;
+  }
+  const actF = (a, z) => (a === 'tanh' ? Math.tanh(z) : (z > 0 ? z : 0));
+  const actD = (a, z, v) => (a === 'tanh' ? 1 - v * v : (z > 0 ? 1 : 0));
+  function meanOver(nb, A, n, d) {
+    const P = new Float64Array(n * d);
+    for (let i = 0; i < n; i++) {
+      const L = nb[i];
+      if (!L.length) { for (let f = 0; f < d; f++) P[i * d + f] = A[i * d + f]; continue; }
+      const inv = 1 / L.length;
+      for (const j of L) for (let f = 0; f < d; f++) P[i * d + f] += A[j * d + f] * inv;
+    }
+    return P;
+  }
+  // the number of neighbours as a fourth input: z = (ln(1 + degree) - 1.4) / 0.6
+  function withDegree(G) {
+    if (G._xd) return G._xd;
+    const A = new Float64Array(G.n * (D + 1));
+    for (let i = 0; i < G.n; i++) {
+      for (let f = 0; f < D; f++) A[i * (D + 1) + f] = G.X[i * D + f];
+      A[i * (D + 1) + D] = (Math.log(1 + G.nb[i].length) - 1.4) / 0.6;
+    }
+    G._xd = A; return A;
+  }
+  function forward(m, th, G) {
+    const n = G.n, nb = G.nb, cache = [];
+    let A = m.deg ? withDegree(G) : G.X, d = m.din;
+    m.blocks.forEach(B => {
+      const U = new Float64Array(n * B.inDim), Z = new Float64Array(n * B.h), Aout = new Float64Array(n * B.h);
+      if (B.kind === 'graph') {
+        const P = meanOver(nb, A, n, d);
+        for (let i = 0; i < n; i++) for (let f = 0; f < d; f++) { U[i * B.inDim + f] = A[i * d + f]; U[i * B.inDim + d + f] = P[i * d + f]; }
+      } else for (let i = 0; i < n * d; i++) U[i] = A[i];
+      for (let i = 0; i < n; i++) for (let c = 0; c < B.h; c++) {
+        let s = th[B.b + c];
+        for (let q = 0; q < B.inDim; q++) s += U[i * B.inDim + q] * th[B.W + q * B.h + c];
+        Z[i * B.h + c] = s; Aout[i * B.h + c] = actF(m.act, s);
+      }
+      cache.push({ U, Z, A: Aout, d, B });
+      A = Aout; d = B.h;
+    });
+    const p = new Float64Array(n), lg = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = th[m.out.b];
+      for (let c = 0; c < d; c++) s += A[i * d + c] * th[m.out.w + c];
+      lg[i] = s; p[i] = 1 / (1 + Math.exp(-s));
+    }
+    return { p, logit: lg, cache, last: A, lastD: d };
+  }
+  // weighted cross-entropy ("функція втрат"), optional gradient by back-propagation (also through the neighbour means)
+  function makeData(model, graphs) {
+    let pos = 0, tot = 0;
+    graphs.forEach(g => { for (let i = 0; i < g.n; i++) { pos += g.y[i]; tot++; } });
+    const wPos = (tot - pos) / pos, Wsum = (tot - pos) + pos * wPos;
+    return { model, graphs, wPos, Wsum, count: tot };
+  }
+  function lossGrad(th, data, wantGrad) {
+    const m = data.model, grad = wantGrad ? new Float64Array(th.length) : null;
+    let loss = 0;
+    for (const G of data.graphs) {
+      const n = G.n, f = forward(m, th, G);
+      const dl = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const yi = G.y[i], wt = yi ? data.wPos : 1, p = Math.min(1 - 1e-12, Math.max(1e-12, f.p[i]));
+        loss += wt * (yi ? -Math.log(p) : -Math.log(1 - p)) / data.Wsum;
+        dl[i] = wt * (f.p[i] - yi) / data.Wsum;
+      }
+      if (!wantGrad) continue;
+      let d = f.lastD, dA = new Float64Array(n * d);
+      for (let i = 0; i < n; i++) {
+        grad[m.out.b] += dl[i];
+        for (let c = 0; c < d; c++) { grad[m.out.w + c] += f.last[i * d + c] * dl[i]; dA[i * d + c] = dl[i] * th[m.out.w + c]; }
+      }
+      for (let l = m.blocks.length - 1; l >= 0; l--) {
+        const B = m.blocks[l], C = f.cache[l];
+        const dZ = new Float64Array(n * B.h);
+        for (let i = 0; i < n * B.h; i++) dZ[i] = dA[i] * actD(m.act, C.Z[i], C.A[i]);
+        const dU = new Float64Array(n * B.inDim);
+        for (let i = 0; i < n; i++) for (let c = 0; c < B.h; c++) {
+          const g = dZ[i * B.h + c];
+          if (g === 0) continue;
+          grad[B.b + c] += g;
+          for (let q = 0; q < B.inDim; q++) {
+            grad[B.W + q * B.h + c] += C.U[i * B.inDim + q] * g;
+            dU[i * B.inDim + q] += g * th[B.W + q * B.h + c];
+          }
+        }
+        const dprev = new Float64Array(n * C.d);
+        if (B.kind === 'graph') {
+          for (let i = 0; i < n; i++) {
+            const L = G.nb[i];
+            for (let f2 = 0; f2 < C.d; f2++) dprev[i * C.d + f2] += dU[i * B.inDim + f2];
+            if (!L.length) { for (let f2 = 0; f2 < C.d; f2++) dprev[i * C.d + f2] += dU[i * B.inDim + C.d + f2]; continue; }
+            const inv = 1 / L.length;
+            for (const j of L) for (let f2 = 0; f2 < C.d; f2++) dprev[j * C.d + f2] += dU[i * B.inDim + C.d + f2] * inv;
+          }
+        } else for (let i = 0; i < n * C.d; i++) dprev[i] = dU[i];
+        dA = dprev;
+      }
+    }
+    return { loss, grad };
+  }
+
+  /* ---------- learning ---------- */
+  // opt: 'gd' (plain gradient descent, optional momentum) or 'adam'
+  function createTrainer(model, graphs, seed, cfg) {
+    const c = Object.assign({ lr: 1, mom: 0, opt: 'gd' }, cfg || {});
+    const data = makeData(model, graphs), th = initTheta(model, seed), vel = new Float64Array(th.length), v2 = new Float64Array(th.length);
+    const T = { model, theta: th, data, t: 0, lr: c.lr, cfg: c, lastLoss: lossGrad(th, data, false).loss };
+    T.step = function () {
+      const r = lossGrad(th, data, true);
+      T.t++;
+      if (c.opt === 'adam') {
+        const c1 = 1 - Math.pow(0.9, T.t), c2 = 1 - Math.pow(0.999, T.t);
+        for (let i = 0; i < th.length; i++) {
+          vel[i] = 0.9 * vel[i] + 0.1 * r.grad[i]; v2[i] = 0.999 * v2[i] + 0.001 * r.grad[i] * r.grad[i];
+          th[i] -= c.lr * (vel[i] / c1) / (Math.sqrt(v2[i] / c2) + 1e-8);
+        }
+      } else for (let i = 0; i < th.length; i++) { vel[i] = c.mom * vel[i] - c.lr * r.grad[i]; th[i] += vel[i]; }
+      T.lastLoss = r.loss;
+      return r.loss;
+    };
+    return T;
+  }
+  function trainFull(model, graphs, seed, steps, cfg) {
+    const T = createTrainer(model, graphs, seed, cfg);
+    for (let i = 0; i < steps; i++) T.step();
+    return T;
+  }
+
+  /* ---------- scoring ---------- */
+  function scores(model, th, G) { return forward(model, th, G).p; }
+  function topK(arr, k) {
+    return Array.from(arr, (v, i) => i).sort((a, b) => arr[b] - arr[a] || a - b).slice(0, k);
+  }
+  function hitsIn(top, G) { let h = 0; for (const i of top) h += G.y[i]; return h; }
+  // illustration without any network: the sum of the three standardised numbers, signs turned so that "more suspicious" is higher
+  function sumScore(G) {
+    const sg = SCN[G.scn].shift.map(s => (s < 0 ? -1 : 1));
+    const s = new Float64Array(G.n);
+    for (let i = 0; i < G.n; i++) for (let f = 0; f < D; f++) s[i] += sg[f] * G.X[i * D + f];
+    return s;
+  }
+  function meanHits(graphs, scoreFn) {
+    let h = 0;
+    const dist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const g of graphs) { const x = hitsIn(topK(scoreFn(g), g.k), g); h += x; dist[x]++; }
+    return { hits: h / graphs.length, dist };
+  }
+
+  /* ---------- the models offered on the page ---------- */
+  const MODEL_IDS = ['plain', 'g1', 'g1wide', 'g1deep', 'g2', 'g1deg', 'g2deg'];
+  function spec(id) {
+    switch (id) {
+      case 'plain':  return makeModel([{ kind: 'dense', h: 4 }]);
+      case 'g1':     return makeModel([{ kind: 'graph', h: 4 }]);
+      case 'g1wide': return makeModel([{ kind: 'graph', h: 16 }]);
+      case 'g1deep': return makeModel([{ kind: 'graph', h: 4 }, { kind: 'dense', h: 4 }]);
+      case 'g2':     return makeModel([{ kind: 'graph', h: 4 }, { kind: 'graph', h: 4 }]);
+      case 'g1deg':  return makeModel([{ kind: 'graph', h: 4 }], 'relu', true);
+      case 'g2deg':  return makeModel([{ kind: 'graph', h: 4 }, { kind: 'graph', h: 4 }], 'relu', true);
+      default: throw new Error('unknown model ' + id);
+    }
+  }
+  // the arithmetic of the 1-graph-layer model for one account: u = [own numbers (3), neighbour means (3)]
+  function explainG1(th, u) {
+    const H = 4, hidden = [];
+    let out = th[32];
+    for (let c = 0; c < H; c++) {
+      const terms = [];
+      let sum = th[24 + c];
+      for (let q = 0; q < 6; q++) { const w = th[q * H + c]; terms.push({ u: u[q], w, prod: u[q] * w }); sum += u[q] * w; }
+      const a = sum > 0 ? sum : 0;
+      hidden.push({ terms, bias: th[24 + c], sum, act: a, w2: th[28 + c], contrib: a * th[28 + c] });
+      out += a * th[28 + c];
+    }
+    return { hidden, b2: th[32], logit: out, p: 1 / (1 + Math.exp(-out)) };
+  }
+
+  return {
+    D, SCN, rawOf, mulberry32, gauss, shuffle,
+    gen, layout, neighbourMeans,
+    makeModel, initTheta, forward, makeData, lossGrad, createTrainer, trainFull,
+    scores, topK, hitsIn, sumScore, meanHits, spec, explainG1, MODEL_IDS
+  };
+});
+</script>
+<script>
+(function () {
+  'use strict';
+  const R = window.RingLab;
+  const SV = 'http://www.w3.org/2000/svg';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  function S_(tag, attrs, parent, text) {
+    const e = document.createElementNS(SV, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const clear = el => { while (el.firstChild) el.removeChild(el.firstChild); };
+  const dec = (x, d) => x.toFixed(d).replace('.', ',');
+  function num(x, d) { d = d == null ? 2 : d; const r = Number(x.toFixed(d)); return (r < 0 ? '−' : '') + dec(Math.abs(r), d); }
+  function snum(x, d) { d = d == null ? 2 : d; const r = Number(x.toFixed(d)); if (r === 0) return dec(0, d); return (r > 0 ? '+' : '−') + dec(Math.abs(r), d); }
+  const pct = p => Math.round(p * 100) + ' %';
+  const weights = n => n + '\u00A0' + ((n % 10 === 1 && n % 100 !== 11) ? 'вага' : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'ваги' : 'ваг'));
+  const D = R.D, H = 4;
+  const CFG = { lr: 1, mom: 0 }, STEPS = 300, INIT_SEED = 1;
+  const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ================= words ================= */
+  const TOK = {
+    ring: {
+      acc: 'рахунок', accG: 'рахунку', accPl: 'рахунків', accN: 'рахунки', Acc: 'Рахунок', n: 25, nBig: 60, nTrain: 1000, k: 4, kAccs: '4 рахунки',
+      topL: 'четвірці', topG: 'четвірки', blind: '0,6', truthA: 'справжнє кільце', grpDat: 'Рахункам кільця', wPos: '5,25', times: 'раза',
+      grpAcc: 'Рахунок кільця', honAcc: 'Чесний рахунок', grpOne: 'рахунок із кільця', grpOneG: 'рахунку кільця',
+      simil: 'наскільки рахунок схожий на рахунок кільця', axisTop: 'справжніх із 4 у верхній четвірці', isTrue: 'Він справді з кільця.',
+      nAccs: '25 рахунків', nBigAccs: '60 рахунків'
+    },
+    bots: {
+      acc: 'акаунт', accG: 'акаунта', accPl: 'акаунтів', accN: 'акаунти', Acc: 'Акаунт', n: 40, nBig: 80, nTrain: 1600, k: 8, kAccs: '8 акаунтів',
+      topL: 'вісімці', topG: 'вісімки', blind: '1,6', truthA: 'справжніх ботів', grpDat: 'Ботам', wPos: '4', times: 'рази',
+      grpAcc: 'Бот', honAcc: 'Чесний акаунт', grpOne: 'бот', grpOneG: 'бота',
+      simil: 'наскільки акаунт схожий на бота', axisTop: 'справжніх із 8 у верхній вісімці', isTrue: 'Він справді бот.',
+      nAccs: '40 акаунтів', nBigAccs: '80 акаунтів'
+    }
+  };
+  const TXT = {
+    deck: {
+      ring: 'Як графова нейромережа шукає групу шахраїв: за числами кожного рахунку і за тим, з ким він пов\'язаний. П\'ять кроків: від задачі до навченої мережі, яка працює з графом, якого раніше не бачила.',
+      bots: 'Як графова нейромережа шукає ботоферму в соцмережі: за числами кожного акаунта і за тим, з ким він пов\'язаний. Ті самі п\'ять кроків, але інші числа й інша форма групи: порівняння з кільцем відмивання — нижче.'
+    },
+    task1: {
+      ring: 'Є <b>25 банківських рахунків</b>. Лінія між двома рахунками означає, що між ними були перекази. Серед рахунків сховано <b>кільце відмивання</b>: 4 рахунки, які перекидають гроші між собою по колу. Які саме, заздалегідь невідомо.',
+      bots: 'Є <b>40 акаунтів у соцмережі</b>. Лінія між двома акаунтами означає підписку або взаємодію (лайки, репости). Серед акаунтів сховано <b>ботоферму</b>: 8 акаунтів, якими керує одна програма. Вони підписані один на одного, щоб виглядати популярними, і масово підписуються на звичайних користувачів. Які саме, заздалегідь невідомо.'
+    },
+    task2: {
+      ring: 'Про кожен рахунок відомі <b>три числа</b> (таблиця нижче). <b>Потрібно</b> поставити кожному рахунку оцінку від 0 до 100 %: наскільки він схожий на рахунок кільця. <b>Як перевіряємо:</b> беремо 4 рахунки з найвищою оцінкою (<b>«верхня четвірка»</b>) і рахуємо, скільки з них справді з кільця. Якби ми вгадували навмання, було б у середньому 0,6 з 4.',
+      bots: 'Про кожен акаунт відомі <b>три числа</b> (таблиця нижче). <b>Потрібно</b> поставити кожному акаунту оцінку від 0 до 100 %: наскільки він схожий на бота. <b>Як перевіряємо:</b> беремо 8 акаунтів з найвищою оцінкою (<b>«верхня вісімка»</b>) і рахуємо, скільки з них справді боти. Якби ми вгадували навмання, було б у середньому 1,6 з 8.'
+    },
+    weak: {
+      ring: '<b>«Типовий розкид»</b> — наскільки значення чесних рахунків зазвичай відхиляються від типового. Мережі числа подаються саме так, як відхилення від типового, у розкидах: <span class="num">+0,7</span> означає «на 0,7 розкиду вище типового». <b>Чому кільце важко побачити:</b> кожне з трьох чисел у рахунків кільця вище типового лише на 0,7 розкиду, а приблизно кожен четвертий чесний рахунок має таке саме значення або вище. Поодинці числа слабкі: за кожним з них окремо кільце не відрізнити.',
+      bots: '<b>«Типовий розкид»</b> — наскільки значення чесних акаунтів зазвичай відхиляються від типового. Мережі числа подаються саме так, як відхилення від типового, у розкидах: <span class="num">+0,6</span> означає «на 0,6 розкиду вище типового», <span class="num">−0,6</span> — «на 0,6 нижче». <b>Чому ботів важко побачити:</b> вік акаунта в ботів нижчий за типовий лише на 0,6 розкиду, а пости й повтори вищі лише на 0,6, і приблизно кожен четвертий чесний акаунт має таке саме значення або ще підозріліше. Поодинці числа слабкі. Зате боти схожі між собою: їхні числа розкидані вужче, ніж у звичайних акаунтів (0,8 від звичайного розкиду), бо вони працюють за скриптом.'
+    },
+    toyNote: {
+      ring: 'У цьому тренажері кільце — 4 рахунки з 25 (16 %), щоб його було видно. У реальних банках шахраїв значно менше, менше відсотка, і шукати складніше.',
+      bots: 'У цьому тренажері боти — 8 акаунтів із 40 (20 %), щоб групу було видно. Реальна частка ботів у соцмережі зазвичай значно менша, а ботоферми бувають на тисячі акаунтів.'
+    },
+    s1lead: {
+      ring: 'Клікніть будь-який рахунок на графі: справа з\'являться його три числа і його місце серед усіх 25 рахунків. Можна підсвітити справжнє кільце й подивитись, як воно розташоване за числами.',
+      bots: 'Клікніть будь-який акаунт на графі: справа з\'являться його три числа і його місце серед усіх 40 акаунтів. Можна підсвітити справжніх ботів і подивитись, як вони розташовані за числами.'
+    },
+    truthSw: { ring: 'Показати справжнє кільце', bots: 'Показати справжніх ботів' },
+    sumBtn: { ring: 'Вибрати 4 рахунки з найбільшою сумою трьох чисел', bots: 'Вибрати 8 акаунтів з найбільшою сумою трьох чисел' },
+    sumIdle: {
+      ring: 'Для кожного рахунку додаємо його три відхилення від типового. Рахунки з найбільшою сумою — найпідозріліші. Це вся «розумність» без мережі.',
+      bots: 'Для кожного акаунта додаємо його три відхилення від типового, але вік беремо з протилежним знаком: чим молодший акаунт, тим підозріліший. Акаунти з найбільшою сумою — найпідозріліші. Це вся «розумність» без мережі.'
+    },
+    s2lead: 'Мережа дуже мала: <b>6 чисел на вході → 4 нейрони → 1 число на виході</b>. Нижче видно всю арифметику для вибраного {accG}, від чисел до оцінки. Числа всередині мережі (ваги) вже навчені; звідки вони взялись — у кроці 4. Це мережа «1 графовий шар, 4 нейрони» зі списку кроку 3.',
+    btnHub: 'Взяти {acc} із найбільшою кількістю сусідів',
+    btnLeaf: 'Взяти {acc} із найменшою кількістю сусідів',
+    ph1: 'Беремо <b>три числа самого {accG}</b>, у вигляді відхилень від типового (як у кроці 1). Це перші три входи мережі.',
+    ph2: 'Беремо <b>сусідів</b> {accG} (лінії на графі) й усереднюємо їхні числа: за кожним із трьох чисел — середнє по всіх сусідах. Виходить ще <b>три числа</b>: це входи 4–6. Усереднення робиться <b>до мережі</b>, звичайним середнім. Мережа бачить лише готові три числа, тому їй байдуже, скільки було сусідів.',
+    ph3: 'Кожен із <b>4 нейронів</b> множить кожен із 6 входів на свою вагу, додає свій зсув і, якщо вийшло від\'ємне число, замінює його на 0 (ця дія називається ReLU). Лінії на схемі — ваги: товщина — розмір, синій — додатна, бурштиновий — від\'ємна. Клікніть нейрон, щоб побачити його арифметику.',
+    ph4: 'Вихідний нейрон множить 4 числа від нейронів на свої ваги, додає зсув і стискає результат у шкалу від 0 до 100 % (функція «сигмоїда»). Це і є <b>оцінка</b>: {simil}. Не точна ймовірність, а шкала підозрілості.',
+    whereGraph: '<b>Де тут граф?</b> Усереднення чисел сусідів (етап ②) — те, що вносить граф: воно бере сусідів із ліній на малюнку, скільки б їх не було. Усередненням займається не мережа: вона отримує три готові числа. Тому хоч 2 сусіди, хоч 18, хоч 200: входів завжди 6, а ваг завжди 33 (6×4 множники + 4 зсуви + 4 множники виходу + 1 зсув виходу).',
+    layersBox: '<b>Шар мережі і графовий шар — не одне й те саме.</b><ul>' +
+      '<li><b>Шар нейронів</b> — кілька нейронів, які паралельно беруть одні й ті самі числа й дають нові числа. Скільки шарів і скільки нейронів у кожному — це «глибина» і «ширина» мережі.</li>' +
+      '<li><b>Графовий шар</b> — шар нейронів, перед яким до власних чисел вершини додано середнє по її сусідах. Один графовий шар — один крок по лініях графа: вершина бачить сусідів. Два графові шари — два кроки: вершина бачить сусідів і сусідів сусідів (кожен сусід вже передав те, що дізнався від своїх сусідів). Скільки таких кроків, залежить від задачі, а не від кількості нейронів.</li>' +
+      '<li>Це дві окремі «ручки». Можна додати нейронів у шарі, додати ще один звичайний шар після графового (більше «думати» над тими самими числами) або додати ще один графовий шар (далі «бачити» по графу). Мережа в цьому кроці має один графовий шар і в ньому 4 нейрони. У кроці 3 можна обрати інші варіанти й порівняти.</li></ul>',
+    s3lead: 'Вибрана мережа оцінює всі {nAccs}. <b>Колір і число в кружечку — оцінка мережі</b> (0–100 %). <b>Товста рамка</b> — {kAccs} з найвищою оцінкою. У списку можна вибрати іншу навчену мережу: чим вони відрізняються, написано під списком, а результати всіх мереж порівняно на діаграмі справа.',
+    barsTitle: 'Скільки справжніх потрапляє у верхню {topL}',
+    barsHint: 'клікніть рядок мережі, щоб її вибрати',
+    whyBetter: {
+      ring: '<b>Чому з сусідами краще.</b> Рахунки кільця пов\'язані між собою: у середньому 79 % сусідів рахунку кільця — теж рахунки кільця, і їхні числа підвищені. Середнє по сусідах стає додатковим сигналом, якого немає в самому рахунку; мережа без сусідів його не бачить. Клікніть рахунок кільця з непомітними власними числами і порівняйте дві оцінки під графом: з сусідами і без. Другий графовий шар додає сусідів сусідів. Кількість сусідів допомагає відсіяти хаби: у кільця майже немає рахунків із 6 і більше сусідами (3 % проти 19 % у чесних). Мережа без цього входу кількість сусідів не бачить, бо усереднення її стирає.',
+      bots: '<b>Чому з сусідами краще.</b> Боти підписані один на одного: у середньому 66 % сусідів бота — теж боти, тож середнє по сусідах схоже на ботів. Масові підписки на звичайних користувачів розбавляють цей сигнал. Зате вони роблять ботів помітними за кількістю сусідів: 88 % ботів мають 5–9 сусідів, а 71 % чесних акаунтів — 2–4. Тому в цій задачі найбільше допомагає варіант «кількість сусідів»: усереднення цю кількість стирає, і її треба подати мережі окремим числом.'
+    },
+    s4lead: 'Мережа — це набір чисел (ваги). Навчання підбирає їх так, щоб оцінки збігалися з правильними відповідями на історичних даних. Спочатку ваги випадкові, а далі вони багато разів потроху змінюються.',
+    t4learn: '<b>З учителем.</b> Є 40 історичних графів по {n} {accPl} (разом {nTrain} {accPl}), і для кожного відомо правильну відповідь: <b>1</b> — {grpOne}, <b>0</b> — чесний. Мережу не винагороджують за дії: їй показують правильні відповіді, і вона підлаштовується. Це не навчання з підкріпленням.',
+    t4loss: 'Для кожного {accG} міряємо, наскільки оцінка мережі <span class="num">p</span> далека від правильної відповіді. Для {grpOneG} функція втрат <span class="num">−ln p</span>, для чесного <span class="num">−ln(1 − p)</span>. Усереднюємо по всіх {accPl}: виходить одне число. {grpDat} дано множник {wPos}: їх у {wPos} {times} менше, і без цього мережа навчилась би казати «усі чесні».',
+    t4s1: 'Прогнати всі {nTrain} навчальних {accPl} через мережу з поточними вагами.',
+    capA: 'Мета навчання: зменшити це число. Показано середнє значення функції втрат на навчальних {nTrain} {accPl}.',
+    s5lead: 'Навчена мережа — це лише набір чисел (ваг). Дамо їй граф, якого вона ніколи не бачила, і навіть більший за навчальні: {nBigAccs} замість {nAccs}. Мережа береться та сама, що вибрана в кроці 3, без жодного донавчання. Кількість ваг не залежить від розміру графа: усереднення по сусідах приводить будь-яку кількість сусідів до трьох чисел.',
+    btnNewS: 'Новий граф: {nAccs}',
+    btnNewB: 'Новий граф: {nBigAccs}'
+  };
+  function fmt(v, scn) {
+    if (v && typeof v === 'object') v = v[scn];
+    return String(v).replace(/\{(\w+)\}/g, (m, k) => (TOK[scn][k] != null ? TOK[scn][k] : m));
+  }
+
+  const MODEL_INFO = {
+    plain: { label: 'Без сусідів: 3 входи → 4 нейрони → 1 вихід', short: 'Без сусідів (3 → 4 → 1)', desc: 'Бачить лише три власні числа {accG}, нічого про сусідів. Контрольний варіант: порівняйте з ним усі інші.' },
+    g1: { label: '1 графовий шар, 4 нейрони', short: '1 графовий шар, 4 нейрони', desc: 'Мережа з кроку 2: власні числа плюс середнє по сусідах, один графовий шар із 4 нейронів.' },
+    g1wide: { label: '1 графовий шар, 16 нейронів', short: '1 графовий шар, 16 нейронів', desc: 'Те саме, але в шарі 16 нейронів: «ширша» мережа з 129 вагами замість 33. Сусідів бачить так само, як мережа з кроку 2.' },
+    g1deep: { label: '1 графовий шар + 1 звичайний шар (4 + 4 нейрони)', short: '1 графовий + 1 звичайний шар', desc: 'Після графового шару ще один звичайний шар нейронів: «глибша» мережа. Сусідів бачить так само, як мережа з кроку 2: додатковий шар не дивиться на граф, а лише переробляє вже зібрані числа.' },
+    g2: { label: '2 графові шари (4 + 4 нейрони)', short: '2 графові шари', desc: 'Другий графовий шар: кожен {acc} збирає вже оновлені числа сусідів, а вони містять числа їхніх сусідів. Тобто мережа бачить сусідів сусідів.' },
+    g1deg: { label: '1 графовий шар + кількість сусідів', short: '1 графовий шар + кількість сусідів', desc: 'Мережа з кроку 2, яка отримує ще й четверте число: скільки в {accG} сусідів. Усереднення цю кількість стирає, тому її подано окремо (у вигляді логарифма, у типових розкидах).' },
+    g2deg: { label: '2 графові шари + кількість сусідів', short: '2 графові шари + кількість сусідів', desc: 'Сусіди сусідів і кількість сусідів разом.' }
+  };
+
+  /* ================= contexts: one per scenario ================= */
+  const CTX = {};
+  const S = { scn: 'ring', truth: false, phase: 1, neuron: 0, model: 'g1' };
+  const ctx = () => CTX[S.scn];
+  const tok = () => TOK[S.scn];
+  const t = key => fmt(TXT[key], S.scn);
+  const F = () => R.SCN[S.scn].features;
+  const START = { ring: { seed: 1047, sel: 15 }, bots: { seed: 1252, sel: 16 } };
+  const trainStep = (c, id) => {
+    const m = R.spec(id);
+    return { id, model: m, T: R.createTrainer(m, c.train, INIT_SEED, CFG), status: 'training', theta: null };
+  };
+  function finalize(c, e) {
+    e.theta = e.T.theta; e.loss = e.T.lastLoss; e.status = 'ready';
+    e.avg = R.meanHits(c.test, g => R.scores(e.model, e.theta, g));
+    e.avgBig = R.meanHits(c.testBig, g => R.scores(e.model, e.theta, g));
+    e.T = null;
+  }
+  function makeCtx(scn) {
+    const S0 = R.SCN[scn];
+    const c = { scn, spec: S0 };
+    c.train = Array.from({ length: 40 }, (_, i) => R.gen(scn, i + 1));
+    c.test = Array.from({ length: 100 }, (_, i) => R.gen(scn, 50000 + i));
+    c.testBig = Array.from({ length: 100 }, (_, i) => R.gen(scn, 70000 + i, { n: S0.nBig }));
+    c.G = R.gen(scn, START[scn].seed); c.G.pos = R.layout(c.G);
+    c.sel = START[scn].sel; c.sumFlag = false;
+    c.models = {};
+    R.MODEL_IDS.forEach(id => { c.models[id] = trainStep(c, id); });
+    ['plain', 'g1'].forEach(id => { const e = c.models[id]; for (let i = 0; i < STEPS; i++) e.T.step(); finalize(c, e); });
+    c.avgSum = R.meanHits(c.test, R.sumScore); c.avgSumBig = R.meanHits(c.testBig, R.sumScore);
+    c.blind = S0.k * S0.k / S0.n; c.blindBig = S0.k * S0.k / S0.nBig;
+    // step 4
+    c.tr = null; c.param = 0;
+    // step 5
+    c.H = null; c.selH = 0; c.hSize = 'small'; c.made = { small: [], big: [] };
+    newH(c, 'small', 2024);
+    return c;
+  }
+  function newH(c, size, fixedSeed) {
+    const seed = fixedSeed || 100000 + Math.floor(Math.random() * 900000);
+    const G = R.gen(c.scn, seed, size === 'big' ? { n: c.spec.nBig } : {});
+    G.pos = R.layout(G);
+    c.H = G; c.selH = G.ring[0]; c.hSize = size;
+    if (!fixedSeed) c.made[size].push(G);
+  }
+  function ready(c, id) { return c.models[id] && c.models[id].status === 'ready'; }
+  function modelFor(c, id) { return ready(c, id) ? c.models[id] : c.models.g1; }
+  function scoresFor(c, G, id) { const e = modelFor(c, id); return R.scores(e.model, e.theta, G); }
+  const topOf = (p, G) => R.topK(p, G.k);
+
+  /* background training of the other models */
+  let pumping = false;
+  function pump() {
+    if (pumping) return;
+    pumping = true;
+    const stepOnce = () => {
+      const c = ctx();
+      let job = null;
+      if (S.model && c.models[S.model] && c.models[S.model].status === 'training') job = c.models[S.model];
+      if (!job) job = R.MODEL_IDS.map(id => c.models[id]).find(e => e.status === 'training');
+      if (!job) { pumping = false; return; }
+      for (let i = 0; i < 12 && job.T.t < STEPS; i++) job.T.step();
+      if (job.T.t >= STEPS) { finalize(c, job); renderModelViews(); } else job.progress = job.T.t / STEPS;
+      setTimeout(stepOnce, 0);
+    };
+    setTimeout(stepOnce, 0);
+  }
+
+  /* ================= graph drawing ================= */
+  function drawGraph(svg, G, o) {
+    clear(svg);
+    svg.classList.toggle('truth-on', S.truth);
+    const W = 520, Hh = 440, pad = 34, n = G.n, big = n > 45;
+    const sc = n > 55 ? 0.6 : (n > 35 ? 0.78 : 1);
+    const px = i => pad + G.pos[2 * i] * (W - 2 * pad), py = i => pad + G.pos[2 * i + 1] * (Hh - 2 * pad);
+    const gE = S_('g', null, svg);
+    for (const [a, b] of G.edges) {
+      let cls = 'e';
+      if (o.sel != null) cls += (a === o.sel || b === o.sel) ? ' hl' : ' dim';
+      if (G.y[a] && G.y[b]) cls += ' ff';
+      S_('line', { x1: px(a), y1: py(a), x2: px(b), y2: py(b), class: cls }, gE);
+    }
+    const gN = S_('g', null, svg);
+    const radius = i => (10 + Math.min(G.nb[i].length, 16) * 0.5) * sc;
+    for (let i = 0; i < n; i++) {
+      const deg = G.nb[i].length, r = radius(i);
+      const g = S_('g', { class: 'node', 'data-i': i, tabindex: 0, role: 'button', 'aria-label': tok().Acc + ' №' + (i + 1) + ', сусідів: ' + deg }, gN);
+      S_('title', null, g, '№' + (i + 1) + ' · сусідів: ' + deg + (o.p ? ' · оцінка ' + pct(o.p[i]) : ''));
+      if (G.y[i]) S_('circle', { cx: px(i), cy: py(i), r: r + 5 * sc, class: 'halo' }, g);
+      if (o.neigh && o.neigh.has(i)) S_('circle', { cx: px(i), cy: py(i), r: r + 5 * sc, class: 'nbring' }, g);
+      const c = S_('circle', { cx: px(i), cy: py(i), r, class: 'shape' + (o.p ? ' sc' : '') + (o.flags && o.flags.has(i) ? ' flag' : '') }, g);
+      if (o.p) c.style.setProperty('--s', Math.max(0, Math.min(1, o.p[i])).toFixed(3));
+      if (!big) {
+        const tx = S_('text', { x: px(i), y: py(i), class: 'lab' + (o.p && o.p[i] > 0.5 ? ' hi' : '') }, g, o.p ? Math.round(o.p[i] * 100) : (i + 1));
+        if (r < 12) tx.setAttribute('style', 'font-size:' + (r < 9 ? 9 : 11) + 'px');
+      }
+    }
+    if (o.sel != null) {
+      const i = o.sel;
+      S_('circle', { cx: px(i), cy: py(i), r: radius(i) + 9 * sc, class: 'selring' }, svg);
+    }
+  }
+  function bindGraph(svg, onPick) {
+    svg.onclick = e => { const nd = e.target.closest('.node'); if (nd) onPick(+nd.getAttribute('data-i')); };
+    svg.onkeydown = e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const nd = e.target.closest('.node'); if (!nd) return;
+      e.preventDefault(); onPick(+nd.getAttribute('data-i'));
+    };
+  }
+  function legend(el, kind) {
+    const parts = [];
+    if (kind === 'plain') parts.push('<span><i class="k-sm"></i><i class="k-lg"></i> кружечок — ' + tok().acc + '; більший, якщо більше сусідів; число — його номер</span>');
+    else parts.push('<span><i class="scale"></i> оцінка мережі: від 0 до 100 % (число в кружечку)</span><span><i class="k-flag"></i> ' + tok().kAccs + ' з найвищою оцінкою</span>');
+    parts.push('<span><i class="k-sel"></i> вибраний ' + tok().acc + '</span>');
+    if (kind === 'nb') parts.push('<span><i class="k-nb"></i> його сусіди</span>');
+    parts.push('<span><i class="k-halo"></i> ' + tok().truthA + ' (якщо ввімкнено)</span>');
+    if (kind === 'plain') parts.push('<span><i class="k-flag"></i> вибрані за сумою (кнопка нижче)</span>');
+    el.innerHTML = parts.join('');
+  }
+  const inName = q => (q < D ? 'свої: ' : 'сусіди: ') + F()[q % D].name.toLowerCase();
+
+  /* ================= static texts ================= */
+  function renderTexts() {
+    $$('[data-k]').forEach(el => { el.innerHTML = fmt(TXT[el.getAttribute('data-k')] != null ? TXT[el.getAttribute('data-k')] : (TOK[S.scn][el.getAttribute('data-k')] || ''), S.scn); });
+    const tb = $('#feat-def tbody'); tb.innerHTML = '';
+    R.SCN[S.scn].features.forEach((f, q) => {
+      const dir = R.SCN[S.scn].shift[q] < 0 ? 'нижче типового' : 'вище типового';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<th scope="row" style="font-weight:600">' + f.name + '</th><td>' + f.long + '</td><td class="r num">' + f.mean + ' ' + f.unit + '</td><td class="r num">' + f.sd + ' ' + f.unit + '</td><td class="r">' + dir + '</td>';
+      tb.appendChild(tr);
+    });
+    $('#cmp').setAttribute('data-scn', S.scn);
+    $$('#cmp tbody tr').forEach(tr => { const td = tr.querySelectorAll('td'); if (td[0]) td[0].setAttribute('data-l', 'Кільце відмивання'); if (td[1]) td[1].setAttribute('data-l', 'Ботоферма'); });
+    $$('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.scn === S.scn)));
+    $('#h2').textContent = 'Мережа: як вона рахує оцінку для одного ' + tok().accG;
+    $('#notes').innerHTML = notesHtml();
+  }
+  function notesHtml() {
+    const common = [
+      '<li><b>Чому ReLU.</b> Це звичайний вибір для прихованих нейронів майже в усіх нейромережах, а не знахідка саме для графових аномалій. Він простий і добре навчається. Для порівняння перевірено tanh: результат такий самий або трохи гірший (кільце, один графовий шар із 4 нейронами: 2,55 проти 2,69 справжніх із 4).</li>',
+      '<li><b>Більші мережі майже не допомогли.</b> Мережа з 16 нейронами в шарі чи з додатковим звичайним шаром ледь обганяє малу (кільце: 2,7 проти 2,7; ботоферма: 5,2 проти 4,9): навчальних графів лише 40, і велика мережа починає заучувати приклади. Другий графовий шар допомагає помітно більше, бо дає нову інформацію (сусідів сусідів), а не просто більше ваг. Третій графовий шар (у тесті — три шари по 8 нейронів) уже нічого не додав.</li>',
+      '<li><b>Результат на одному графі шумний.</b> Тому в кроці 3 стовпчики показують середнє на 100 нових графах, а ромб — поточний граф, а в кроці 5 є розподіл по 100 графах: на частині графів мережа знаходить мало або нічого, і це чесна картина.</li>',
+      '<li><b>Усереднення стирає кількість сусідів.</b> Вершини з 2 і з 18 сусідами мають по три числа від сусідів. Тому в списку є мережі, яким кількість сусідів подано окремим входом.</li>'
+    ];
+    const own = {
+      ring: [
+        '<li><b>Дані вигадані.</b> Кільце — 16 % рахунків і однаково зсуває три числа. У реальності ознаки інші, шахраїв значно менше, а маскування сильніше.</li>',
+        '<li><b>Мережа не бачить форму кільця.</b> Вона лише помічає, що сусіди підозрілі, і додає це до власних чисел. Щоб розпізнавати саме цикл переказів, потрібні глибші шари, інші ознаки або окремі підрахунки (наприклад, скільки циклів проходить через рахунок).</li>',
+        '<li><b>Кількість сусідів допомагає частково через те, як згенеровано чесні рахунки:</b> багато з них мають рівно 2 зв\'язки, є кілька хабів, а в рахунків кільця 3–5. У реальних даних цей ефект може бути іншим.</li>'
+      ],
+      bots: [
+        '<li><b>Дані вигадані.</b> Боти — 20 % акаунтів, їхні числа зсунуті на 0,6 розкиду, а групу видно за густими підписками. Реальні ботоферми бувають ретельніше замасковані.</li>',
+        '<li><b>Мережа не вимірює густину кластера.</b> Вона бачить середні числа сусідів і (в окремих мережах) їхню кількість, а не те, наскільки сусіди пов\'язані між собою. Для цього корисні додаткові ознаки, наприклад частка спільних сусідів.</li>',
+        '<li><b>Кількість сусідів тут працює як сильна ознака,</b> бо боти масово підписуються. Чесний акаунт-інфлюенсер теж має багато сусідів, тож на реальних даних сама ця ознака ненадійна.</li>'
+      ]
+    };
+    return own[S.scn].concat(common).join('');
+  }
+
+  /* ================= step 1 ================= */
+  function drawStrips(c) {
+    const svg = $('#strips'), G = c.G; clear(svg);
+    const W = 520, left = 106, right = 16, top = 6, rowH = 66, xmin = -3, xmax = 4;
+    const sx = z => left + (z - xmin) / (xmax - xmin) * (W - left - right);
+    const feats = F();
+    for (let f = 0; f < D; f++) {
+      const y0 = top + f * rowH, cy = y0 + rowH / 2;
+      S_('line', { x1: sx(xmin), x2: sx(xmax), y1: y0 + rowH - 4, y2: y0 + rowH - 4, class: 's-line' }, svg);
+      S_('line', { x1: sx(0), x2: sx(0), y1: y0 + 4, y2: y0 + rowH - 4, class: 's-zero' }, svg);
+      S_('text', { x: 4, y: cy + 4, class: 's-name' }, svg, feats[f].name);
+      const order = Array.from({ length: G.n }, (_, i) => i).sort((a, b) => (S.truth ? G.y[a] - G.y[b] : 0));
+      for (const i of order) {
+        const z = Math.max(xmin + 0.1, Math.min(xmax - 0.1, G.X[i * D + f]));
+        S_('circle', { cx: sx(z), cy: cy + ((i * 37) % 11 - 5) * 2.4, r: 4.6, class: S.truth && G.y[i] ? 's-ring' : 's-honest' }, svg);
+      }
+      const z = Math.max(xmin + 0.1, Math.min(xmax - 0.1, G.X[c.sel * D + f])), jit = ((c.sel * 37) % 11 - 5) * 2.4;
+      S_('circle', { cx: sx(z), cy: cy + jit, r: 5.2, class: 's-selfill' }, svg);
+      S_('circle', { cx: sx(z), cy: cy + jit, r: 9, class: 's-sel' }, svg);
+    }
+    const ay = top + D * rowH + 4;
+    for (let z = xmin; z <= xmax; z++) {
+      S_('line', { x1: sx(z), x2: sx(z), y1: ay - 4, y2: ay, class: 's-line' }, svg);
+      S_('text', { x: sx(z), y: ay + 13, class: 's-tick', 'text-anchor': 'middle' }, svg, z > 0 ? '+' + z : (z < 0 ? '−' + (-z) : '0'));
+    }
+    S_('text', { x: (sx(xmin) + sx(xmax)) / 2, y: ay + 30, class: 's-ax', 'text-anchor': 'middle' }, svg, 'відхилення від типового, у типових розкидах (0 — типове значення)');
+  }
+  function renderS1() {
+    const c = ctx(), G = c.G, i = c.sel, deg = G.nb[i].length, feats = F();
+    const flags = c.sumFlag ? new Set(R.topK(R.sumScore(G), G.k)) : null;
+    drawGraph($('#g1'), G, { sel: i, flags });
+    legend($('#leg1'), 'plain');
+    let rows = '';
+    for (let f = 0; f < D; f++) {
+      const z = G.X[i * D + f], raw = R.rawOf(S.scn, f, z);
+      rows += '<tr><th scope="row" style="font-weight:500">' + feats[f].name + '</th><td class="r num">' + Math.round(raw) + ' ' + feats[f].unit + '</td><td class="r num">' + snum(z) + '</td></tr>';
+    }
+    $('#s1-card').innerHTML =
+      '<div class="row" style="justify-content:space-between"><b style="font-size:1.1rem">' + tok().Acc + ' №' + (i + 1) + '</b><span><span class="pill">сусідів: ' + deg + '</span>' + (S.truth && G.y[i] ? ' <span class="pill alarm">' + (S.scn === 'ring' ? 'справжнє кільце' : 'справжній бот') + '</span>' : '') + '</span></div>' +
+      '<table class="t"><thead><tr><th>Число</th><th class="r">Значення</th><th class="r">Відхилення від типового</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    drawStrips(c);
+    const base = 'Кожна точка — один із ' + tok().n + ' ' + tok().accPl + '. ';
+    $('#strips-cap').textContent = S.truth
+      ? (S.scn === 'ring'
+        ? base + 'Червоні — справжнє кільце. Вони лежать трохи правіше, але серед сірих точок. Синя точка з обводкою — вибраний рахунок.'
+        : base + 'Червоні — справжні боти: за віком вони лежать лівіше (молодші), за постами й повторами правіше, і тримаються купчастіше за сірі. Але серед сірих точок їх багато. Синя точка з обводкою — вибраний акаунт.')
+      : base + 'Синя точка з обводкою — вибраний ' + tok().acc + '. Увімкніть «' + t('truthSw') + '», щоб побачити, де лежать ' + (S.scn === 'ring' ? 'рахунки кільця' : 'боти') + '.';
+    const res = $('#sum-result');
+    if (c.sumFlag) {
+      const h = R.hitsIn(R.topK(R.sumScore(G), G.k), G);
+      res.innerHTML = 'За сумою трьох чисел у верхній ' + tok().topL + ' (товста рамка) справжніх: <span class="big">' + h + ' з ' + G.k + '</span>. Навмання було б близько ' + tok().blind + '. Числа окремо допомагають, але частина ' + tok().topG + ' хибна: чесні ' + tok().accN + ' теж бувають із підозрілими числами.';
+    } else res.textContent = fmt(TXT.sumIdle, S.scn);
+    $('#btn-sum-clear').hidden = !c.sumFlag;
+  }
+
+  /* ================= step 2 ================= */
+  function drawNet(ex, u) {
+    const c = ctx(), th = c.models.g1.theta, svg = $('#net'); clear(svg);
+    const ph = S.phase, feats = F();
+    const inY = [74, 112, 150, 238, 276, 314], hidY = [96, 166, 236, 306], outY = 201;
+    const xL = 214, xR = 274, xH = 432, xO = 614, rH = 23, rO = 29;
+    S_('text', { x: 0, y: 24, class: 'net-h' }, svg, 'Входи 1–3');
+    S_('text', { x: 0, y: 42, class: 'net-l' }, svg, 'числа самого ' + tok().accG);
+    S_('text', { x: 0, y: 190, class: 'net-h' }, svg, 'Входи 4–6');
+    S_('text', { x: 0, y: 208, class: 'net-l' }, svg, 'середнє по сусідах');
+    S_('text', { x: xH, y: 28, class: 'net-h m' }, svg, '4 нейрони');
+    S_('text', { x: xH, y: 48, class: 'net-l m' }, svg, '× ваги + зсув, ReLU');
+    S_('text', { x: xO, y: 28, class: 'net-h m' }, svg, 'вихід');
+    S_('text', { x: xO, y: 48, class: 'net-l m' }, svg, 'оцінка 0–100 %');
+    const gL = S_('g', null, svg);
+    for (let q = 0; q < 6; q++) for (let k = 0; k < H; k++) {
+      const w = th[q * H + k], on = ph >= 3, selN = S.neuron === k;
+      S_('line', { x1: xR, y1: inY[q], x2: xH - rH, y2: hidY[k], class: 'net-line ' + (w >= 0 ? 'pos' : 'neg'), 'stroke-width': (0.4 + Math.min(3, Math.abs(w) * 1.3)).toFixed(2), 'stroke-opacity': on ? (selN ? 0.95 : 0.35) : 0.08 }, gL);
+    }
+    for (let k = 0; k < H; k++) {
+      const w = th[28 + k], on = ph >= 4;
+      S_('line', { x1: xH + rH, y1: hidY[k], x2: xO - rO, y2: outY, class: 'net-line ' + (w >= 0 ? 'pos' : 'neg'), 'stroke-width': (0.4 + Math.min(3, Math.abs(w) * 1.3)).toFixed(2), 'stroke-opacity': on ? (S.neuron === 'out' ? 0.95 : 0.6) : 0.08 }, gL);
+    }
+    for (let q = 0; q < 6; q++) {
+      const show = q < 3 ? ph >= 1 : ph >= 2;
+      const g = S_('g', { class: show ? '' : 'ghosted' }, svg);
+      S_('text', { x: xL - 8, y: inY[q], class: 'net-l r', 'dominant-baseline': 'central' }, g, feats[q % D].name);
+      S_('rect', { x: xL, y: inY[q] - 15, width: xR - xL, height: 30, rx: 5, class: 'net-in' + (show ? ' on' : '') }, g);
+      S_('text', { x: (xL + xR) / 2, y: inY[q], class: 'net-t' + (show ? '' : ' ghost') }, g, show ? snum(u[q]) : '?');
+    }
+    for (let k = 0; k < H; k++) {
+      const show = ph >= 3, a = ex.hidden[k].act;
+      const g = S_('g', { class: 'net-n' + (S.neuron === k ? ' sel' : '') + (show ? '' : ' ghosted'), 'data-n': k, tabindex: 0, role: 'button', 'aria-label': 'Нейрон ' + (k + 1) }, svg);
+      S_('circle', { cx: xH, cy: hidY[k], r: rH, class: 'net-hid-bg' }, g);
+      S_('circle', { cx: xH, cy: hidY[k], r: rH, class: 'net-hid', style: 'fill:var(--accent)', 'fill-opacity': show ? (0.1 + 0.5 * Math.min(1, a / 2.5)).toFixed(2) : 0.04 }, g);
+      S_('text', { x: xH, y: hidY[k], class: 'net-t' + (show ? '' : ' ghost') }, g, show ? num(a) : '?');
+      S_('text', { x: xH, y: hidY[k] + rH + 13, class: 'net-l m' }, g, 'нейрон ' + (k + 1));
+    }
+    const show = ph >= 4, p = ex.p;
+    const g = S_('g', { class: 'net-n' + (S.neuron === 'out' ? ' sel' : '') + (show ? '' : ' ghosted'), 'data-n': 'out', tabindex: 0, role: 'button', 'aria-label': 'Вихід' }, svg);
+    S_('circle', { cx: xO, cy: outY, r: rO, class: 'net-hid-bg' }, g);
+    const oc = S_('circle', { cx: xO, cy: outY, r: rO, class: 'net-out shape sc' }, g);
+    oc.style.setProperty('--s', show ? p.toFixed(3) : '0');
+    S_('text', { x: xO, y: outY, class: 'net-t big' + (show ? '' : ' ghost'), style: show && p > 0.5 ? 'fill:var(--on-alarm)' : 'fill:var(--on-calm)' }, g, show ? pct(p) : '?');
+    S_('text', { x: xO, y: outY + rO + 14, class: 'net-l m' }, g, 'вихід');
+  }
+  function renderCalc(ex) {
+    const wrap = $('#calc-wrap'), chips = $('#calc-chips'), box = $('#calc');
+    if (S.phase < 3) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    if (S.phase === 3 && S.neuron === 'out') S.neuron = 0;
+    chips.innerHTML = '';
+    const mk = (label, val) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+      b.setAttribute('aria-pressed', String(S.neuron === val));
+      b.onclick = () => { S.neuron = val; renderS2(); };
+      chips.appendChild(b);
+    };
+    for (let k = 0; k < H; k++) mk('Нейрон ' + (k + 1), k);
+    if (S.phase >= 4) mk('Вихід', 'out');
+    const c = ctx();
+    if (S.neuron === 'out') {
+      let rows = '';
+      for (let k = 0; k < H; k++) { const h = ex.hidden[k]; rows += '<tr><td>нейрон ' + (k + 1) + '</td><td class="r num">' + num(h.act) + '</td><td class="r num">' + num(h.w2) + '</td><td class="r num">' + num(h.contrib) + '</td></tr>'; }
+      rows += '<tr><td>зсув виходу</td><td class="r"></td><td class="r"></td><td class="r num">' + num(ex.b2) + '</td></tr>';
+      rows += '<tr class="tot"><td>Сума</td><td></td><td></td><td class="r num">' + num(ex.logit) + '</td></tr>';
+      box.innerHTML = '<b>Вихід: оцінка ' + tok().accG + ' №' + (c.sel + 1) + '</b><div class="scroll"><table class="t"><thead><tr><th>Звідки</th><th class="r">Число</th><th class="r">Вага</th><th class="r">Число × вага</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<p class="cap">Сума стискається сигмоїдою: <span class="num">1 / (1 + e<sup>−сума</sup>)</span> = 1 / (1 + e<sup>' + num(-ex.logit) + '</sup>) = <b class="num">' + dec(ex.p, 3) + '</b>, тобто <b>' + pct(ex.p) + '</b>. Сума 0 дає 50 %, сума +2 дає 88 %, сума −2 дає 12 %.</p>';
+    } else {
+      const k = S.neuron, h = ex.hidden[k];
+      let rows = '';
+      for (let q = 0; q < 6; q++) { const tm = h.terms[q]; rows += '<tr><td>' + inName(q) + '</td><td class="r num">' + snum(tm.u) + '</td><td class="r num">' + num(tm.w) + '</td><td class="r num">' + num(tm.prod) + '</td></tr>'; }
+      rows += '<tr><td>зсув нейрона</td><td class="r"></td><td class="r"></td><td class="r num">' + num(h.bias) + '</td></tr>';
+      rows += '<tr class="tot"><td>Сума</td><td></td><td></td><td class="r num">' + num(h.sum) + '</td></tr>';
+      rows += '<tr class="tot"><td>Після ReLU' + (h.sum < 0 ? ' (від\'ємне → 0)' : ' (додатне лишається)') + '</td><td></td><td></td><td class="r num">' + num(h.act) + '</td></tr>';
+      box.innerHTML = '<b>Нейрон ' + (k + 1) + ': ' + tok().acc + ' №' + (c.sel + 1) + '</b><div class="scroll"><table class="t"><thead><tr><th>Вхід</th><th class="r">Число</th><th class="r">Вага</th><th class="r">Число × вага</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+  }
+  function renderS2() {
+    const c = ctx(), G = c.G, i = c.sel;
+    const u = []; for (let f = 0; f < D; f++) u.push(G.X[i * D + f]); for (let f = 0; f < D; f++) u.push(G.M[i * D + f]);
+    const ex = R.explainG1(c.models.g1.theta, u);
+    const nbSet = S.phase >= 2 ? new Set(G.nb[i]) : null;
+    drawGraph($('#g2'), G, { sel: i, neigh: nbSet });
+    legend($('#leg2'), 'nb');
+    $('#s2-acct').innerHTML = tok().Acc + ' <b>№' + (i + 1) + '</b>, сусідів: <b>' + G.nb[i].length + '</b>.';
+    $$('#phase-seg button').forEach(b => b.setAttribute('aria-checked', String(+b.dataset.ph === S.phase)));
+    $('#phase-text').innerHTML = fmt(TXT['ph' + S.phase], S.scn);
+    const nbt = $('#nbtable');
+    if (S.phase === 2) {
+      let rows = '';
+      for (const j of G.nb[i]) rows += '<tr><td>№' + (j + 1) + '</td>' + [0, 1, 2].map(f => '<td class="r num">' + snum(G.X[j * D + f]) + '</td>').join('') + '</tr>';
+      const mean = [0, 1, 2].map(f => '<td class="r num">' + snum(G.M[i * D + f]) + '</td>').join('');
+      nbt.innerHTML = '<div class="col" style="gap:6px"><b>Сусіди ' + tok().accG + ' №' + (i + 1) + ' (' + G.nb[i].length + ')</b><div class="tscroll"><table class="t"><thead><tr><th>Сусід</th>' + F().map(f => '<th class="r">' + f.name + '</th>').join('') + '</tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td>Середнє</td>' + mean + '</tr></tfoot></table></div></div>';
+    } else nbt.innerHTML = '';
+    drawNet(ex, u);
+    renderCalc(ex);
+    const svg = $('#net');
+    svg.onclick = e => { const g = e.target.closest('.net-n'); if (!g || S.phase < 3) return; const v = g.getAttribute('data-n'); S.neuron = v === 'out' ? (S.phase >= 4 ? 'out' : 0) : +v; renderS2(); };
+    svg.onkeydown = e => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest('.net-n'); if (!g) return; e.preventDefault(); g.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
+  }
+
+  /* ================= step 3 ================= */
+  let lastBlocksModel = null;
+  function drawBlocks(m) {
+    lastBlocksModel = m;
+    const svg = $('#blocks'); clear(svg);
+    const boxes = [];
+    boxes.push({ cls: '', a: 'Входи', b: '3 числа ' + tok().accG, c: m.deg ? '+ кількість сусідів' : '' });
+    let gi = 0;
+    m.layers.forEach(L => {
+      if (L.kind === 'graph') { gi++; boxes.push({ cls: 'graph', a: 'Графовий шар ' + gi, b: 'середнє по сусідах', c: '+ ' + L.h + ' нейронів' }); }
+      else boxes.push({ cls: '', a: 'Звичайний шар', b: 'без сусідів', c: L.h + ' нейронів' });
+    });
+    boxes.push({ cls: 'out', a: 'Вихід', b: 'оцінка', c: '0–100 %' });
+    const vertical = window.innerWidth < 640;
+    const W = vertical ? 300 : 560, gap = 26, bwH = (560 - 2 * 8 - gap * (boxes.length - 1)) / boxes.length, bh = vertical ? 64 : 82;
+    const note = 'Графовий шар = середнє по сусідах + шар нейронів (один крок по лініях графа).';
+    svg.setAttribute('viewBox', vertical ? '0 0 300 ' + (12 + boxes.length * (bh + gap) - gap + 12) : '0 0 560 124');
+    boxes.forEach((b, i) => {
+      const x = vertical ? 30 : 8 + i * (bwH + gap), y = vertical ? 12 + i * (bh + gap) : 12, bw = vertical ? 240 : bwH;
+      S_('rect', { x, y, width: bw, height: bh, rx: 7, class: 'bk-box ' + b.cls }, svg);
+      const yy = vertical ? [y + 22, y + 40, y + 55] : [y + 26, y + 46, y + 64];
+      if (vertical) {
+        S_('text', { x: x + bw / 2, y: yy[0], class: 'bk-t b' }, svg, b.a);
+        S_('text', { x: x + bw / 2, y: yy[1] + 4, class: 'bk-t s' }, svg, b.b + (b.c ? ' ' + b.c : ''));
+      } else {
+        S_('text', { x: x + bw / 2, y: yy[0], class: 'bk-t b' }, svg, b.a);
+        S_('text', { x: x + bw / 2, y: yy[1], class: 'bk-t s' }, svg, b.b);
+        if (b.c) S_('text', { x: x + bw / 2, y: yy[2], class: 'bk-t s' }, svg, b.c);
+      }
+      if (i < boxes.length - 1) {
+        if (vertical) {
+          const ax = x + bw / 2, ay = y + bh;
+          S_('line', { x1: ax, y1: ay + 3, x2: ax, y2: ay + gap - 3, class: 'bk-arrow' }, svg);
+          S_('path', { d: 'M' + (ax - 5) + ' ' + (ay + gap - 9) + 'L' + ax + ' ' + (ay + gap - 3) + 'L' + (ax + 5) + ' ' + (ay + gap - 9), class: 'bk-arrow' }, svg);
+        } else {
+          S_('line', { x1: x + bw + 3, y1: 53, x2: x + bw + gap - 3, y2: 53, class: 'bk-arrow' }, svg);
+          S_('path', { d: 'M' + (x + bw + gap - 9) + ' 48L' + (x + bw + gap - 3) + ' 53L' + (x + bw + gap - 9) + ' 58', class: 'bk-arrow' }, svg);
+        }
+      }
+    });
+    if (!vertical) S_('text', { x: 8, y: 116, class: 'bk-t s', style: 'text-anchor:start' }, svg, note);
+    svg.style.maxWidth = vertical ? '340px' : '';
+  }
+  function fillSelects() {
+    const c = ctx();
+    $$('.model-sel').forEach(sel => {
+      sel.innerHTML = '';
+      R.MODEL_IDS.forEach(id => {
+        const e = c.models[id], o = document.createElement('option');
+        o.value = id; o.disabled = e.status !== 'ready';
+        o.textContent = MODEL_INFO[id].label + ' · ' + weights(e.model.size) + (e.status === 'ready' ? '' : ' (навчається…)');
+        sel.appendChild(o);
+      });
+      sel.value = S.model;
+    });
+  }
+  function barsHtml(c, G, here) {
+    const k = G.k, xmax = k;
+    const pctOf = v => Math.max(0, Math.min(100, v / xmax * 100)).toFixed(2) + '%';
+    const row = (cls, label, avg, h, id, on, disabled) => {
+      const tag = id ? 'button type="button" data-model="' + id + '"' + (disabled ? ' disabled' : '') : 'div';
+      const close = id ? 'button' : 'div';
+      return '<' + tag + ' class="brow' + (on ? ' on' : '') + '"><span>' + label + '</span><span class="bt">' +
+        (avg != null ? '<span class="bf" style="width:' + pctOf(avg) + '"></span>' : '') +
+        (h != null ? '<i class="bd" style="left:' + pctOf(h) + '"></i>' : '') +
+        '</span><span class="bv">' + (avg != null ? num(avg) : '…') + '</span></' + close + '>';
+    };
+    let html = row('', 'Навмання', c.blind, null, null, false) + row('', 'Сума трьох чисел', c.avgSum.hits, here.sum, null, false);
+    R.MODEL_IDS.forEach(id => {
+      const e = c.models[id];
+      html += row('', MODEL_INFO[id].short, e.status === 'ready' ? e.avg.hits : null, e.status === 'ready' ? here[id] : null, id, S.model === id, e.status !== 'ready');
+    });
+    return html;
+  }
+  function renderS3() {
+    const c = ctx(), G = c.G, i = c.sel;
+    fillSelects();
+    const info = MODEL_INFO[S.model], e = modelFor(c, S.model);
+    $('#model-desc').innerHTML = '<b>' + info.label + '</b> (' + weights(e.model.size) + '). ' + fmt(info.desc, S.scn);
+    drawBlocks(e.model);
+    const p = scoresFor(c, G, S.model), pp = scoresFor(c, G, 'plain');
+    const top = topOf(p, G), flags = new Set(top);
+    drawGraph($('#g3'), G, { sel: i, p, flags });
+    legend($('#leg3'), 'score');
+    const h = R.hitsIn(top, G);
+    $('#s3-result').innerHTML = 'Мережа «' + info.short + '»: у верхній ' + tok().topL + ' (товста рамка) справжніх <span class="big">' + h + ' з ' + G.k + '</span>.' + (S.truth ? '' : ' Увімкніть «' + t('truthSw') + '», щоб це побачити на графі.');
+    $('#s3-acct').innerHTML = 'Вибраний ' + tok().acc + ' №' + (i + 1) + ' (сусідів: ' + G.nb[i].length + '): оцінка мережі без сусідів <b>' + pct(pp[i]) + '</b>' + (S.model === 'plain' ? '' : ', вибраної мережі <b>' + pct(p[i]) + '</b>') + (S.truth && G.y[i] ? '. ' + tok().isTrue : '.');
+    const here = { sum: R.hitsIn(R.topK(R.sumScore(G), G.k), G) };
+    R.MODEL_IDS.forEach(id => { if (ready(c, id)) here[id] = R.hitsIn(topOf(scoresFor(c, G, id), G), G); });
+    $('#barlist').innerHTML = barsHtml(c, G, here);
+    const tk = $('#bticks'); tk.innerHTML = '';
+    for (let v = 0; v <= G.k; v += (G.k > 4 ? 2 : 1)) { const s = document.createElement('span'); s.style.left = (v / G.k * 100) + '%'; s.textContent = v; tk.appendChild(s); }
+    $('#bars-cap').innerHTML = 'Горизонтальна вісь: ' + tok().axisTop + '. Випадкове вгадування знайшло б у середньому ' + tok().blind + '. Стовпчики — середнє на 100 нових графах по ' + tok().nAccs + ' (їх не було в навчанні). На окремому графі результат коливається, тому мережі краще порівнювати за стовпчиками.';
+  }
+
+  /* ================= step 4 ================= */
+  function trInit(c) {
+    if (c.tr) return;
+    const tr = { T: R.createTrainer(R.spec('g1'), c.train, INIT_SEED, CFG), steps: [], loss: [], hx: [], hy: [], playing: false, target: 0, model: R.spec('g1') };
+    c.tr = tr; trRecord(c);
+    const g0 = R.lossGrad(tr.T.theta, tr.T.data, true).grad; let b = 0; g0.forEach((v, q) => { if (Math.abs(v) > Math.abs(g0[b])) b = q; }); c.param = b;
+  }
+  function hitsNow(c) { return R.meanHits(c.test.slice(0, 60), g => R.scores(c.tr.model, c.tr.T.theta, g)).hits; }
+  function trReset(c) {
+    c.tr.playing = false; c.tr.target = 0;
+    c.tr.T = R.createTrainer(c.tr.model, c.train, INIT_SEED, CFG);
+    c.tr.steps = []; c.tr.loss = []; c.tr.hx = []; c.tr.hy = [];
+    trRecord(c);
+  }
+  function trRecord(c) {
+    const tr = c.tr;
+    tr.steps.push(tr.T.t); tr.loss.push(R.lossGrad(tr.T.theta, tr.T.data, false).loss);
+    if (tr.T.t % 5 === 0) { tr.hx.push(tr.T.t); tr.hy.push(hitsNow(c)); }
+  }
+  function trAdvance(c, k) { for (let j = 0; j < k && c.tr.T.t < STEPS; j++) { c.tr.T.step(); trRecord(c); } }
+  function trPlay(c, k) {
+    const tr = c.tr;
+    tr.target = Math.min(STEPS, tr.T.t + k);
+    if (reduceMotion) { trAdvance(c, tr.target - tr.T.t); renderTrain(); return; }
+    if (tr.playing) return;
+    tr.playing = true;
+    const tick = () => {
+      if (!tr.playing) return;
+      trAdvance(c, Math.min(2, tr.target - tr.T.t));
+      renderTrain();
+      if (tr.T.t < tr.target) requestAnimationFrame(tick); else { tr.playing = false; renderTrain(); }
+    };
+    requestAnimationFrame(tick);
+  }
+  function makePlot(svg, o) {
+    const W = 520, Hh = 250, m = { l: 54, r: 14, t: 12, b: 44 };
+    const sx = v => m.l + (v - o.x[0]) / (o.x[1] - o.x[0]) * (W - m.l - m.r);
+    const sy = v => Hh - m.b - (v - o.y[0]) / (o.y[1] - o.y[0]) * (Hh - m.t - m.b);
+    o.yticks.forEach(v => {
+      S_('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: 's-line' }, svg);
+      S_('text', { x: m.l - 7, y: sy(v) + 4, class: 's-tick', 'text-anchor': 'end' }, svg, o.fy ? o.fy(v) : String(v));
+    });
+    o.xticks.forEach(v => {
+      S_('line', { x1: sx(v), x2: sx(v), y1: Hh - m.b, y2: Hh - m.b + 4, class: 's-line' }, svg);
+      S_('text', { x: sx(v), y: Hh - m.b + 17, class: 's-tick', 'text-anchor': 'middle' }, svg, o.fx ? o.fx(v) : String(v));
+    });
+    S_('text', { x: (m.l + W - m.r) / 2, y: Hh - 6, class: 's-ax', 'text-anchor': 'middle' }, svg, o.xlabel);
+    S_('text', { x: 0, y: 0, class: 's-ax', 'text-anchor': 'middle', transform: 'translate(13 ' + ((m.t + Hh - m.b) / 2) + ') rotate(-90)' }, svg, o.ylabel);
+    return { sx, sy, m, W, Hh };
+  }
+  const path = (xs, ys, sx, sy) => xs.map((x, k) => (k ? 'L' : 'M') + sx(x).toFixed(1) + ' ' + sy(ys[k]).toFixed(1)).join('');
+  function paramName(p) {
+    if (p < 6 * H) { const q = Math.floor(p / H), k = p % H; return 'вхід «' + inName(q) + '» → нейрон ' + (k + 1); }
+    if (p < 6 * H + H) return 'зсув нейрона ' + (p - 6 * H + 1);
+    if (p < 6 * H + 2 * H) return 'нейрон ' + (p - 6 * H - H + 1) + ' → вихід';
+    return 'зсув виходу';
+  }
+  function renderTrain() {
+    const c = ctx(); trInit(c);
+    const tr = c.tr, T = tr.T, t = T.t, k = c.spec.k;
+    const lossNow = tr.loss[tr.loss.length - 1], hitsLast = tr.hy[tr.hy.length - 1];
+    let same = t === STEPS;
+    if (same) for (let q = 0; q < T.theta.length; q++) if (Math.abs(T.theta[q] - c.models.g1.theta[q]) > 1e-9) same = false;
+    $('#tr-status').innerHTML = 'Крок <b>' + t + '</b> із ' + STEPS + ' · середнє значення функції втрат <b>' + num(lossNow) + '</b> · на нових графах у верхній ' + tok().topL + ' в середньому <b>' + num(hitsLast) + ' із ' + k + '</b>' + (t === 0 ? ' (початкові випадкові ваги)' : '') + (same ? '. Ці ваги збігаються з вагами з кроку 2: саме так вони й були знайдені.' : '.');
+    ['#tr-1', '#tr-10', '#tr-all'].forEach(id => { $(id).disabled = tr.playing || t >= STEPS; });
+    let svg = $('#chA'); clear(svg);
+    let pl = makePlot(svg, { x: [0, STEPS], y: [0, 0.8], xticks: [0, 50, 100, 150, 200, 250, 300], yticks: [0, 0.2, 0.4, 0.6, 0.8], fy: v => num(v, 1), xlabel: 'крок навчання', ylabel: 'функція втрат (менше — краще)' });
+    S_('path', { d: path(tr.steps, tr.loss, pl.sx, pl.sy), class: 'c-line' }, svg);
+    S_('circle', { cx: pl.sx(t), cy: pl.sy(lossNow), r: 5, class: 'c-dot' }, svg);
+    svg = $('#chB'); clear(svg);
+    pl = makePlot(svg, { x: [0, STEPS], y: [0, k], xticks: [0, 50, 100, 150, 200, 250, 300], yticks: k === 4 ? [0, 1, 2, 3, 4] : [0, 2, 4, 6, 8], xlabel: 'крок навчання', ylabel: 'справжніх із ' + k + ' у верхній ' + tok().topL });
+    S_('line', { x1: pl.sx(0), x2: pl.sx(STEPS), y1: pl.sy(c.blind), y2: pl.sy(c.blind), class: 'c-ref' }, svg);
+    S_('text', { x: pl.sx(STEPS), y: pl.sy(c.blind) - 6, class: 's-ax', 'text-anchor': 'end' }, svg, 'навмання: ' + num(c.blind));
+    S_('path', { d: path(tr.hx, tr.hy, pl.sx, pl.sy), class: 'c-line' }, svg);
+    S_('circle', { cx: pl.sx(tr.hx[tr.hx.length - 1]), cy: pl.sy(hitsLast), r: 5, class: 'c-dot' }, svg);
+    renderWeights(c); renderChartC(c);
+  }
+  function renderWeights(c) {
+    const th = c.tr.T.theta, tb = $('#wtable');
+    const cell = p => {
+      const v = th[p], a = Math.min(0.55, Math.abs(v) / 4);
+      return '<td class="' + (v >= 0 ? 'pos' : 'neg') + (c.param === p ? ' sel' : '') + '" data-p="' + p + '" tabindex="0" role="button" style="--a:' + a.toFixed(2) + '" title="' + paramName(p) + '">' + num(v) + '</td>';
+    };
+    let h = '<thead><tr><th></th>' + [1, 2, 3, 4].map(k => '<th class="c">нейрон ' + k + '</th>').join('') + '</tr></thead><tbody>';
+    for (let q = 0; q < 6; q++) h += '<tr><th scope="row">' + inName(q) + '</th>' + [0, 1, 2, 3].map(k => cell(q * H + k)).join('') + '</tr>';
+    h += '<tr class="sep"><th scope="row">зсув нейрона</th>' + [0, 1, 2, 3].map(k => cell(24 + k)).join('') + '</tr>';
+    h += '<tr class="sep"><th scope="row">вага у вихід</th>' + [0, 1, 2, 3].map(k => cell(28 + k)).join('') + '</tr>';
+    h += '<tr><th scope="row">зсув виходу</th>' + cell(32) + '<td colspan="3" style="background:none;cursor:default"></td></tr></tbody>';
+    tb.innerHTML = h;
+  }
+  function renderChartC(c) {
+    const T = c.tr.T, th = T.theta, p = c.param, svg = $('#chC'); clear(svg);
+    $('#chC-title').textContent = 'Один крок крупним планом. Вага: ' + paramName(p);
+    const w0 = th[p], lo = -4, hi = 4, N = 80, xs = [], ys = [], saved = th[p];
+    for (let k = 0; k <= N; k++) { const w = lo + (hi - lo) * k / N; th[p] = w; xs.push(w); ys.push(R.lossGrad(th, T.data, false).loss); }
+    th[p] = saved;
+    const r = R.lossGrad(th, T.data, true), L0 = r.loss, g = r.grad[p];
+    const step = T.lr * g, wNew = w0 - step;
+    th[p] = wNew; const Lnew = R.lossGrad(th, T.data, false).loss; th[p] = saved;
+    const ymax = Math.min(Math.max(...ys), Math.max(1.6, L0 * 2.5)), ymaxR = Math.ceil(ymax * 5) / 5 || 1;
+    const ticks = []; for (let v = 0; v <= ymaxR + 1e-9; v += ymaxR > 1.2 ? 0.5 : 0.2) ticks.push(Number(v.toFixed(2)));
+    const xt = []; for (let v = lo; v <= hi; v += 1) xt.push(v);
+    const pl = makePlot(svg, { x: [lo, hi], y: [0, ymaxR], xticks: xt, yticks: ticks, fy: v => num(v, 1), fx: v => num(v, 0), xlabel: 'значення цієї ваги (решта ваг зафіксована)', ylabel: 'функція втрат' });
+    const defs = S_('defs', null, svg), cp = S_('clipPath', { id: 'clipC' }, defs);
+    S_('rect', { x: pl.m.l, y: pl.m.t, width: pl.W - pl.m.l - pl.m.r, height: pl.Hh - pl.m.t - pl.m.b }, cp);
+    const gC = S_('g', { 'clip-path': 'url(#clipC)' }, svg);
+    S_('path', { d: path(xs, ys, pl.sx, pl.sy), class: 'c-line alt' }, gC);
+    const a = w0 - 1.1, b = w0 + 1.1;
+    S_('line', { x1: pl.sx(a), y1: pl.sy(L0 + g * (a - w0)), x2: pl.sx(b), y2: pl.sy(L0 + g * (b - w0)), class: 'c-tan' }, gC);
+    S_('circle', { cx: pl.sx(w0), cy: pl.sy(L0), r: 6, class: 'c-dot' }, gC);
+    if (Math.abs(step) > 1e-4) {
+      S_('circle', { cx: pl.sx(wNew), cy: pl.sy(Lnew), r: 5.5, class: 'c-dot ring' }, gC);
+      S_('line', { x1: pl.sx(w0), y1: pl.sy(0) - 8, x2: pl.sx(wNew), y2: pl.sy(0) - 8, class: 'c-arrow' }, svg);
+    }
+    $('#chC-note').innerHTML = 'Крива — функція втрат, якщо рухати лише цю вагу. Синя точка — поточне значення (<span class="num">' + num(w0) + '</span>), червона лінія — похідна: куди функція втрат росте (<span class="num">' + snum(g, 3) + '</span>). Порожня точка — куди вага зсунулась би за один крок: <span class="num">' + num(w0) + ' − 1 × ' + snum(g, 3) + ' = ' + num(wNew) + '</span>. Усі 33 ваги зсуваються одночасно, тож реальний крок трохи відрізняється.';
+  }
+
+  /* ================= step 5 ================= */
+  function histChart(c, size) {
+    const svg = $('#hist'); clear(svg);
+    const e = modelFor(c, S.model), dist = (size === 'big' ? e.avgBig : e.avg).dist, k = c.spec.k;
+    const W = 520, Hh = 230, m = { l: 44, r: 12, t: 14, b: 48 };
+    const mx = Math.max(...dist.slice(0, k + 1), 1), ymax = Math.ceil(mx / 10) * 10;
+    const bw = (W - m.l - m.r) / (k + 1);
+    const sy = v => Hh - m.b - v / ymax * (Hh - m.t - m.b);
+    for (let v = 0; v <= ymax; v += ymax > 50 ? 20 : 10) {
+      S_('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: 's-line' }, svg);
+      S_('text', { x: m.l - 6, y: sy(v) + 4, class: 's-tick', 'text-anchor': 'end' }, svg, String(v));
+    }
+    for (let h = 0; h <= k; h++) {
+      const x = m.l + h * bw + 4, w = bw - 8, v = dist[h] || 0;
+      S_('rect', { x, y: sy(v), width: w, height: Hh - m.b - sy(v), class: 'h-bar' + (h === 0 ? ' zero' : '') }, svg);
+      S_('text', { x: x + w / 2, y: sy(v) - 4, class: 'h-val' }, svg, String(v));
+      S_('text', { x: x + w / 2, y: Hh - m.b + 15, class: 's-tick', 'text-anchor': 'middle' }, svg, String(h));
+    }
+    S_('text', { x: (m.l + W - m.r) / 2, y: Hh - 8, class: 's-ax', 'text-anchor': 'middle' }, svg, tok().axisTop);
+    S_('text', { x: 0, y: 0, class: 's-ax', 'text-anchor': 'middle', transform: 'translate(12 ' + ((m.t + Hh - m.b) / 2) + ') rotate(-90)' }, svg, 'графів зі 100');
+  }
+  function renderS5() {
+    const c = ctx(), G = c.H, i = c.selH;
+    fillSelects();
+    const info = MODEL_INFO[S.model], e = modelFor(c, S.model);
+    const p = scoresFor(c, G, S.model), pp = scoresFor(c, G, 'plain');
+    const top = topOf(p, G), flags = new Set(top);
+    drawGraph($('#g5'), G, { sel: i, p, flags });
+    legend($('#leg5'), 'score');
+    const degs = G.nb.map(a => a.length), h = R.hitsIn(top, G), blind = G.k * G.k / G.n;
+    const nWeights = e.model.size;
+    $('#s5-result').innerHTML = 'Граф із <b>' + G.n + '</b> ' + tok().accPl + ': у найбільш зв\'язаного ' + Math.max(...degs) + ' сусідів, у найменш зв\'язаного ' + Math.min(...degs) + '. Мережа «' + info.short + '» (' + weights(nWeights) + ', ті самі, що після навчання) знайшла у верхній ' + tok().topL + ' <span class="big">' + h + ' з ' + G.k + '</span> справжніх (навмання було б ' + num(blind) + ').' + (S.truth ? '' : ' Увімкніть «' + t('truthSw') + '», щоб побачити на графі.');
+    $('#s5-acct').innerHTML = 'Вибраний ' + tok().acc + ' №' + (i + 1) + ' (сусідів: ' + G.nb[i].length + '): мережею без сусідів <b>' + pct(pp[i]) + '</b>' + (S.model === 'plain' ? '' : ', вибраною мережею <b>' + pct(p[i]) + '</b>') + '.';
+    const big = c.hSize === 'big', avg = (big ? e.avgBig : e.avg).hits, sumAvg = (big ? c.avgSumBig : c.avgSum).hits, bl = big ? c.blindBig : c.blind;
+    $('#hist-title').textContent = 'Розподіл результату мережі на 100 заздалегідь згенерованих графах із ' + G.n + ' ' + tok().accPl;
+    histChart(c, c.hSize);
+    const dist = (big ? e.avgBig : e.avg).dist;
+    $('#hist-cap').innerHTML = 'Кожен стовпчик — скільки з 100 графів дали саме стільки справжніх у верхній ' + tok().topL + '. Червоний — графи, де не знайдено жодного. У середньому ' + num(avg) + ' з ' + G.k + ' (сума трьох чисел: ' + num(sumAvg) + ', навмання: ' + num(bl) + ').';
+    const made = c.made[c.hSize];
+    let tally = '';
+    if (made.length) {
+      let hs = 0, hp = 0; made.forEach(g => { hs += R.hitsIn(topOf(scoresFor(c, g, S.model), g), g); hp += R.hitsIn(topOf(scoresFor(c, g, 'plain'), g), g); });
+      tally = ' Графів із ' + G.n + ' ' + tok().accPl + ', які ви згенерували кнопками: ' + made.length + '. У середньому вибрана мережа знайшла ' + num(hs / made.length) + ', мережа без сусідів ' + num(hp / made.length) + '. Чим більше графів, тим ближче до середніх вище.';
+    }
+    $('#s5-tally').innerHTML = '<b>Як читати.</b> Один граф — це один вимір із розкидом. Розподіл вище показує, як часто мережа помиляється повністю.' + tally;
+  }
+
+  /* ================= wiring ================= */
+  function renderModelViews() { fillSelects(); renderS3(); renderS5(); }
+  function renderAll() {
+    $$('.truth-chk').forEach(cb => { cb.checked = S.truth; });
+    renderS1(); renderS2(); renderS3(); renderS5(); renderTrain();
+  }
+  function setScenario(scn) {
+    if (scn === S.scn && CTX[scn]) return;
+    const go = () => {
+      S.scn = scn; S.phase = 1; S.neuron = 0; S.model = 'g1';
+      if (!CTX[scn]) CTX[scn] = makeCtx(scn);
+      $('#loading').hidden = true;
+      renderTexts(); renderAll(); pump();
+    };
+    if (!CTX[scn]) { $('#loading').hidden = false; setTimeout(go, 30); } else go();
+  }
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setScenario(b.dataset.scn); });
+  bindGraph($('#g1'), i => { ctx().sel = i; renderAll(); });
+  bindGraph($('#g2'), i => { ctx().sel = i; renderAll(); });
+  bindGraph($('#g3'), i => { ctx().sel = i; renderAll(); });
+  bindGraph($('#g5'), i => { ctx().selH = i; renderS5(); });
+  $$('.truth-chk').forEach(cb => cb.addEventListener('change', () => { S.truth = cb.checked; renderAll(); }));
+  $$('.model-sel').forEach(sel => sel.addEventListener('change', () => { S.model = sel.value; renderS3(); renderS5(); }));
+  $('#barlist').addEventListener('click', e => { const b = e.target.closest('button[data-model]'); if (!b || b.disabled) return; S.model = b.dataset.model; renderS3(); renderS5(); });
+  $('#btn-sum').onclick = () => { ctx().sumFlag = true; S.truth = true; renderAll(); };
+  $('#btn-sum-clear').onclick = () => { ctx().sumFlag = false; renderAll(); };
+  $('#phase-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.phase = +b.dataset.ph; renderS2(); });
+  $('#btn-hub').onclick = () => { const c = ctx(); let best = 0; c.G.nb.forEach((a, i) => { if (a.length > c.G.nb[best].length) best = i; }); c.sel = best; renderAll(); };
+  $('#btn-leaf').onclick = () => { const c = ctx(); let best = 0; c.G.nb.forEach((a, i) => { if (a.length < c.G.nb[best].length) best = i; }); c.sel = best; renderAll(); };
+  $('#btn-newS').onclick = () => { newH(ctx(), 'small'); renderS5(); };
+  $('#btn-newB').onclick = () => { newH(ctx(), 'big'); renderS5(); };
+  $('#tr-reset').onclick = () => { const c = ctx(); trInit(c); trReset(c); renderTrain(); };
+  $('#tr-1').onclick = () => { const c = ctx(); if (!c.tr.playing) { trAdvance(c, 1); renderTrain(); } };
+  $('#tr-10').onclick = () => { trPlay(ctx(), 10); };
+  $('#tr-all').onclick = () => { trPlay(ctx(), STEPS); };
+  const pickParam = td => { if (!td) return; const c = ctx(); c.param = +td.dataset.p; renderWeights(c); renderChartC(c); };
+  $('#wtable').addEventListener('click', e => pickParam(e.target.closest('td[data-p]')));
+  $('#wtable').addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== ' ') return; const td = e.target.closest('td[data-p]'); if (!td) return; e.preventDefault(); pickParam(td); });
+
+  let lastVertical = window.innerWidth < 640;
+  window.addEventListener('resize', () => { const v = window.innerWidth < 640; if (v !== lastVertical && lastBlocksModel) { lastVertical = v; drawBlocks(lastBlocksModel); } });
+  window.__lab = { S, CTX, R, setScenario, ctx, pump };
+  setTimeout(() => {
+    CTX.ring = makeCtx('ring');
+    $('#loading').hidden = true;
+    renderTexts(); renderAll(); pump();
+    window.__ready = true;
+  }, 40);
+})();
+</script>
+
+</body></html>
