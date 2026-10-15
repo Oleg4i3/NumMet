@@ -1,0 +1,2133 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Кіт, коти, котів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Literata:opsz,wght@7..72,600&display=swap">
+<style>
+:root {
+  /* Layout: a lab bench. Controls strip, then one verdict line, then two aligned 10x10 grids
+     (the data | the network's answers) as the main object; rule readout and loss curve below;
+     weight maps and a free-input probe last. */
+  --bg: #ECEFF3;
+  --surface: #FBFCFD;
+  --surface-2: #F0F3F6;
+  --ink: #0E1620;
+  --ink-2: #44505E;
+  --muted: #5E6978;
+  --line: #DDE2E8;
+  --axis: #BCC4CE;
+  --focus: #2a78d6;
+  /* three answer classes: aqua, violet, amber (validated all-pairs, light + dark) */
+  --k0: #1baf7a; --k1: #6250d6; --k2: #eda100;
+  --on0: #0B1117; --on1: #FFFFFF; --on2: #0B1117;
+  /* loss series */
+  --s1: #2a78d6; --s2: #eb6834;
+  /* weight sign: diverging blue <-> red around a neutral midpoint */
+  --neg: #2a78d6; --pos: #e34948; --mid: #E9EDF1;
+  --wpos: #e34948; --wneg: #2a78d6;  /* line strokes in the network graph */
+  /* status (fixed) */
+  --ok: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-body: "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1013; --surface: #181B1F; --surface-2: #20242A;
+    --ink: #ECEFF2; --ink-2: #B4BDC8; --muted: #8C96A3; --line: #2A2F36; --axis: #3B424B;
+    --focus: #3987e5;
+    --k0: #199e70; --k1: #9085e9; --k2: #c98500;
+    --on0: #0B1117; --on1: #0B1117; --on2: #0B1117;
+    --s1: #3987e5; --s2: #d95926;
+    --neg: #2b6cb8; --pos: #b43a3a; --mid: #262A30;
+    --wpos: #e66767; --wneg: #3987e5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1013; --surface: #181B1F; --surface-2: #20242A;
+  --ink: #ECEFF2; --ink-2: #B4BDC8; --muted: #8C96A3; --line: #2A2F36; --axis: #3B424B;
+  --focus: #3987e5;
+  --k0: #199e70; --k1: #9085e9; --k2: #c98500;
+  --on0: #0B1117; --on1: #0B1117; --on2: #0B1117;
+  --s1: #3987e5; --s2: #d95926;
+  --neg: #2b6cb8; --pos: #b43a3a; --mid: #262A30;
+  --wpos: #e66767; --wneg: #3987e5;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--font-body);
+  padding-inline: 16px; padding-block: 24px 56px;
+}
+.page { max-width: 1120px; margin-inline: auto; display: grid; gap: 16px; }
+h1 { font: 600 clamp(1.8rem, 4.5vw, 2.5rem)/1.1 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h2 { font: 600 1.08rem/1.3 var(--font-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 .95rem/1.3 var(--font-body); margin: 0; }
+p { margin: 0; }
+.lede { max-width: 64ch; color: var(--ink-2); margin-top: 8px; }
+.sub { color: var(--muted); font-size: .85rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; display: grid; gap: 14px; align-content: start; }
+.panel-head { display: grid; gap: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* controls */
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 28px; }
+.ctl { min-width: 0; }
+.lab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 500; font-size: .88rem; }
+.val { font: 500 .85rem var(--font-mono); color: var(--ink-2); }
+input[type=range] { width: 100%; accent-color: var(--ink); margin: 10px 0 0; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+.seg button { font: 500 .88rem var(--font-body); padding: 7px 16px; border: 0; background: var(--surface); color: var(--ink); cursor: pointer; min-height: 36px; }
+.seg button + button { border-left: 1px solid var(--axis); }
+.seg button[aria-pressed=true] { background: var(--ink); color: var(--surface); }
+.seg button:disabled { color: var(--muted); cursor: not-allowed; background: var(--surface-2); }
+.btn { font: 500 .88rem var(--font-body); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 38px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.primary:hover { opacity: .88; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row .grow { flex: 1 1 auto; }
+.bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--line); }
+.preset-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.preset-row .lab { font-weight: 500; margin-right: 4px; }
+.row.act { justify-content: flex-end; }
+.btn.pre { min-height: 34px; padding: 6px 12px; font-variant-numeric: tabular-nums; }
+.btn.pre[aria-pressed=true] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.arch { font: 400 .82rem var(--font-mono); color: var(--ink-2); }
+
+/* verdict */
+.verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.v-main { display: flex; gap: 12px; align-items: center; min-width: 0; flex: 1 1 320px; }
+.badge { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 700 1rem/1 var(--font-body); flex: none; }
+.badge.ok { background: var(--ok); color: #fff; }
+.badge.warn { background: var(--warn); color: #1b1300; }
+.badge.bad { background: var(--crit); color: #fff; }
+.badge.run { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--axis); }
+.v-title { font: 600 1.12rem/1.3 var(--font-display); }
+.v-detail { color: var(--ink-2); font-size: .9rem; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.stat .k { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.stat .v { font: 500 1rem var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* grids */
+.twin { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .84rem; color: var(--ink-2); align-items: center; }
+.lg { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 16px; height: 16px; border-radius: 4px; background: var(--fill); display: inline-grid; place-items: center; color: var(--on); }
+.sw .pips { height: auto; gap: 1px; }
+.sw .pips i { width: 3px; height: 3px; }
+.lg-hid { width: 16px; height: 16px; border-radius: 4px; outline: 1.5px dashed var(--ink-2); outline-offset: 1px; background: color-mix(in srgb, var(--k0) 16%, var(--surface)); }
+.lg-err { width: 16px; height: 16px; border-radius: 50%; background: var(--crit); color: #fff; font: 700 11px/16px var(--font-body); text-align: center; }
+.grid { display: grid; grid-template-columns: 1.3rem repeat(10, minmax(0, 1fr)); gap: 4px; max-width: 540px; width: 100%; }
+.ax { font: 500 .7rem var(--font-mono); color: var(--muted); display: grid; place-items: center; }
+.cell {
+  aspect-ratio: 1; border: 0; border-radius: 6px; padding: 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: var(--fill); color: var(--on);
+  font: 500 clamp(.6rem, 2.3vw, .82rem)/1 var(--font-mono); font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+button.cell { cursor: pointer; }
+.k0 { --fill: var(--k0); --on: var(--on0); }
+.k1 { --fill: var(--k1); --on: var(--on1); }
+.k2 { --fill: var(--k2); --on: var(--on2); }
+.pips { display: flex; gap: 2px; height: 4px; align-items: center; }
+.pips i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; display: block; }
+.cell.hid { background: color-mix(in srgb, var(--fill) 16%, var(--surface)); color: var(--ink); }
+.cell.test { outline: 1.5px dashed var(--ink-2); outline-offset: 1px; }
+.cell.err { box-shadow: inset 0 0 0 2px var(--crit); }
+.cell.err::after { content: "×"; position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--crit); color: #fff; font: 700 12px/16px var(--font-body); text-align: center; }
+.cell.hl { box-shadow: 0 0 0 2px var(--ink); z-index: 1; }
+.cell.err.hl { box-shadow: inset 0 0 0 2px var(--crit), 0 0 0 2px var(--ink); }
+.truth { font-size: .84rem; color: var(--ink-2); }
+
+/* rule + chart */
+.rule { display: grid; gap: 0; }
+.rrow { display: grid; grid-template-columns: minmax(6.2rem, auto) 1fr; gap: 6px 16px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line); }
+.rrow:first-child { border-top: 0; padding-top: 0; }
+.rscope { font-weight: 600; font-size: .9rem; }
+.rbody { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.rchip { display: inline-flex; align-items: center; gap: 7px; font-size: .92rem; }
+.rchip .sw { width: 12px; height: 12px; border-radius: 3px; }
+.rule-given { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.rule-given h3 { color: var(--ink-2); font-weight: 500; }
+.errs { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; color: var(--ink-2); }
+.errs b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+.note { font-size: .84rem; color: var(--muted); }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart { position: relative; }
+.t-ax { fill: var(--muted); font: 400 11px var(--font-mono); }
+.t-lab { fill: var(--ink-2); font: 500 11.5px var(--font-body); }
+.g-line { stroke: var(--line); stroke-width: 1; }
+.a-line { stroke: var(--axis); stroke-width: 1; }
+.ln-train { stroke: var(--s1); }
+.ln-hid { stroke: var(--s2); }
+.ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.dot-train { fill: var(--s1); stroke: var(--surface); stroke-width: 2; }
+.dot-hid { fill: var(--s2); stroke: var(--surface); stroke-width: 2; }
+.xh { stroke: var(--ink-2); stroke-width: 1; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .84rem; color: var(--ink-2); }
+.lkey { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 7px; vertical-align: middle; }
+details { font-size: .84rem; color: var(--ink-2); }
+details summary { cursor: pointer; }
+table.data { border-collapse: collapse; margin-top: 8px; font: 400 .8rem var(--font-mono); font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 3px 12px 3px 0; text-align: left; border-bottom: 1px solid var(--line); }
+
+/* weights */
+.maps { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: flex-start; }
+.mapbox { min-width: 0; max-width: 100%; }
+.mapbox h3 { margin-bottom: 6px; }
+.hmwrap { overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
+table.hm { border-collapse: separate; border-spacing: 2px; font: 500 .68rem var(--font-mono); }
+table.hm th { font-weight: 500; color: var(--muted); text-align: left; white-space: nowrap; padding: 0 8px 0 0; }
+table.hm thead th { text-align: center; padding: 0 0 2px; }
+table.hm thead th .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+table.hm td { min-width: 36px; height: 22px; text-align: center; border-radius: 3px; color: var(--ink); background: color-mix(in srgb, var(--pole, var(--mid)) var(--p, 0%), var(--mid)); font-variant-numeric: tabular-nums; }
+td.pos { --pole: var(--pos); }
+td.neg { --pole: var(--neg); }
+td.zero { color: var(--muted); background: var(--surface-2); }
+table.hm tr.sep th, table.hm tr.sep td { border-top: 0; }
+table.hm tr.sep td { box-shadow: 0 -3px 0 var(--surface); }
+.scale { display: flex; align-items: center; gap: 8px; font: 400 .72rem var(--font-mono); color: var(--muted); }
+.scale i { display: block; width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, color-mix(in srgb, var(--neg) 80%, var(--mid)), var(--mid), color-mix(in srgb, var(--pos) 80%, var(--mid))); }
+
+/* probe */
+.probe { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px 32px; align-items: start; }
+@media (max-width: 720px) { .probe { grid-template-columns: minmax(0, 1fr); } }
+.field { display: grid; gap: 8px; }
+.field input { font: 500 1.4rem var(--font-mono); padding: 8px 12px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); width: 100%; min-height: 48px; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.out { display: grid; gap: 12px; }
+.phrase { font: 600 1.6rem/1.2 var(--font-display); }
+.pbars { display: grid; gap: 8px; max-width: 460px; }
+.pb { display: grid; grid-template-columns: 4.6rem 1fr 3.4rem; align-items: center; gap: 10px; font-size: .9rem; }
+.pb .track { height: 12px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.pb .fill { height: 100%; background: var(--fill); border-radius: 0 4px 4px 0; min-width: 2px; }
+.pb .pv { font: 500 .85rem var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.pb.top .nm { font-weight: 600; }
+.verd2 { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.verd2 .badge { width: 22px; height: 22px; font-size: .8rem; }
+
+/* tooltip */
+.tip { position: fixed; z-index: 30; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--axis); border-radius: 8px; padding: 8px 10px; box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: .8rem; min-width: 160px; max-width: 260px; display: grid; gap: 4px; }
+.tip .t { font: 600 .92rem var(--font-body); }
+.tip .s { color: var(--muted); }
+.tip .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.tip .r .l { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); }
+.tip .r .v { font: 600 .85rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.tip .key { width: 10px; height: 3px; border-radius: 2px; background: var(--fill); display: inline-block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 520px) {
+  .panel { padding: 14px; }
+  .rrow { grid-template-columns: 1fr; gap: 4px; }
+  .pb { grid-template-columns: 4rem 1fr 3.2rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ===== v2 additions ===== */
+.appbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
+.brand { font: 600 1rem var(--font-display); color: var(--ink-2); }
+.tabs { display: inline-flex; border: 1px solid var(--axis); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.tabs button { font: 500 .92rem var(--font-body); padding: 9px 20px; border: 0; background: transparent; color: var(--ink); cursor: pointer; min-height: 40px; }
+.tabs button + button { border-left: 1px solid var(--axis); }
+.tabs button[aria-selected=true] { background: var(--ink); color: var(--surface); }
+.labsec { display: grid; gap: 16px; }
+.labsec[hidden] { display: none !important; }
+.hero h1 { font-size: clamp(1.7rem, 4.2vw, 2.4rem); max-width: 22ch; }
+.hero .lede { max-width: 70ch; font-size: 1.02rem; }
+.lead-note { font-weight: 600; color: var(--ink); }
+
+/* hook */
+.hook { gap: 18px; }
+.hook-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.hook-arrow { display: none; align-self: center; font: 500 1.6rem var(--font-body); color: var(--muted); }
+@media (min-width: 940px) {
+  .hook-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 1.15fr); }
+  .hook-arrow { display: block; }
+}
+.hcol { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 14px; border-radius: 8px; background: var(--surface-2); }
+.hcol h3 { font: 600 .74rem var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.hcol.not { background: transparent; border: 1.5px dashed var(--axis); }
+.hcol.got { border: 1.5px solid var(--ink); background: var(--surface); }
+.pairs { display: flex; flex-wrap: wrap; gap: 6px; }
+.pair { display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: .9rem; white-space: nowrap; }
+.pair b { font: 500 .88rem var(--font-mono); }
+.pair .sw { width: 10px; height: 10px; border-radius: 3px; }
+.untold { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.untold li { font-size: .92rem; color: var(--ink-2); padding-left: 22px; position: relative; }
+.untold li::before { content: "∅"; position: absolute; left: 0; top: 0; font-weight: 700; color: var(--muted); }
+.untold em { font-style: normal; font-weight: 600; color: var(--ink); }
+.hook-foot { font-size: .92rem; color: var(--ink-2); max-width: 80ch; }
+.live-badge { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--ink-2); }
+.live-badge .badge { width: 20px; height: 20px; font-size: .72rem; }
+.hcol .rrow { padding: 8px 0; grid-template-columns: 1fr; gap: 4px; }
+.hcol .rrow:first-child { padding-top: 0; }
+
+/* experiments */
+.exps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.exp { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; align-content: space-between; background: var(--surface); }
+.exp h3 { font-size: .95rem; }
+.exp p { font-size: .86rem; color: var(--ink-2); }
+.exp .btn { justify-self: start; min-height: 34px; padding: 6px 12px; }
+.exp .btn[aria-pressed=true] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* network panel */
+.netpanel { display: grid; grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); gap: 22px 28px; align-items: start; }
+@media (max-width: 880px) { .netpanel { grid-template-columns: minmax(0, 1fr); } }
+.ctls { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.why { font: 500 .78rem var(--font-body); color: var(--ink-2); background: none; border: 0; padding: 0 0 0 6px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.why:hover { color: var(--ink); }
+.seg.three button { padding-inline: 14px; }
+.graphbox { display: grid; gap: 10px; min-width: 0; }
+.focusline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: .9rem; }
+.focusline b { font: 600 1rem var(--font-display); }
+.focusline > span::before { content: "·"; margin-right: 12px; color: var(--muted); }
+.endrule { white-space: nowrap; }
+.tblx { overflow-x: auto; max-width: 100%; }
+.ohwrap { overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
+table.oh { border-collapse: separate; border-spacing: 2px; font: 500 .66rem var(--font-mono); }
+table.oh th { font-weight: 500; color: var(--muted); text-align: right; padding: 0 8px 0 0; white-space: nowrap; }
+table.oh thead th { text-align: center; padding: 0; }
+table.oh td { width: 17px; height: 17px; text-align: center; border-radius: 3px; background: var(--surface-2); color: var(--muted); }
+table.oh td.on { background: var(--ink); color: var(--surface); }
+.gsvg { width: 100%; height: auto; display: block; }
+.g-in { stroke: var(--axis); stroke-width: 1.5; fill: var(--surface); }
+.g-in.on { fill: var(--ink); stroke: var(--ink); }
+.g-hid { stroke: var(--ink-2); stroke-width: 1.5; fill: var(--surface); }
+.g-out { stroke: var(--ink-2); stroke-width: 1.5; }
+.g-out.truth { stroke: var(--ink); stroke-width: 3; }
+.g-t { fill: var(--ink-2); font: 500 11px var(--font-body); }
+.g-t.mono { font: 500 10px var(--font-mono); }
+.g-t.dim { fill: var(--muted); }
+.g-t.on { fill: var(--ink); font-weight: 600; }
+.g-h { fill: var(--muted); font: 600 10.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; }
+.glegend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .8rem; color: var(--ink-2); align-items: center; }
+.glegend i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; margin-right: 7px; vertical-align: middle; }
+
+/* word chips */
+.wgroups { display: grid; gap: 12px; margin-top: 12px; }
+.wg { display: grid; gap: 6px; }
+.wg-h { font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.wg-h .tag { text-transform: none; letter-spacing: 0; font-weight: 500; padding: 1px 7px; border-radius: 10px; border: 1px dashed var(--ink-2); color: var(--ink-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { position: relative; border: 0; border-radius: 6px; padding: 5px 9px 5px 9px; display: inline-flex; align-items: center; gap: 7px; background: var(--fill); color: var(--on); font: 500 .88rem var(--font-body); cursor: default; }
+button.chip { cursor: pointer; }
+.chip .pips { height: 4px; }
+.chip.hid { background: color-mix(in srgb, var(--fill) 16%, var(--surface)); color: var(--ink); }
+.chip.test { outline: 1.5px dashed var(--ink-2); outline-offset: 1px; }
+.chip.err { box-shadow: inset 0 0 0 2px var(--crit); }
+.chip.err::after { content: "×"; position: absolute; top: -7px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--crit); color: #fff; font: 700 12px/16px var(--font-body); text-align: center; }
+.chip.hl { box-shadow: 0 0 0 2px var(--ink); z-index: 1; }
+.chip.err.hl { box-shadow: inset 0 0 0 2px var(--crit), 0 0 0 2px var(--ink); }
+.chip.twin::before { content: "="; position: absolute; top: -7px; left: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); color: var(--surface); font: 700 11px/16px var(--font-body); text-align: center; }
+.conflict { display: grid; gap: 4px; font-size: .88rem; color: var(--ink-2); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+.conflict[hidden] { display: none; }
+.conflict b { color: var(--ink); font-weight: 600; }
+
+/* ending table (words) */
+table.endt { border-collapse: collapse; width: 100%; font-size: .88rem; }
+table.endt th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 0 8px 8px 0; }
+table.endt td { padding: 8px 8px 8px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+table.endt td.mono { font: 500 .85rem var(--font-mono); white-space: nowrap; }
+.sbar { display: flex; height: 14px; min-width: 72px; border-radius: 3px; overflow: hidden; gap: 2px; }
+.sbar span { background: var(--fill); display: block; min-width: 2px; }
+.sbar span:first-child { border-radius: 3px 0 0 3px; }
+.sbar span:last-child { border-radius: 0 3px 3px 0; }
+.endrule { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.endrule .sw { width: 12px; height: 12px; border-radius: 3px; }
+.miss { color: var(--ink); font-weight: 600; font-family: var(--font-mono); font-size: .82rem; }
+
+/* word probe */
+.wprobe { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px 32px; align-items: start; }
+@media (max-width: 760px) { .wprobe { grid-template-columns: minmax(0, 1fr); } }
+.field2 { display: grid; gap: 6px; }
+.field2 label { font-weight: 500; font-size: .88rem; }
+.field2 input[type=text] { font: 500 1.15rem var(--font-body); padding: 8px 12px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); width: 100%; min-height: 44px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; }
+.check input { margin-top: 3px; accent-color: var(--ink); }
+.phrase.big { font-size: 1.9rem; }
+.phrase .wrong { text-decoration: line-through; text-decoration-color: var(--crit); text-decoration-thickness: 2px; }
+.addrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .88rem; }
+.addrow .btn { min-height: 34px; padding: 6px 12px; }
+
+/* theory */
+.theory { gap: 0; }
+.theory > .panel-head { padding-bottom: 12px; }
+.theory details { border-top: 1px solid var(--line); }
+.theory summary { cursor: pointer; padding: 14px 0; font: 600 1.02rem/1.3 var(--font-display); list-style: none; display: flex; gap: 10px; align-items: baseline; }
+.theory summary::-webkit-details-marker { display: none; }
+.theory summary::before { content: "+"; font: 500 1.2rem/1 var(--font-mono); width: 1rem; color: var(--ink-2); flex: none; }
+.theory details[open] > summary::before { content: "−"; }
+.theory .body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 0 0 20px 26px; max-width: 74ch; }
+.theory .body.wide { max-width: none; }
+.theory p, .theory li { color: var(--ink-2); font-size: .95rem; }
+.theory p b, .theory li b { color: var(--ink); font-weight: 600; }
+.theory ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; }
+.theory code, .formula { font: 500 .88rem var(--font-mono); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; color: var(--ink); }
+.formula { display: block; padding: 8px 12px; border-radius: 6px; width: fit-content; max-width: 100%; overflow-x: auto; }
+.theory h4 { font: 600 .92rem var(--font-body); color: var(--ink); margin-top: 4px; }
+.tcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; background: var(--surface); }
+.tcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.tcard h4 { margin: 0; }
+.tcard p { font-size: .9rem; }
+.tbl-wrap { overflow-x: auto; max-width: 100%; }
+table.cmp { border-collapse: collapse; font-size: .86rem; min-width: 520px; width: 100%; }
+table.cmp th, table.cmp td { text-align: left; padding: 7px 12px 7px 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+table.cmp thead th { border-top: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+table.cmp tbody th { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.widget { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 10px; background: var(--surface-2); }
+.widget h4 { margin: 0; }
+.wrow { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 3.2rem; gap: 10px; align-items: center; font-size: .88rem; }
+.wrow input[type=range] { margin: 0; }
+.wrow .v { font: 500 .85rem var(--font-mono); text-align: right; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.bars { display: grid; gap: 6px; }
+.bar1 { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) 3.6rem; gap: 8px; align-items: center; font-size: .84rem; }
+.bar1 .tr { height: 10px; background: var(--surface); border-radius: 3px; position: relative; overflow: hidden; border: 1px solid var(--line); }
+.bar1 .fl { position: absolute; top: 0; bottom: 0; background: var(--fill); }
+.bar1 .vv { font: 500 .82rem var(--font-mono); text-align: right; }
+.bar1.tanh { --fill: var(--s2); }
+.sumline { font: 500 .82rem var(--font-mono); color: var(--ink-2); }
+.hist { display: flex; align-items: flex-end; gap: 3px; height: 56px; }
+.hist span { flex: 1; background: var(--ink-2); border-radius: 2px 2px 0 0; min-height: 1px; }
+.histl { display: flex; gap: 3px; font: 400 .62rem var(--font-mono); color: var(--muted); }
+.histl span { flex: 1; text-align: center; }
+dl.gloss { display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: 8px 16px; margin: 0; }
+dl.gloss dt { font-weight: 600; color: var(--ink); font-size: .92rem; }
+dl.gloss dd { margin: 0; color: var(--ink-2); font-size: .92rem; }
+@media (max-width: 560px) { dl.gloss { grid-template-columns: 1fr; } dl.gloss dt { margin-top: 6px; } .theory .body { padding-left: 0; } }
+.acts svg { width: 100%; max-width: 360px; height: auto; display: block; }
+.ax-l { stroke: var(--axis); stroke-width: 1; }
+.cv-relu { stroke: var(--s1); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.cv-tanh { stroke: var(--s2); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.bar1 .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--axis); }
+.mb { height: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; margin-top: 3px; min-width: 60px; }
+.mb span { display: block; height: 100%; background: var(--ink-2); }
+.cdot-r { fill: var(--s1); stroke: var(--surface); stroke-width: 2; }
+.cdot-t { fill: var(--s2); stroke: var(--surface); stroke-width: 2; }
+table.cmp td.num, table.cmp th.num { font-family: var(--font-mono); font-size: .82rem; white-space: nowrap; }
+.graphbox > *, .netpanel > *, .widget > *, .cols2 > *, .twin > * { min-width: 0; }
+.widget input[type=text] { max-width: 100%; }
+.page > *, .labsec > *, .theory details, .theory .body { min-width: 0; }
+.theory .body > * { max-width: 100%; }
+.graphbox [data-r=graph] { overflow-x: auto; }
+@media (max-width: 640px) { .graphbox .gsvg { min-width: 540px; } }
+.cols2 { align-items: start; }
+table.cmp thead th.lc { text-transform: none; letter-spacing: 0; font-size: .78rem; }
+</style>
+
+<div class="page">
+  <div class="appbar">
+    <div class="brand">Кіт, коти, котів</div>
+    <div class="tabs" role="tablist" aria-label="Задачі">
+      <button type="button" role="tab" id="tab-num" aria-selected="true" aria-controls="lab-num">Числівник</button>
+      <button type="button" role="tab" id="tab-word" aria-selected="false" aria-controls="lab-word">Прикметник</button>
+    </div>
+  </div>
+
+  <section id="lab-num" class="labsec" role="tabpanel" aria-labelledby="tab-num"></section>
+  <section id="lab-word" class="labsec" role="tabpanel" aria-labelledby="tab-word" hidden></section>
+
+  <section class="panel theory" id="theory" aria-label="Теорія">
+    <div class="panel-head">
+      <h2>Теорія</h2>
+      <p class="sub">Розгортайте те, що незрозуміло. Біля налаштувань є посилання «що це?», воно відкриває потрібний розділ.</p>
+    </div>
+
+    <details id="th-onehot">
+      <summary>Що таке one-hot і навіщо він</summary>
+      <div class="body">
+        <p>Мережа працює з числами. Але цифра 7 чи літера «о» тут не величини, а позначки категорій. Нікому не потрібно, щоб «о» була «більшою» за «а» або щоб 3 була «посередині» між 2 і 4.</p>
+        <p>Якби подати літеру як її номер в абетці, мережа вирішила б, що «ж» (9) і «з» (10) схожі, а «а» (1) і «я» (33) далекі. Для граматики це випадковість, і мережі довелося б вивчати зайве.</p>
+        <p><b>One-hot (унітарний код)</b> дає кожній категорії власний вхід. Він дорівнює 1, коли категорія є, і 0, коли її немає. У межах групи вмикається рівно один вхід.</p>
+        <div class="widget">
+          <h4>Спробуйте</h4>
+          <div class="field2">
+            <label for="thOhIn" id="thOhLab">Число</label>
+            <input type="text" id="thOhIn" autocomplete="off" maxlength="14" value="21">
+          </div>
+          <div class="ohwrap" id="thOhOut"></div>
+        </div>
+        <p>Для числа 21 це два набори: цифра десятків (10 входів) і цифра одиниць (10 входів). Усього 20 входів, із яких увімкнено 2. Для слова беруться останні літери, кожна зі своїм набором із 36 входів. Тому «остання літера о» і «передостання літера о» це різні входи з різними вагами.</p>
+        <p>Чим це зручно. Сума «входи × ваги» зводиться до додавання кількох ваг, по одній на кожну увімкнену категорію. Тому теплокарту ваг можна читати як таблицю голосів: «цифра одиниць = 1 голосує за „кіт“».</p>
+        <p>Ціна: входів багато (140 для 4 літер), а споріднення категорій мережа не знає. Що «ф» і «в» близькі, їй доведеться вивести з прикладів. Для великих словників використовують векторні подання (embeddings), але ідея та сама.</p>
+      </div>
+    </details>
+
+    <details id="th-act">
+      <summary>Нейрон і активація: чому без неї нічого не вийде</summary>
+      <div class="body">
+        <p>Нейрон складає свої входи з вагами та зсувом: <code>z = b + w₁x₁ + w₂x₂ + …</code>. Це ще не відповідь. Далі <code>z</code> пропускають через <b>активацію</b> f: <code>h = f(z)</code>.</p>
+        <p><b>Навіщо активація.</b> Без неї кілька шарів зводяться до одного: підсумок двох лінійних перетворень сам є лінійним. Приховані нейрони тоді нічого б не додавали. Активація додає злам, тобто «якщо»: нейрон вмикається, лише коли сума перейшла поріг.</p>
+        <div class="acts" id="actPlot"></div>
+        <div class="tcards">
+          <div class="tcard"><h4>ReLU: <code>max(0, z)</code></h4><p>Нижче нуля мовчить, вище передає як є. Так мережа записує умову: нейрон «десятки = 1 або одиниці не з 1–4» вмикається, коли сума ваг із зсувом перевищила нуль.</p></div>
+          <div class="tcard"><h4>tanh</h4><p>Гладка S-подібна крива від −1 до +1. Для дуже великих і дуже малих z вона плоска (насичується), і навчання на таких входах сповільнюється.</p></div>
+        </div>
+        <p><b>Мертвий ReLU.</b> Якщо для всіх прикладів z менше нуля, нейрон завжди дає 0, і через нього не проходить градієнт, тож він уже не навчиться. Якщо вам траплялось «правило поки не виведене», це часто воно. Натисніть «Нове зерно».</p>
+        <div class="tbl-wrap"><table class="cmp">
+          <thead><tr><th></th><th>ReLU</th><th>tanh</th></tr></thead>
+          <tbody>
+            <tr><th>Діапазон</th><td>від 0 до +∞</td><td>від −1 до +1</td></tr>
+            <tr><th>Плюси</th><td>проста, швидка, не насичується, дає «умови»</td><td>гладка, симетрична навколо нуля</td></tr>
+            <tr><th>Мінуси</th><td>нейрон може «померти»</td><td>насичується, повільніше вчиться</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+
+    <details id="th-out">
+      <summary>Вихід мережі: чому іноді tanh, а іноді softmax</summary>
+      <div class="body">
+        <p>Активацію виходу вибирають за тим, <b>що виходи означають</b>, а не за звичкою.</p>
+        <div class="tcards">
+          <div class="tcard">
+            <h4>Керування: tanh</h4>
+            <p>У системах керування (регулятор, робот, автопілот) вихід це команда: кут керма, напруга на двигуні, сила. Діапазон обмежений, наприклад від −1 («повністю ліворуч») до +1 («повністю праворуч»). Тому ставлять tanh або лінійний вихід із обрізанням.</p>
+            <p>Виходи незалежні: два двигуни можуть обидва йти на 0,9, сума нічого не означає. Помилку міряють відстанню до потрібного значення (середньоквадратична, MSE).</p>
+          </div>
+          <div class="tcard">
+            <h4>Класифікація: softmax</h4>
+            <p>Тут вихід це оцінка того, який із варіантів правильний, а варіанти виключають один одного: слово не може бути водночас «кіт» і «коти». Потрібні ймовірності: усі невід'ємні, сума дорівнює 1.</p>
+            <span class="formula">p_k = e^(z_k) / Σ e^(z_j)</span>
+            <p>Найбільша ймовірність дає відповідь. Помилку міряють крос-ентропією, −ln(p правильного класу): вона жорстко карає за впевнену помилку.</p>
+          </div>
+        </div>
+        <div class="tbl-wrap"><table class="cmp">
+          <thead><tr><th>Задача</th><th>Вихід</th><th>Що значать виходи</th><th>Втрата</th></tr></thead>
+          <tbody>
+            <tr><th>Керування, регресія</th><td>tanh або лінійний</td><td>величини в діапазоні, незалежні</td><td>MSE</td></tr>
+            <tr><th>Один із кількох класів</th><td>softmax</td><td>ймовірності, сума 1</td><td>крос-ентропія</td></tr>
+            <tr><th>Так чи ні, або кілька незалежних ознак</th><td>sigmoid</td><td>ймовірність кожної ознаки окремо</td><td>бінарна крос-ентропія</td></tr>
+          </tbody>
+        </table></div>
+        <div class="widget">
+          <h4>Порівняйте на трьох числах</h4>
+          <p class="sub">Рухайте повзунки. Softmax завжди дає суму 1, tanh ні.</p>
+          <div class="cols2">
+            <div class="bars" id="smSliders"></div>
+            <div class="bars" id="smOut"></div>
+          </div>
+        </div>
+        <p>Саме тому на теплокартах виходи показано «відносно котів»: softmax не змінюється, якщо до всіх трьох оцінок додати те саме число. Має значення лише різниця між ними.</p>
+      </div>
+    </details>
+
+    <details id="th-reg">
+      <summary>Регуляризація: L1, L2 і без неї</summary>
+      <div class="body">
+        <p>Мережа мінімізує помилку на навчальних прикладах, а ваг у неї зазвичай більше, ніж потрібно. Тому багато наборів ваг однаково добре підганяють дані. Серед них є «спокійні», що ловлять загальну закономірність, і «нервові»: великі, випадкові, підігнані під окремі приклади. Регуляризація підштовхує мережу до спокійних.</p>
+        <p>Як вона працює: до втрати додають штраф за ваги.</p>
+        <span class="formula">підсумок = помилка + λ · R(ваги)</span>
+        <p>λ (лямбда) задає силу штрафу, λ = 0 означає «без штрафу». Різні R дають різну поведінку.</p>
+        <div class="tcards">
+          <div class="tcard"><h4>Без регуляризації</h4><p>Ваги можуть рости скільки завгодно. З softmax впевненість можна нарощувати безкінечно, щоб утиснути втрату до нуля. Підсумок: різкі межі і підгонка під окремі приклади. Це видно за найбільшим |w| і за гіршим результатом на схованих числах.</p></div>
+          <div class="tcard"><h4>L1: <code>R = Σ|w|</code></h4><p>Штраф лінійний: сила, що тягне вагу до нуля, не залежить від її розміру. Тому дрібні ваги доходять до <b>точного нуля</b> і там лишаються. Мережа стає розрідженою: кілька сильних ваг, решта нулі. На графі зв'язки зникають, а правило читається прямо.</p><p>Мінус: серед схожих ознак L1 обирає якусь одну майже довільно, тож результат менш стабільний між запусками.</p></div>
+          <div class="tcard"><h4>L2: <code>R = Σw²</code></h4><p>Штраф квадратичний: тягне тим сильніше, чим більша вага. Великі ваги стискаються помітно, дрібні ледь-ледь, тож до нуля вони практично не доходять. Мережа лишається щільною, але з помірними вагами, а вага ділиться між схожими ознаками. Інша назва: weight decay (згасання ваг).</p><p>Мінус: правило не читається так прямо, нулів немає.</p></div>
+        </div>
+        <div class="tbl-wrap"><table class="cmp">
+          <thead><tr><th></th><th>Без</th><th>L1</th><th>L2</th></tr></thead>
+          <tbody>
+            <tr><th>Розмір ваг</th><td>можуть бути великі</td><td>кілька великих, решта нуль</td><td>усі помірні</td></tr>
+            <tr><th>Точні нулі</th><td>ні</td><td>так, багато</td><td>майже ні</td></tr>
+            <tr><th>Читабельність</th><td>низька</td><td>висока</td><td>середня</td></tr>
+            <tr><th>Стабільність між запусками</th><td>середня</td><td>нижча</td><td>вища</td></tr>
+          </tbody>
+        </table></div>
+        <p><b>Як обрати λ.</b> Замало: ефекту немає. Забагато: штраф переважує помилку, мережа «забуває» навіть правило і відповідає майже однаково (недонавчання). Спробуйте L2 з λ = 0,1 на сторінці «Числівник».</p>
+        <div class="widget">
+          <h4>Порівняйте на ваших налаштуваннях</h4>
+          <p class="sub">Три навчання поспіль з однаковими даними й початковими вагами: без регуляризації, L1 (λ = 0,05) і L2 (λ = 0,01). Беруться кількість нейронів, активація й схована частина даних зі сторінки, на якій ви зараз.</p>
+          <div class="row"><button type="button" class="btn primary" id="regCmp">Порівняти</button><span class="sub" id="regCmpLab"></span></div>
+          <div id="regOut"></div>
+        </div>
+        <p>Інші способи проти перенавчання: більше даних, менша мережа, ранній зупин навчання, dropout (випадкове вимикання нейронів під час навчання).</p>
+      </div>
+    </details>
+
+    <details id="th-over">
+      <summary>Перенавчання, і чим воно не є</summary>
+      <div class="body">
+        <p><b>Перенавчання</b>: мережа добре відповідає на навчальних прикладах, а на нових гірше. Ознаки: точність на схованих нижча, ніж у навчанні, а крива втрати на схованих (помаранчева) іде вгору або не опускається, поки синя падає. Для цього ми й ховаємо частину даних: тільки вони чесно показують, чи є узагальнення.</p>
+        <p><b>Це не те саме, що «у даних немає прикладів».</b> Якщо сховати 11–14, ні шуму, ні підгонки немає: мережі просто нема з чого вивести виняток. Жодна регуляризація цього не виправить, допоможуть тільки дані.</p>
+        <p><b>Справжнє запам'ятовування</b> показано на сторінці «Прикметник». Збільште вікно до 6 літер і додайте винятки в навчання: мережа вивчить їх напам'ять. Але нові слова на кшталт «Кирило» чи «Гаврило» вона не вгадає. Таблиця слів це не правило.</p>
+        <p><b>Конфлікт у даних</b> це третя ситуація. Два слова мають однаковий вхід, але різний рід (синько і серденько, якщо дивитися на 4 останні літери). Мережа принципово не може відповісти правильно для обох і ділить ймовірність навпіл. Тут допомагає не більша мережа, а більше інформації на вході.</p>
+      </div>
+    </details>
+
+    <details id="th-gloss">
+      <summary>Словничок</summary>
+      <div class="body">
+        <dl class="gloss">
+          <dt>Епоха</dt><dd>Один прохід навчання по всіх навчальних прикладах. Тут за епоху ваги оновлюються один раз.</dd>
+          <dt>Втрата</dt><dd>Число, що показує, наскільки погані відповіді (тут крос-ентропія). Навчання підлаштовує ваги, щоб воно зменшувалось.</dd>
+          <dt>Ваги й зсув</dt><dd>Параметри, які мережа змінює. Вага множить вхід, зсув додається незалежно від входів.</dd>
+          <dt>Зерно</dt><dd>Число, з якого запускається генератор випадкових чисел для початкових ваг. Те саме зерно дає той самий результат.</dd>
+          <dt>Adam</dt><dd>Спосіб оновлювати ваги: крок у бік зменшення втрати з урахуванням попередніх кроків. Розмір кроку тут 0,05.</dd>
+          <dt>Схована вибірка</dt><dd>Приклади, яких мережа не бачить під час навчання. На них перевіряють, чи вона узагальнила.</dd>
+          <dt>Узагальнення</dt><dd>Здатність правильно відповідати на прикладах, яких не було в навчанні.</dd>
+        </dl>
+      </div>
+    </details>
+  </section>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<script>
+(function () { 'use strict';
+  // <core>
+  var LR = 0.05, KOUT = 3;
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // o: {nIn, H, relu, reg:'none'|'l1'|'l2', lam, seed, samples:[{x:[active input indexes], y}], trainIdx, hiddenIdx}
+  function makeNet(o) {
+    var H = o.H, rng = mulberry32(o.seed * 7919 + 13);
+    function gauss() {
+      var u = 0;
+      while (u === 0) u = rng();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+    }
+    var net = {
+      nIn: o.nIn, H: H, relu: o.relu, reg: o.reg || 'none', lam: o.lam || 0, samples: o.samples,
+      trainIdx: o.trainIdx, hiddenIdx: o.hiddenIdx, t: 0, P: [],
+      z: new Float64Array(Math.max(H, 1)), h: new Float64Array(Math.max(H, 1)),
+      lg: new Float64Array(KOUT), pr: new Float64Array(KOUT), gk: new Float64Array(KOUT),
+      lossT: [], lossH: []
+    };
+    function par(size, sd, reg) {
+      var p = new Float64Array(size);
+      if (sd) for (var i = 0; i < size; i++) p[i] = gauss() * sd;
+      var q = { p: p, g: new Float64Array(size), m: new Float64Array(size), v: new Float64Array(size), reg: reg };
+      net.P.push(q);
+      return q;
+    }
+    if (H > 0) {
+      net.qW1 = par(o.nIn * H, 0.5, true);
+      net.qb1 = par(H, 0, false);
+      net.qWo = par(H * KOUT, 0.5, true);
+    } else {
+      net.qWo = par(o.nIn * KOUT, 0.1, true);
+    }
+    net.qbo = par(KOUT, 0, false);
+    return net;
+  }
+
+  function forward(net, xs) {
+    var H = net.H, lg = net.lg, pr = net.pr, k, j, i, m = xs.length;
+    var Wo = net.qWo.p, bo = net.qbo.p;
+    if (H > 0) {
+      var W1 = net.qW1.p, b1 = net.qb1.p;
+      for (j = 0; j < H; j++) {
+        var z = b1[j];
+        for (i = 0; i < m; i++) z += W1[xs[i] * H + j];
+        net.z[j] = z;
+        net.h[j] = net.relu ? (z > 0 ? z : 0) : Math.tanh(z);
+      }
+      for (k = 0; k < KOUT; k++) {
+        var s = bo[k];
+        for (j = 0; j < H; j++) s += net.h[j] * Wo[j * KOUT + k];
+        lg[k] = s;
+      }
+    } else {
+      for (k = 0; k < KOUT; k++) {
+        var s2 = bo[k];
+        for (i = 0; i < m; i++) s2 += Wo[xs[i] * KOUT + k];
+        lg[k] = s2;
+      }
+    }
+    var mx = Math.max(lg[0], lg[1], lg[2]), sum = 0;
+    for (k = 0; k < KOUT; k++) { pr[k] = Math.exp(lg[k] - mx); sum += pr[k]; }
+    for (k = 0; k < KOUT; k++) pr[k] /= sum;
+  }
+
+  function trainStep(net) {
+    var H = net.H, idx = net.trainIdx, n = idx.length, gk = net.gk, pr = net.pr;
+    var i, j, k, q, s;
+    for (i = 0; i < net.P.length; i++) net.P[i].g.fill(0);
+    var loss = 0;
+    var Wo = net.qWo.p, gWo = net.qWo.g, gbo = net.qbo.g;
+    for (s = 0; s < n; s++) {
+      var smp = net.samples[idx[s]], xs = smp.x, y = smp.y, m = xs.length;
+      forward(net, xs);
+      loss -= Math.log(Math.max(pr[y], 1e-12));
+      for (k = 0; k < KOUT; k++) gk[k] = (pr[k] - (k === y ? 1 : 0)) / n;
+      if (H > 0) {
+        var gW1 = net.qW1.g, gb1 = net.qb1.g;
+        for (j = 0; j < H; j++) {
+          var dh = 0;
+          for (k = 0; k < KOUT; k++) { gWo[j * KOUT + k] += net.h[j] * gk[k]; dh += gk[k] * Wo[j * KOUT + k]; }
+          var dz = net.relu ? (net.z[j] > 0 ? dh : 0) : dh * (1 - net.h[j] * net.h[j]);
+          for (i = 0; i < m; i++) gW1[xs[i] * H + j] += dz;
+          gb1[j] += dz;
+        }
+        for (k = 0; k < KOUT; k++) gbo[k] += gk[k];
+      } else {
+        for (k = 0; k < KOUT; k++) { for (i = 0; i < m; i++) gWo[xs[i] * KOUT + k] += gk[k]; gbo[k] += gk[k]; }
+      }
+    }
+    var l2 = net.reg === 'l2' && net.lam > 0, l1 = net.reg === 'l1' && net.lam > 0;
+    net.t++;
+    var c1 = 1 - Math.pow(0.9, net.t), c2 = 1 - Math.pow(0.999, net.t);
+    for (i = 0; i < net.P.length; i++) {
+      q = net.P[i];
+      for (j = 0; j < q.p.length; j++) {
+        var g = q.g[j];
+        if (l2 && q.reg) g += net.lam * q.p[j];
+        q.m[j] = 0.9 * q.m[j] + 0.1 * g;
+        q.v[j] = 0.999 * q.v[j] + 0.001 * g * g;
+        q.p[j] -= LR * (q.m[j] / c1) / (Math.sqrt(q.v[j] / c2) + 1e-8);
+        if (l1 && q.reg) {
+          var w = q.p[j];
+          q.p[j] = Math.sign(w) * Math.max(Math.abs(w) - LR * net.lam, 0);
+        }
+      }
+    }
+    return loss / n;
+  }
+
+  function meanLoss(net, list) {
+    var tot = 0;
+    for (var s = 0; s < list.length; s++) {
+      var smp = net.samples[list[s]];
+      forward(net, smp.x);
+      tot -= Math.log(Math.max(net.pr[smp.y], 1e-12));
+    }
+    return tot / list.length;
+  }
+  function probsOf(net, xs) {
+    forward(net, xs);
+    return [net.pr[0], net.pr[1], net.pr[2]];
+  }
+  function argmax3(p) { return p[0] >= p[1] && p[0] >= p[2] ? 0 : (p[1] >= p[2] ? 1 : 2); }
+  // </core>
+  // <words>
+  // g: 0 чоловічий, 1 жіночий, 2 середній. grp: група у списках
+  var ALPHA = 'абвгґдеєжзиіїйклмнопрстуфхцчшщьюя\'';  // 34 символи; індекс 34 = «_» (порожньо), 35 = «?»
+  var NSYM = ALPHA.length + 2;
+  function letterIdx(ch) { var i = ALPHA.indexOf(ch); return i < 0 ? NSYM - 1 : i; }
+  function encodeWord(w, npos) {
+    w = w.toLowerCase().replace(/[’ʼ`]/g, "'");
+    var chars = w.split(''), xs = [];
+    for (var p = 0; p < npos; p++) {
+      var ci = chars.length - npos + p;
+      xs.push(p * NSYM + (ci < 0 ? NSYM - 2 : letterIdx(chars[ci])));
+    }
+    return xs;
+  }
+  function W(g, grp, list) { return list.split(' ').map(function (w) { return { w: w, g: g, grp: grp }; }); }
+  var WORDS0 = [].concat(
+    W(0, 'mc', 'стіл дім кіт ліс сад брат хліб лікар вечір ніс друг пес'),
+    W(0, 'my', 'герой чай край бій учитель день кінь олень'),
+    W(0, 'mk', 'дідько вуйко хвалько батько синько всезнайко наливайко дурко хлопчисько Марко Левко'),
+    W(1, 'f', 'лопата книга вода рука нога земля вишня надія пісня неділя сестра лампа ручка мова гора зірка'),
+    W(2, 'no', 'шило мило крило тіло вікно село слово місто дерево перо відро озеро весло вино зерно'),
+    W(2, 'ne', 'море поле сонце серце лице'),
+    W(2, 'ny', 'життя знання питання заняття коріння'),
+    W(0, 'ok', 'Грицько Сашко Юрко Василько Андрійко сусід'),
+    W(2, 'ok', 'болото колесо ядро'),
+    W(1, 'ok', 'каша мавпа'),
+    W(2, 'kn', 'серденько прізвисько яблуко молоко око'),
+    W(0, 'om', 'Петро Дмитро Данило Павло Михайло'),
+    W(0, 'am', 'Микита Ілля слуга суддя')
+  );
+  var TEST_GROUPS = { ok: 1, kn: 1, om: 1, am: 1 };
+  // </words>
+  /* =================================================================
+     Shared UI: helpers, Lab engine (controls, loop, graph, weights, loss)
+     ================================================================= */
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var reduce = false;
+  try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fnum(v, d) { return v.toFixed(d).replace('.', ',').replace('-', '−'); }
+  function floss(v) { return v >= 0.1 ? fnum(v, 2) : v >= 0.001 ? fnum(v, 3) : fnum(v, 4); }
+  function pipsHTML(k) { return '<i></i>'.repeat(k + 1); }
+  function ranges(list) {
+    var out = [], i = 0;
+    while (i < list.length) {
+      var j = i;
+      while (j + 1 < list.length && list[j + 1] === list[j] + 1) j++;
+      if (j - i + 1 >= 3) out.push(list[i] + '–' + list[j]);
+      else for (var k = i; k <= j; k++) out.push(String(list[k]));
+      i = j + 1;
+    }
+    return out.join(', ');
+  }
+  function shuffle(arr, rng) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function plural(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+
+  /* ---------- tooltip ---------- */
+  function tipFill(title, sub, rows) {
+    var tip = $('#tip');
+    tip.innerHTML = '';
+    var t = document.createElement('div'); t.className = 't'; t.textContent = title; tip.appendChild(t);
+    if (sub) { var s = document.createElement('div'); s.className = 's'; s.textContent = sub; tip.appendChild(s); }
+    (rows || []).forEach(function (r) {
+      var row = document.createElement('div'); row.className = 'r';
+      var l = document.createElement('span'); l.className = 'l';
+      var k = document.createElement('i'); k.className = 'key'; k.style.background = r.color;
+      var tx = document.createElement('span'); tx.textContent = r.label; if (r.bold) tx.style.fontWeight = '600';
+      l.appendChild(k); l.appendChild(tx);
+      var v = document.createElement('span'); v.className = 'v'; v.textContent = r.value;
+      row.appendChild(l); row.appendChild(v); tip.appendChild(row);
+    });
+  }
+  function tipNote(text) {
+    var d = document.createElement('div'); d.className = 's'; d.textContent = text; $('#tip').appendChild(d);
+  }
+  function placeTip(x, y) {
+    var tip = $('#tip'); tip.hidden = false;
+    var w = tip.offsetWidth, h = tip.offsetHeight, vw = innerWidth, vh = innerHeight;
+    var left = x + 14, top = y + 14;
+    if (left + w > vw - 8) left = Math.max(8, x - w - 14);
+    if (top + h > vh - 8) top = Math.max(8, y - h - 14);
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  function hideTip() { $('#tip').hidden = true; $$('.xh').forEach(function (l) { l.setAttribute('visibility', 'hidden'); }); }
+
+  /* ---------- heat table (weights) ---------- */
+  function heatTable(rowLabels, colLabels, vals, sep) {
+    var mx = 0.0001;
+    vals.forEach(function (r) { r.forEach(function (v) { mx = Math.max(mx, Math.abs(v)); }); });
+    var h = '<div class="hmwrap"><table class="hm"><thead><tr><th></th>';
+    colLabels.forEach(function (c) { h += '<th scope="col">' + c + '</th>'; });
+    h += '</tr></thead><tbody>';
+    vals.forEach(function (row, r) {
+      h += '<tr' + (sep && sep[r] ? ' class="sep"' : '') + '><th scope="row">' + rowLabels[r] + '</th>';
+      row.forEach(function (v) {
+        if (Math.abs(v) < 0.05) h += '<td class="zero">0</td>';
+        else h += '<td class="' + (v > 0 ? 'pos' : 'neg') + '" style="--p:' + Math.round(Math.abs(v) / mx * 80) + '%">' + fnum(v, 1) + '</td>';
+      });
+      h += '</tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+
+  /* ---------- Lab ---------- */
+  var MAXEP0 = 2500, PER_FRAME = 30;
+  var labs = {}, activeLab = null;
+
+  function Lab(kind, task, root) {
+    this.kind = kind; this.t = task; this.root = root;
+    this.st = { H: task.def.H, relu: task.def.relu, reg: task.def.reg, lam: task.def.lam, seed: 1, win: task.def.win, maxEp: MAXEP0, running: false, frame: 0 };
+    this.net = null; this.S = []; this.P = new Float64Array(0); this.pred = new Int8Array(0);
+    this.hmax = new Float64Array(1); this.hidden = new Set();
+    this.focus = null; this.rafId = 0; this.debounce = 0; this.focusRaf = 0; this.inited = false;
+    root.innerHTML = this.shell();
+    task.build(this);
+    this.wire();
+  }
+  Lab.prototype.q = function (role) { return this.root.querySelector('[data-r="' + role + '"]'); };
+  Lab.prototype.qa = function (role) { return $$('[data-r="' + role + '"]', this.root); };
+  Lab.prototype.id = function (s) { return this.kind + '-' + s; };
+
+  Lab.prototype.shell = function () {
+    var t = this.t, id = this.id.bind(this);
+    return '' +
+    '<header class="hero">' + t.hero + '</header>' +
+    '<section class="panel hook" aria-label="Що тут відбувається">' + t.hook + '</section>' +
+    '<section class="panel" aria-label="Експерименти"><div class="panel-head"><h2>Спробуйте</h2><p class="sub">Кожна кнопка налаштовує мережу, запускає навчання й прокручує до результату.</p></div><div class="exps" data-r="exps"></div></section>' +
+    '<section class="panel" aria-label="Мережа"><div class="panel-head"><h2>Мережа</h2><p class="sub" data-r="arch"></p></div>' +
+      '<div class="netpanel"><div class="ctls">' +
+        '<div class="ctl"><div class="lab"><label for="' + id('h') + '">Нейрони в прихованому шарі<button type="button" class="why" data-th="act">що це?</button></label><span class="val" data-r="hVal"></span></div>' +
+          '<input type="range" id="' + id('h') + '" data-r="h" min="0" max="8" step="1" value="2"><p class="sub" data-r="hSub"></p></div>' +
+        '<div class="ctl"><div class="lab"><span id="' + id('actLab') + '">Активація<button type="button" class="why" data-th="act">що це?</button></span></div>' +
+          '<div class="seg" role="group" aria-labelledby="' + id('actLab') + '"><button type="button" data-r="actRelu">ReLU</button><button type="button" data-r="actTanh">tanh</button></div></div>' +
+        '<div class="ctl"><div class="lab"><span id="' + id('regLab') + '">Регуляризація<button type="button" class="why" data-th="reg">що це?</button></span></div>' +
+          '<div class="seg three" role="group" aria-labelledby="' + id('regLab') + '"><button type="button" data-r="regNone">без</button><button type="button" data-r="regL1">L1</button><button type="button" data-r="regL2">L2</button></div></div>' +
+        '<div class="ctl"><div class="lab"><label for="' + id('lam') + '">Сила штрафу λ</label><span class="val" data-r="lamVal"></span></div>' +
+          '<input type="range" id="' + id('lam') + '" data-r="lam" min="0" max="0.1" step="0.005" value="0.01"></div>' +
+        (t.extraCtl ? t.extraCtl(this) : '') +
+        '<div class="ctl"><div class="lab"><span>Початкові ваги</span><span class="val" data-r="seedVal"></span></div>' +
+          '<div class="row" style="margin-top:8px"><button type="button" class="btn primary" data-r="run">Пауза</button><button type="button" class="btn" data-r="redo">Заново</button><button type="button" class="btn" data-r="reseed">Нове зерно</button></div></div>' +
+      '</div>' +
+      '<div class="graphbox">' +
+        '<div class="focusline" data-r="focusline"></div>' +
+        '<div><div class="lab" style="margin-bottom:6px"><span>Вхід мережі (one-hot)<button type="button" class="why" data-th="onehot">що це?</button></span></div><div class="ohwrap" data-r="onehot"></div></div>' +
+        '<div data-r="graph"></div>' +
+        '<div class="glegend"><span><i style="background:var(--wpos)"></i>додатна вага</span><span><i style="background:var(--wneg)"></i>від\'ємна вага</span><span>товщина — сила, яскравість — шлях вибраного прикладу</span><span data-r="edgeinfo"></span></div>' +
+      '</div></div></section>' +
+    '<section class="panel" data-r="verdictPanel" aria-label="Результат"><div class="verdict"><div class="v-main"><div class="badge run" data-r="vBadge" aria-hidden="true">…</div><div><p class="v-title" data-r="vTitle">Мережа вчиться</p><p class="v-detail" data-r="vDetail"></p></div></div>' +
+      '<div class="stats"><div class="stat"><div class="k">Епоха</div><div class="v" data-r="stEp">0</div></div><div class="stat"><div class="k">Втрата</div><div class="v" data-r="stLoss">—</div></div><div class="stat"><div class="k">У навчанні</div><div class="v" data-r="stTrain">—</div></div><div class="stat"><div class="k">Приховані</div><div class="v" data-r="stHid">—</div></div></div></div>' +
+      '<p class="sr" data-r="srLive" aria-live="polite"></p></section>' +
+    t.dataPanel +
+    '<div class="twin">' + t.rulePanel + 
+      '<section class="panel chart" aria-label="Крива втрат"><div class="panel-head"><h2>Втрата під час навчання<button type="button" class="why" data-th="over">перенавчання</button></h2><p class="sub">Логарифмічна шкала. Менше означає краще.</p></div><div class="legend2" data-r="lossLegend"></div><div data-r="lossSvg"></div><details><summary>Таблиця значень</summary><div data-r="lossTable"></div></details></section>' +
+    '</div>' +
+    '<section class="panel" aria-label="Ваги мережі"><div class="panel-head"><h2>Ваги</h2><p class="sub" data-r="wSub"></p></div><div class="scale"><span>гальмує</span><i></i><span>підсилює</span></div><div class="maps" data-r="maps"></div><p class="note">Виходи показано відносно останнього класу: softmax не змінюється, якщо до всіх виходів додати те саме, тож важить лише різниця.</p></section>' +
+    t.probePanel;
+  };
+
+  /* ----- setup / wiring ----- */
+  Lab.prototype.wire = function () {
+    var lab = this, st = this.st;
+    this.q('h').addEventListener('input', function () { st.H = +this.value; lab.syncControls(); lab.scheduleRestart(); });
+    this.q('lam').addEventListener('input', function () { st.lam = +this.value; lab.syncControls(); lab.scheduleRestart(); });
+    this.q('actRelu').addEventListener('click', function () { if (!st.relu) { st.relu = true; lab.restart(false); } });
+    this.q('actTanh').addEventListener('click', function () { if (st.relu) { st.relu = false; lab.restart(false); } });
+    [['regNone', 'none'], ['regL1', 'l1'], ['regL2', 'l2']].forEach(function (p) {
+      lab.q(p[0]).addEventListener('click', function () { if (st.reg !== p[1]) { st.reg = p[1]; if (p[1] !== 'none' && st.lam === 0) st.lam = 0.01; lab.restart(false); } });
+    });
+    this.q('redo').addEventListener('click', function () { lab.restart(false); });
+    this.q('reseed').addEventListener('click', function () { st.seed = 1 + Math.floor(Math.random() * 9999); lab.restart(false); });
+    this.q('run').addEventListener('click', function () {
+      if (st.running) { lab.pause(); lab.renderAll(false, true); }
+      else { if (lab.net.t >= st.maxEp) st.maxEp += 1000; lab.start(); }
+    });
+    // loss chart hover
+    var ls = this.q('lossSvg');
+    ls.addEventListener('pointermove', function (e) { if (e.target.getAttribute('data-hit')) lab.chartHover(e); });
+    ls.addEventListener('pointerleave', hideTip);
+    if (this.t.wire) this.t.wire(this);
+    this.buildExps();
+  };
+  Lab.prototype.buildExps = function () {
+    var lab = this, box = this.q('exps');
+    this.t.experiments.forEach(function (ex) {
+      var d = document.createElement('div'); d.className = 'exp';
+      d.innerHTML = '<div><h3>' + ex.title + '</h3><p>' + ex.text + '</p></div>';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.textContent = ex.btn || 'Запустити';
+      b.addEventListener('click', function () { lab.applyConfig(ex.cfg); });
+      d.appendChild(b); box.appendChild(d);
+    });
+  };
+  Lab.prototype.applyConfig = function (cfg) {
+    var st = this.st;
+    ['H', 'relu', 'reg', 'lam', 'seed', 'win'].forEach(function (k) { if (cfg[k] !== undefined) st[k] = cfg[k]; });
+    if (cfg.apply) cfg.apply(this);
+    if (cfg.hidden) this.hidden = new Set(typeof cfg.hidden === 'function' ? cfg.hidden(this) : cfg.hidden);
+    this.restart(false);
+    var vp = this.q('verdictPanel');
+    try { vp.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); } catch (e) {}
+  };
+  Lab.prototype.syncControls = function () {
+    var st = this.st;
+    this.q('h').value = st.H; this.q('hVal').textContent = st.H;
+    this.q('lam').value = st.lam; this.q('lamVal').textContent = st.reg === 'none' ? '—' : fnum(st.lam, 3);
+    this.q('lam').disabled = st.reg === 'none';
+    this.q('actRelu').setAttribute('aria-pressed', st.relu ? 'true' : 'false');
+    this.q('actTanh').setAttribute('aria-pressed', st.relu ? 'false' : 'true');
+    this.q('actRelu').disabled = this.q('actTanh').disabled = st.H === 0;
+    this.q('regNone').setAttribute('aria-pressed', st.reg === 'none' ? 'true' : 'false');
+    this.q('regL1').setAttribute('aria-pressed', st.reg === 'l1' ? 'true' : 'false');
+    this.q('regL2').setAttribute('aria-pressed', st.reg === 'l2' ? 'true' : 'false');
+    this.q('seedVal').textContent = 'зерно ' + st.seed;
+    this.q('hSub').textContent = st.H === 0 ? 'Лінійна модель: входи напряму голосують за відповідь.' : 'Нуль означає лінійну модель без прихованого шару.';
+    if (this.t.syncControls) this.t.syncControls(this);
+  };
+
+  /* ----- network lifecycle ----- */
+  Lab.prototype.newNet = function () {
+    var st = this.st, S = this.t.samples(this), tr = [], hd = [], me = this;
+    S.forEach(function (s, i) { (me.hidden.has(i) ? hd : tr).push(i); });
+    this.S = S;
+    this.net = makeNet({ nIn: this.t.nIn(this), H: st.H, relu: st.relu, reg: st.reg, lam: st.lam, seed: st.seed, samples: S, trainIdx: tr, hiddenIdx: hd });
+    st.maxEp = MAXEP0;
+    this.P = new Float64Array(S.length * KOUT); this.pred = new Int8Array(S.length);
+    this.hmax = new Float64Array(Math.max(st.H, 1)).fill(1e-6);
+  };
+  Lab.prototype.trainSome = function (k) {
+    var net = this.net, mx = this.st.maxEp;
+    for (var i = 0; i < k && net.t < mx; i++) {
+      net.lossT.push(trainStep(net));
+      if (net.hiddenIdx.length) net.lossH.push(meanLoss(net, net.hiddenIdx));
+    }
+  };
+  Lab.prototype.predictAll = function () {
+    var net = this.net, S = this.S, H = net.H, i, j, k;
+    this.hmax.fill(1e-6);
+    for (i = 0; i < S.length; i++) {
+      forward(net, S[i].x);
+      for (k = 0; k < KOUT; k++) this.P[i * KOUT + k] = net.pr[k];
+      this.pred[i] = argmax3(net.pr);
+      for (j = 0; j < H; j++) { var a = Math.abs(net.h[j]); if (a > this.hmax[j]) this.hmax[j] = a; }
+    }
+  };
+  Lab.prototype.counts = function () {
+    var S = this.S, tOk = 0, hOk = 0, tN = 0, hN = 0, errs = [];
+    for (var i = 0; i < S.length; i++) {
+      var ok = this.pred[i] === S[i].y, hid = this.hidden.has(i);
+      if (hid) { hN++; if (ok) hOk++; } else { tN++; if (ok) tOk++; }
+      if (!ok) errs.push(i);
+    }
+    return { tOk: tOk, tN: tN, hOk: hOk, hN: hN, errs: errs };
+  };
+  Lab.prototype.renderAll = function (done, heavy) {
+    this.predictAll();
+    this.t.renderPred(this);
+    this.renderVerdict(done);
+    this.t.renderRule(this, done);
+    this.renderLoss();
+    if (heavy) { this.renderWeights(); this.renderFocus(); this.t.renderProbe(this); }
+  };
+  Lab.prototype.renderVerdict = function (done) {
+    var net = this.net, c = this.counts(), v = this.t.verdict(this, c, done);
+    this.q('stEp').textContent = net.t;
+    var last = net.lossT.length ? net.lossT[net.lossT.length - 1] : null;
+    this.q('stLoss').textContent = last === null ? '—' : floss(last);
+    this.q('stTrain').textContent = c.tOk + ' з ' + c.tN;
+    this.q('stHid').textContent = c.hN ? c.hOk + ' з ' + c.hN : '—';
+    var b = this.q('vBadge'); b.className = 'badge ' + v.cls; b.textContent = v.glyph;
+    this.q('vTitle').textContent = v.title; this.q('vDetail').textContent = v.detail;
+    if (done) this.q('srLive').textContent = v.title + '. ' + v.detail;
+    this.vinfo = v; this.cnt = c;
+  };
+  Lab.prototype.syncRun = function () {
+    var b = this.q('run');
+    b.textContent = this.st.running ? 'Пауза' : (this.net.t >= this.st.maxEp ? 'Ще 1000 епох' : 'Продовжити');
+  };
+  Lab.prototype.tick = function () {
+    this.rafId = 0;
+    if (!this.st.running) return;
+    this.st.frame++;
+    this.trainSome(reduce ? 5000 : PER_FRAME);
+    var done = this.net.t >= this.st.maxEp;
+    this.renderAll(done, done || this.st.frame % 3 === 0);
+    if (done) { this.st.running = false; this.syncRun(); return; }
+    var lab = this; this.rafId = requestAnimationFrame(function () { lab.tick(); });
+  };
+  Lab.prototype.start = function () {
+    var lab = this;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.st.running = true; this.syncRun();
+    this.rafId = requestAnimationFrame(function () { lab.tick(); });
+  };
+  Lab.prototype.pause = function () {
+    this.st.running = false;
+    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = 0; }
+    this.syncRun();
+  };
+  Lab.prototype.restart = function (sync) {
+    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = 0; }
+    clearTimeout(this.debounce);
+    this.newNet();
+    this.t.renderData(this);
+    this.syncControls();
+    if (sync) {
+      this.trainSome(this.st.maxEp); this.st.running = false; this.syncRun();
+      this.renderAll(true, true);
+    } else {
+      this.renderAll(false, true); this.start();
+    }
+  };
+  Lab.prototype.scheduleRestart = function () {
+    var lab = this; clearTimeout(this.debounce);
+    this.debounce = setTimeout(function () { lab.restart(false); }, 140);
+  };
+  Lab.prototype.ensureInit = function () {
+    if (this.inited) return;
+    this.inited = true;
+    this.hidden = new Set(this.t.defaultHidden(this));
+    this.setFocusSample(this.t.defaultFocus(this), true);
+    this.restart(true);
+  };
+
+  /* ----- focus (which example is shown in the graph) ----- */
+  Lab.prototype.setFocusSample = function (smp, silent) {
+    this.focus = smp;
+    if (silent) return;
+    var lab = this;
+    if (this.focusRaf) return;
+    this.focusRaf = requestAnimationFrame(function () { lab.focusRaf = 0; lab.renderFocus(); });
+  };
+  Lab.prototype.renderFocus = function () {
+    if (!this.focus || !this.net) return;
+    var t = this.t;
+    if (t.refocus) this.focus = t.refocus(this, this.focus);
+    var f = this.focus, p = probsOf(this.net, f.x), k = argmax3(p);
+    var cl = t.cls;
+    var h = 'Показано шлях для <b>' + esc(f.label) + '</b>';
+    if (f.y !== undefined && f.y !== null) h += '<span>має бути <b>' + cl[f.y].name + '</b></span>';
+    h += '<span>мережа: <b>' + cl[k].name + '</b> (' + Math.round(p[k] * 100) + '%)</span>';
+    this.q('focusline').innerHTML = h;
+    this.q('onehot').innerHTML = t.onehot(this, f);
+    this.renderGraph(f, p);
+  };
+
+  /* ----- network graph ----- */
+  Lab.prototype.renderGraph = function (f, p) {
+    var net = this.net, t = this.t, H = net.H, ins = t.graphInputs(this, f), n = ins.length, i, j, k;
+    var W = 640, HG = n > 8 ? 450 : 320, xh = 330, xo = 500, maxc = 6;
+    ins.forEach(function (d) { maxc = Math.max(maxc, String(d.label).length, d.title ? String(d.title).length : 0); });
+    var xi = Math.max(100, Math.round(26 + maxc * 6.8));
+    var gaps = ins.filter(function (d) { return d.gap; }).length;
+    var span = Math.max(1, (n - 1) + gaps * 0.9);
+    var unit = Math.min(54, (HG - 70) / span), tot = span * unit, y0 = (HG - tot) / 2, cur = y0, yi = [];
+    for (i = 0; i < n; i++) { if (i > 0 && ins[i].gap) cur += unit * 0.9; yi.push(cur); cur += unit; }
+    var hs = H > 1 ? Math.min(56, (HG - 90) / (H - 1)) : 0, hy0 = HG / 2 - (H - 1) * hs / 2, yh = [];
+    for (j = 0; j < H; j++) yh.push(hy0 + j * hs);
+    var yo = [HG / 2 - 82, HG / 2, HG / 2 + 82];
+    // forward for the focus sample
+    forward(net, f.x);
+    var hv = []; for (j = 0; j < H; j++) hv.push(net.h[j]);
+    var W1 = H ? net.qW1.p : null, Wo = net.qWo.p;
+    var mx1 = 1e-6, mx2 = 1e-6, shown = 0, total = 0;
+    for (i = 0; i < n; i++) {
+      if (H) for (j = 0; j < H; j++) mx1 = Math.max(mx1, Math.abs(W1[ins[i].i * H + j]));
+      else for (k = 0; k < KOUT; k++) mx1 = Math.max(mx1, Math.abs(Wo[ins[i].i * KOUT + k]));
+    }
+    if (H) for (j = 0; j < H; j++) for (k = 0; k < KOUT; k++) mx2 = Math.max(mx2, Math.abs(Wo[j * KOUT + k]));
+    function edge(x1, y1, x2, y2, w, mx, act, boost) {
+      var r = Math.abs(w) / mx; total++;
+      if (r < 0.03) return '';
+      shown++;
+      var op = act ? (0.3 + 0.7 * r) : (0.05 + 0.3 * r), sw = act ? (0.6 + 3.2 * r) : (0.4 + 1.1 * r);
+      if (boost !== undefined) { op = 0.05 + 0.3 * r + boost * 0.65 * r; sw = 0.4 + 1.1 * r + boost * 2.1 * r; }
+      return '<line x1="' + x1 + '" y1="' + y1.toFixed(1) + '" x2="' + x2 + '" y2="' + y2.toFixed(1) + '" stroke-width="' + sw.toFixed(2) + '" style="stroke:var(--' + (w > 0 ? 'wpos' : 'wneg') + ');stroke-opacity:' + op.toFixed(2) + '"/>';
+    }
+    var s = '', pass;
+    // edges: faint first, active on top
+    for (pass = 0; pass < 2; pass++) {
+      if (H) {
+        for (i = 0; i < n; i++) {
+          var act = !!ins[i].active; if ((pass === 1) !== act) continue;
+          for (j = 0; j < H; j++) s += edge(xi, yi[i], xh, yh[j], W1[ins[i].i * H + j], mx1, act);
+        }
+        if (pass === 1) {
+          for (j = 0; j < H; j++) {
+            var hr = Math.min(1, Math.abs(hv[j]) / this.hmax[j]);
+            for (k = 0; k < KOUT; k++) s += edge(xh, yh[j], xo, yo[k], Wo[j * KOUT + k], mx2, true, hr);
+          }
+        }
+      } else {
+        for (i = 0; i < n; i++) {
+          var act2 = !!ins[i].active; if ((pass === 1) !== act2) continue;
+          for (k = 0; k < KOUT; k++) s += edge(xi, yi[i], xo, yo[k], Wo[ins[i].i * KOUT + k], mx1, act2);
+        }
+      }
+    }
+    // input nodes + labels
+    for (i = 0; i < n; i++) {
+      var d = ins[i];
+      if (d.title) s += '<text class="g-h" x="' + (xi - 14) + '" y="' + (yi[i] - 14) + '" text-anchor="end">' + d.title + '</text>';
+      s += '<circle class="g-in' + (d.active ? ' on' : '') + '" cx="' + xi + '" cy="' + yi[i].toFixed(1) + '" r="' + (d.active ? 6 : 4.5) + '"/>';
+      s += '<text class="g-t mono' + (d.active ? ' on' : ' dim') + '" x="' + (xi - 13) + '" y="' + (yi[i] + 3.5).toFixed(1) + '" text-anchor="end">' + esc(d.label) + '</text>';
+    }
+    // hidden nodes
+    for (j = 0; j < H; j++) {
+      var a = Math.min(1, Math.abs(hv[j]) / this.hmax[j]), pos = hv[j] >= 0;
+      s += '<circle class="g-hid" cx="' + xh + '" cy="' + yh[j].toFixed(1) + '" r="15"/>';
+      s += '<circle cx="' + xh + '" cy="' + yh[j].toFixed(1) + '" r="15" style="fill:var(--' + (pos ? 'wpos' : 'wneg') + ');fill-opacity:' + (0.08 + 0.8 * a).toFixed(2) + '"/>';
+      s += '<text class="g-t mono on" x="' + xh + '" y="' + (yh[j] + 3.5).toFixed(1) + '" text-anchor="middle">' + fnum(hv[j], 1) + '</text>';
+      s += '<text class="g-t dim" x="' + xh + '" y="' + (yh[j] + 30).toFixed(1) + '" text-anchor="middle">Н' + (j + 1) + '</text>';
+    }
+    if (H) s += '<text class="g-h" x="' + xh + '" y="' + (hy0 - 38).toFixed(1) + '" text-anchor="middle">прихований шар</text>';
+    // output nodes
+    var kBest = argmax3(p);
+    for (k = 0; k < KOUT; k++) {
+      var truth = f.y === k;
+      s += '<circle class="g-out' + (truth ? ' truth' : '') + '" cx="' + xo + '" cy="' + yo[k] + '" r="17" style="fill:var(--k' + k + ');fill-opacity:' + (0.1 + 0.9 * p[k]).toFixed(2) + '"/>';
+      s += '<text class="g-t mono on" x="' + xo + '" y="' + (yo[k] + 3.5) + '" text-anchor="middle" style="fill:' + (p[k] > 0.55 ? 'var(--on' + k + ')' : 'var(--ink)') + '">' + Math.round(p[k] * 100) + '%</text>';
+      s += '<text class="g-t' + (k === kBest ? ' on' : '') + '" x="' + (xo + 26) + '" y="' + (yo[k] + 4) + '">' + t.cls[k].name + (truth ? ' ✓' : '') + '</text>';
+    }
+    s += '<text class="g-h" x="' + xo + '" y="' + (yo[0] - 36) + '" text-anchor="middle">вихід</text>';
+    this.q('graph').innerHTML = '<svg class="gsvg" viewBox="0 0 ' + W + ' ' + HG + '" role="img" aria-label="Схема мережі: входи, прихований шар, виходи">' + s + '</svg>';
+    this.q('edgeinfo').textContent = 'Показано ' + shown + ' зв\'язків із ' + total + (shown < total ? ' (нульові не малюються)' : '') + '.';
+  };
+
+  /* ----- weights heatmaps ----- */
+  Lab.prototype.renderWeights = function () {
+    var net = this.net, H = net.H, Wo = net.qWo.p, bo = net.qbo.p, t = this.t, i, j;
+    var rows = t.weightRows(this), labels = rows.map(function (r) { return r.label; }), sep = {};
+    rows.forEach(function (r, ix) { if (r.sep) sep[ix] = true; });
+    var outCols = [0, 1].map(function (c) { return '<span class="sw" style="background:var(--k' + c + ')"></span>' + t.cls[c].short; });
+    var html = '', vals = [];
+    labels.push('зсув'); sep[labels.length - 1] = true;
+    if (H === 0) {
+      rows.forEach(function (r) { vals.push([Wo[r.idx * 3] - Wo[r.idx * 3 + 2], Wo[r.idx * 3 + 1] - Wo[r.idx * 3 + 2]]); });
+      vals.push([bo[0] - bo[2], bo[1] - bo[2]]);
+      html = '<div class="mapbox"><h3>Вхід → виходи</h3>' + heatTable(labels, outCols, vals, sep) + '</div>';
+      this.q('wSub').textContent = 'У лінійній моделі кожен вхід голосує за відповідь напряму.';
+    } else {
+      var W1 = net.qW1.p, b1 = net.qb1.p, cols = [];
+      for (j = 0; j < H; j++) cols.push('Н' + (j + 1));
+      rows.forEach(function (r) { var v = []; for (j = 0; j < H; j++) v.push(W1[r.idx * H + j]); vals.push(v); });
+      var rb = []; for (j = 0; j < H; j++) rb.push(b1[j]); vals.push(rb);
+      html = '<div class="mapbox"><h3>Вхід → нейрони</h3>' + heatTable(labels, cols, vals, sep) + '</div>';
+      var rows2 = [], lab2 = [];
+      for (j = 0; j < H; j++) { rows2.push([Wo[j * 3] - Wo[j * 3 + 2], Wo[j * 3 + 1] - Wo[j * 3 + 2]]); lab2.push('Н' + (j + 1)); }
+      rows2.push([bo[0] - bo[2], bo[1] - bo[2]]); lab2.push('зсув');
+      var sep2 = {}; sep2[H] = true;
+      html += '<div class="mapbox"><h3>Нейрони → виходи</h3>' + heatTable(lab2, outCols, rows2, sep2) + '</div>';
+      this.q('wSub').textContent = 'Кожен нейрон може стати детектором: дивіться, які його входи червоні, а які сині.';
+    }
+    this.q('maps').innerHTML = html;
+    var tot = 0, nz = 0;
+    net.P.forEach(function (q) { if (q.reg) { tot += q.p.length; for (var k = 0; k < q.p.length; k++) if (Math.abs(q.p[k]) > 0.05) nz++; } });
+    var regTxt = net.reg === 'none' ? 'без регуляризації' : (net.reg === 'l1' ? 'L1' : 'L2') + ', λ = ' + fnum(net.lam, 3);
+    this.q('arch').textContent = t.archLine(this) + ' · ' + (H ? H + ' ' + plural(H, 'нейрон', 'нейрони', 'нейронів') + ' (' + (net.relu ? 'ReLU' : 'tanh') + ')' : 'без прихованого шару') + ' · ' + regTxt + '. Помітних ваг (|w| > 0,05): ' + nz + ' з ' + tot + '.';
+  };
+
+  /* ----- loss chart ----- */
+  var CH = { W: 560, H: 240, l: 54, r: 14, t: 12, b: 30 };
+  Lab.prototype.lossGeom = function () {
+    var mx = this.st.maxEp, yMin = Math.log10(0.0001), yMax = Math.log10(2);
+    return {
+      xs: function (e) { return CH.l + e / mx * (CH.W - CH.l - CH.r); },
+      ys: function (v) { return CH.t + (yMax - Math.log10(Math.max(v, 0.0001))) / (yMax - yMin) * (CH.H - CH.t - CH.b); }
+    };
+  };
+  function linePath(arr, g) {
+    var d = '', step = Math.max(1, Math.floor(arr.length / 400));
+    for (var i = 0; i < arr.length; i += step) d += (d ? 'L' : 'M') + g.xs(i + 1).toFixed(1) + ' ' + g.ys(arr[i]).toFixed(1);
+    var li = arr.length - 1;
+    if (li >= 0 && (li % step)) d += 'L' + g.xs(li + 1).toFixed(1) + ' ' + g.ys(arr[li]).toFixed(1);
+    return d;
+  }
+  Lab.prototype.renderLoss = function () {
+    var net = this.net, g = this.lossGeom(), hasH = net.lossH.length > 0, s = '', e;
+    [1, 0.1, 0.01, 0.001, 0.0001].forEach(function (v) {
+      s += '<line class="g-line" x1="' + CH.l + '" x2="' + (CH.W - CH.r) + '" y1="' + g.ys(v) + '" y2="' + g.ys(v) + '"/>';
+      s += '<text class="t-ax" x="' + (CH.l - 8) + '" y="' + (g.ys(v) + 4) + '" text-anchor="end">' + String(v).replace('.', ',') + '</text>';
+    });
+    for (e = 0; e <= this.st.maxEp; e += 500) s += '<text class="t-ax" x="' + g.xs(e) + '" y="' + (CH.H - 8) + '" text-anchor="middle">' + e + '</text>';
+    s += '<line class="a-line" x1="' + CH.l + '" x2="' + (CH.W - CH.r) + '" y1="' + (CH.H - CH.b) + '" y2="' + (CH.H - CH.b) + '"/>';
+    s += '<text class="t-ax" x="' + (CH.W - CH.r) + '" y="' + (CH.H - CH.b - 6) + '" text-anchor="end">епоха</text>';
+    if (net.lossT.length) {
+      s += '<path class="ln ln-train" d="' + linePath(net.lossT, g) + '"/>';
+      var li = net.lossT.length - 1;
+      s += '<circle class="dot-train" r="4.5" cx="' + g.xs(li + 1) + '" cy="' + g.ys(net.lossT[li]) + '"/>';
+    }
+    if (hasH) {
+      s += '<path class="ln ln-hid" d="' + linePath(net.lossH, g) + '"/>';
+      var lh = net.lossH.length - 1;
+      s += '<circle class="dot-hid" r="4.5" cx="' + g.xs(lh + 1) + '" cy="' + g.ys(net.lossH[lh]) + '"/>';
+    }
+    s += '<line class="xh" visibility="hidden" y1="' + CH.t + '" y2="' + (CH.H - CH.b) + '"/>';
+    s += '<rect data-hit="1" x="' + CH.l + '" y="' + CH.t + '" width="' + (CH.W - CH.l - CH.r) + '" height="' + (CH.H - CH.t - CH.b) + '" fill="transparent"/>';
+    this.q('lossSvg').innerHTML = '<svg viewBox="0 0 ' + CH.W + ' ' + CH.H + '" role="img" aria-label="Крива втрати під час навчання, логарифмічна шкала">' + s + '</svg>';
+    this.q('lossLegend').innerHTML = hasH
+      ? '<span><i class="lkey" style="background:var(--s1)"></i>на навчальних прикладах</span><span><i class="lkey" style="background:var(--s2)"></i>на схованих прикладах</span>'
+      : '<span><i class="lkey" style="background:var(--s1)"></i>на навчальних прикладах (схованих немає)</span>';
+    var rows = '', marks = [1, 100, 250, 500, 1000, 1500, 2000, 2500, 3500];
+    marks.forEach(function (m) {
+      if (m > net.lossT.length) return;
+      rows += '<tr><td>' + m + '</td><td>' + floss(net.lossT[m - 1]) + '</td>' + (hasH ? '<td>' + floss(net.lossH[m - 1]) + '</td>' : '') + '</tr>';
+    });
+    this.q('lossTable').innerHTML = '<table class="data"><thead><tr><th>Епоха</th><th>Навчання</th>' + (hasH ? '<th>Приховані</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  };
+  Lab.prototype.chartHover = function (evt) {
+    var net = this.net, svg = this.q('lossSvg').querySelector('svg');
+    if (!svg || !net.lossT.length) return;
+    var r = svg.getBoundingClientRect(), sc = CH.W / r.width, x = (evt.clientX - r.left) * sc;
+    var ep = Math.round((x - CH.l) / (CH.W - CH.l - CH.r) * this.st.maxEp);
+    ep = Math.max(1, Math.min(net.lossT.length, ep));
+    var g = this.lossGeom(), xh = svg.querySelector('.xh');
+    xh.setAttribute('visibility', 'visible'); xh.setAttribute('x1', g.xs(ep)); xh.setAttribute('x2', g.xs(ep));
+    var rows = [{ color: 'var(--s1)', label: 'навчання', value: floss(net.lossT[ep - 1]) }];
+    if (net.lossH.length) rows.push({ color: 'var(--s2)', label: 'приховані', value: floss(net.lossH[ep - 1]) });
+    tipFill('Епоха ' + ep, null, rows);
+    placeTip(evt.clientX, evt.clientY);
+  };
+
+  /* ----- theory helper ----- */
+  function openTheory(id) {
+    var d = $('#th-' + id); if (!d) return;
+    d.open = true;
+    try { d.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); } catch (e) {}
+  }
+  /* =================================================================
+     Task 1: numerals -> form of «кіт»
+     ================================================================= */
+  var NumTask = (function () {
+    var FORMS = ['кіт', 'коти', 'котів'];
+    function truthOf(n) {
+      var t = Math.floor(n / 10) % 10, u = n % 10;
+      if (t === 1) return 2;
+      if (u === 1) return 0;
+      if (u >= 2 && u <= 4) return 1;
+      return 2;
+    }
+    var S = [], ALL = [];
+    for (var n = 0; n < 100; n++) { S.push({ x: [Math.floor(n / 10), 10 + n % 10], y: truthOf(n), label: String(n), n: n }); ALL.push(n); }
+    var DEF_HIDDEN = shuffle(ALL, mulberry32(4)).slice(0, 30);
+    var Yt = S.map(function (s) { return s.y; });
+
+    function pair(n) { return '<span class="pair k' + truthOf(n) + '"><span class="sw"></span><b>' + n + '</b> ' + FORMS[truthOf(n)] + '</span>'; }
+
+    /* ----- rule extraction ----- */
+    function describeRow(sig) {
+      var by = [[], [], []];
+      sig.forEach(function (k, d) { by[k].push(d); });
+      var used = [0, 1, 2].filter(function (k) { return by[k].length; });
+      if (used.length === 1) return [{ k: used[0], label: 'усі' }];
+      var big = used.reduce(function (a, b) { return by[b].length > by[a].length ? b : a; });
+      var items = used.filter(function (k) { return k !== big; }).sort(function (a, b) { return by[a][0] - by[b][0]; })
+        .map(function (k) { return { k: k, label: ranges(by[k]) }; });
+      items.push({ k: big, label: by[big].length >= 4 ? 'решта' : ranges(by[big]) });
+      return items;
+    }
+    function ruleInto(el, arr) {
+      var groups = {}, order = [], t;
+      for (t = 0; t < 10; t++) {
+        var sig = Array.prototype.slice.call(arr, t * 10, t * 10 + 10), key = sig.join('');
+        if (!groups[key]) { groups[key] = { sig: sig, tens: [] }; order.push(key); }
+        groups[key].tens.push(t);
+      }
+      order.sort(function (a, b) { return groups[b].tens.length - groups[a].tens.length || groups[a].tens[0] - groups[b].tens[0]; });
+      var shown = order.slice(0, 4), html = '';
+      shown.forEach(function (key) {
+        var g = groups[key], scope = order.length === 1 ? 'усі числа' : 'десятки ' + ranges(g.tens);
+        html += '<div class="rrow"><div class="rscope">' + scope + '</div><div class="rbody">';
+        describeRow(g.sig).forEach(function (it) {
+          html += '<span class="rchip k' + it.k + '"><span class="sw"></span>' + it.label + ' → ' + FORMS[it.k] + '</span>';
+        });
+        html += '</div></div>';
+      });
+      if (order.length > shown.length) {
+        var rest = order.slice(4).reduce(function (s, k) { return s + groups[k].tens.length; }, 0);
+        html += '<div class="rrow"><div class="rscope">ще ' + rest + ' ' + plural(rest, 'рядок', 'рядки', 'рядків') + '</div><div class="rbody note">з різними відповідями, правила в них не видно</div></div>';
+      }
+      el.innerHTML = html;
+    }
+
+    /* ----- grids ----- */
+    function buildGrid(el, interactive) {
+      var out = [], h = '<div class="ax"></div>', u, t;
+      for (u = 0; u < 10; u++) h += '<div class="ax" aria-hidden="true">' + u + '</div>';
+      el.innerHTML = h;
+      for (t = 0; t < 10; t++) {
+        var ax = document.createElement('div'); ax.className = 'ax'; ax.setAttribute('aria-hidden', 'true'); ax.textContent = t; el.appendChild(ax);
+        for (u = 0; u < 10; u++) {
+          var num = t * 10 + u, c = document.createElement(interactive ? 'button' : 'div');
+          c.className = 'cell'; c.dataset.n = num;
+          if (interactive) c.type = 'button'; else c.tabIndex = 0;
+          c.innerHTML = '<span class="num">' + num + '</span><span class="pips"></span>';
+          c._k = -1; el.appendChild(c); out.push(c);
+        }
+      }
+      return out;
+    }
+    function setK(c, k) {
+      if (c._k === k) return;
+      c._k = k; c.classList.remove('k0', 'k1', 'k2'); c.classList.add('k' + k);
+      c.lastChild.innerHTML = pipsHTML(k);
+    }
+    function cellTip(lab, cell, x, y) {
+      var num = +cell.dataset.n, rows = [];
+      for (var c = 0; c < 3; c++) rows.push({ color: 'var(--k' + c + ')', label: FORMS[c], value: Math.round(lab.P[num * 3 + c] * 100) + '%', bold: c === lab.pred[num] });
+      tipFill(num + ' ' + FORMS[Yt[num]], lab.hidden.has(num) ? 'схована від навчання' : 'у навчанні', rows);
+      placeTip(x, y);
+    }
+    function hl(lab, num, on) { [lab.cellsD[num], lab.cellsP[num]].forEach(function (c) { if (c) c.classList.toggle('hl', on); }); }
+    function wireGrid(lab, el) {
+      el.addEventListener('pointermove', function (e) { var c = e.target.closest && e.target.closest('.cell'); if (c) cellTip(lab, c, e.clientX, e.clientY); });
+      el.addEventListener('pointerover', function (e) { var c = e.target.closest && e.target.closest('.cell'); if (c) { hl(lab, +c.dataset.n, true); lab.setFocusSample(S[+c.dataset.n]); } });
+      el.addEventListener('pointerout', function (e) { var c = e.target.closest && e.target.closest('.cell'); if (c) { hl(lab, +c.dataset.n, false); hideTip(); } });
+      el.addEventListener('focusin', function (e) { var c = e.target.closest && e.target.closest('.cell'); if (!c) return; hl(lab, +c.dataset.n, true); lab.setFocusSample(S[+c.dataset.n]); var r = c.getBoundingClientRect(); cellTip(lab, c, r.right, r.bottom); });
+      el.addEventListener('focusout', function (e) { var c = e.target.closest && e.target.closest('.cell'); if (c) { hl(lab, +c.dataset.n, false); hideTip(); } });
+    }
+
+    var PRESETS = { none: [], '11': [11], '13-14': [13, 14], '11-14': [11, 12, 13, 14] };
+
+    var task = {
+      def: { H: 2, relu: true, reg: 'l1', lam: 0.01, win: 0 },
+      cls: [{ name: 'кіт', short: 'кіт' }, { name: 'коти', short: 'коти' }, { name: 'котів', short: 'котів' }],
+      nIn: function () { return 20; },
+      samples: function () { return S; },
+      defaultHidden: function () { return DEF_HIDDEN.slice(); },
+      defaultFocus: function () { return S[21]; },
+      archLine: function () { return '20 входів'; },
+
+      hero: '<h1>Мережа виведе правило, якого їй не казали</h1>' +
+        '<p class="lede">Мережі показують сотню пар «число → правильна форма слова кіт». Жодного «якщо… то» в неї не вкладено. Подивіться, які «якщо… то» вона знайде сама, а де їх знайти неможливо.</p>',
+      hook:
+        '<div class="hook-grid">' +
+          '<div class="hcol"><h3>Їй показують</h3><div class="pairs">' + [1, 2, 5, 11, 23, 31, 40, 14].map(pair).join('') + '</div><p class="note">Лише пари «число → форма». Більше нічого.</p></div>' +
+          '<div class="hcol not"><h3>Їй не кажуть</h3><ul class="untold">' +
+            '<li>«якщо цифра одиниць <em>1</em>, то <em>кіт</em>»</li>' +
+            '<li>«якщо <em>2, 3 або 4</em>, то <em>коти</em>»</li>' +
+            '<li>«але якщо цифра десятків <em>1</em>, то завжди <em>котів</em>»</li></ul>' +
+            '<p class="note">Цих правил немає в коді мережі. Вона починає з випадкових ваг.</p></div>' +
+          '<div class="hook-arrow" aria-hidden="true">→</div>' +
+          '<div class="hcol got"><h3>Вона виводить сама</h3><div class="rule" data-r="hookRule"></div><div class="live-badge"><span class="badge run" data-r="hookBadge" aria-hidden="true">…</span><span data-r="hookMsg"></span></div></div>' +
+        '</div>' +
+        '<p class="hook-foot"><span class="lead-note">Як перевірити, що правило виведене, а не завчене.</span> Частину чисел ховаємо від навчання (пунктирні клітинки) і дивимось, чи вгадає їх мережа. Праворуч показано правило, яке вона має зараз, зведене з її відповідей.</p>',
+
+      dataPanel:
+        '<section class="panel" aria-label="Дані та відповіді мережі">' +
+          '<div class="panel-head"><h2>Дані і відповіді</h2><p class="sub">Рядок задає цифру десятків, стовпець цифру одиниць.</p></div>' +
+          '<div class="preset-row" role="group" aria-label="Що сховати від навчання"><span class="lab">Сховати від навчання:</span>' +
+            '<button type="button" class="btn pre" data-preset="none">нічого</button><button type="button" class="btn pre" data-preset="random">30% навмання</button>' +
+            '<button type="button" class="btn pre" data-preset="11">11</button><button type="button" class="btn pre" data-preset="13-14">13–14</button><button type="button" class="btn pre" data-preset="11-14">11–14</button>' +
+            '<span class="sub">Або клацайте числа в лівій сітці.</span></div>' +
+          '<div class="legend" aria-label="Умовні позначки">' +
+            '<span class="lg k0"><span class="sw"><span class="pips"><i></i></span></span>кіт</span><span class="lg k1"><span class="sw"><span class="pips"><i></i><i></i></span></span>коти</span><span class="lg k2"><span class="sw"><span class="pips"><i></i><i></i><i></i></span></span>котів</span>' +
+            '<span class="lg"><span class="lg-hid"></span>схована від навчання</span><span class="lg"><span class="lg-err">×</span>мережа помилилась</span></div>' +
+          '<div class="twin"><div class="gbox"><div class="panel-head"><h3>Розмітка</h3><p class="sub">Клацніть число, щоб сховати його від навчання.</p></div><div class="grid" data-r="gridD" style="margin-top:10px"></div></div>' +
+          '<div class="gbox"><div class="panel-head"><h3>Відповіді мережі</h3><p class="sub">Наведіть на клітинку: ймовірності й шлях у графі.</p></div><div class="grid" data-r="gridP" style="margin-top:10px"></div></div></div>' +
+          '<p class="truth">Виняток із правила: числа 11–14 завжди з формою «котів».</p></section>',
+
+      rulePanel:
+        '<section class="panel" aria-label="Правило, яке вивела мережа"><div class="panel-head"><h2>Що вивела мережа</h2><p class="sub">Зведено з її відповідей на всі 100 чисел, по рядках однакової поведінки.</p></div>' +
+          '<div class="rule" data-r="rule"></div><div class="errs" data-r="errs"></div>' +
+          '<div class="rule-given"><h3>Задане правило для порівняння</h3><div class="rule" data-r="ruleTruth"></div></div></section>',
+
+      probePanel:
+        '<section class="panel" aria-label="Перевірити число"><div class="panel-head"><h2>Перевірити число</h2><p class="sub">Мережа бачить лише останні дві цифри: для 111 це 11, для 1012 це 12. Числа більші за 99 навчанню не показували.</p></div>' +
+          '<div class="probe"><div class="field"><label class="lab" for="num-probe"><span>Число</span></label><input id="num-probe" data-r="probe" inputmode="numeric" autocomplete="off" maxlength="9" value="111"><div class="quick" data-r="quick"></div></div><div class="out" data-r="probeOut"></div></div></section>',
+
+      experiments: [
+        { title: 'Правило чи завчені числа?', text: 'Сховайте 30% чисел. Якщо мережа вгадає і їх, значить, вона вивела правило, а не запам\'ятала приклади.', btn: 'Сховати 30%',
+          cfg: { H: 2, relu: true, reg: 'l1', lam: 0.01, seed: 1, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'Виняток без прикладів', text: 'Сховайте всі числа 11–14. Мережа ніколи не бачила винятку, тож що вона скаже про 12? Жодна регуляризація тут не допоможе.', btn: 'Сховати 11–14',
+          cfg: { H: 2, relu: true, reg: 'l1', lam: 0.01, seed: 1, hidden: [11, 12, 13, 14] } },
+        { title: 'L1: розріджені ваги', text: 'L1 з λ = 0,05 обнуляє зайві ваги. У заголовку «Мережа» порахуйте помітні ваги, на графі зникнуть зв\'язки.', btn: 'Увімкнути L1',
+          cfg: { H: 2, relu: true, reg: 'l1', lam: 0.05, seed: 1, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'L2: стиснуті ваги', text: 'L2 з λ = 0,01 не обнуляє, а стискає: ваги менші, але майже всі ненульові. Порівняйте з L1 і з варіантом без штрафу.', btn: 'Увімкнути L2',
+          cfg: { H: 2, relu: true, reg: 'l2', lam: 0.01, seed: 1, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'Занадто сильний штраф', text: 'L2 з λ = 0,1: штраф переважає помилку, і мережа забуває частину правила. Це недонавчання.', btn: 'λ = 0,1',
+          cfg: { H: 2, relu: true, reg: 'l2', lam: 0.1, seed: 1, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'Один нейрон', text: 'Одного нейрона може не вистачити, і результат залежить від початкових ваг. Натисніть «Нове зерно» кілька разів.', btn: 'H = 1',
+          cfg: { H: 1, relu: true, reg: 'none', lam: 0, seed: 3, hidden: function (lab) { return lab.t.defaultHidden(lab); } } }
+      ],
+
+      build: function (lab) {
+        lab.cellsD = buildGrid(lab.q('gridD'), true);
+        lab.cellsP = buildGrid(lab.q('gridP'), false);
+        ruleInto(lab.q('ruleTruth'), Yt);
+        var qk = lab.q('quick');
+        [21, 12, 5, 111, 1012].forEach(function (v) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'btn pre'; b.textContent = v;
+          b.addEventListener('click', function () { lab.q('probe').value = v; task.probeGo(lab); });
+          qk.appendChild(b);
+        });
+      },
+      wire: function (lab) {
+        wireGrid(lab, lab.q('gridD')); wireGrid(lab, lab.q('gridP'));
+        lab.q('gridD').addEventListener('click', function (e) {
+          var c = e.target.closest('.cell'); if (!c) return;
+          var num = +c.dataset.n;
+          if (lab.hidden.has(num)) lab.hidden.delete(num); else if (lab.hidden.size < 90) lab.hidden.add(num);
+          task.renderData(lab); lab.scheduleRestart();
+        });
+        $$('[data-preset]', lab.root).forEach(function (b) {
+          b.addEventListener('click', function () {
+            var key = b.dataset.preset;
+            lab.hidden = new Set(key === 'random' ? shuffle(ALL, Math.random).slice(0, 30) : PRESETS[key]);
+            lab.restart(false);
+          });
+        });
+        lab.q('probe').addEventListener('input', function () { this.value = this.value.replace(/\D/g, ''); task.probeGo(lab); });
+      },
+      probeGo: function (lab) {
+        var raw = lab.q('probe').value.replace(/\D/g, '');
+        if (raw) lab.setFocusSample(S[parseInt(raw, 10) % 100]);
+        task.renderProbe(lab);
+      },
+
+      renderData: function (lab) {
+        for (var num = 0; num < 100; num++) {
+          var c = lab.cellsD[num], hid = lab.hidden.has(num);
+          setK(c, Yt[num]);
+          c.classList.toggle('hid', hid); c.classList.toggle('test', hid);
+          c.setAttribute('aria-pressed', hid ? 'true' : 'false');
+          c.setAttribute('aria-label', num + ': ' + FORMS[Yt[num]] + (hid ? ', схована від навчання' : ', у навчанні') + '. Натисніть, щоб ' + (hid ? 'повернути в навчання' : 'сховати') + '.');
+        }
+        $$('[data-preset]', lab.root).forEach(function (b) {
+          var list = PRESETS[b.dataset.preset], on = false;
+          if (list) on = lab.hidden.size === list.length && list.every(function (x) { return lab.hidden.has(x); });
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      },
+      renderPred: function (lab) {
+        for (var num = 0; num < 100; num++) {
+          var c = lab.cellsP[num], k = lab.pred[num], hid = lab.hidden.has(num), bad = k !== Yt[num];
+          setK(c, k);
+          c.classList.toggle('test', hid); c.classList.toggle('err', bad);
+          c.setAttribute('aria-label', num + ': мережа каже «' + FORMS[k] + '»' + (bad ? ', має бути «' + FORMS[Yt[num]] + '»' : ', правильно') + (hid ? ', число було сховане' : ''));
+        }
+      },
+      renderRule: function (lab, done) {
+        ruleInto(lab.q('rule'), lab.pred); ruleInto(lab.q('hookRule'), lab.pred);
+        var v = lab.vinfo, b = lab.q('hookBadge'); b.className = 'badge ' + v.cls; b.textContent = v.glyph;
+        lab.q('hookMsg').textContent = v.title;
+        var errs = lab.q('errs'); errs.innerHTML = '';
+        var c = lab.cnt;
+        if (done && c.errs.length) {
+          c.errs.slice(0, 8).forEach(function (num) {
+            var s = document.createElement('span'); s.innerHTML = '<b></b> → ' + FORMS[lab.pred[num]] + ', має бути ' + FORMS[Yt[num]]; s.firstChild.textContent = num; errs.appendChild(s);
+          });
+          if (c.errs.length > 8) { var m = document.createElement('span'); m.textContent = 'і ще ' + (c.errs.length - 8); errs.appendChild(m); }
+        }
+      },
+      verdict: function (lab, c, done) {
+        var cls, glyph, title, detail, errs = c.errs;
+        if (!done) { cls = 'run'; glyph = '…'; title = 'Мережа вчиться'; detail = 'Поки що правильно ' + (100 - errs.length) + ' зі 100 відповідей.'; }
+        else if (!errs.length) {
+          cls = 'ok'; glyph = '✓'; title = 'Правило виведене повністю';
+          detail = c.hN ? 'Мережа правильно відповіла і на схованих числах (' + c.hN + '), яких не бачила.' : 'У навчанні були всі 100 чисел, тож це перевірка на запам’ятовування, а не на узагальнення.';
+        } else if (errs.every(function (x) { return x >= 11 && x <= 14; })) {
+          cls = 'warn'; glyph = '!';
+          title = errs.length === 4 ? 'Основне правило виведене, виняток 11–14 — ні' : 'Основне правило виведене, виняток 11–14 — не повністю';
+          detail = 'Усі помилки припадають на 11–14: винятку мережа або не бачила, або бачила замало прикладів.';
+        } else { cls = 'bad'; glyph = '×'; title = 'Правило поки не виведене'; detail = 'Помилок: ' + errs.length + ' зі 100. Спробуйте більше нейронів, інше зерно, слабший штраф або довше навчання.'; }
+        return { cls: cls, glyph: glyph, title: title, detail: detail };
+      },
+      renderProbe: function (lab) {
+        var raw = lab.q('probe').value.replace(/\D/g, ''), out = lab.q('probeOut');
+        if (!raw) { out.innerHTML = '<p class="sub">Введіть число, щоб побачити відповідь мережі.</p>'; return; }
+        var num = parseInt(raw, 10), last2 = num % 100, smp = S[last2], p = probsOf(lab.net, smp.x), k = argmax3(p), want = truthOf(last2);
+        var h = '<p class="phrase">' + esc(String(num)) + ' ' + FORMS[want] + '</p><div class="pbars" role="group" aria-label="Ймовірності відповідей мережі">';
+        [0, 1, 2].forEach(function (c) {
+          h += '<div class="pb k' + c + (c === k ? ' top' : '') + '"><span class="nm">' + FORMS[c] + '</span><span class="track"><span class="fill" style="display:block;width:' + (p[c] * 100).toFixed(1) + '%"></span></span><span class="pv">' + Math.round(p[c] * 100) + '%</span></div>';
+        });
+        h += '</div>';
+        var ok = k === want;
+        h += '<p class="verd2"><span class="badge ' + (ok ? 'ok' : 'bad') + '" aria-hidden="true">' + (ok ? '✓' : '×') + '</span>' + (ok ? 'Мережа відповіла правильно' : 'Мережа помилилась: має бути «' + FORMS[want] + '»') + '</p>';
+        if (String(num).length > 2) h += '<p class="note">Для мережі число ' + esc(String(num)) + ' це ' + String(last2).padStart(2, '0') + ' (останні дві цифри).</p>';
+        if (lab.hidden.has(last2)) h += '<p class="note">Число ' + last2 + ' було сховане від навчання.</p>';
+        out.innerHTML = h;
+      },
+
+      /* inputs for the one-hot viewer, graph and weights */
+      onehot: function (lab, f) {
+        var t = f.x[0], u = f.x[1] - 10, h = '<table class="oh"><thead><tr><th></th>', d;
+        for (d = 0; d < 10; d++) h += '<th>' + d + '</th>';
+        h += '</tr></thead><tbody><tr><th>десятки</th>';
+        for (d = 0; d < 10; d++) h += '<td class="' + (d === t ? 'on' : '') + '">' + (d === t ? 1 : 0) + '</td>';
+        h += '</tr><tr><th>одиниці</th>';
+        for (d = 0; d < 10; d++) h += '<td class="' + (d === u ? 'on' : '') + '">' + (d === u ? 1 : 0) + '</td>';
+        return h + '</tr></tbody></table>';
+      },
+      graphInputs: function (lab, f) {
+        var ins = [], i;
+        for (i = 0; i < 20; i++) ins.push({ i: i, label: String(i % 10), active: f.x.indexOf(i) >= 0, gap: i === 10, title: i === 0 ? 'десятки' : (i === 10 ? 'одиниці' : '') });
+        return ins;
+      },
+      weightRows: function () {
+        var rows = [], i;
+        for (i = 0; i < 20; i++) rows.push({ idx: i, label: (i < 10 ? 'десятки ' : 'одиниці ') + (i % 10), sep: i === 10 });
+        return rows;
+      }
+    };
+    return task;
+  })();
+  /* =================================================================
+     Task 2: noun ending -> gender -> adjective ending
+     ================================================================= */
+  var WordTask = (function () {
+    var CLS = [{ name: 'чол. -ий', short: 'ч.' }, { name: 'жін. -а', short: 'ж.' }, { name: 'сер. -е', short: 'с.' }];
+    var GEN = ['чоловічий', 'жіночий', 'середній'];
+    var GROUPS = [
+      { id: 'mc', title: 'Чоловічий: приголосна' }, { id: 'my', title: 'Чоловічий: -й, -ь' },
+      { id: 'mk', title: 'Чоловічий на -ко (ваше правило)' }, { id: 'f', title: 'Жіночий: -а, -я' },
+      { id: 'no', title: 'Середній: -о' }, { id: 'ne', title: 'Середній: -е' }, { id: 'ny', title: 'Середній: -я' },
+      { id: 'ok', title: 'Нові слова, що слухаються правила', test: true },
+      { id: 'kn', title: 'Закінчення -ко, але середній рід', test: true },
+      { id: 'om', title: 'Чоловічі на -о, але не -ко', test: true },
+      { id: 'am', title: 'Чоловічі на -а, -я', test: true },
+      { id: 'custom', title: 'Ваші слова' }
+    ];
+    var ENDS = [
+      { id: 'ko', label: '-ко', re: /ко$/ }, { id: 'o', label: '-о (не -ко)', re: /[^к]о$/ }, { id: 'e', label: '-е, -є', re: /[еє]$/ },
+      { id: 'a', label: '-а', re: /а$/ }, { id: 'ya', label: '-я', re: /я$/ }, { id: 'c', label: 'приголосна', re: /[бвгґджзклмнпрстфхцчшщ]$/ },
+      { id: 'j', label: '-й', re: /й$/ }, { id: 'soft', label: '-ь', re: /ь$/ }
+    ];
+    var SOFT_STEMS = ['син', 'дальн', 'верхн', 'нижн', 'давн', 'літн', 'осінн', 'середн', 'останн', 'ранн', 'пізн', 'зимн'];
+    function isSoftStem(s) { return SOFT_STEMS.indexOf(s) >= 0 || /шн$/.test(s); }
+    function ending(k, soft) { return (soft ? ['ій', 'я', 'є'] : ['ий', 'а', 'е'])[k]; }
+    function key(s) { return s.x.join(','); }
+    function pair(adj, noun, g) { return '<span class="pair k' + g + '"><span class="sw"></span>' + adj + ' <b>' + noun + '</b></span>'; }
+
+    /* ---------- chips ---------- */
+    function buildChips(lab) {
+      var boxes = [lab.q('wgD'), lab.q('wgP')];
+      boxes.forEach(function (b) { b.innerHTML = ''; });
+      lab.chipsD = []; lab.chipsP = [];
+      GROUPS.forEach(function (g) {
+        var idx = [];
+        lab.words.forEach(function (o, i) { if (o.grp === g.id) idx.push(i); });
+        if (!idx.length) return;
+        [0, 1].forEach(function (pi) {
+          var wg = document.createElement('div'); wg.className = 'wg';
+          var hd = document.createElement('div'); hd.className = 'wg-h';
+          var tt = document.createElement('span'); tt.textContent = g.title; hd.appendChild(tt);
+          if (g.test) { var tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = 'за замовчуванням сховані'; if (pi === 0) hd.appendChild(tg); }
+          if (g.id === 'custom' && pi === 0) {
+            var cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn pre'; cb.textContent = 'Прибрати мої слова';
+            cb.addEventListener('click', function () {
+              lab.words = lab.words.filter(function (o) { return o.grp !== 'custom'; });
+              lab.hidden = new Set(Array.from(lab.hidden).filter(function (i) { return i < lab.words.length; }));
+              buildChips(lab); lab.restart(false);
+            });
+            hd.appendChild(cb);
+          }
+          wg.appendChild(hd);
+          var ch = document.createElement('div'); ch.className = 'chips';
+          idx.forEach(function (i) {
+            var c = document.createElement(pi === 0 ? 'button' : 'div'); c.className = 'chip'; c.dataset.i = i;
+            if (pi === 0) c.type = 'button'; else c.tabIndex = 0;
+            c.innerHTML = '<span class="wd"></span><span class="pips"></span>';
+            c.firstChild.textContent = lab.words[i].w; c._k = -1;
+            ch.appendChild(c); (pi === 0 ? lab.chipsD : lab.chipsP)[i] = c;
+          });
+          wg.appendChild(ch); boxes[pi].appendChild(wg);
+        });
+      });
+    }
+    function setK(c, k) {
+      if (c._k === k) return;
+      c._k = k; c.classList.remove('k0', 'k1', 'k2'); c.classList.add('k' + k);
+      c.lastChild.innerHTML = pipsHTML(k);
+    }
+    function twinNote(lab, i) {
+      var tw = (lab.twins[i] || []).map(function (j) { return lab.words[j].w + ' (' + GEN[lab.words[j].g] + ')'; });
+      return tw.length ? 'Ті самі останні ' + lab.st.win + ' літер(и), що й ' + tw.join(', ') + '. Мережа їх не розрізнить.' : '';
+    }
+    function chipTip(lab, c, x, y) {
+      var i = +c.dataset.i, o = lab.words[i], rows = [];
+      for (var k = 0; k < 3; k++) rows.push({ color: 'var(--k' + k + ')', label: CLS[k].name, value: Math.round(lab.P[i * 3 + k] * 100) + '%', bold: k === lab.pred[i] });
+      tipFill(o.w + ': ' + GEN[o.g], lab.hidden.has(i) ? 'сховане від навчання' : 'у навчанні', rows);
+      var n = twinNote(lab, i); if (n) tipNote(n);
+      placeTip(x, y);
+    }
+    function hlChip(lab, i, on) { [lab.chipsD[i], lab.chipsP[i]].forEach(function (c) { if (c) c.classList.toggle('hl', on); }); }
+    function wireChips(lab, el) {
+      function chipOf(e) { return e.target.closest && e.target.closest('.chip'); }
+      el.addEventListener('pointermove', function (e) { var c = chipOf(e); if (c) chipTip(lab, c, e.clientX, e.clientY); });
+      el.addEventListener('pointerover', function (e) { var c = chipOf(e); if (c) { hlChip(lab, +c.dataset.i, true); lab.setFocusSample(lab.S[+c.dataset.i]); } });
+      el.addEventListener('pointerout', function (e) { var c = chipOf(e); if (c) { hlChip(lab, +c.dataset.i, false); hideTip(); } });
+      el.addEventListener('focusin', function (e) { var c = chipOf(e); if (!c) return; hlChip(lab, +c.dataset.i, true); lab.setFocusSample(lab.S[+c.dataset.i]); var r = c.getBoundingClientRect(); chipTip(lab, c, r.right, r.bottom); });
+      el.addEventListener('focusout', function (e) { var c = chipOf(e); if (c) { hlChip(lab, +c.dataset.i, false); hideTip(); } });
+    }
+
+    /* ---------- helpers for rule/verdict ---------- */
+    function groupStats(lab) {
+      var st = {};
+      lab.words.forEach(function (o, i) {
+        var s = st[o.grp] || (st[o.grp] = { ok: 0, n: 0 });
+        s.n++; if (lab.pred[i] === o.g) s.ok++;
+      });
+      return st;
+    }
+    // a word whose last letters match a training word of a different gender cannot be told apart
+    function unfixable(lab, i) {
+      return (lab.twins[i] || []).some(function (j) { return !lab.hidden.has(j); });
+    }
+    function conflictsInTraining(lab) {
+      var by = {}, out = [];
+      lab.S.forEach(function (s, i) { if (lab.hidden.has(i)) return; (by[key(s)] = by[key(s)] || []).push(i); });
+      Object.keys(by).forEach(function (k) {
+        var ids = by[k], ys = {};
+        ids.forEach(function (i) { ys[lab.S[i].y] = 1; });
+        if (Object.keys(ys).length > 1) out.push(ids);
+      });
+      return out;
+    }
+    function segBar(counts) {
+      var tot = counts[0] + counts[1] + counts[2], h = '<div class="sbar">';
+      for (var k = 0; k < 3; k++) if (counts[k]) h += '<span class="k' + k + '" style="flex:' + counts[k] + '" title="' + CLS[k].name + ': ' + counts[k] + '"></span>';
+      return h + '</div>';
+    }
+
+    var task = {
+      def: { H: 4, relu: true, reg: 'l2', lam: 0.01, win: 4 },
+      cls: CLS,
+      nIn: function (lab) { return lab.st.win * NSYM; },
+      samples: function (lab) {
+        var S = lab.words.map(function (o) { return { x: encodeWord(o.w, lab.st.win), y: o.g, label: o.w, w: o.w, grp: o.grp }; });
+        var by = {}; lab.twins = [];
+        S.forEach(function (s, i) { (by[key(s)] = by[key(s)] || []).push(i); });
+        S.forEach(function (s, i) { lab.twins[i] = by[key(s)].filter(function (j) { return j !== i && S[j].y !== s.y; }); });
+        return S;
+      },
+      defaultHidden: function (lab) { var r = []; lab.words.forEach(function (o, i) { if (o.grp !== 'custom' && GROUPS.some(function (g) { return g.id === o.grp && g.test; })) r.push(i); }); return r; },
+      defaultFocus: function (lab) { return { x: encodeWord('батько', lab.st.win), y: 0, label: 'батько', w: 'батько' }; },
+      refocus: function (lab, f) {
+        var i = -1; lab.words.forEach(function (o, ix) { if (i < 0 && o.w.toLowerCase() === f.w.toLowerCase()) i = ix; });
+        return { x: encodeWord(f.w, lab.st.win), y: i >= 0 ? lab.words[i].g : (f.yUser !== undefined ? f.yUser : undefined), label: f.label, w: f.w };
+      },
+      archLine: function (lab) { return lab.st.win + ' ' + plural(lab.st.win, 'остання літера', 'останні літери', 'останніх літер') + ' × 36 символів = ' + (lab.st.win * NSYM) + ' входів'; },
+
+      hero: '<h1>Мережа виведе, коли ставити -ий, -а чи -е</h1>' +
+        '<p class="lede">Мережі показують іменники з правильним закінченням прикметника: тупий батько, тупа лопата, тупе шило. Ніхто не каже їй, що таке рід, що «-о» зазвичай середній, а «-ко» чоловічий. Подивіться, яке правило вона виведе сама і де закінчення нічого не підказує.</p>',
+      hook:
+        '<div class="hook-grid">' +
+          '<div class="hcol"><h3>Їй показують</h3><div class="pairs">' + pair('тупий', 'батько', 0) + pair('тупий', 'стіл', 0) + pair('тупа', 'лопата', 1) + pair('тупе', 'шило', 2) + pair('тупе', 'життя', 2) + pair('тупий', 'Марко', 0) + pair('тупе', 'море', 2) + '</div><p class="note">Лише іменник і правильне закінчення прикметника.</p></div>' +
+          '<div class="hcol not"><h3>Їй не кажуть</h3><ul class="untold">' +
+            '<li>«якщо слово на <em>-а</em>, то жіночий рід»</li><li>«якщо на <em>-о</em>, то середній»</li><li>«але якщо на <em>-ко</em>, то чоловічий (батько, Марко)»</li></ul>' +
+            '<p class="note">Що таке рід, мережа теж не знає: у неї просто три виходи.</p></div>' +
+          '<div class="hook-arrow" aria-hidden="true">→</div>' +
+          '<div class="hcol got"><h3>Вона виводить сама</h3><div class="rbody" data-r="hookRule"></div><div class="live-badge"><span class="badge run" data-r="hookBadge" aria-hidden="true">…</span><span data-r="hookMsg"></span></div></div>' +
+        '</div>' +
+        '<p class="hook-foot"><span class="lead-note">Де правило закінчується.</span> Частину слів ховаємо від навчання. Серед них є слова, що слухаються правила, і слова, що його ламають: серденько, Петро, Данило. Рід у них залежить від значення слова, а не від закінчення, тож з правила «якщо… то» його не вивести.</p>',
+
+      dataPanel:
+        '<section class="panel" aria-label="Слова і відповіді мережі"><div class="panel-head"><h2>Слова і відповіді</h2><p class="sub">Колір задає рід, число крапок його номер. Пунктир означає, що слово сховане від навчання.</p></div>' +
+          '<div class="legend" aria-label="Умовні позначки"><span class="lg k0"><span class="sw"><span class="pips"><i></i></span></span>чоловічий (-ий)</span><span class="lg k1"><span class="sw"><span class="pips"><i></i><i></i></span></span>жіночий (-а)</span><span class="lg k2"><span class="sw"><span class="pips"><i></i><i></i><i></i></span></span>середній (-е)</span>' +
+            '<span class="lg"><span class="lg-hid"></span>сховане від навчання</span><span class="lg"><span class="lg-err">×</span>мережа помилилась</span><span class="lg"><span class="lg-err" style="background:var(--ink);color:var(--surface)">=</span>ті самі літери, інший рід</span></div>' +
+          '<div class="row"><button type="button" class="btn pre" data-r="allIn">Усе в навчання</button><button type="button" class="btn pre" data-r="resetHide">Скинути вибір</button><span class="sub">Клацайте слова ліворуч, щоб ховати їх або повертати в навчання.</span></div>' +
+          '<div class="twin"><div class="gbox"><h3>Розмітка</h3><div class="wgroups" data-r="wgD"></div></div><div class="gbox"><h3>Відповіді мережі</h3><div class="wgroups" data-r="wgP"></div></div></div></section>',
+      rulePanel:
+        '<section class="panel" aria-label="Правило, яке вивела мережа"><div class="panel-head"><h2>Що вивела мережа</h2><p class="sub">Групи закінчень задано нами, відповіді належать мережі. Враховано всі слова зі списків.</p></div>' +
+          '<div class="tbl-wrap" data-r="endTable"></div><div class="conflict" data-r="conflict" hidden></div><div class="errs" data-r="errs"></div></section>',
+      probePanel:
+        '<section class="panel" aria-label="Перевірити своє слово"><div class="panel-head"><h2>Перевірити своє слово</h2><p class="sub">Введіть іменник і основу прикметника без закінчення. Мережа обере закінчення за останніми літерами іменника.</p></div>' +
+          '<div class="wprobe"><div class="field2">' +
+            '<label for="word-noun">Іменник у називному відмінку</label><input type="text" id="word-noun" data-r="noun" autocomplete="off" maxlength="30" value="Петро"><div class="quick" data-r="quickN"></div>' +
+            '<label for="word-stem">Прикметник без закінчення</label><input type="text" id="word-stem" data-r="stem" autocomplete="off" maxlength="30" value="туп"><div class="quick" data-r="quickS"></div>' +
+            '<label class="check"><input type="checkbox" data-r="soft"><span>М\'яка основа (син<b>ій</b>, дальн<b>я</b>). Це залежить від прикметника, а не від іменника, тому позначається окремо.</span></label>' +
+          '</div><div class="out" data-r="probeOut"></div></div></section>',
+
+      extraCtl: function (lab) {
+        return '<div class="ctl"><div class="lab"><label for="' + lab.id('win') + '">Скільки останніх літер бачить мережа</label><span class="val" data-r="winVal"></span></div>' +
+          '<input type="range" id="' + lab.id('win') + '" data-r="win" min="1" max="6" step="1" value="4"><p class="sub" data-r="winSub"></p></div>';
+      },
+      syncControls: function (lab) {
+        lab.q('win').value = lab.st.win; lab.q('winVal').textContent = lab.st.win;
+        lab.q('winSub').textContent = lab.st.win < 3 ? 'Дуже мало: «о» і «ко» ледь видно.' : (lab.st.win > 4 ? 'Багато літер: мережі легше запам\'ятати слова напам\'ять.' : 'Закінчення плюс кілька літер перед ним.');
+      },
+
+      experiments: [
+        { title: 'Де правило ламається', text: 'Початковий стан: мережа знає -ко → чоловічий і -о → середній. Дивіться на групи з ×: рід у них не видно із закінчення.', btn: 'Скинути до початку',
+          cfg: { H: 4, relu: true, reg: 'l2', lam: 0.01, seed: 1, win: 4, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'Показати мережі винятки', text: 'Віддайте всі слова в навчання. Більшість мережа заучить, але серденько і прізвисько ні: їхні останні 4 літери збігаються з синько і хлопчисько.', btn: 'Усе в навчання',
+          cfg: { H: 8, relu: true, reg: 'none', lam: 0, seed: 1, win: 4, hidden: [] } },
+        { title: 'Заучити все', text: 'Збільшіть вікно до 6 літер, і мережа розрізнить навіть ці пари. Це вже заучування, не правило: спробуйте внизу нові слова Кирило чи Іванко.', btn: 'Вікно 6 літер',
+          cfg: { H: 8, relu: true, reg: 'none', lam: 0, seed: 1, win: 6, hidden: [] } },
+        { title: 'L1 на нових словах', text: 'L1 обирає окремі літери-прикмети, тому на нових словах (група «слухаються правила») інколи помиляється.', btn: 'Увімкнути L1',
+          cfg: { H: 4, relu: true, reg: 'l1', lam: 0.01, seed: 5, win: 4, hidden: function (lab) { return lab.t.defaultHidden(lab); } } },
+        { title: 'L2 на тих самих словах', text: 'Те саме зерно, але L2: вага ділиться між літерами, і нові слова проходять стабільно.', btn: 'Увімкнути L2',
+          cfg: { H: 4, relu: true, reg: 'l2', lam: 0.01, seed: 5, win: 4, hidden: function (lab) { return lab.t.defaultHidden(lab); } } }
+      ],
+
+      build: function (lab) {
+        lab.words = WORDS0.map(function (o) { return { w: o.w, g: o.g, grp: o.grp }; });
+        lab.twins = []; lab.softTouched = false;
+        buildChips(lab);
+        var qn = lab.q('quickN'), qs = lab.q('quickS');
+        ['Петро', 'серденько', 'прізвисько', 'Данило', 'Марко', 'дідько', 'ніч', 'Кирило'].forEach(function (v) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'btn pre'; b.textContent = v;
+          b.addEventListener('click', function () { lab.q('noun').value = v; task.probeGo(lab); }); qn.appendChild(b);
+        });
+        ['туп', 'син', 'дальн', 'гарн'].forEach(function (v) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'btn pre'; b.textContent = v;
+          b.addEventListener('click', function () { lab.q('stem').value = v; lab.softTouched = false; task.probeGo(lab); }); qs.appendChild(b);
+        });
+      },
+      wire: function (lab) {
+        ['wgD', 'wgP'].forEach(function (r) { wireChips(lab, lab.q(r)); });
+        lab.q('wgD').addEventListener('click', function (e) {
+          var c = e.target.closest('.chip'); if (!c) return;
+          var i = +c.dataset.i;
+          if (lab.hidden.has(i)) lab.hidden.delete(i); else if (lab.hidden.size < lab.words.length - 10) lab.hidden.add(i);
+          task.renderData(lab); lab.scheduleRestart();
+        });
+        lab.q('allIn').addEventListener('click', function () { lab.hidden = new Set(); lab.restart(false); });
+        lab.q('resetHide').addEventListener('click', function () { lab.hidden = new Set(task.defaultHidden(lab)); lab.restart(false); });
+        lab.q('win').addEventListener('input', function () { lab.st.win = +this.value; lab.syncControls(); lab.scheduleRestart(); });
+        lab.q('noun').addEventListener('input', function () { task.probeGo(lab); });
+        lab.q('stem').addEventListener('input', function () { lab.softTouched = false; task.probeGo(lab); });
+        lab.q('soft').addEventListener('change', function () { lab.softTouched = true; task.renderProbe(lab); });
+      },
+      probeGo: function (lab) {
+        var noun = lab.q('noun').value.trim();
+        if (noun) lab.setFocusSample({ x: encodeWord(noun, lab.st.win), y: undefined, label: noun, w: noun });
+        task.renderProbe(lab);
+      },
+      addWord: function (lab, w, g) {
+        var lw = w.toLowerCase(), ex = -1;
+        lab.words.forEach(function (o, i) { if (o.w.toLowerCase() === lw) ex = i; });
+        if (ex >= 0) { lab.words[ex].g = g; lab.hidden.delete(ex); }
+        else lab.words.push({ w: w, g: g, grp: 'custom' });
+        buildChips(lab); lab.restart(false);
+      },
+
+      renderData: function (lab) {
+        lab.words.forEach(function (o, i) {
+          var c = lab.chipsD[i]; if (!c) return;
+          var hid = lab.hidden.has(i);
+          setK(c, o.g); c.classList.toggle('hid', hid); c.classList.toggle('test', hid);
+          c.setAttribute('aria-pressed', hid ? 'true' : 'false');
+          c.setAttribute('aria-label', o.w + ': ' + GEN[o.g] + (hid ? ', сховане від навчання' : ', у навчанні') + '. Натисніть, щоб ' + (hid ? 'повернути в навчання' : 'сховати') + '.');
+        });
+      },
+      renderPred: function (lab) {
+        lab.words.forEach(function (o, i) {
+          var c = lab.chipsP[i]; if (!c) return;
+          var k = lab.pred[i], hid = lab.hidden.has(i), bad = k !== o.g;
+          setK(c, k); c.classList.toggle('test', hid); c.classList.toggle('err', bad); c.classList.toggle('twin', (lab.twins[i] || []).length > 0);
+          c.setAttribute('aria-label', o.w + ': мережа каже «' + CLS[k].name + '»' + (bad ? ', має бути «' + CLS[o.g].name + '»' : ', правильно') + (hid ? ', слово було сховане' : ''));
+        });
+      },
+      renderRule: function (lab, done) {
+        var rows = '', hookChips = '';
+        ENDS.forEach(function (e) {
+          var pc = [0, 0, 0], tc = [0, 0, 0], n = 0, miss = 0;
+          lab.words.forEach(function (o, i) {
+            var lw = o.w.toLowerCase();
+            if (!e.re.test(lw)) return;
+            // first matching category wins
+            for (var q = 0; q < ENDS.length; q++) { if (ENDS[q].re.test(lw)) { if (ENDS[q].id !== e.id) return; break; } }
+            n++; pc[lab.pred[i]]++; tc[o.g]++; if (lab.pred[i] !== o.g) miss++;
+          });
+          if (!n) return;
+          var top = pc.indexOf(Math.max(pc[0], pc[1], pc[2])), share = pc[top] / n;
+          var rule = share >= 0.85 ? '<span class="endrule k' + top + '"><span class="sw"></span>' + CLS[top].name + '</span>' : '<span class="endrule"><span class="note">по-різному</span></span>';
+          rows += '<tr><td class="mono">' + e.label + '</td><td class="mono">' + n + '</td><td>' + rule + '</td><td>' + segBar(pc) + '</td><td>' + segBar(tc) + '</td><td class="mono">' + (miss ? '<span class="miss">' + miss + ' ×</span>' : '—') + '</td></tr>';
+          hookChips += share >= 0.85 ? '<span class="rchip k' + top + '"><span class="sw"></span>' + e.label + ' → ' + CLS[top].name + '</span>' : '<span class="rchip"><span class="note">' + e.label + ' → по-різному</span></span>';
+        });
+        lab.q('endTable').innerHTML = '<div class="tblx"><table class="endt"><thead><tr><th>Закінчення</th><th>Слів</th><th>Мережа обирає</th><th>Відповіді мережі</th><th>Насправді</th><th>Помилок</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        lab.q('hookRule').innerHTML = hookChips;
+        var v = lab.vinfo, b = lab.q('hookBadge'); b.className = 'badge ' + v.cls; b.textContent = v.glyph; lab.q('hookMsg').textContent = v.title;
+        // conflicts
+        var cf = conflictsInTraining(lab), box = lab.q('conflict');
+        if (done && cf.length) {
+          var h = '<b>Конфлікт у навчанні.</b> Слова з однаковими останніми ' + lab.st.win + ' літерами мають різний рід, тож мережа може лише ділити ймовірність:';
+          cf.slice(0, 4).forEach(function (ids) {
+            h += '<span>' + ids.map(function (i) { return '<b>' + esc(lab.words[i].w) + '</b> (' + GEN[lab.words[i].g] + ')'; }).join(' і ') + ' → «' + esc(lab.words[ids[0]].w.toLowerCase().slice(-lab.st.win)) + '»</span>';
+          });
+          box.innerHTML = h; box.hidden = false;
+        } else { box.hidden = true; box.innerHTML = ''; }
+        // errors
+        var errs = lab.q('errs'); errs.innerHTML = '';
+        var c = lab.cnt;
+        if (done && c.errs.length) {
+          c.errs.slice(0, 10).forEach(function (i) {
+            var s = document.createElement('span'); s.innerHTML = '<b></b> → ' + CLS[lab.pred[i]].name + ', має бути ' + CLS[lab.words[i].g].name; s.firstChild.textContent = lab.words[i].w; errs.appendChild(s);
+          });
+          if (c.errs.length > 10) { var m = document.createElement('span'); m.textContent = 'і ще ' + (c.errs.length - 10); errs.appendChild(m); }
+        }
+      },
+      verdict: function (lab, c, done) {
+        var cls, glyph, title, detail, n = lab.words.length, errs = c.errs;
+        if (!done) return { cls: 'run', glyph: '…', title: 'Мережа вчиться', detail: 'Поки що правильно ' + (n - errs.length) + ' зі ' + n + ' слів.' };
+        if (!errs.length) {
+          return { cls: 'ok', glyph: '✓', title: 'Усі слова класифіковано правильно', detail: c.hN ? 'Мережа правильно відповіла і на сховані слова (' + c.hN + ').' : 'У навчанні були всі слова, тож це перевірка пам\'яті, а не узагальнення.' };
+        }
+        var st = groupStats(lab), ok = st.ok || { ok: 0, n: 0 }, exc = { ok: 0, n: 0 };
+        ['kn', 'om', 'am'].forEach(function (g) { if (st[g]) { exc.ok += st[g].ok; exc.n += st[g].n; } });
+        var fixable = errs.filter(function (i) { return !unfixable(lab, i); }).length, hard = errs.length - fixable;
+        var base = c.tN ? c.tOk / c.tN : 1;
+        if (base < 0.9) {
+          return { cls: 'bad', glyph: '×', title: 'Мережа не вивчила навіть навчальні слова', detail: 'Правильно ' + c.tOk + ' із ' + c.tN + ' навчальних. Спробуйте більше нейронів, інше зерно, слабший штраф або ширше вікно.' };
+        }
+        if (!fixable) {
+          return { cls: 'warn', glyph: '!', title: 'Лишилися лише неусувні помилки', detail: 'Усі ' + errs.length + ' помилки припадають на слова з тими самими останніми ' + lab.st.win + ' літерами, що й слово з іншим родом. Розрізнити їх можна лише запам\'ятавши слово цілком.' };
+        }
+        var parts = [];
+        if (ok.n) parts.push('Нові слова за правилом: ' + ok.ok + ' з ' + ok.n);
+        if (exc.n) parts.push('Винятки: ' + exc.ok + ' з ' + exc.n);
+        var ruleOk = !ok.n || ok.ok / ok.n >= 0.8;
+        return { cls: ruleOk ? 'warn' : 'bad', glyph: ruleOk ? '!' : '×',
+          title: ruleOk ? 'Правило виведене, а винятків мережа не знає' : 'Правило виведене не повністю',
+          detail: parts.join('. ') + (parts.length ? '. ' : '') + (hard ? 'Неусувних помилок: ' + hard + ' (ті самі літери, що й слово з іншим родом). ' : '') + 'Рід у винятках залежить від значення слова, тож «якщо… то» з закінчення тут не виводиться.' };
+      },
+
+      renderProbe: function (lab) {
+        var out = lab.q('probeOut'), noun = lab.q('noun').value.trim(), stem0 = lab.q('stem').value.trim().toLowerCase();
+        if (!noun || !stem0) { out.innerHTML = '<p class="sub">Введіть іменник і основу прикметника.</p>'; return; }
+        noun = noun.split(/\s+/).pop();
+        var stem = stem0, note = '';
+        var m = stem.match(/^(.*[^иі])(ий|ій)$/);
+        if (m) { stem = m[1]; note = 'Закінчення «-' + stem0.slice(stem.length) + '» прибрано: введіть основу без закінчення.'; }
+        if (!lab.softTouched) lab.q('soft').checked = isSoftStem(stem);
+        var soft = lab.q('soft').checked;
+        var x = encodeWord(noun, lab.st.win), p = probsOf(lab.net, x), k = argmax3(p), known = -1;
+        lab.words.forEach(function (o, i) { if (o.w.toLowerCase() === noun.toLowerCase()) known = i; });
+        var h = '<p class="phrase big">' + esc(stem) + ending(k, soft) + ' ' + esc(noun) + '</p><p class="sub">Так мережа обрала закінчення прикметника.</p>';
+        h += '<div class="pbars" role="group" aria-label="Ймовірності закінчень">';
+        [0, 1, 2].forEach(function (c) {
+          h += '<div class="pb k' + c + (c === k ? ' top' : '') + '"><span class="nm">' + esc(stem) + '<b>' + ending(c, soft) + '</b></span><span class="track"><span class="fill" style="display:block;width:' + (p[c] * 100).toFixed(1) + '%"></span></span><span class="pv">' + Math.round(p[c] * 100) + '%</span></div>';
+        });
+        h += '</div>';
+        if (known >= 0) {
+          var g = lab.words[known].g, okk = g === k;
+          h += '<p class="verd2"><span class="badge ' + (okk ? 'ok' : 'bad') + '" aria-hidden="true">' + (okk ? '✓' : '×') + '</span>' + (okk ? 'Збігається з правильним: ' : 'Правильно було б: ') + '<b>' + esc(stem) + ending(g, soft) + ' ' + esc(noun) + '</b> (' + GEN[g] + ' рід)</p>';
+          if (lab.hidden.has(known)) h += '<p class="note">Це слово було сховане від навчання.</p>';
+          var tw = lab.twins[known] || [];
+          if (tw.length) h += '<p class="note">' + esc(twinNote(lab, known)) + '</p>';
+        } else {
+          h += '<p class="note">Роду цього слова в списку немає. Якщо ви знаєте його, додайте слово в навчання й подивіться, чи змінить це відповідь:</p><div class="addrow">';
+          [0, 1, 2].forEach(function (c) { h += '<button type="button" class="btn" data-add="' + c + '">' + GEN[c] + ' (' + esc(stem) + ending(c, soft) + ')</button>'; });
+          h += '</div>';
+          var key0 = x.join(','), twins = [];
+          lab.S.forEach(function (s, i) { if (s.x.join(',') === key0) twins.push(lab.words[i].w + ' (' + GEN[lab.words[i].g] + ')'); });
+          if (twins.length) h += '<p class="note">Ті самі останні ' + lab.st.win + ' літер(и) мають: ' + esc(twins.join(', ')) + '.</p>';
+        }
+        if (note) h += '<p class="note">' + esc(note) + '</p>';
+        out.innerHTML = h;
+        $$('[data-add]', out).forEach(function (b) { b.addEventListener('click', function () { task.addWord(lab, noun, +b.dataset.add); }); });
+      },
+
+      onehot: function (lab, f) {
+        var win = lab.st.win, h = '<table class="oh"><thead><tr><th></th>', i, p;
+        var syms = ALPHA.split('').concat(['_', '?']);
+        for (i = 0; i < NSYM; i++) h += '<th>' + syms[i] + '</th>';
+        h += '</tr></thead><tbody>';
+        for (p = 0; p < win; p++) {
+          h += '<tr><th>' + (p === win - 1 ? 'остання' : (win - p) + '-а з кінця') + '</th>';
+          for (i = 0; i < NSYM; i++) { var on = f.x[p] === p * NSYM + i; h += '<td class="' + (on ? 'on' : '') + '">' + (on ? 1 : 0) + '</td>'; }
+          h += '</tr>';
+        }
+        return h + '</tbody></table>';
+      },
+      graphInputs: function (lab, f) {
+        var syms = ALPHA.split('').concat(['_', '?']), win = lab.st.win;
+        return f.x.map(function (idx, p) {
+          var sym = syms[idx - p * NSYM];
+          return { i: idx, label: (p === win - 1 ? 'остання: ' : (win - p) + '-а з кінця: ') + (sym === '_' ? '(порожньо)' : sym), active: true, gap: false, title: p === 0 ? 'входи' : '' };
+        });
+      },
+      weightRows: function (lab) {
+        var used = {}, win = lab.st.win, syms = ALPHA.split('').concat(['_', '?']), rows = [];
+        lab.S.forEach(function (s) { s.x.forEach(function (idx) { used[idx] = 1; }); });
+        for (var p = win - 1; p >= 0; p--) {
+          var first = true;
+          for (var i = 0; i < NSYM; i++) {
+            var idx = p * NSYM + i;
+            if (used[idx]) { rows.push({ idx: idx, label: (p === win - 1 ? 'остання' : (win - p) + '-а з кінця') + ': ' + (syms[i] === '_' ? '(порожньо)' : syms[i]), sep: first && p !== win - 1 }); first = false; }
+          }
+        }
+        return rows;
+      }
+    };
+    return task;
+  })();
+  /* =================================================================
+     Theory widgets: one-hot demo, activation plot, softmax vs tanh,
+     regularisation comparison
+     ================================================================= */
+  var Theory = (function () {
+    var ohIn, ohOut, ohLab, ohKind = null;
+
+    /* ----- one-hot demo (follows the active tab) ----- */
+    function ohRender() {
+      var lab = activeLab;
+      if (!lab || !lab.net || !ohIn) return;
+      var v = ohIn.value.trim(), f, note;
+      if (lab.kind === 'num') {
+        if (!/^\d{1,2}$/.test(v)) { ohOut.innerHTML = '<p class="note">Введіть число від 0 до 99.</p>'; return; }
+        var n = parseInt(v, 10), t = Math.floor(n / 10), u = n % 10;
+        f = { x: [t, 10 + u] };
+        note = 'Увімкнено 2 входи з 20: цифра десятків ' + t + ' і цифра одиниць ' + u + '. Решта 18 дорівнюють нулю.';
+      } else {
+        if (!v) { ohOut.innerHTML = '<p class="note">Введіть слово.</p>'; return; }
+        var win = lab.st.win, x = encodeWord(v, win), low = v.toLowerCase();
+        var tail = low.slice(-win);
+        f = { x: x };
+        note = 'Увімкнено ' + win + ' ' + plural(win, 'вхід', 'входи', 'входів') + ' із ' + (win * NSYM) + ': по одному на кожну з останніх ' + win + ' літер' +
+          (low.length < win ? ' (слово коротше, порожнє місце позначено «_»)' : ' («' + tail + '»') + (low.length < win ? '' : ')') + '. Вікно можна змінити на вкладці «Прикметник».';
+      }
+      ohOut.innerHTML = lab.t.onehot(lab, f) + '<p class="sumline">' + esc(note) + '</p>';
+    }
+    function ohSetup() {
+      var lab = activeLab;
+      if (!lab || !ohIn) return;
+      if (ohKind !== lab.kind) {
+        ohKind = lab.kind;
+        if (lab.kind === 'num') { ohLab.textContent = 'Число (0–99)'; ohIn.value = '21'; ohIn.maxLength = 2; ohIn.inputMode = 'numeric'; }
+        else { ohLab.textContent = 'Слово'; ohIn.value = 'батько'; ohIn.maxLength = 20; ohIn.inputMode = 'text'; }
+      }
+      ohRender();
+    }
+
+    /* ----- activation plot ----- */
+    function initAct() {
+      var box = $('#actPlot'); if (!box) return;
+      var W = 360, H = 220, l = 34, r = 12, t = 12, b = 26, x0 = -3, x1 = 3, y0 = -1.3, y1 = 3.2;
+      function xs(z) { return l + (z - x0) / (x1 - x0) * (W - l - r); }
+      function ys(y) { return t + (y1 - y) / (y1 - y0) * (H - t - b); }
+      var s = '', z, d1 = '', d2 = '';
+      [-1, 0, 1, 2, 3].forEach(function (v) {
+        s += '<line class="' + (v === 0 ? 'a-line' : 'g-line') + '" x1="' + l + '" x2="' + (W - r) + '" y1="' + ys(v) + '" y2="' + ys(v) + '"/>';
+        s += '<text class="t-ax" x="' + (l - 6) + '" y="' + (ys(v) + 4) + '" text-anchor="end">' + String(v).replace('-', '−') + '</text>';
+      });
+      for (z = -3; z <= 3; z++) {
+        s += '<line class="' + (z === 0 ? 'a-line' : 'g-line') + '" x1="' + xs(z) + '" x2="' + xs(z) + '" y1="' + t + '" y2="' + (H - b) + '"/>';
+        s += '<text class="t-ax" x="' + xs(z) + '" y="' + (H - 8) + '" text-anchor="middle">' + String(z).replace('-', '−') + '</text>';
+      }
+      for (z = -3; z <= 3.001; z += 0.1) {
+        d1 += (d1 ? 'L' : 'M') + xs(z).toFixed(1) + ' ' + ys(Math.max(0, z)).toFixed(1);
+        d2 += (d2 ? 'L' : 'M') + xs(z).toFixed(1) + ' ' + ys(Math.tanh(z)).toFixed(1);
+      }
+      s += '<path class="cv-relu" d="' + d1 + '"/><path class="cv-tanh" d="' + d2 + '"/>';
+      s += '<text class="t-ax" x="' + (W - r) + '" y="' + (ys(0) - 6) + '" text-anchor="end">z</text>';
+      s += '<circle class="cdot-r" id="actDotR" r="4.5" cx="0" cy="0"/><circle class="cdot-t" id="actDotT" r="4.5" cx="0" cy="0"/>';
+      var tab = '<table class="cmp"><thead><tr><th class="lc">вхід z</th><th>ReLU</th><th class="lc">tanh</th></tr></thead><tbody>';
+      for (z = -3; z <= 3; z++) tab += '<tr><th class="num">' + String(z).replace('-', '−') + '</th><td class="num">' + fnum(Math.max(0, z), 2) + '</td><td class="num">' + fnum(Math.tanh(z), 2) + '</td></tr>';
+      tab += '</tbody></table>';
+      box.innerHTML =
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Графіки ReLU та tanh для z від −3 до 3">' + s + '</svg>' +
+        '<div class="legend2" style="margin-top:8px"><span><i class="lkey" style="background:var(--s1)"></i>ReLU</span><span><i class="lkey" style="background:var(--s2)"></i>tanh</span></div>' +
+        '<div class="wrow" style="margin-top:10px"><label for="actZ">z</label><input type="range" id="actZ" min="-3" max="3" step="0.1" value="1"><span class="v" id="actZv"></span></div>' +
+        '<p class="sumline" id="actRead"></p>' +
+        '<details><summary>Таблиця значень</summary><div class="tbl-wrap">' + tab + '</div></details>';
+      var inp = $('#actZ');
+      function upd() {
+        var zv = +inp.value;
+        $('#actZv').textContent = fnum(zv, 1);
+        var dr = $('#actDotR'), dt = $('#actDotT');
+        dr.setAttribute('cx', xs(zv)); dr.setAttribute('cy', ys(Math.max(0, zv)));
+        dt.setAttribute('cx', xs(zv)); dt.setAttribute('cy', ys(Math.tanh(zv)));
+        $('#actRead').textContent = 'z = ' + fnum(zv, 1) + ' → ReLU ' + fnum(Math.max(0, zv), 2) + ', tanh ' + fnum(Math.tanh(zv), 2);
+      }
+      inp.addEventListener('input', upd); upd();
+    }
+
+    /* ----- softmax vs tanh ----- */
+    function initSoftmax() {
+      var sl = $('#smSliders'), out = $('#smOut'); if (!sl || !out) return;
+      var init = [2, 0.5, -1], vals = init.slice(), h = '';
+      init.forEach(function (v, i) {
+        h += '<div class="wrow"><label for="smZ' + i + '">вихід ' + (i + 1) + '</label><input type="range" id="smZ' + i + '" min="-4" max="4" step="0.1" value="' + v + '"><span class="v" id="smV' + i + '"></span></div>';
+      });
+      sl.innerHTML = h;
+      function bar(label, fillStyle, left, width, text, cls) {
+        return '<div class="bar1' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><span class="tr"><span class="fl" style="' + fillStyle + 'left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%"></span>' + (cls === 'tanh' ? '<i class="mid"></i>' : '') + '</span><span class="vv">' + text + '</span></div>';
+      }
+      function upd() {
+        var i, mx = Math.max(vals[0], vals[1], vals[2]), e = [], se = 0, st = 0, th = [];
+        for (i = 0; i < 3; i++) { e.push(Math.exp(vals[i] - mx)); se += e[i]; th.push(Math.tanh(vals[i])); st += th[i]; $('#smV' + i).textContent = fnum(vals[i], 1); }
+        var html = '<h4>softmax: ймовірності</h4>';
+        for (i = 0; i < 3; i++) { var p = e[i] / se; html += bar('вихід ' + (i + 1), '--fill:var(--k' + i + ');', 0, p * 100, fnum(p, 2)); }
+        html += '<p class="sumline">сума = ' + fnum(1, 2) + ' завжди</p><h4>tanh: незалежні величини</h4>';
+        for (i = 0; i < 3; i++) { var v = th[i]; html += bar('вихід ' + (i + 1), '', 50 + Math.min(0, v) * 50, Math.abs(v) * 50, fnum(v, 2), 'tanh'); }
+        html += '<p class="sumline">сума = ' + fnum(st, 2) + ', ніяк не обмежена</p>';
+        out.innerHTML = html;
+      }
+      init.forEach(function (_, i) { $('#smZ' + i).addEventListener('input', function () { vals[i] = +this.value; upd(); }); });
+      upd();
+    }
+
+    /* ----- regularisation comparison ----- */
+    var BINS = [
+      { lab: 'майже нуль (< 0,05)', hi: 0.05 }, { lab: '0,05 – 0,5', hi: 0.5 }, { lab: '0,5 – 1', hi: 1 },
+      { lab: '1 – 2', hi: 2 }, { lab: '2 – 4', hi: 4 }, { lab: '4 і більше', hi: Infinity }
+    ];
+    function trainCfg(lab, reg, lam) {
+      var st = lab.st, o = lab.net;
+      var net = makeNet({ nIn: o.nIn, H: st.H, relu: st.relu, reg: reg, lam: lam, seed: st.seed, samples: lab.S, trainIdx: o.trainIdx, hiddenIdx: o.hiddenIdx });
+      for (var e = 0; e < MAXEP0; e++) trainStep(net);
+      return net;
+    }
+    function statsOf(lab, net) {
+      var S = lab.S, hid = lab.hidden, tOk = 0, tN = 0, hOk = 0, hN = 0, i, bins = BINS.map(function () { return 0; }), tot = 0, vis = 0, mx = 0;
+      for (i = 0; i < S.length; i++) {
+        forward(net, S[i].x);
+        var ok = argmax3(net.pr) === S[i].y;
+        if (hid.has(i)) { hN++; if (ok) hOk++; } else { tN++; if (ok) tOk++; }
+      }
+      net.P.forEach(function (q) {
+        if (!q.reg) return;
+        for (var k = 0; k < q.p.length; k++) {
+          var a = Math.abs(q.p[k]); tot++;
+          if (a > 0.05) vis++;
+          if (a > mx) mx = a;
+          for (var b = 0; b < BINS.length; b++) if (a < BINS[b].hi) { bins[b]++; break; }
+        }
+      });
+      return { tOk: tOk, tN: tN, hOk: hOk, hN: hN, loss: meanLoss(net, net.trainIdx), tot: tot, vis: vis, mx: mx, bins: bins };
+    }
+    function regRun() {
+      var lab = activeLab, btn = $('#regCmp'), lb = $('#regCmpLab'), out = $('#regOut');
+      if (!lab || !lab.net) return;
+      btn.disabled = true; lb.textContent = 'Рахую три навчання…';
+      setTimeout(function () {
+        var cfgs = [['none', 0, 'Без'], ['l1', 0.05, 'L1, штраф 0,05'], ['l2', 0.01, 'L2, штраф 0,01']];
+        var R = cfgs.map(function (c) { return statsOf(lab, trainCfg(lab, c[0], c[1])); });
+        var st = lab.st;
+        var h = '<div class="tbl-wrap"><table class="cmp"><thead><tr><th></th>' + cfgs.map(function (c) { return '<th>' + c[2] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        function row(name, fn) { h += '<tr><th>' + name + '</th>' + R.map(function (r) { return '<td class="num">' + fn(r) + '</td>'; }).join('') + '</tr>'; }
+        row('Правильно в навчанні', function (r) { return r.tOk + ' з ' + r.tN; });
+        row('Правильно на схованих', function (r) { return r.hN ? r.hOk + ' з ' + r.hN : '—'; });
+        row('Втрата в навчанні', function (r) { return floss(r.loss); });
+        row('Помітних ваг (|w| > 0,05)', function (r) { return r.vis + ' з ' + r.tot; });
+        row('Найбільша |w|', function (r) { return fnum(r.mx, 2); });
+        h += '</tbody></table></div>';
+        h += '<div class="tbl-wrap"><table class="cmp"><thead><tr><th>Скільки ваг за розміром</th>' + cfgs.map(function (c) { return '<th>' + c[2] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        BINS.forEach(function (bn, bi) {
+          h += '<tr><th>' + bn.lab + '</th>' + R.map(function (r) {
+            return '<td class="num">' + r.bins[bi] + '<div class="mb"><span style="width:' + (r.bins[bi] / r.tot * 100).toFixed(1) + '%"></span></div></td>';
+          }).join('') + '</tr>';
+        });
+        h += '</tbody></table></div>';
+        h += '<p class="note">Без штрафу найбільша вага ' + fnum(R[0].mx, 2) + ', з L2 ' + fnum(R[2].mx, 2) + ', з L1 ' + fnum(R[1].mx, 2) + '. Помітних ваг: без штрафу ' + R[0].vis + ', L1 ' + R[1].vis + ', L2 ' + R[2].vis + ' із ' + R[0].tot + '. Інші початкові ваги (кнопка «Нове зерно» на сторінці) можуть дати інші числа: порівнюйте закономірність, а не окреме значення.</p>';
+        out.innerHTML = h;
+        lb.textContent = (lab.kind === 'num' ? 'Числівник' : 'Прикметник') + ' · ' + (st.H ? st.H + ' ' + plural(st.H, 'нейрон', 'нейрони', 'нейронів') + ' (' + (st.relu ? 'ReLU' : 'tanh') + ')' : 'без прихованого шару') + ' · зерно ' + st.seed + ' · схованих: ' + lab.hidden.size;
+        btn.disabled = false;
+      }, 30);
+    }
+    function initReg() {
+      var out = $('#regOut'); if (out) out.setAttribute('aria-live', 'polite');
+      $('#regCmp').addEventListener('click', regRun);
+    }
+
+    function init() {
+      ohIn = $('#thOhIn'); ohOut = $('#thOhOut'); ohLab = $('#thOhLab');
+      if (ohIn) ohIn.addEventListener('input', ohRender);
+      initAct(); initSoftmax(); initReg();
+      ohSetup();
+    }
+    return { init: init, refresh: function () { ohSetup(); var o = $('#regOut'); if (o) o.innerHTML = ''; var l = $('#regCmpLab'); if (l) l.textContent = ''; } };
+  })();
+  /* =================================================================
+     Init: two labs, tabs, "що це?" links
+     ================================================================= */
+  labs.num = new Lab('num', NumTask, $('#lab-num'));
+  labs.word = new Lab('word', WordTask, $('#lab-word'));
+
+  function showLab(kind, fromHash) {
+    ['num', 'word'].forEach(function (k) {
+      var on = k === kind, lab = labs[k], tab = $('#tab-' + k), sec = $('#lab-' + k);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.tabIndex = on ? 0 : -1;
+      sec.hidden = !on;
+      if (!on && lab.inited) { lab.wasRunning = lab.st.running; lab.pause(); }
+    });
+    activeLab = labs[kind];
+    activeLab.ensureInit();
+    if (activeLab.wasRunning) { activeLab.wasRunning = false; activeLab.start(); }
+    Theory.refresh();
+    if (!fromHash) {
+      try { history.replaceState(null, '', kind === 'word' ? '#adjective' : '#numeral'); } catch (e) {}
+    }
+  }
+  function kindFromHash() {
+    var h = '';
+    try { h = location.hash || ''; } catch (e) {}
+    return h === '#adjective' ? 'word' : 'num';
+  }
+
+  $('#tab-num').addEventListener('click', function () { showLab('num'); });
+  $('#tab-word').addEventListener('click', function () { showLab('word'); });
+  $('.tabs').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var kind = activeLab && activeLab.kind === 'num' ? 'word' : 'num';
+    showLab(kind);
+    $('#tab-' + kind).focus();
+    e.preventDefault();
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-th]') : null;
+    if (b) openTheory(b.getAttribute('data-th'));
+  });
+  try { window.addEventListener('hashchange', function () { showLab(kindFromHash(), true); }); } catch (e) {}
+
+  Theory.init();
+  showLab(kindFromHash(), true);
+  window.__kit = { labs: labs, showLab: showLab, Theory: Theory, getActive: function () { return activeLab; } };
+})();
+</script>
+
+</body></html>
