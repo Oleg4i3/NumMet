@@ -1,0 +1,1525 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Стометрівка і нейромережа</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap">
+<style>
+/* Layout concept: a stadium page. Tartan lanes with cartoon runners carry the story,
+   a dark LED scoreboard carries the numbers, calm cards carry the controls and charts. */
+:root {
+  --bg: #EDF0F6; --surface: #FFFFFF; --surface-2: #F4F6FB;
+  --ink: #14213D; --ink-2: #3A4662; --muted: #636E86; --line: #D6DCE8;
+  --model: #2D5BFF; --test: #D97500; --truth: #14213D;
+  --track: #D9573A; --track-line: rgba(255,255,255,.78);
+  --good: #17703D; --good-bg: #DDF3E5; --warn: #8A5A00; --warn-bg: #FBEBC8; --bad: #B02A18; --bad-bg: #FADBD5;
+  --board: #0F1A33; --board-fg: #FFC247; --board-dim: #9FB0D3; --board-line: #2A3963;
+  --focus: #2D5BFF;
+  --font-display: 'Unbounded', 'Onest', system-ui, sans-serif;
+  --font-body: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1220; --surface: #151D31; --surface-2: #1B2540;
+    --ink: #E9EDF6; --ink-2: #BCC5D8; --muted: #8D98B1; --line: #29345A;
+    --model: #6385F5; --test: #D9780E; --truth: #E9EDF6;
+    --track: #9A402B; --track-line: rgba(255,255,255,.62);
+    --good: #5CCB8A; --good-bg: #123624; --warn: #E3B04B; --warn-bg: #3A2D0E; --bad: #FF8873; --bad-bg: #44201A;
+    --focus: #8FA8FF; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1220; --surface: #151D31; --surface-2: #1B2540;
+  --ink: #E9EDF6; --ink-2: #BCC5D8; --muted: #8D98B1; --line: #29345A;
+  --model: #6385F5; --test: #D9780E; --truth: #E9EDF6;
+  --track: #9A402B; --track-line: rgba(255,255,255,.62);
+  --good: #5CCB8A; --good-bg: #123624; --warn: #E3B04B; --warn-bg: #3A2D0E; --bad: #FF8873; --bad-bg: #44201A;
+  --focus: #8FA8FF; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.page { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.7rem, 4.6vw, 2.9rem); line-height: 1.08; }
+h2 { font-size: 1.05rem; line-height: 1.2; }
+h3 { font-size: .95rem; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* hero */
+.hero { display: grid; gap: 10px; padding-top: 6px; max-width: 78ch; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.lead { color: var(--ink-2); font-size: 1.02rem; max-width: 68ch; }
+.note { font-size: 13px; color: var(--muted); }
+
+/* cards */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.sub { color: var(--muted); font-size: 13px; }
+
+/* scenarios */
+.scenarios { display: grid; gap: 10px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
+@media (min-width: 700px) { .chips { flex-wrap: wrap; overflow-x: visible; } }
+.chip-btn {
+  flex: 0 0 auto; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--line);
+  background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap;
+}
+.chip-btn:hover { border-color: var(--model); }
+.chip-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.story { display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.story h2 { font-size: 1rem; }
+.story .why { color: var(--ink-2); max-width: 80ch; }
+.verdict { display: none; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
+.verdict.show { display: flex; }
+.verdict b { white-space: nowrap; }
+.verdict .ic { font-family: var(--font-mono); font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; background: currentColor; }
+.verdict .ic span { color: var(--surface); font-size: 13px; line-height: 1; }
+.verdict.ok { background: var(--good-bg); color: var(--good); }
+.verdict.warn { background: var(--warn-bg); color: var(--warn); }
+.verdict.bad { background: var(--bad-bg); color: var(--bad); }
+.verdict .txt { color: var(--ink); }
+
+/* stage: race + controls */
+.stage { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 940px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; } }
+.status { display: flex; align-items: center; gap: 10px; }
+.pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.pill.live { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.pill.done { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.progress { height: 6px; border-radius: 6px; background: var(--surface-2); overflow: hidden; margin-bottom: 10px; }
+.progress > div { height: 100%; width: 0; background: var(--model); transition: width .1s linear; }
+.hint { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+
+.lanes { --pad: 36px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.lane { display: grid; grid-template-columns: 176px minmax(0, 1fr); background: var(--surface-2); }
+.lane + .lane { border-top: 1px solid var(--line); }
+.lane-info { padding: 8px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
+.lane-info b { font-size: 14px; line-height: 1.2; }
+.lane-info .sub { font-size: 12px; line-height: 1.3; }
+.lane-nums { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 12px; margin-top: 2px; }
+.lane-nums .m { color: var(--model); font-weight: 700; }
+.lane-nums .t { color: var(--ink-2); }
+.lane-nums .err { font-weight: 700; }
+.lane-nums .err.ok { color: var(--good); } .lane-nums .err.warn { color: var(--warn); } .lane-nums .err.bad { color: var(--bad); }
+.lane.you .lane-info { background: color-mix(in srgb, var(--model) 10%, var(--surface-2)); }
+.lane-track {
+  position: relative; height: 86px; background: var(--track);
+  box-shadow: inset 0 3px 0 var(--track-line), inset 0 -3px 0 var(--track-line);
+}
+.lane-track .start { position: absolute; top: 0; bottom: 0; left: var(--pad); width: 3px; background: var(--track-line); }
+.lane-track .finish {
+  position: absolute; top: 0; bottom: 0; left: calc(100% - var(--pad)); width: 10px; transform: translateX(-50%);
+  background: repeating-conic-gradient(#fff 0 25%, #1b1b1b 0 50%) 0 0 / 10px 10px;
+}
+.runner, .flag { --x: calc(var(--pad) + (100% - var(--pad) * 2) * var(--p, 0)); }
+.runner { position: absolute; bottom: 4px; left: var(--x); width: 62px; height: 72px; transform: translateX(-50%); transition: left .22s linear; z-index: 2; }
+.runner svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.lanes.live .runner svg { animation: hop .38s ease-in-out infinite alternate; }
+@keyframes hop { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+.flag { position: absolute; top: 0; bottom: 0; left: calc(var(--pad) + (100% - var(--pad) * 2) * var(--t, 0)); width: 0; border-left: 2px dashed rgba(255,255,255,.85); z-index: 1; transition: left .3s ease; }
+.flag svg { position: absolute; top: 3px; left: 0; width: 20px; height: 16px; }
+.ticks { display: grid; grid-template-columns: 176px minmax(0, 1fr); }
+.ticks .row { position: relative; height: 22px; --pad: 36px; }
+.ticks span { position: absolute; left: calc(var(--pad) + (100% - var(--pad) * 2) * var(--p)); transform: translateX(-50%); font-size: 11px; color: var(--muted); top: 4px; font-family: var(--font-mono); }
+.axis-cap { grid-column: 1; font-size: 11px; color: var(--muted); padding: 4px 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--ink-2); align-items: center; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--model); vertical-align: middle; margin-right: 6px; }
+.legend i.dash { border-top: 2px dashed var(--truth); }
+.legend i.t { border-top-color: var(--test); }
+.legend i.dots { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--muted); opacity: .6; }
+@media (max-width: 640px) {
+  .lane, .ticks { grid-template-columns: minmax(0, 1fr); }
+  .lane-info { padding-bottom: 4px; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .axis-cap { display: none; }
+  .lanes { --pad: 30px; } .ticks .row { --pad: 30px; }
+}
+
+/* controls */
+.panel { display: grid; gap: 14px; }
+.panel h2 { font-size: .95rem; }
+.group { display: grid; gap: 12px; }
+.group + .group { border-top: 1px solid var(--line); padding-top: 14px; }
+.field { display: grid; gap: 4px; }
+.field label, .field .lab { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 600; gap: 8px; }
+.field .val { font-family: var(--font-mono); font-weight: 600; color: var(--model); font-size: 13px; text-align: right; }
+.field small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+input[type=range] { width: 100%; accent-color: var(--model); height: 28px; margin: 0; }
+input[type=range]:disabled { opacity: .4; }
+select, input[type=number] { min-height: 40px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface-2); padding: 6px 10px; width: 100%; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.seg label { position: relative; text-align: center; font-size: 13px; font-weight: 600; padding: 9px 4px; cursor: pointer; min-height: 40px; display: grid; place-items: center; justify-content: stretch; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg label:has(input:checked) { background: var(--ink); color: var(--bg); }
+.seg label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: -3px; }
+.seg label + label { border-left: 1px solid var(--line); }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn { min-height: 46px; border-radius: 12px; border: 1.5px solid var(--ink); background: var(--surface); font-weight: 700; cursor: pointer; padding: 8px 12px; }
+.btn.primary { background: var(--model); border-color: var(--model); color: #fff; }
+.btn.primary.attn { box-shadow: 0 0 0 4px color-mix(in srgb, var(--model) 30%, transparent); }
+.btn:hover { filter: brightness(1.06); }
+
+/* scoreboard */
+.board { background: var(--board); color: #fff; border-radius: 16px; padding: 14px 16px; display: grid; gap: 12px; }
+.board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+.cell { border: 1px solid var(--board-line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; }
+.cell .k { font-size: 12px; color: var(--board-dim); }
+.cell .v { font-family: var(--font-mono); font-weight: 700; font-size: clamp(1.5rem, 4vw, 2.2rem); color: var(--board-fg); line-height: 1.1; }
+.cell .s { font-size: 11px; color: var(--board-dim); }
+.board-foot { font-size: 12px; color: var(--board-dim); }
+
+/* charts */
+.charts { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 940px) { .charts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .span2 { grid-column: 1 / -1; } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.chart .l-model { stroke: var(--model); stroke-width: 3; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.chart .l-train { stroke: var(--model); stroke-width: 2.5; fill: none; stroke-linejoin: round; }
+.chart .l-test { stroke: var(--test); stroke-width: 2.5; fill: none; stroke-linejoin: round; }
+.chart .l-truth { stroke: var(--truth); stroke-width: 2; stroke-dasharray: 6 5; fill: none; }
+.chart .dot { fill: var(--muted); opacity: .45; }
+.chart .bar { fill: var(--model); }
+.chart .lab-model { fill: var(--model); font-weight: 700; }
+.chart .lab-test { fill: var(--test); font-weight: 700; }
+.chart .lab-truth { fill: var(--ink-2); font-weight: 700; }
+.chart .ring { fill: var(--surface); stroke: var(--model); stroke-width: 3; }
+.chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -110%); z-index: 5; display: none; line-height: 1.35; }
+.tip.show { display: block; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg.small label { padding: 6px 12px; min-height: 34px; font-size: 12px; }
+.junk-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { .junk-grid { grid-template-columns: 2fr 1fr; } }
+.junk-note { font-size: 13px; margin-top: 8px; display: flex; gap: 8px; align-items: flex-start; }
+.junk-note b { white-space: nowrap; }
+details.tbl { margin-top: 8px; font-size: 12px; }
+details.tbl summary { cursor: pointer; color: var(--muted); }
+.tbl table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); margin-top: 6px; }
+.tbl th, .tbl td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.tbl-wrap { overflow-x: auto; max-height: 220px; }
+
+/* theory */
+details.theory { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 0; }
+details.theory > summary { cursor: pointer; list-style: none; padding: 14px 16px; font-family: var(--font-display); font-weight: 700; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 48px; }
+details.theory > summary::-webkit-details-marker { display: none; }
+details.theory > summary::after { content: "Показати"; font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--model); }
+details.theory[open] > summary::after { content: "Сховати"; }
+.theory-body { padding: 0 16px 18px; display: grid; gap: 14px; max-width: 78ch; }
+.theory-body h3 { margin-top: 6px; }
+.theory-body p, .theory-body li { color: var(--ink-2); }
+.theory-body ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.formula { font-family: var(--font-mono); font-size: 13px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; overflow-x: auto; color: var(--ink); }
+.honest { border-left: 4px solid var(--warn); background: var(--warn-bg); padding: 10px 12px; border-radius: 0 10px 10px 0; color: var(--ink); }
+.foot { font-size: 12px; color: var(--muted); max-width: 80ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .runner, .flag, .progress > div { transition: none; }
+  .lanes.live .runner svg { animation: none; }
+}
+
+/* builder (top of page) */
+.builder { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: center; }
+@media (min-width: 760px) { .builder { grid-template-columns: 210px minmax(0, 1fr); } }
+.b-avatar { display: grid; gap: 10px; justify-items: center; background: var(--surface-2); border-radius: 14px; padding: 14px 12px; }
+.b-art { width: 150px; height: 175px; }
+.b-art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.b-bars { width: 100%; display: grid; gap: 4px; }
+.b-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); }
+.b-row b { font-size: 13px; color: var(--ink); }
+.bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--model); border-radius: 4px; transition: width .25s ease; }
+.bar.truth i { background: var(--truth); }
+.b-grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.tag { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); margin-left: 4px; vertical-align: middle; }
+.field.inline { display: flex; align-items: center; gap: 8px; }
+.field.inline select { width: auto; min-width: 190px; }
+
+/* tabs */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tab { border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 7px 14px; min-height: 38px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.tab[aria-selected="true"] { background: var(--model); border-color: var(--model); color: #fff; }
+.tab:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* extra chart styles */
+.chart .track { fill: var(--surface-2); }
+.chart .truthtick { fill: var(--truth); }
+.chart .lab-ink { fill: var(--ink-2); }
+#cv-map { width: 100%; display: block; border-radius: 12px; touch-action: pan-y; }
+.legend .blk { width: 14px; height: 8px; border: 0; border-radius: 2px; background: var(--model); }
+.legend .tick { width: 3px; height: 14px; border: 0; background: var(--truth); }
+.legend .line { width: 18px; border-top: 3px solid #111; }
+:root[data-theme="dark"] .legend .line { border-top-color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .legend .line { border-top-color: #fff; } }
+.legend .pt { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--muted); }
+.legend .pt.ok { background: var(--good); } .legend .pt.no { background: var(--bad); }
+.legend .pt.you { background: var(--surface); border: 3px solid var(--model); box-shadow: none; }
+.legend .grad { display: inline-block; width: 90px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #D9573A, #F2EBD8, #2D5BFF); }
+.lane-track { height: 88px; }
+
+.intro { color: var(--ink); margin: 0; }
+details.theory { margin-top: -4px; }
+.theory-body sub, .theory-body sup { font-size: .75em; line-height: 0; }
+
+</style>
+<main class="page">
+  <header class="hero">
+    <p class="eyebrow">Симулятор перенавчання і регуляризації</p>
+    <h1>Хто добіжить за 15 секунд?</h1>
+    <p class="lead">Нейромережа дивиться на 400 вигаданих людей і вчиться вгадувати, хто пробіжить сотку швидше за 15 секунд. У даних є корисні ознаки (вік, ІМТ, вид спорту) і сміття (знак зодіаку, номер квартири, коти вдома). Створіть свою людину, а потім дивіться, як мережа помиляється і що її лікує.</p>
+    <p class="intro"><b>Перенавчання (overfitting)</b> виникає, коли модель підлаштовується під випадкові особливості навчальної вибірки, а не лише під справжню закономірність: помилка на навчальних даних мала, а на нових даних (помилка узагальнення) помітно більша. <b>Регуляризація</b> об'єднує методи, які обмежують ефективну складність моделі й зменшують цей розрив: штраф у функції втрат (L1, L2), випадкове вимикання нейронів під час навчання (dropout), рання зупинка, збільшення даних. Ціною є невелике зміщення оцінки, яке окупається меншою дисперсією.</p>
+    <p class="note">Дані згенеровано за формулою, це не статистика справжніх бігунів.</p>
+  </header>
+
+  <details class="theory">
+    <summary>Теорія</summary>
+    <div class="theory-body">
+      <h3>1. Постановка задачі та дані</h3>
+      <p>Задача бінарної класифікації. Об'єкт описується вектором ознак x (вік, ІМТ, вид спорту, знак зодіаку, номер квартири, кількість котів), мітка y = 1, якщо час на 100 м менший за 15 с. Модель оцінює умовну ймовірність f<sub>θ</sub>(x) ≈ P(y = 1 | x). Дані синтетичні та генеруються за відомим законом:</p>
+      <p class="formula">T = t<sub>вік</sub>(вік) + t<sub>ІМТ</sub>(ІМТ) + s(спорт) + ε,   ε ~ N(0; σ²), σ = 0,8 с,   y = 1[T &lt; 15]</p>
+      <p>Звідси істинна умовна ймовірність відома точно:</p>
+      <p class="formula">p*(x) = P(y = 1 | x) = Φ((15 − μ(x)) / σ),   μ(x) = t<sub>вік</sub> + t<sub>ІМТ</sub> + s</p>
+      <p>Тут Φ це функція розподілу стандартної нормальної величини. Складова віку: t<sub>вік</sub> = 13,4 + 0,0036·(a − 20)² при a ≥ 20 і 13,4 + 0,045·(20 − a)² при a &lt; 20. Складова ІМТ: 0,035·d² при d = ІМТ − 21,5 &gt; 0 і 0,03·d² інакше. Поправки спорту s, с: легка атлетика −2,4, футбол −1,5, плавання −1,3, баскетбол −1,2, лижі −1,1, теніс −1,0, сумо −0,5, гольф −0,2, більярд і шахи +0,3, рибальство +0,6, без спорту +0,9. Знак зодіаку, номер квартири й кількість котів у законі відсутні, тобто P(y | x) від них не залежить. Це шумові ознаки.</p>
+      <p>Через ε навіть ідеальний класифікатор f = p* помиляється: байєсівська помилка E[min(p*, 1 − p*)] ≈ 8%, тобто максимальна точність близько 92%. Це верхня межа, яку показує табло. Навчальна вибірка містить n = 100…800 об'єктів, тестова N = 1000 незалежних об'єктів з того ж розподілу.</p>
+
+      <h3>2. Модель</h3>
+      <p>Повнозв'язна мережа прямого поширення з L прихованими шарами однакової ширини m. Вид і знак зодіаку кодуються one-hot (12 + 12 бінарних входів), вік, ІМТ, номер квартири і кількість котів стандартизуються за середнім і стандартним відхиленням навчальної вибірки. Усього D = 28 входів.</p>
+      <p class="formula">h<sup>(0)</sup> = x,   h<sup>(l)</sup> = φ(W<sup>(l)</sup> h<sup>(l−1)</sup> + b<sup>(l)</sup>),   f<sub>θ</sub>(x) = σ(w<sup>T</sup> h<sup>(L)</sup> + b),   σ(z) = 1 / (1 + e<sup>−z</sup>)</p>
+      <p>φ ∈ {ReLU, SiLU, tanh}. Для L = 0 це логістична регресія. Кількість параметрів P = Σ (n<sub>вх</sub>·n<sub>вих</sub> + n<sub>вих</sub>); для архітектури 28–32–32–32–1 маємо P = 3073 при n = 400, тобто параметрів значно більше, ніж прикладів. Початкові ваги: нормальний розподіл з дисперсією 2 / n<sub>вх</sub> (ініціалізація He). Оптимізація: повнопакетний градієнтний спуск з Adam (η = 0,008), 500 епох, без ранньої зупинки.</p>
+
+      <h3>3. Функція втрат і метрики</h3>
+      <p>Навчання мінімізує емпіричний ризик з крос-ентропійною втратою (log-loss):</p>
+      <p class="formula">L̂(θ) = −(1/n) Σ<sub>i</sub> [ y<sub>i</sub> ln f<sub>θ</sub>(x<sub>i</sub>) + (1 − y<sub>i</sub>) ln(1 − f<sub>θ</sub>(x<sub>i</sub>)) ]</p>
+      <p>Крім log-loss, табло показує точність (частка правильних класифікацій за порогом 0,5). Ці метрики відповідають на різні питання: точність залежить лише від знака f − 0,5, а log-loss оцінює якість самої ймовірності. Модель, яка помиляється з f ≈ 0,99, отримує штраф −ln(0,01) ≈ 4,6 на об'єкт, тому перенавчана мережа може мати пристойну точність і високий log-loss (надмірну самовпевненість). Мінімум математичного сподівання log-loss досягається при f = p*.</p>
+
+      <h3>4. Узагальнення, недонавчання і перенавчання</h3>
+      <p>Мета полягає у малому справжньому ризику R(θ) = E[ℓ(y, f<sub>θ</sub>(x))], а мінімізується L̂, обчислений на скінченній вибірці. Розрив узагальнення Δ = R(θ̂) − L̂(θ̂) оцінюється за незалежною тестовою вибіркою; у табло розрив показано для точності: Δ<sub>acc</sub> = acc<sub>навч</sub> − acc<sub>тест</sub>. Для квадратичної помилки очікувана помилка розкладається на зміщення², дисперсію й невідтворюваний шум; для log-loss розклад не такий чистий, але якісна картина та сама.</p>
+      <ul>
+        <li><b>Недонавчання</b>: клас моделей занадто вузький (велике зміщення). Помилка велика і на навчальних, і на нових даних, розрив малий. Приклад: логістична регресія не може відтворити параболічну залежність від віку.</li>
+        <li><b>Перенавчання</b>: клас моделей занадто гнучкий відносно n (велика дисперсія). Навчальна помилка близька до нуля, а помилка на нових даних більша, розрив великий. Мережа 3×32 при n = 400 здатна апроксимувати навіть випадкові збіги, наприклад «усі Водолії з трьома котами у вибірці добігли».</li>
+      </ul>
+      <p>Кількість параметрів лише грубо характеризує складність: ефективна ємність залежить також від оптимізатора, кількості епох і регуляризації.</p>
+
+      <h3>5. Регуляризація</h3>
+      <p>Загальна форма: мінімізується узагальнена мета J(θ) = L̂(θ) + λ·Ω(θ), де λ ≥ 0 керує компромісом між відповідністю даним і складністю. У цьому симуляторі штраф накладається на ваги W, а зсуви b не штрафуються.</p>
+      <p class="formula">L2:  Ω = Σ w²,  ∂Ω/∂w = 2w         L1:  Ω = Σ |w|,  ∂Ω/∂w = sign(w)</p>
+      <p><b>L2 (затухання ваг).</b> Градієнт штрафу пропорційний вазі, тому великі ваги стягуються сильніше. Для простого градієнтного спуску крок має вигляд w ← (1 − 2ηλ)·w − η·∇L̂, звідси назва «weight decay». У байєсівській інтерпретації L2 це MAP-оцінка з гауссовим апріорним розподілом w ~ N(0, τ²), де λ = 1/(2nτ²). Тут штраф додається до градієнта перед нормалізацією в Adam (зв'язаний L2); це не те саме, що роз'єднане затухання ваг в AdamW (Loshchilov, Hutter, 2019).</p>
+      <p><b>L1.</b> Це MAP-оцінка з апріорним розподілом Лапласа з масштабом b, λ = 1/(nb). Тяга до нуля має сталу величину λ незалежно від |w|, тому точний мінімум L1-регуляризованої задачі часто містить ваги, рівні нулю (розрідженість); для цього використовують проксимальний оператор w ← sign(w)·max(|w| − ηλ, 0). У симуляторі застосовано просто субградієнт разом з Adam, тому ваги прямують до околу нуля й коливаються біля нього, а не обов'язково дорівнюють нулю точно.</p>
+      <p><b>Dropout.</b> На кожному кроці навчання кожен нейрон прихованого шару незалежно відкидається з ймовірністю q. Застосовується «інвертований» варіант:</p>
+      <p class="formula">h̃<sub>j</sub> = (m<sub>j</sub> / (1 − q)) · h<sub>j</sub>,   m<sub>j</sub> ~ Bernoulli(1 − q),   E[h̃<sub>j</sub>] = h<sub>j</sub></p>
+      <p>У режимі оцінювання маски не застосовуються. Dropout перешкоджає коадаптації нейронів (нейрон не може розраховувати на присутність конкретних інших) і наближено усереднює ансамбль експоненційної кількості «проріджених» підмереж (Srivastava et al., 2014). Для узагальнених лінійних моделей він еквівалентний у першому наближенні адаптивному L2-штрафу (Wager et al., 2013).</p>
+      <p><b>Рання зупинка</b> (тут не застосовується, але видна на кривій навчання): навчання зупиняють в епоху з мінімальною помилкою на валідаційній вибірці. У квадратичному наближенні її ефект подібний до L2 (Goodfellow et al., 2016, розд. 7.8).</p>
+      <p><b>Вибір λ.</b> Це гіперпараметр, і його вибирають на валідаційній вибірці або крос-валідацією, а тестову вибірку використовують один раз наприкінці. Занадто мале λ нічого не змінює, занадто велике дає недонавчання: у сценарії «Надто суворий» штраф настільки домінує, що мережа майже не навчається і наближається до константної відповіді.</p>
+
+      <h3>6. Як читати візуалізації</h3>
+      <ul>
+        <li><b>Забіг.</b> Положення бігуна це f<sub>θ</sub>(x) для людини, прапорець це p*(x). Різниця показана в процентних пунктах.</li>
+        <li><b>Крива навчання.</b> Розбіжність ліній «навчальні» й «нові» це розрив узагальнення в кожну епоху. Для log-loss зростання тестової лінії при спадній навчальній означає, що модель стає дедалі впевненішою в помилках.</li>
+        <li><b>Залежність від віку.</b> Перетин поверхні відгуку по одній змінній при фіксованих інших. Точки показують навчальні приклади з тим самим видом спорту.</li>
+        <li><b>Що мережа думає про…</b> Для обраної людини змінюється лише одна ознака. Для шумових ознак (знак зодіаку, коти) істинний відгук сталий, тож будь-яка різниця стовпчиків це залежність, яку мережа вивчила хибно. Оцінка чутливості в підписі усереднена за фіксованою вибіркою зі 100 людей: це різниця max − min прогнозу по всіх значеннях ознаки, усереднена за людьми.</li>
+        <li><b>Карта «вік × ІМТ».</b> Колір це f<sub>θ</sub> при фіксованому виді спорту та шумових ознаках, чорний контур це лінія p* = 0,5. Там, де у вибірці немає точок, прогноз мережі є екстраполяцією й не має гарантій. У перенавченої мережі контур рваний, з острівцями довкола окремих точок.</li>
+      </ul>
+
+      <div class="honest">
+        <h3>7. Обмеження експерименту</h3>
+        <ul>
+          <li>Дані синтетичні, висновки про L1, L2 і dropout стосуються цього генератора, а не нейромереж загалом. Розподіл віку, ІМТ і закон T вибрано довільно.</li>
+          <li>Сили штрафів у сценаріях підібрано за кількома запусками з орієнтацією на тестову вибірку, щоб контраст був видний. Це оптимістична оцінка. У справжній задачі λ вибирають окремо від тесту (розд. 5).</li>
+          <li>Тест має N = 1000, тож стандартна похибка точності близько 1 п.п. Крім того, результат залежить від групи навчальних людей та ініціалізації; кнопка «Нова група людей» показує цей розкид. Числа в текстах сценаріїв стосуються першої групи.</li>
+          <li>Середня точність на нових людях по 5 групах по 400 людей (стеля 92%): лінійна 66%, мережа 3×32 без регуляризації 83%, з L2 87%, з L1 87%, з dropout 86%. Log-loss: 1,65 без регуляризації, 0,30 з L2, 0,83 з L1, 0,94 з dropout.</li>
+          <li>Мережа 1×2 у середньому дала 81%, але від 69% до 88% залежно від групи, тобто нестабільна. Мережа 1×4 вийшла гіршою (77%). Тож більше нейронів не завжди краще.</li>
+          <li>При n = 100 мережа 3×32 без регуляризації в середньому 68%, з L2 79%. При n = 800 без регуляризації 85,5%, з L2 86,7%: більше даних майже наздоганяє регуляризацію за точністю, але log-loss без неї лишається високим (1,5 проти 0,3).</li>
+          <li>L1 чутливий до λ: 0,002 працює, 0,004 на деяких групах ламає навчання. L2: 0,01 добре, 0,02 вже нестабільно, 0,03 мережа не навчається. Діапазони залежать від розміру мережі, n та оптимізатора.</li>
+          <li>Різниця між активаціями ReLU, SiLU і tanh у моїх прогонах була меншою, ніж різниця між наявністю і відсутністю регуляризації.</li>
+        </ul>
+      </div>
+    </div>
+  </details>
+
+
+  <section class="card builder" aria-labelledby="h-build">
+    <div class="b-avatar">
+      <div class="b-art" id="b-art" aria-hidden="true"></div>
+      <div class="b-bars">
+        <div class="b-row"><span>модель</span><b class="mono" id="b-model">–</b></div>
+        <div class="bar"><i id="b-model-bar"></i></div>
+        <div class="b-row"><span>насправді</span><b class="mono" id="b-truth">–</b></div>
+        <div class="bar truth"><i id="b-truth-bar"></i></div>
+      </div>
+    </div>
+    <div class="b-form">
+      <div class="card-head"><h2 id="h-build">Створіть людину</h2><span class="sub">Вона бігатиме на нижній доріжці. Всі графіки нижче показують саме її.</span></div>
+      <div class="b-grid">
+        <div class="field">
+          <label for="c-age">Вік <span class="val" id="c-age-val"></span></label>
+          <input type="range" id="c-age" min="6" max="80" step="1" value="40">
+        </div>
+        <div class="field">
+          <label for="c-bmi">ІМТ <span class="val" id="c-bmi-val"></span></label>
+          <input type="range" id="c-bmi" min="14" max="40" step="0.5" value="25">
+        </div>
+        <div class="field">
+          <label for="c-sport">Вид спорту</label>
+          <select id="c-sport"></select>
+        </div>
+        <div class="field">
+          <label for="c-zod">Знак зодіаку <span class="tag">сміття</span></label>
+          <select id="c-zod"></select>
+        </div>
+        <div class="field">
+          <label for="c-apt">Номер квартири <span class="tag">сміття</span></label>
+          <input type="number" id="c-apt" min="1" max="299" value="42">
+        </div>
+        <div class="field">
+          <label for="c-cats">Котів удома <span class="tag">сміття</span> <span class="val" id="c-cats-val"></span></label>
+          <input type="range" id="c-cats" min="0" max="6" step="1" value="2">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scenarios" aria-labelledby="h-scen">
+    <h2 id="h-scen" class="eyebrow" style="font-family:var(--font-body);letter-spacing:.12em">Сценарії</h2>
+    <div class="chips" id="chips" role="group" aria-label="Готові сценарії"></div>
+    <div class="story" aria-live="polite">
+      <h2 id="story-title">Зубрила</h2>
+      <p class="why" id="story-text"></p>
+      <div class="verdict" id="verdict"><span class="ic"><span id="verdict-ic">!</span></span><div class="txt"><b id="verdict-h"></b> <span id="verdict-t"></span></div></div>
+    </div>
+  </section>
+
+  <div class="stage">
+    <section class="card track-card" aria-labelledby="h-track">
+      <div class="card-head">
+        <h2 id="h-track">Забіг</h2>
+        <div class="status"><span class="pill" id="pill">готуємось</span><span class="mono sub" id="epoch-label"></span></div>
+      </div>
+      <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+      <p class="hint">Чим ближче бігун до фінішу, тим вищий шанс добігти за 15 секунд на думку моделі. Прапорець показує, де він має стояти насправді.</p>
+      <div class="lanes" id="lanes"></div>
+      <div class="ticks" aria-hidden="true">
+        <div class="axis-cap">шанс добігти</div>
+        <div class="row" id="ticks"></div>
+      </div>
+      <div class="legend">
+        <span><i></i>бігун: думка моделі</span>
+        <span><i class="dash"></i>прапорець: насправді (знає лише симулятор)</span>
+      </div>
+    </section>
+
+    <aside class="card panel" aria-label="Налаштування мережі">
+      <div class="group">
+        <h2>Мережа</h2>
+        <div class="field">
+          <label for="depth">Прихованих шарів <span class="val" id="depth-val"></span></label>
+          <input type="range" id="depth" min="0" max="3" step="1" value="3">
+          <small>0 означає лінійну модель без «розуму».</small>
+        </div>
+        <div class="field">
+          <label for="width">Нейронів у шарі <span class="val" id="width-val"></span></label>
+          <input type="range" id="width" min="0" max="5" step="1" value="4">
+          <small>Широкі мережі вчаться довше.</small>
+        </div>
+        <div class="field">
+          <span class="lab" id="lab-act">Активація</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lab-act">
+            <label><input type="radio" name="act" value="relu">ReLU</label>
+            <label><input type="radio" name="act" value="silu" checked>SiLU</label>
+            <label><input type="radio" name="act" value="tanh">tanh</label>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h2>Поводок</h2>
+        <div class="field">
+          <span class="lab" id="lab-reg">Захист від запам'ятовування</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lab-reg">
+            <label><input type="radio" name="reg" value="none" checked>Нема</label>
+            <label><input type="radio" name="reg" value="l2">L2</label>
+            <label><input type="radio" name="reg" value="l1">L1</label>
+            <label><input type="radio" name="reg" value="dropout">Dropout</label>
+          </div>
+        </div>
+        <div class="field" id="strength-field">
+          <label for="strength"><span id="strength-name">Суворість</span> <span class="val" id="strength-val"></span></label>
+          <input type="range" id="strength" min="0" max="0.04" step="0.0025" value="0">
+          <small id="strength-hint"></small>
+        </div>
+        <div class="field">
+          <label for="nstud">Людей у навчанні <span class="val" id="nstud-val"></span></label>
+          <input type="range" id="nstud" min="100" max="800" step="100" value="400">
+          <small>Більше людей означає довше навчання.</small>
+        </div>
+        <div class="btns">
+          <button class="btn primary" id="btn-train" type="button">Навчити</button>
+          <button class="btn" id="btn-new" type="button">Нова група людей</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="board" aria-label="Табло результатів">
+    <div class="board-grid">
+      <div class="cell"><span class="k">Вгадує на навчанні</span><span class="v" id="v-train">–</span><span class="s">людей, яких бачила</span></div>
+      <div class="cell"><span class="k">Вгадує на нових</span><span class="v" id="v-test">–</span><span class="s">1000 людей, яких не бачила</span></div>
+      <div class="cell"><span class="k">Розрив</span><span class="v" id="v-gap">–</span><span class="s">п.п. між двома числами</span></div>
+      <div class="cell"><span class="k">Самовпевненість</span><span class="v" id="v-ll">–</span><span class="s">log-loss, менше краще</span></div>
+    </div>
+    <p class="board-foot" id="board-foot"></p>
+  </section>
+
+  <div class="charts">
+    <section class="card span2" aria-labelledby="h-age">
+      <div class="card-head"><h2 id="h-age">Шанс залежно від віку</h2><span class="sub" id="age-sub"></span></div>
+      <div class="chart" id="chart-age"></div>
+      <div class="legend">
+        <span><i></i>модель</span>
+        <span><i class="dash"></i>насправді</span>
+        <span><i class="dots"></i>люди з навчальної групи з цим видом спорту (внизу не добігли, вгорі добігли)</span>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-learn">
+      <div class="card-head">
+        <h2 id="h-learn">Як вчилась мережа</h2>
+        <div class="seg small" role="radiogroup" aria-label="Показник">
+          <label><input type="radio" name="metric" value="acc" checked>Точність</label>
+          <label><input type="radio" name="metric" value="ll">Впевненість</label>
+        </div>
+      </div>
+      <div class="chart" id="chart-learn"></div>
+      <div class="legend">
+        <span><i></i>навчальні люди</span>
+        <span><i class="t"></i>нові люди</span>
+        <span><i class="dash"></i>найкраще можливе</span>
+      </div>
+      <p class="junk-note" id="learn-note"></p>
+      <details class="tbl"><summary>Показати як таблицю</summary><div class="tbl-wrap" id="tbl-learn"></div></details>
+    </section>
+
+    <section class="card" aria-labelledby="h-think">
+      <div class="card-head">
+        <h2 id="h-think">Що мережа думає про…</h2>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Що мережа думає про">
+        <button class="tab" role="tab" id="tab-sport" data-tab="sport" aria-selected="true" aria-controls="think-panel" type="button">вид спорту</button>
+        <button class="tab" role="tab" id="tab-zodiac" data-tab="zodiac" aria-selected="false" aria-controls="think-panel" type="button">знак зодіаку</button>
+        <button class="tab" role="tab" id="tab-cats" data-tab="cats" aria-selected="false" aria-controls="think-panel" type="button">котів удома</button>
+      </div>
+      <div id="think-panel" role="tabpanel" aria-labelledby="tab-sport">
+        <p class="sub" id="think-sub"></p>
+        <div class="chart" id="chart-think"></div>
+        <div class="legend">
+          <span><i class="blk"></i>стовпчик: відповідь мережі</span>
+          <span><i class="tick"></i>чорна позначка: насправді</span>
+        </div>
+        <p class="junk-note" id="junk-note"></p>
+      </div>
+    </section>
+
+    <section class="card span2" aria-labelledby="h-map">
+      <div class="card-head">
+        <h2 id="h-map">Карта «вік × ІМТ»</h2>
+        <div class="field inline">
+          <label for="map-sport">спорт</label>
+          <select id="map-sport"></select>
+        </div>
+      </div>
+      <canvas id="cv-map" role="img" aria-label="Карта відповіді мережі залежно від віку та ІМТ"></canvas>
+      <p class="mono sub" id="map-read">Наведіть курсор на карту, щоб побачити відповідь мережі в цій точці.</p>
+      <div class="legend">
+        <span class="grad" aria-hidden="true"></span><span>колір: відповідь мережі від 0% до 100%</span>
+        <span><i class="line"></i>чорна лінія: істинна межа 50%</span>
+        <span><i class="pt ok"></i>добіг</span>
+        <span><i class="pt no"></i>не добіг</span>
+        <span><i class="pt you"></i>ваша людина</span>
+      </div>
+      <p class="note">Точки показують людей з навчальної групи в обраному виді спорту. Мережа добре знає лише ту область, де є точки. Далеко від них вона вгадує.</p>
+    </section>
+  </div>
+
+
+  <p class="foot">Навчання відбувається прямо у вашому браузері, на сервер нічого не надсилається. Малюнки схематичні, будь-яка схожість із реальними шахістами, рибалками й сумоїстами випадкова.</p>
+</main>
+
+<script>
+// ---- Sprint simulator engine: synthetic people + small MLP (Adam, L1/L2/dropout) ----
+// The "law of nature" (the net never sees it): time on 100 m  T = t(age) + t(BMI) + s(sport) + noise;  success if T < 15 s.
+const SPORTS = ['легка атлетика', 'футбол', 'баскетбол', 'теніс', 'плавання', 'лижі', 'гольф', 'сумо', 'більярд', 'шахи', 'рибальство', 'без спорту'];
+const SPORT_TIME = [-2.4, -1.5, -1.2, -1.0, -1.3, -1.1, -0.2, -0.5, 0.3, 0.3, 0.6, 0.9];   // seconds added to the time
+const NS = SPORTS.length, NZ = 12;
+// feature vector: 0 age, 1 BMI, 2..(2+NS-1) sport one-hot, then zodiac one-hot, apartment, cats at home
+const IS = 2, IZ = IS + NS, IA = IZ + NZ, IC = IA + 1, D = IC + 1;
+const CONT = [0, 1, IA, IC];                         // standardised columns; one-hot columns are left as 0/1
+const NOISE = 0.8, LIMIT = 15, N_TEST = 1000;
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function RNG(seed) {
+  const u = mulberry32(seed >>> 0);
+  return {
+    u,
+    n() { let a = 0; while (a === 0) a = u(); const b = u(); return Math.sqrt(-2 * Math.log(a)) * Math.cos(2 * Math.PI * b); },
+    int(a, b) { return a + Math.floor(u() * (b - a)); },
+    poisson(l) { const L = Math.exp(-l); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; }
+  };
+}
+function sigmoid(z) { if (z > 30) z = 30; else if (z < -30) z = -30; return 1 / (1 + Math.exp(-z)); }
+function erf(x) { const s = x < 0 ? -1 : 1; x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); }
+const Phi = (x) => 0.5 * (1 + erf(x / Math.SQRT2));
+
+const ageTime = (a) => a >= 20 ? 13.4 + 0.0036 * (a - 20) * (a - 20) : 13.4 + 0.045 * (20 - a) * (20 - a);
+const bmiTime = (b) => { const d = b - 21.5; return d > 0 ? 0.035 * d * d : 0.03 * d * d; };
+const meanTime = (p) => ageTime(p.age) + bmiTime(p.bmi) + SPORT_TIME[p.sport];
+const trueProb = (p) => Phi((LIMIT - meanTime(p)) / NOISE);
+
+function randomPerson(rng) {
+  const u = rng.u();
+  const age = u < 0.25 ? 6 + 10 * rng.u() : u < 0.7 ? 16 + 29 * rng.u() : 45 + 35 * rng.u();
+  const bmi = Math.min(40, Math.max(14, 22.5 + 3.8 * rng.n()));
+  return { age, bmi, sport: rng.int(0, NS), zodiac: rng.int(0, NZ), apt: rng.int(1, 300), cats: Math.min(6, rng.poisson(1.5)) };
+}
+function encode(p, x, o) {
+  x = x || new Float64Array(D); o = o || 0;
+  for (let k = 0; k < D; k++) x[o + k] = 0;
+  x[o] = p.age; x[o + 1] = p.bmi; x[o + IS + p.sport] = 1; x[o + IZ + p.zodiac] = 1; x[o + IA] = p.apt; x[o + IC] = p.cats;
+  return x;
+}
+function makeStudents(n, rng) {
+  const people = [], X = new Float64Array(n * D), y = new Float64Array(n), p = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const q = randomPerson(rng);
+    people.push(q); encode(q, X, i * D);
+    p[i] = trueProb(q);
+    y[i] = meanTime(q) + NOISE * rng.n() < LIMIT ? 1 : 0;
+  }
+  return { people, X, y, p, n };
+}
+
+function affine(x, m, a, W, bias, b) {
+  const out = new Float64Array(m * b);
+  for (let s = 0; s < m; s++) {
+    const ob = s * b, xb = s * a;
+    for (let j = 0; j < b; j++) out[ob + j] = bias[j];
+    for (let i = 0; i < a; i++) {
+      const xi = x[xb + i];
+      if (xi === 0) continue;
+      const wb = i * b;
+      for (let j = 0; j < b; j++) out[ob + j] += xi * W[wb + j];
+    }
+  }
+  return out;
+}
+
+function activate(z, kind) {
+  const a = new Float64Array(z.length);
+  if (kind === 'relu') { for (let k = 0; k < z.length; k++) a[k] = z[k] > 0 ? z[k] : 0; }
+  else if (kind === 'tanh') { for (let k = 0; k < z.length; k++) a[k] = Math.tanh(z[k]); }
+  else { for (let k = 0; k < z.length; k++) a[k] = z[k] * sigmoid(z[k]); }   // silu
+  return a;
+}
+// fills a (activation) and d (derivative) in one pass
+function actD(z, kind, a, d) {
+  const n = z.length;
+  if (kind === 'relu') { for (let k = 0; k < n; k++) { const v = z[k]; if (v > 0) { a[k] = v; d[k] = 1; } else { a[k] = 0; d[k] = 0; } } }
+  else if (kind === 'tanh') { for (let k = 0; k < n; k++) { const t = Math.tanh(z[k]); a[k] = t; d[k] = 1 - t * t; } }
+  else { for (let k = 0; k < n; k++) { const v = z[k], s = 1 / (1 + Math.exp(-v)); a[k] = v * s; d[k] = s * (1 + v * (1 - s)); } }
+}
+function affineInto(x, m, a, W, bias, b, out) {
+  for (let s = 0; s < m; s++) {
+    const ob = s * b, xb = s * a;
+    for (let j = 0; j < b; j++) out[ob + j] = bias[j];
+    for (let i = 0; i < a; i++) {
+      const xi = x[xb + i];
+      if (xi === 0) continue;
+      const wb = i * b;
+      for (let j = 0; j < b; j++) out[ob + j] += xi * W[wb + j];
+    }
+  }
+}
+
+function metrics(p, y) {
+  let ok = 0, ll = 0;
+  const n = y.length;
+  for (let i = 0; i < n; i++) {
+    const q = Math.min(1 - 1e-7, Math.max(1e-7, p[i]));
+    if ((p[i] > 0.5) === (y[i] === 1)) ok++;
+    ll -= y[i] * Math.log(q) + (1 - y[i]) * Math.log(1 - q);
+  }
+  return { acc: ok / n, ll: ll / n };
+}
+
+class Trainer {
+  constructor(cfg) {
+    this.cfg = cfg;
+    const { depth, width, n, seed } = cfg;
+    const rd = RNG(10000 + seed);
+    const tr = makeStudents(n, rd), te = makeStudents(N_TEST, rd);
+    this.trainPeople = tr.people;
+    const mu = new Float64Array(D), sd = new Float64Array(D).fill(1);
+    for (const k of CONT) {
+      let s = 0; for (let i = 0; i < n; i++) s += tr.X[i * D + k]; mu[k] = s / n;
+      let v = 0; for (let i = 0; i < n; i++) { const d = tr.X[i * D + k] - mu[k]; v += d * d; }
+      sd[k] = Math.sqrt(v / n) + 1e-8;
+    }
+    this.mu = mu; this.sd = sd;
+    const std = (S) => { const X = new Float64Array(S.X.length); for (let i = 0; i < S.n; i++) for (let k = 0; k < D; k++) X[i * D + k] = (S.X[i * D + k] - mu[k]) / sd[k]; return X; };
+    this.Xtr = std(tr); this.ytr = tr.y;
+    this.Xte = std(te); this.yte = te.y;
+    this.bayes = metrics(te.p, te.y);
+    let pass = 0; for (let i = 0; i < N_TEST; i++) pass += te.y[i];
+    this.passRate = pass / N_TEST;
+    this.sizes = [D].concat(depth > 0 ? new Array(depth).fill(width) : [], [1]);
+    this.L = this.sizes.length - 1;
+    const rw = RNG(seed * 7919 + 13);
+    this.W = []; this.b = []; this.mW = []; this.vW = []; this.mb = []; this.vb = [];
+    for (let l = 0; l < this.L; l++) {
+      const a = this.sizes[l], b = this.sizes[l + 1];
+      const w = new Float64Array(a * b);
+      const sc = Math.sqrt(2 / a);
+      for (let k = 0; k < w.length; k++) w[k] = rw.n() * sc;
+      this.W.push(w); this.b.push(new Float64Array(b));
+      this.mW.push(new Float64Array(a * b)); this.vW.push(new Float64Array(a * b));
+      this.mb.push(new Float64Array(b)); this.vb.push(new Float64Array(b));
+    }
+    this.rngDrop = RNG(seed * 31 + 7);
+    this.t = 0;
+    this.history = [];
+    this.record();
+  }
+
+  predict(X, m) {
+    let a = X;
+    for (let l = 0; l < this.L; l++) {
+      const z = affine(a, m, this.sizes[l], this.W[l], this.b[l], this.sizes[l + 1]);
+      a = (l < this.L - 1) ? activate(z, this.cfg.act) : z;
+    }
+    const p = new Float64Array(m);
+    for (let i = 0; i < m; i++) p[i] = sigmoid(a[i]);
+    return p;
+  }
+
+  // probabilities for many people at once (array of {age,bmi,sport,zodiac,apt,cats})
+  predictPeople(list) {
+    const m = list.length, x = new Float64Array(m * D);
+    for (let i = 0; i < m; i++) {
+      encode(list[i], x, i * D);
+      for (let k = 0; k < D; k++) x[i * D + k] = (x[i * D + k] - this.mu[k]) / this.sd[k];
+    }
+    return this.predict(x, m);
+  }
+
+  record() {
+    const tr = metrics(this.predict(this.Xtr, this.cfg.n), this.ytr);
+    const te = metrics(this.predict(this.Xte, N_TEST), this.yte);
+    this.last = { epoch: this.t, trainAcc: tr.acc, testAcc: te.acc, trainLl: tr.ll, testLl: te.ll };
+    this.history.push(this.last);
+  }
+
+  ensureBuffers() {
+    if (this.buf) return;
+    const n = this.cfg.n, S = this.sizes, L = this.L;
+    this.buf = { pre: [], act: [], der: [], mask: [], dz: [], gW: [], gb: [] };
+    for (let l = 0; l < L - 1; l++) {
+      const sz = n * S[l + 1];
+      this.buf.pre.push(new Float64Array(sz)); this.buf.act.push(new Float64Array(sz));
+      this.buf.der.push(new Float64Array(sz)); this.buf.mask.push(new Float64Array(sz));
+    }
+    for (let l = 0; l < L; l++) {
+      this.buf.dz.push(new Float64Array(n * S[l + 1]));
+      this.buf.gW.push(new Float64Array(S[l] * S[l + 1])); this.buf.gb.push(new Float64Array(S[l + 1]));
+    }
+    this.buf.out = new Float64Array(n);
+  }
+
+  step() {
+    this.ensureBuffers();
+    const { reg, strength, lr, n, act } = this.cfg;
+    const drop = reg === 'dropout' ? strength : 0, l2 = reg === 'l2' ? strength : 0, l1 = reg === 'l1' ? strength : 0;
+    const L = this.L, S = this.sizes, B = this.buf;
+    const acts = [this.Xtr];
+    for (let l = 0; l < L - 1; l++) {
+      affineInto(acts[l], n, S[l], this.W[l], this.b[l], S[l + 1], B.pre[l]);
+      const a = B.act[l], d = B.der[l];
+      actD(B.pre[l], act, a, d);
+      if (drop > 0) {
+        const mk = B.mask[l], keep = 1 / (1 - drop);
+        for (let k = 0; k < a.length; k++) { const m = this.rngDrop.u() > drop ? keep : 0; mk[k] = m; a[k] *= m; }
+      }
+      acts.push(a);
+    }
+    affineInto(acts[L - 1], n, S[L - 1], this.W[L - 1], this.b[L - 1], 1, B.out);
+    const dzOut = B.dz[L - 1];
+    for (let i = 0; i < n; i++) dzOut[i] = (sigmoid(B.out[i]) - this.ytr[i]) / n;
+    this.t++;
+    const t = this.t, b1 = 0.9, b2 = 0.999, eps = 1e-8;
+    const c1 = 1 - Math.pow(b1, t), c2 = 1 - Math.pow(b2, t);
+    for (let l = L - 1; l >= 0; l--) {
+      const a = S[l], b = S[l + 1], W = this.W[l], x = acts[l], dz = B.dz[l];
+      const gW = B.gW[l], gb = B.gb[l];
+      gW.fill(0); gb.fill(0);
+      for (let s = 0; s < n; s++) {
+        const db = s * b, xb = s * a;
+        for (let j = 0; j < b; j++) gb[j] += dz[db + j];
+        for (let i = 0; i < a; i++) {
+          const xi = x[xb + i];
+          if (xi === 0) continue;
+          const wb = i * b;
+          for (let j = 0; j < b; j++) gW[wb + j] += xi * dz[db + j];
+        }
+      }
+      if (l > 0) {
+        const dzPrev = B.dz[l - 1], der = B.der[l - 1], mk = drop > 0 ? B.mask[l - 1] : null;
+        for (let s = 0; s < n; s++) {
+          const db = s * b, xb = s * a;
+          for (let i = 0; i < a; i++) {
+            let sum = 0; const wb = i * b;
+            for (let j = 0; j < b; j++) sum += dz[db + j] * W[wb + j];
+            if (mk) sum *= mk[xb + i];
+            dzPrev[xb + i] = sum * der[xb + i];
+          }
+        }
+      }
+      const mW = this.mW[l], vW = this.vW[l], mb = this.mb[l], vb = this.vb[l], bb = this.b[l];
+      for (let k = 0; k < W.length; k++) {
+        let g = gW[k];
+        if (l2) g += 2 * l2 * W[k];
+        if (l1) g += l1 * (W[k] > 0 ? 1 : W[k] < 0 ? -1 : 0);
+        mW[k] = b1 * mW[k] + (1 - b1) * g; vW[k] = b2 * vW[k] + (1 - b2) * g * g;
+        W[k] -= lr * (mW[k] / c1) / (Math.sqrt(vW[k] / c2) + eps);
+      }
+      for (let j = 0; j < b; j++) {
+        const g = gb[j];
+        mb[j] = b1 * mb[j] + (1 - b1) * g; vb[j] = b2 * vb[j] + (1 - b2) * g * g;
+        bb[j] -= lr * (mb[j] / c1) / (Math.sqrt(vb[j] / c2) + eps);
+      }
+    }
+  }
+}
+
+
+// ---------- helpers ----------
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const pct = (x) => Math.round(x * 100) + '%';
+const dec = (x, d = 2) => x.toFixed(d).replace('.', ',');
+const AGE0 = 6, AGE1 = 80, BMI0 = 14, BMI1 = 40;
+
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+function hexToRgb(h) {
+  h = h.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+// ---------- cartoon runner ----------
+const OUT = '#263043', SKIN = '#F2C7A5';
+// look per sport (index = SPORTS order): shirt colour, shorts/trousers colour
+const LOOK = [
+  { shirt: '#E8503A', shorts: '#1B1B22' },   // 0 легка атлетика
+  { shirt: '#2FA05A', shorts: '#FFFFFF' },   // 1 футбол
+  { shirt: '#F08A24', shorts: '#F08A24' },   // 2 баскетбол
+  { shirt: '#F1D13A', shorts: '#FFFFFF' },   // 3 теніс
+  { shirt: SKIN, shorts: '#2B7BD6' },        // 4 плавання
+  { shirt: '#3C63D6', shorts: '#1E2A55' },   // 5 лижі
+  { shirt: '#FFFFFF', shorts: '#C9B27C' },   // 6 гольф
+  { shirt: SKIN, shorts: '#D78AC2' },        // 7 сумо
+  { shirt: '#5B2A86', shorts: '#2A2236' },   // 8 більярд
+  { shirt: '#6C7FB8', shorts: '#2B3A5C' },   // 9 шахи
+  { shirt: '#8A6A3D', shorts: '#4A5A3A' },   // 10 рибальство
+  { shirt: '#8A93A6', shorts: '#5A6275' },   // 11 без спорту
+];
+
+function avatar(p, mood) {
+  const age = p.age, bmi = p.bmi, sp = p.sport, L = LOOK[sp];
+  const k = clamp((age - AGE0) / 14, 0, 1), h = 0.62 + 0.38 * k;
+  const cx = 46, g = 112;
+  const legL = 36 * h, torsoH = 34 * h, hip = g - legL, neck = hip - torsoH;
+  const hr = 11 + (1 - k) * 4.5, hx = cx + 2, hy = neck - hr + 3;
+  const w = (8 + (bmi - 16) * 0.78) * (0.55 + 0.45 * h);
+  const lw = 5 + (bmi - 16) * 0.18;
+  const old = age >= 52, lean = age >= 55 ? 6 : 0;
+  const longPants = sp === 5 || sp === 6;
+  const limb = (x1, y1, x2, y2, wd, col) =>
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${OUT}" stroke-width="${wd + 3}"/>` +
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${wd}"/>`;
+  const lh = [cx - w - 8, hip + 2], rh = [cx + w + 8, hip - 2];
+  let s = `<g transform="rotate(${lean} ${cx} ${g})" stroke="${OUT}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">`;
+
+  // back arm, skis, legs, shoes
+  s += limb(cx - w + 3, neck + 7, lh[0], lh[1], 4.5, SKIN);
+  if (sp === 5) s += `<rect x="${cx - 36}" y="${g - 1.5}" width="86" height="4.2" rx="2.1" fill="#E8503A" stroke-width="1.6"/>`;
+  const l1 = cx - w * 0.42, l2 = cx + w * 0.42, legCol = longPants ? L.shorts : SKIN;
+  s += limb(l1, hip + 4, l1 - 1, g - 6, lw, legCol) + limb(l2, hip + 4, l2 - 1, g - 6, lw, legCol);
+  s += `<ellipse cx="${l1 + 2}" cy="${g - 3}" rx="8" ry="4" fill="#F5F6FA"/><ellipse cx="${l2 + 2}" cy="${g - 3}" rx="8" ry="4" fill="#F5F6FA"/>`;
+  // shorts / belt, torso, belly
+  s += `<rect x="${cx - w * 0.95}" y="${hip - 4}" width="${w * 1.9}" height="${10 * h + 4}" rx="4" fill="${L.shorts}"/>`;
+  s += `<rect x="${cx - w}" y="${neck}" width="${2 * w}" height="${torsoH - (sp === 7 ? 4 : 0)}" rx="${Math.min(w * 0.8, 13)}" fill="${L.shirt}"/>`;
+  if (bmi > 27) s += `<ellipse cx="${cx + w * 0.15}" cy="${neck + torsoH * 0.7}" rx="${w + (bmi - 27) * 0.3}" ry="${torsoH * 0.36}" fill="${sp === 7 ? SKIN : L.shirt}"/>`;
+  if (sp === 7) s += `<rect x="${cx - w * 1.02}" y="${hip - 2}" width="${w * 2.04}" height="${6 * h + 2}" rx="3" fill="${L.shorts}"/>`;
+
+  // chest decoration
+  const ty = neck + torsoH * 0.45;
+  if (sp === 0) s += `<rect x="${cx - 8}" y="${neck + 7}" width="16" height="12" fill="#fff" stroke-width="1.3"/><text x="${cx}" y="${neck + 17}" text-anchor="middle" font-size="10" font-weight="700" fill="${OUT}" stroke="none" font-family="sans-serif">7</text>`;
+  else if (sp === 1) s += `<rect x="${cx - w + 1}" y="${ty}" width="${2 * w - 2}" height="3" fill="#fff" stroke="none" opacity=".85"/>`;
+  else if (sp === 2) s += `<text x="${cx}" y="${neck + 17}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" stroke="none" font-family="sans-serif">23</text>`;
+  else if (sp === 3) s += `<polygon points="${cx - 6},${neck + 1} ${cx + 6},${neck + 1} ${cx},${neck + 9}" fill="#fff" stroke-width="1.2"/>`;
+  else if (sp === 5) s += `<line x1="${cx}" y1="${neck + 2}" x2="${cx}" y2="${neck + torsoH - 2}" stroke-width="1.6"/><rect x="${cx - w + 2}" y="${ty}" width="${2 * w - 4}" height="3" fill="#E8503A" stroke="none"/>`;
+  else if (sp === 6) s += `<polygon points="${cx - 7},${neck + 1} ${cx},${neck + 9} ${cx - 1},${neck + 1}" fill="#fff" stroke-width="1.2"/><polygon points="${cx + 7},${neck + 1} ${cx},${neck + 9} ${cx + 1},${neck + 1}" fill="#fff" stroke-width="1.2"/>`;
+  else if (sp === 8) s += `<path d="M ${cx} ${neck + 3} l -7 -4 v 8 z M ${cx} ${neck + 3} l 7 -4 v 8 z" fill="#D63B3B" stroke-width="1.2"/>`;
+  else if (sp === 9) s += `<polygon points="${cx},${neck + 8} ${cx + 5},${neck + 14} ${cx},${neck + 20} ${cx - 5},${neck + 14}" fill="#C7D3F5" stroke-width="1.1"/>`;
+  else if (sp === 10) s += `<rect x="${cx - w + 3}" y="${neck + 9}" width="9" height="8" rx="1.5" fill="#6B5230" stroke-width="1.2"/><rect x="${cx + w - 12}" y="${neck + 9}" width="9" height="8" rx="1.5" fill="#6B5230" stroke-width="1.2"/>`;
+  else if (sp === 11) s += `<rect x="${cx - 8}" y="${neck + torsoH * 0.55}" width="16" height="9" rx="3" fill="#7A8398" stroke-width="1.2"/>`;
+
+  // front arm + hands
+  s += limb(cx + w - 3, neck + 7, rh[0], rh[1], 4.5, SKIN);
+  s += `<circle cx="${lh[0]}" cy="${lh[1]}" r="3.4" fill="${SKIN}" stroke-width="1.6"/><circle cx="${rh[0]}" cy="${rh[1]}" r="3.4" fill="${SKIN}" stroke-width="1.6"/>`;
+
+  // head, ear, hair
+  s += `<circle cx="${hx - hr + 0.5}" cy="${hy + 1}" r="2.6" fill="${SKIN}" stroke-width="1.4"/>`;
+  s += `<circle cx="${hx}" cy="${hy}" r="${hr}" fill="${SKIN}"/>`;
+  if (!old) {
+    const col = sp === 7 ? '#2A2020' : age >= 45 ? '#9AA0AA' : '#4A3426';
+    s += `<path d="M ${hx - hr} ${hy - 0.5} A ${hr} ${hr} 0 0 1 ${hx + hr} ${hy - 0.5} Q ${hx} ${hy - hr * 0.55} ${hx - hr} ${hy - 0.5} Z" fill="${col}" stroke-width="1.6"/>`;
+    if (age < 14 && sp !== 7) s += `<path d="M ${hx} ${hy - hr} q 3 -8 9 -3" fill="none" stroke-width="2"/>`;
+  } else {
+    s += `<ellipse cx="${hx - hr + 1.5}" cy="${hy - 1}" rx="3.4" ry="5.2" fill="#E8EAF0" stroke-width="1.5"/>`;
+    s += `<ellipse cx="${hx + hr - 1.5}" cy="${hy - 1}" rx="3.4" ry="5.2" fill="#E8EAF0" stroke-width="1.5"/>`;
+  }
+  // headgear
+  const dome = (col) => `<path d="M ${hx - hr} ${hy - 1.5} A ${hr} ${hr} 0 0 1 ${hx + hr} ${hy - 1.5} Z" fill="${col}" stroke-width="1.6"/>`;
+  if (sp === 0) s += `<rect x="${hx - hr}" y="${hy - hr * 0.5}" width="${2 * hr}" height="3.6" fill="#fff" stroke-width="1.3"/>`;
+  else if (sp === 3) s += `<rect x="${hx - hr}" y="${hy - hr * 0.55}" width="${2 * hr}" height="4" fill="#E64A3C" stroke-width="1.4"/>`;
+  else if (sp === 4) s += dome('#2B7BD6');
+  else if (sp === 5) s += dome('#D63B3B') + `<circle cx="${hx}" cy="${hy - hr - 2.5}" r="3.6" fill="#fff" stroke-width="1.4"/>`;
+  else if (sp === 6) s += dome('#2FA05A') + `<path d="M ${hx + 2} ${hy - 3} Q ${hx + hr + 9} ${hy - 4} ${hx + hr + 8} ${hy + 0.5} L ${hx + 2} ${hy - 0.5} Z" fill="#2FA05A" stroke-width="1.4"/>`;
+  else if (sp === 7) s += `<circle cx="${hx}" cy="${hy - hr - 3}" r="4" fill="#2A2020" stroke-width="1.5"/>`;
+  else if (sp === 10) s += `<path d="M ${hx - hr * 0.85} ${hy - hr * 0.5} Q ${hx} ${hy - hr * 1.95} ${hx + hr * 0.85} ${hy - hr * 0.5} Z" fill="#F1D13A" stroke-width="1.6"/><ellipse cx="${hx}" cy="${hy - hr * 0.5}" rx="${hr + 7}" ry="3.6" fill="#F1D13A" stroke-width="1.6"/>`;
+
+  // face
+  const ex1 = hx - 1, ex2 = hx + 6, ey = hy - 1, mx = hx + 3, my = hy + hr * 0.45;
+  s += `<circle cx="${ex1}" cy="${ey}" r="1.7" fill="${OUT}" stroke="none"/><circle cx="${ex2}" cy="${ey}" r="1.7" fill="${OUT}" stroke="none"/>`;
+  if (mood === 'happy') s += `<path d="M ${mx - 4.5} ${my - 1} Q ${mx} ${my + 6} ${mx + 4.5} ${my - 1} Z" fill="#fff" stroke-width="1.5"/>`;
+  else if (mood === 'worried') s += `<path d="M ${mx - 4} ${my + 3} Q ${mx} ${my - 2} ${mx + 4} ${my + 3}" fill="none" stroke-width="1.7"/>`;
+  else s += `<path d="M ${mx - 4} ${my + 1} L ${mx + 4} ${my + 1}" fill="none" stroke-width="1.7"/>`;
+  if (old) s += `<path d="M ${mx - 6} ${my - 3.5} q 6 5 12 0 q -6 -2.5 -12 0 z" fill="#E8EAF0" stroke-width="1.2"/>`;
+  if (sp === 9 || sp === 4) {
+    const gl = sp === 4 ? 'fill="#9CD6F5" fill-opacity=".7"' : 'fill="#fff" fill-opacity=".45"';
+    s += `<circle cx="${ex1}" cy="${ey}" r="4.4" ${gl} stroke-width="1.4"/><circle cx="${ex2}" cy="${ey}" r="4.4" ${gl} stroke-width="1.4"/><path d="M ${ex1 + 4.4} ${ey} H ${ex2 - 4.4}" stroke-width="1.3" fill="none"/>`;
+    if (sp === 4) s += `<path d="M ${hx - hr} ${ey} H ${ex1 - 4.4} M ${ex2 + 4.4} ${ey} H ${hx + hr}" stroke-width="1.6" fill="none"/>`;
+  }
+  if (mood === 'worried') s += `<path d="M ${hx + hr - 2} ${hy - hr * 0.55} q -3.2 5 0 7 q 3.2 -2 0 -7 z" fill="#7CC4F5" stroke-width="1"/>`;
+
+  // props
+  if (sp === 1) {
+    const bx = Math.min(cx + w + 17, 94), by = g - 7;
+    s += `<circle cx="${bx}" cy="${by}" r="7" fill="#fff" stroke-width="1.8"/>`;
+    let pts = ''; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 2 * Math.PI / 5; pts += `${(bx + 3.2 * Math.cos(a)).toFixed(1)},${(by + 3.2 * Math.sin(a)).toFixed(1)} `; }
+    s += `<polygon points="${pts}" fill="${OUT}" stroke="none"/>`;
+  } else if (sp === 2) {
+    const bx = rh[0] + 4, by = rh[1] + 3;
+    s += `<circle cx="${bx}" cy="${by}" r="7.6" fill="#E8762C" stroke-width="1.8"/><path d="M ${bx - 7.6} ${by} H ${bx + 7.6} M ${bx} ${by - 7.6} V ${by + 7.6}" fill="none" stroke-width="1"/>`;
+  } else if (sp === 3) {
+    const fx = rh[0] + 8, fy = hip - 28;
+    s += `<line x1="${rh[0]}" y1="${rh[1]}" x2="${fx - 2}" y2="${fy + 10}" stroke-width="3.2"/>`;
+    s += `<g transform="rotate(22 ${fx} ${fy})"><ellipse cx="${fx}" cy="${fy}" rx="8.5" ry="11" fill="#fff" fill-opacity=".3" stroke-width="2"/><path d="M ${fx} ${fy - 10} V ${fy + 10} M ${fx - 7.5} ${fy} H ${fx + 7.5}" stroke-width=".9" fill="none"/></g>`;
+  } else if (sp === 4) {
+    s += `<g transform="rotate(-18 ${rh[0]} ${rh[1]})"><rect x="${rh[0] - 3}" y="${rh[1] - 6}" width="25" height="10" rx="4" fill="#5BC0EB" stroke-width="1.6"/></g>`;
+  } else if (sp === 5) {
+    s += `<line x1="${rh[0]}" y1="${rh[1]}" x2="${rh[0] + 9}" y2="${g - 2}" stroke-width="2.2"/><circle cx="${rh[0] + 9}" cy="${g - 4}" r="2.4" fill="#fff" stroke-width="1.2"/>`;
+    s += `<line x1="${lh[0]}" y1="${lh[1]}" x2="${lh[0] - 9}" y2="${g - 2}" stroke-width="2.2"/><circle cx="${lh[0] - 9}" cy="${g - 4}" r="2.4" fill="#fff" stroke-width="1.2"/>`;
+  } else if (sp === 6) {
+    const cxe = Math.min(rh[0] + 14, 96);
+    s += `<line x1="${rh[0]}" y1="${rh[1]}" x2="${cxe}" y2="${g - 3}" stroke-width="2.6"/><rect x="${cxe - 1}" y="${g - 6}" width="9" height="4.2" rx="1.6" fill="#B9C0CC" stroke-width="1.4"/>`;
+    s += `<circle cx="${Math.min(cxe + 16, 100)}" cy="${g - 3.5}" r="3.4" fill="#fff" stroke-width="1.4"/>`;
+  } else if (sp === 8) {
+    const ex = Math.min(100, rh[0] + 22), ey2 = neck - 26;
+    s += `<line x1="${rh[0] - 1}" y1="${rh[1] + 1}" x2="${ex}" y2="${ey2}" stroke="${OUT}" stroke-width="5.6"/><line x1="${rh[0] - 1}" y1="${rh[1] + 1}" x2="${ex}" y2="${ey2}" stroke="#D8B27A" stroke-width="3.2"/>`;
+    s += `<circle cx="${cx - w - 14}" cy="${g - 6}" r="6" fill="#1B1B22" stroke-width="1.6"/><circle cx="${cx - w - 14}" cy="${g - 7}" r="2.4" fill="#fff" stroke="none"/>`;
+  } else if (sp === 9) {
+    const bx = Math.max(4, lh[0] - 14), by = lh[1] - 12;
+    s += `<g transform="rotate(-12 ${bx + 8} ${by + 8})"><rect x="${bx}" y="${by}" width="17" height="17" fill="#F1E4C8" stroke-width="1.6"/>`;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) s += `<rect x="${bx + c * 4.25}" y="${by + r * 4.25}" width="4.25" height="4.25" fill="#7A5535" stroke="none"/>`;
+    s += `</g>`;
+  } else if (sp === 10) {
+    const tx = Math.min(100, rh[0] + 22), ty2 = neck - 30;
+    s += `<line x1="${rh[0]}" y1="${rh[1]}" x2="${tx}" y2="${ty2}" stroke-width="2.8"/><path d="M ${tx} ${ty2} V ${g - 18}" fill="none" stroke-width="1.2"/>`;
+    s += `<ellipse cx="${tx}" cy="${g - 13}" rx="7" ry="3.6" fill="#6FA8DC" stroke-width="1.4"/><polygon points="${tx + 6},${g - 13} ${tx + 11},${g - 17} ${tx + 11},${g - 9}" fill="#6FA8DC" stroke-width="1.2"/>`;
+  } else if (sp === 11) {
+    s += `<rect x="${lh[0] - 5}" y="${lh[1] - 9}" width="9" height="9" rx="1.5" fill="#fff" stroke-width="1.5"/><path d="M ${lh[0] + 4} ${lh[1] - 7} q 4 0 4 3.5 q 0 3 -4 3" fill="none" stroke-width="1.4"/><path d="M ${lh[0] - 2} ${lh[1] - 12} q 2 -3 0 -5 M ${lh[0] + 2} ${lh[1] - 12} q 2 -3 0 -5" fill="none" stroke-width="1" stroke-opacity=".7"/>`;
+  }
+  if (age >= 62 && (sp === 9 || sp === 11)) {
+    s += `<line x1="${rh[0]}" y1="${rh[1]}" x2="${rh[0] + 1}" y2="${g - 1}" stroke="${OUT}" stroke-width="5.4"/><line x1="${rh[0]}" y1="${rh[1]}" x2="${rh[0] + 1}" y2="${g - 1}" stroke="#8B5A2B" stroke-width="3.2"/>`;
+    s += `<path d="M ${rh[0]} ${rh[1]} q 0 -7 -5.5 -5.5" fill="none" stroke="${OUT}" stroke-width="5.4"/><path d="M ${rh[0]} ${rh[1]} q 0 -7 -5.5 -5.5" fill="none" stroke="#8B5A2B" stroke-width="3.2"/>`;
+  }
+  s += `</g>`;
+  return `<svg viewBox="0 0 104 120" aria-hidden="true" focusable="false">${s}</svg>`;
+}
+
+function moodOf(p) { return p >= 0.66 ? 'happy' : p <= 0.33 ? 'worried' : 'meh'; }
+
+const FLAG_SVG = '<svg viewBox="0 0 20 16" aria-hidden="true"><path d="M1 1 L19 7 L1 13 Z" fill="#FFD84D" stroke="#14213D" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+// ---------- charts ----------
+function svgOpen(W, H) { return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="">`; }
+
+function mountTip(el) {
+  if (!el._tip) { el._tip = document.createElement('div'); el._tip.className = 'tip'; el.appendChild(el._tip); }
+  return el._tip;
+}
+function setChart(el, svg) {
+  const tip = el._tip;
+  el.innerHTML = svg;
+  if (tip) el.appendChild(tip);
+}
+
+// P(pass) vs age
+function ageChart(el, d) {
+  const W = Math.max(280, el.clientWidth), H = clamp(Math.round(W * 0.42), 230, 320);
+  const m = { l: 40, r: 14, t: 12, b: 30 };
+  const X = (a) => m.l + (a - AGE0) / (AGE1 - AGE0) * (W - m.l - m.r), Y = (p) => m.t + (1 - p) * (H - m.t - m.b);
+  let s = svgOpen(W, H).replace('aria-label=""', `aria-label="Шанс добігти за 15 секунд залежно від віку: модель і справжня крива"`);
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  for (const a of [10, 20, 30, 40, 50, 60, 70, 80]) s += `<text x="${X(a)}" y="${H - 8}" text-anchor="middle">${a}</text>`;
+  d.dots.forEach((q, i) => {
+    const j = ((i * 37) % 100) / 100;
+    const yv = q.y ? 0.97 - j * 0.07 : 0.03 + j * 0.07;
+    s += `<circle class="dot" cx="${X(q.age).toFixed(1)}" cy="${Y(yv).toFixed(1)}" r="2.6"/>`;
+  });
+  const path = (arr) => arr.map((v, i) => `${i ? 'L' : 'M'}${X(AGE0 + i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  s += `<path class="l-truth" d="${path(d.truth)}"/><path class="l-model" d="${path(d.model)}"/>`;
+  s += `<text class="lab-truth" x="${X(AGE0 + 1)}" y="${Y(d.truth[3]) - 9}">насправді</text>`;
+  s += `<text class="lab-model" x="${W - m.r}" y="${Y(d.model[d.model.length - 1]) - 9}" text-anchor="end">модель</text>`;
+  const ai = clamp(Math.round(d.person.age) - AGE0, 0, AGE1 - AGE0);
+  s += `<line class="cross" x1="${X(d.person.age)}" x2="${X(d.person.age)}" y1="${m.t}" y2="${H - m.b}"/><circle class="ring" cx="${X(d.person.age)}" cy="${Y(d.model[ai])}" r="6"/>`;
+  s += `<line class="cross hov" style="display:none" y1="${m.t}" y2="${H - m.b}"/><circle class="ring hov" style="display:none" r="5"/>`;
+  s += '</svg>';
+  el._h = { kind: 'age', m, W, H, X, Y, d };
+  setChart(el, s);
+}
+
+// learning curves
+function learnChart(el, d) {
+  const W = Math.max(280, el.clientWidth), H = clamp(Math.round(W * 0.62), 220, 300);
+  const m = { l: 40, r: 14, t: 14, b: 28 };
+  const hist = d.history, EP = d.EP, isAcc = d.metric === 'acc';
+  const val = (r, t) => isAcc ? (t === 'train' ? r.trainAcc : r.testAcc) : (t === 'train' ? r.trainLl : r.testLl);
+  let lo, hi;
+  if (isAcc) {
+    const mn = Math.min(...hist.map((r) => Math.min(r.trainAcc, r.testAcc)), d.bayes.acc);
+    lo = clamp(Math.floor((mn - 0.03) * 20) / 20, 0.3, 0.8); hi = 1;
+  } else {
+    const mx = Math.max(...hist.map((r) => Math.max(r.trainLl, r.testLl)), d.bayes.ll);
+    lo = 0; hi = clamp(Math.ceil(mx * 2) / 2, 1, 4);
+  }
+  const X = (e) => m.l + e / EP * (W - m.l - m.r), Y = (v) => m.t + (1 - (clamp(v, lo, hi) - lo) / (hi - lo)) * (H - m.t - m.b);
+  let s = svgOpen(W, H).replace('aria-label=""', `aria-label="Крива навчання: ${isAcc ? 'точність' : 'впевненість'} на навчальних і нових людях"`);
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (hi - lo) * i / 4;
+    s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${isAcc ? Math.round(v * 100) + '%' : dec(v, 1)}</text>`;
+  }
+  for (let i = 0; i <= 4; i++) s += `<text x="${X(EP * i / 4)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}">${Math.round(EP * i / 4)}</text>`;
+  const bv = isAcc ? d.bayes.acc : d.bayes.ll;
+  s += `<line class="l-truth" x1="${m.l}" x2="${W - m.r}" y1="${Y(bv)}" y2="${Y(bv)}"/>`;
+  const path = (t) => hist.map((r, i) => `${i ? 'L' : 'M'}${X(r.epoch).toFixed(1)},${Y(val(r, t)).toFixed(1)}`).join('');
+  s += `<path class="l-train" d="${path('train')}"/><path class="l-test" d="${path('test')}"/>`;
+  const last = hist[hist.length - 1];
+  const tv = val(last, 'train'), sv = val(last, 'test');
+  const trainAbove = isAcc ? tv >= sv : tv <= sv;
+  s += `<text class="lab-model" x="${W - m.r - 2}" y="${Y(tv) + (trainAbove ? -8 : 15)}" text-anchor="end">навчання</text>`;
+  s += `<text class="lab-test" x="${W - m.r - 2}" y="${Y(sv) + (trainAbove ? 15 : -8)}" text-anchor="end">нові</text>`;
+  if (!isAcc && hist.length > 6) {
+    let bi = 0; hist.forEach((r, i) => { if (r.testLl < hist[bi].testLl) bi = i; });
+    if (last.testLl > hist[bi].testLl + 0.25 && bi > 0) {
+      const r = hist[bi];
+      s += `<line class="cross" x1="${X(r.epoch)}" x2="${X(r.epoch)}" y1="${m.t}" y2="${H - m.b}"/><circle cx="${X(r.epoch)}" cy="${Y(r.testLl)}" r="5" fill="var(--surface)" stroke="var(--test)" stroke-width="3"/>`;
+      const right = X(r.epoch) > W * 0.6;
+      s += `<text class="lab-test" x="${X(r.epoch) + (right ? -8 : 8)}" y="${m.t + 12}" text-anchor="${right ? 'end' : 'start'}">тут нові були найкращі</text>`;
+      d.bestEpoch = r.epoch;
+    }
+  }
+  s += `<line class="cross hov" style="display:none" y1="${m.t}" y2="${H - m.b}"/>`;
+  s += '</svg>';
+  el._h = { kind: 'learn', m, W, H, X, Y, d, val };
+  setChart(el, s);
+}
+
+// horizontal bars: model answer per category, black tick = truth
+function hbarChart(el, d) {
+  const W = Math.max(260, el.clientWidth), n = d.labels.length, rowH = n > 9 ? 23 : 28, T = 4, H = T * 2 + rowH * n;
+  const labW = Math.min(124, Math.round(W * 0.36)), valW = 40, trackW = W - labW - valW - 6, bh = rowH * 0.56;
+  let s = svgOpen(W, H).replace('aria-label=""', `aria-label="${d.label}"`);
+  d.labels.forEach((lab, i) => {
+    const y = T + i * rowH + rowH / 2, v = d.vals[i], tv = Array.isArray(d.truth) ? d.truth[i] : d.truth;
+    s += `<g><title>${lab}: модель ${pct(v)}, насправді ${pct(tv)}</title>`;
+    s += `<text class="lab-ink" x="${labW - 8}" y="${y + 4}" text-anchor="end">${lab}</text>`;
+    s += `<rect class="track" x="${labW}" y="${(y - bh / 2).toFixed(1)}" width="${trackW}" height="${bh.toFixed(1)}" rx="4"/>`;
+    s += `<rect class="bar" x="${labW}" y="${(y - bh / 2).toFixed(1)}" width="${Math.max(2, trackW * v).toFixed(1)}" height="${bh.toFixed(1)}" rx="4"/>`;
+    s += `<rect class="truthtick" x="${(labW + trackW * tv - 1.5).toFixed(1)}" y="${(y - rowH * 0.42).toFixed(1)}" width="3" height="${(rowH * 0.84).toFixed(1)}" rx="1"/>`;
+    s += `<text x="${W - 2}" y="${y + 4}" text-anchor="end">${pct(v)}</text></g>`;
+  });
+  s += '</svg>';
+  setChart(el, s);
+}
+
+// age x BMI map drawn on canvas
+function drawMap(cv, d) {
+  const W = cv.clientWidth; if (!W) return null;
+  const H = Math.round(clamp(W * 0.46, 250, 360)), dpr = window.devicePixelRatio || 1;
+  cv.style.height = H + 'px'; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const L = 34, B = 22, T = 6, R = 8, pw = W - L - R, ph = H - T - B;
+  const ink = cssVar('--ink', '#14213D'), muted = cssVar('--muted', '#636E86'), surf = cssVar('--surface', '#fff'), surf2 = cssVar('--surface-2', '#F4F6FB');
+  const [mr, mg, mb] = hexToRgb(cssVar('--model', '#2D5BFF'));
+  const good = cssVar('--good', '#17703D'), bad = cssVar('--bad', '#B02A18'), truth = cssVar('--truth', '#14213D');
+  const { nx, ny } = d, cw = pw / nx, ch = ph / ny;
+  c.fillStyle = surf2; c.fillRect(L, T, pw, ph);
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    c.fillStyle = `rgba(${mr},${mg},${mb},${(0.92 * d.model[i * ny + j]).toFixed(3)})`;
+    c.fillRect(L + i * cw, T + (ny - 1 - j) * ch, cw + 0.6, ch + 0.6);
+  }
+  // true 50% boundary
+  c.strokeStyle = truth; c.lineWidth = 2; c.beginPath();
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    const t = d.truth[i * ny + j] > 0.5;
+    if (i < nx - 1 && (d.truth[(i + 1) * ny + j] > 0.5) !== t) { c.moveTo(L + (i + 1) * cw, T + (ny - 1 - j) * ch); c.lineTo(L + (i + 1) * cw, T + (ny - j) * ch); }
+    if (j < ny - 1 && (d.truth[i * ny + j + 1] > 0.5) !== t) { c.moveTo(L + i * cw, T + (ny - 1 - j) * ch); c.lineTo(L + (i + 1) * cw, T + (ny - 1 - j) * ch); }
+  }
+  c.stroke();
+  const PX = (a) => L + (a - AGE0) / (AGE1 - AGE0) * pw, PY = (b) => T + (1 - (b - BMI0) / (BMI1 - BMI0)) * ph;
+  d.dots.forEach((q) => {
+    c.beginPath(); c.arc(PX(q.age), PY(q.bmi), 3.6, 0, 7); c.fillStyle = q.y ? good : bad; c.fill(); c.strokeStyle = surf; c.lineWidth = 1.2; c.stroke();
+  });
+  if (d.person) {
+    c.beginPath(); c.arc(PX(d.person.age), PY(d.person.bmi), 8, 0, 7); c.strokeStyle = surf; c.lineWidth = 5; c.stroke();
+    c.beginPath(); c.arc(PX(d.person.age), PY(d.person.bmi), 8, 0, 7); c.strokeStyle = ink; c.lineWidth = 2.4; c.stroke();
+  }
+  c.font = '11px "JetBrains Mono", ui-monospace, monospace'; c.fillStyle = muted; c.textAlign = 'center';
+  [10, 20, 30, 40, 50, 60, 70, 80].forEach((a) => c.fillText(a, PX(a), H - 6));
+  c.textAlign = 'right';
+  [15, 20, 25, 30, 35, 40].forEach((b) => c.fillText(b, L - 5, PY(b) + 4));
+  cv._map = { L, T, pw, ph };
+  return cv._map;
+}
+
+// hover wiring (one listener per chart container)
+function wireHover(el) {
+  const tip = mountTip(el);
+  el.addEventListener('pointermove', (ev) => {
+    const h = el._h; if (!h) return;
+    const r = el.getBoundingClientRect(), px = ev.clientX - r.left;
+    const svg = el.querySelector('svg'); if (!svg) return;
+    const hov = svg.querySelectorAll('.hov');
+    if (h.kind === 'age') {
+      const a = clamp(Math.round(AGE0 + (px - h.m.l) / (h.W - h.m.l - h.m.r) * (AGE1 - AGE0)), AGE0, AGE1), i = a - AGE0;
+      const x = h.X(a), ym = h.Y(h.d.model[i]);
+      hov[0].setAttribute('x1', x); hov[0].setAttribute('x2', x); hov[1].setAttribute('cx', x); hov[1].setAttribute('cy', ym);
+      hov.forEach((n) => (n.style.display = ''));
+      tip.innerHTML = `${a} ${a % 10 === 1 && a !== 11 ? 'рік' : [2, 3, 4].includes(a % 10) && ![12, 13, 14].includes(a) ? 'роки' : 'років'}<br>модель ${pct(h.d.model[i])}, насправді ${pct(h.d.truth[i])}`;
+      tip.style.left = x + 'px'; tip.style.top = ym + 'px'; tip.classList.add('show');
+    } else if (h.kind === 'learn') {
+      const hist = h.d.history, e = clamp((px - h.m.l) / (h.W - h.m.l - h.m.r), 0, 1) * h.d.EP;
+      let bi = 0; hist.forEach((q, i) => { if (Math.abs(q.epoch - e) < Math.abs(hist[bi].epoch - e)) bi = i; });
+      const q = hist[bi], x = h.X(q.epoch), isAcc = h.d.metric === 'acc';
+      hov[0].setAttribute('x1', x); hov[0].setAttribute('x2', x); hov[0].style.display = '';
+      const f = (v) => isAcc ? pct(v) : dec(v);
+      tip.innerHTML = `епоха ${q.epoch}<br>навчання ${f(h.val(q, 'train'))}, нові ${f(h.val(q, 'test'))}`;
+      tip.style.left = x + 'px'; tip.style.top = h.Y(h.val(q, 'test')) + 'px'; tip.classList.add('show');
+    }
+  });
+  el.addEventListener('pointerleave', () => { tip.classList.remove('show'); el.querySelectorAll('.hov').forEach((n) => (n.style.display = 'none')); });
+}
+
+function historyTable(hist, EP) {
+  const rows = hist.filter((r, i) => r.epoch % 60 === 0 || i === hist.length - 1);
+  return '<table><thead><tr><th>епоха</th><th>навчання</th><th>нові</th><th>log-loss нових</th></tr></thead><tbody>' +
+    rows.map((r) => `<tr><td>${r.epoch}</td><td>${pct(r.trainAcc)}</td><td>${pct(r.testAcc)}</td><td>${dec(r.testLl)}</td></tr>`).join('') + '</tbody></table>';
+}
+
+// ---------- config ----------
+const EPOCHS = 500, LR = 8e-3, REC_EVERY = 10;
+const W_OPTS = [2, 4, 8, 16, 32, 64];
+const ZODIAC = ['Овен', 'Телець', 'Близнюки', 'Рак', 'Лев', 'Діва', 'Терези', 'Скорпіон', 'Стрілець', 'Козеріг', 'Водолій', 'Риби'];
+const CAT_LABELS = ['0 котів', '1 кіт', '2 коти', '3 коти', '4 коти', '5 котів', '6 котів'];
+// sports (engine order): 0 легка атлетика, 1 футбол, 2 баскетбол, 3 теніс, 4 плавання, 5 лижі, 6 гольф, 7 сумо, 8 більярд, 9 шахи, 10 рибальство, 11 без спорту
+const HEROES = [
+  { name: 'Малюк Тимко', age: 12, bmi: 17, sport: 1, zodiac: 5, apt: 17, cats: 0 },
+  { name: 'Спринтер Макс', age: 24, bmi: 21.5, sport: 0, zodiac: 8, apt: 134, cats: 3 },
+  { name: 'Тенісистка Оля', age: 32, bmi: 22.5, sport: 3, zodiac: 6, apt: 201, cats: 2 },
+  { name: 'Дядько Борис', age: 35, bmi: 34, sport: 8, zodiac: 2, apt: 88, cats: 5 },
+  { name: 'Рибалка Петрович', age: 41, bmi: 25, sport: 10, zodiac: 10, apt: 7, cats: 1 },
+  { name: 'Дід Михась', age: 74, bmi: 24, sport: 9, zodiac: 9, apt: 56, cats: 4 },
+];
+const REG = {
+  none: { name: 'Суворість', min: 0, max: 0.04, step: 0.0025, def: 0, fmt: () => '–', hint: 'Без поводка мережа вільна запам\'ятовувати все підряд.' },
+  l2: { name: 'Суворість L2 (λ)', min: 0, max: 0.04, step: 0.0025, def: 0.01, fmt: (v) => dec(v, 4), hint: 'Штраф за великі ваги. Надто великий λ не дає мережі вчитися.' },
+  l1: { name: 'Суворість L1 (λ)', min: 0, max: 0.01, step: 0.0005, def: 0.002, fmt: (v) => dec(v, 4), hint: 'Штраф за модулі ваг. Багато ваг прямують до нуля.' },
+  dropout: { name: 'Вимикаємо нейронів', min: 0, max: 0.8, step: 0.05, def: 0.5, fmt: (v) => pct(v), hint: 'Частка нейронів, що випадково мовчать на кожному кроці навчання.' },
+};
+
+const SCENARIOS = [
+  { id: 'lazy', label: 'Лінивий', cfg: { depth: 0, width: 4, act: 'silu', reg: 'none', strength: 0, n: 400 },
+    title: 'Лінивий: просто пряма', text: 'Лінійна модель без прихованих шарів. Вона зважує вік, ІМТ і спорт, але не може згинати криву. Час на 100 м залежить від віку не по прямій, тому вона помиляється і на навчальних людях. Подивіться на карту «вік × ІМТ»: межа в неї пряма.' },
+  { id: 'tiny', label: 'Скромний 1×2', cfg: { depth: 1, width: 0, act: 'silu', reg: 'none', strength: 0, n: 400 },
+    title: 'Скромний: два нейрони', text: 'Всього два нейрони, місця для зубріння мало: ≈83% на нових людях, розрив невеликий. Але на різних групах людей результат сильно гойдається (у моїх прогонах від 69% до 88%). Натисніть «Нова група людей» кілька разів.' },
+  { id: 'crammer', label: 'Зубрила 3×32', cfg: { depth: 3, width: 4, act: 'silu', reg: 'none', strength: 0, n: 400 },
+    title: 'Зубрила: розумна мережа без поводка', text: 'Три шари по 32 нейрони, близько 3 тисяч параметрів на 400 людей. Форму закону мережа ловить (≈81% на нових людях), але ще й заучує випадкові збіги. На навчанні 100%, а впевненість у помилках висока (log-loss ≈2). Числа для першої групи людей; на інших групах вони дещо інші. Відкрийте «Що мережа думає про знак зодіаку».' },
+  { id: 'l2', label: 'Суворий викладач (L2)', cfg: { depth: 3, width: 4, act: 'silu', reg: 'l2', strength: 0.01, n: 400 },
+    title: 'Та сама мережа, але з L2', text: 'Мережа не змінилась, додався штраф за великі ваги. Випадкові збіги з котами й зодіаком вимагали б великих ваг, тому мережа від них відмовляється. Точність зростає до ≈87%, а log-loss падає приблизно з 2 до 0,3.' },
+  { id: 'l1', label: 'Прибираємо зайве (L1)', cfg: { depth: 3, width: 4, act: 'silu', reg: 'l1', strength: 0.002, n: 400 },
+    title: 'L1: зайві зв\'язки прямують до нуля', text: 'Штраф за модулі ваг штовхає багато зв\'язків до нуля. Тут L1 дає ≈87% точності, але менш стабільний log-loss (≈0,8). Занадто сильний L1 (0,004 і більше) на деяких групах людей ламає мережу.' },
+  { id: 'drop', label: 'Випадкові вимкнення', cfg: { depth: 3, width: 4, act: 'silu', reg: 'dropout', strength: 0.5, n: 400 },
+    title: 'Dropout: щоразу вимикаємо половину нейронів', text: 'Мережа не може покладатися на хитру комбінацію з кількох нейронів, бо кожен може зникнути. Точність ≈84%, трохи краще, ніж у зубрили, але впевненість у помилках (log-loss ≈1,3) лишається гіршою, ніж у L2.' },
+  { id: 'strict', label: 'Надто суворий', cfg: { depth: 3, width: 4, act: 'silu', reg: 'l2', strength: 0.03, n: 400 },
+    title: 'Занадто суворий викладач', text: 'Той самий L2, але втричі сильніше. Штраф так тисне на ваги, що мережа майже не вчиться і відповідає приблизно як «ніхто не добіжить» (≈60%). Поводок має відповідати розміру мережі.' },
+  { id: 'few', label: 'Мало людей (100)', cfg: { depth: 3, width: 4, act: 'silu', reg: 'none', strength: 0, n: 100 },
+    title: 'Зубрила на 100 людях', text: 'Менше прикладів означає, що випадкових збігів відносно більше, а закономірність видно гірше. Точність ≈69%, log-loss понад 3. Потім натисніть «Мало людей + L2».' },
+  { id: 'fewl2', label: 'Мало людей + L2', cfg: { depth: 3, width: 4, act: 'silu', reg: 'l2', strength: 0.01, n: 100 },
+    title: 'Мало людей, але з L2', text: 'Той самий малий набір, але з поводком: ≈82% замість 69%, а log-loss падає з 3,3 до 0,45. На навчанні все ще 100%, тож поводок допоміг, але зубріння не зник. Чим менше даних, тим більше користі від поводка.' },
+  { id: 'many', label: 'Багато людей (800)', cfg: { depth: 3, width: 4, act: 'silu', reg: 'none', strength: 0, n: 800 },
+    title: 'Зубрила на 800 людях', text: 'Більше даних допомагає і без поводка (≈86%), але log-loss усе ще високий (≈1,3). Навчання тут триває довше. Додайте L2 і порівняйте впевненість.' },
+];
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const els = {
+  depth: $('depth'), width: $('width'), strength: $('strength'), nstud: $('nstud'),
+  cAge: $('c-age'), cBmi: $('c-bmi'), cCats: $('c-cats'), cZod: $('c-zod'), cApt: $('c-apt'), cSport: $('c-sport'), mapSport: $('map-sport'),
+};
+const radio = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+const setRadio = (name, v) => { const r = document.querySelector(`input[name="${name}"][value="${v}"]`); if (r) r.checked = true; };
+
+// ---------- state ----------
+let trainer = null, runId = 0, seed = 1, activeScenario = null, lastUi = 0, thinkTab = 'sport', builderKey = '';
+const laneRefs = [];
+
+function readCfg() {
+  return { depth: +els.depth.value, width: W_OPTS[+els.width.value], act: radio('act'), reg: radio('reg'), strength: radio('reg') === 'none' ? 0 : +els.strength.value, n: +els.nstud.value, seed, lr: LR, epochs: EPOCHS };
+}
+function readPerson() {
+  return { age: +els.cAge.value, bmi: +els.cBmi.value, sport: +els.cSport.value, zodiac: +els.cZod.value, apt: Math.max(1, Math.min(299, Math.round(+els.cApt.value) || 1)), cats: +els.cCats.value };
+}
+
+// ---------- controls: labels ----------
+function syncLabels() {
+  $('depth-val').textContent = els.depth.value === '0' ? 'нема (лінійна)' : els.depth.value;
+  $('width-val').textContent = W_OPTS[+els.width.value];
+  $('nstud-val').textContent = els.nstud.value;
+  const reg = radio('reg'), R = REG[reg];
+  $('strength-name').textContent = R.name;
+  $('strength-val').textContent = R.fmt(+els.strength.value);
+  $('strength-hint').textContent = R.hint;
+  els.strength.disabled = reg === 'none';
+  const lin = els.depth.value === '0';
+  els.width.disabled = lin;
+  document.querySelectorAll('input[name="act"]').forEach((r) => (r.disabled = lin));
+  $('c-age-val').textContent = els.cAge.value;
+  $('c-bmi-val').textContent = dec(+els.cBmi.value, 1);
+  $('c-cats-val').textContent = els.cCats.value;
+}
+function setRegRange(reg, value) {
+  const R = REG[reg];
+  els.strength.min = R.min; els.strength.max = R.max; els.strength.step = R.step;
+  els.strength.value = value != null ? value : R.def;
+}
+
+// ---------- builder (your person) ----------
+function updateBuilder() {
+  const P = readPerson(), pt = trueProb(P);
+  const pm = trainer ? trainer.predictPeople([P])[0] : null;
+  const key = [P.age, P.bmi, P.sport, pm == null ? 'x' : moodOf(pm)].join('|');
+  if (key !== builderKey) { $('b-art').innerHTML = avatar(P, pm == null ? 'meh' : moodOf(pm)); builderKey = key; }
+  $('b-model').textContent = pm == null ? '–' : pct(pm);
+  $('b-model-bar').style.width = pm == null ? '0%' : pct(pm);
+  $('b-truth').textContent = pct(pt);
+  $('b-truth-bar').style.width = pct(pt);
+}
+
+// ---------- lanes ----------
+function allPeople() { return HEROES.concat([Object.assign({ name: 'Ваша людина' }, readPerson())]); }
+function laneSub(p) { return `${p.age} р., ІМТ ${dec(p.bmi, 1)}, ${SPORTS[p.sport]}`; }
+function laneTitle(p) { return `${p.name}. ${laneSub(p)}. ${ZODIAC[p.zodiac]}, кв. ${p.apt}, котів: ${p.cats}`; }
+
+function buildLanes() {
+  const box = $('lanes'); box.innerHTML = '';
+  allPeople().forEach((p, i) => {
+    const you = i === HEROES.length;
+    const row = document.createElement('div');
+    row.className = 'lane' + (you ? ' you' : '');
+    row.innerHTML = `<div class="lane-info"><b></b><span class="sub"></span><span class="lane-nums mono"><span class="m"></span><span class="t"></span><span class="err"></span></span></div>
+      <div class="lane-track"><i class="start"></i><i class="finish"></i><div class="flag">${FLAG_SVG}</div><div class="runner"></div></div>`;
+    box.appendChild(row);
+    laneRefs.push({ row, info: row.querySelector('.lane-info'), name: row.querySelector('b'), sub: row.querySelector('.sub'), m: row.querySelector('.m'), t: row.querySelector('.t'), err: row.querySelector('.err'), flag: row.querySelector('.flag'), runner: row.querySelector('.runner'), key: '', moodKey: '' });
+  });
+  const ticks = $('ticks'); ticks.innerHTML = '';
+  [0, 25, 50, 75, 100].forEach((v) => { const s = document.createElement('span'); s.style.setProperty('--p', v / 100); s.textContent = v + '%'; ticks.appendChild(s); });
+}
+
+function updateLanes(live) {
+  const people = allPeople();
+  const probs = trainer.predictPeople(people);
+  $('lanes').classList.toggle('live', live);
+  people.forEach((p, i) => {
+    const R = laneRefs[i], pm = probs[i], pt = trueProb(p), diff = Math.abs(pm - pt) * 100;
+    const key = laneSub(p);
+    if (R.key !== key) { R.name.textContent = p.name; R.sub.textContent = key; R.info.title = laneTitle(p); R.key = key; }
+    const mood = moodOf(pm), sk = mood + '|' + key;
+    if (R.moodKey !== sk) { R.runner.innerHTML = avatar(p, mood); R.moodKey = sk; }
+    R.runner.style.setProperty('--p', pm.toFixed(3));
+    R.flag.style.setProperty('--t', pt.toFixed(3));
+    R.m.textContent = 'модель ' + pct(pm);
+    R.t.textContent = 'насправді ' + pct(pt);
+    const cls = diff < 10 ? 'ok' : diff < 25 ? 'warn' : 'bad';
+    R.err.className = 'err ' + cls;
+    R.err.textContent = (diff < 10 ? 'влучила' : 'промах') + ' ' + Math.round(diff) + ' п.п.';
+  });
+}
+
+// ---------- board / verdict ----------
+function gapWord(g) { return g < 0.05 ? 'майже нема' : g < 0.12 ? 'помірний' : 'зубрить'; }
+
+function updateBoard() {
+  const L = trainer.last;
+  $('v-train').textContent = pct(L.trainAcc);
+  $('v-test').textContent = pct(L.testAcc);
+  const gap = L.trainAcc - L.testAcc;
+  $('v-gap').textContent = (gap >= 0 ? '+' : '') + Math.round(gap * 100);
+  $('v-gap').nextElementSibling.textContent = 'п.п., ' + gapWord(gap);
+  $('v-ll').textContent = dec(L.testLl);
+  $('board-foot').textContent = `Для порівняння: якщо всім казати «ні», вгадаєш ${pct(Math.max(trainer.passRate, 1 - trainer.passRate))}. Найкраще, що можливо на цих даних: ${pct(trainer.bayes.acc)} і log-loss ${dec(trainer.bayes.ll)}.`;
+}
+
+function verdictOf() {
+  const L = trainer.last, B = trainer.bayes, gap = L.trainAcc - L.testAcc;
+  const nums = `На навчанні ${pct(L.trainAcc)}, на нових ${pct(L.testAcc)}, log-loss ${dec(L.testLl)}.`;
+  if (gap < 0.06 && L.testAcc < B.acc - 0.09) return ['warn', 'Недонавчання.', `${nums} Обидва числа далеко від можливого ${pct(B.acc)}, мережі не вистачає гнучкості.`];
+  if (gap >= 0.15 || L.testLl >= 1.0) return ['bad', 'Перенавчання.', `${nums} Розрив ${Math.round(gap * 100)} п.п., а впевненість у помилках висока.`];
+  if (L.testAcc >= B.acc - 0.06 && L.testLl < 0.6) return ['ok', 'Добре.', `${nums} Близько до можливого ${pct(B.acc)}, і мережа не вдає надмірної впевненості.`];
+  if (gap >= 0.10) return ['warn', 'Легке перенавчання.', `${nums} Розрив ${Math.round(gap * 100)} п.п. уже помітний.`];
+  return ['warn', 'Посередньо.', `${nums} Можливе значення ${pct(B.acc)}.`];
+}
+
+function showVerdict() {
+  const [k, h, t] = verdictOf(), v = $('verdict');
+  v.className = 'verdict show ' + k;
+  $('verdict-ic').textContent = k === 'ok' ? '✓' : k === 'bad' ? '×' : '!';
+  $('verdict-h').textContent = h; $('verdict-t').textContent = t;
+}
+
+// ---------- charts ----------
+// junk sensitivity averaged over a fixed sample of people, so it does not depend on where one person stands on the age hill
+const POP = makeStudents(100, RNG(555)).people;
+function popSpread(key, vals) {
+  const all = [];
+  POP.forEach((p) => vals.forEach((v) => all.push(Object.assign({}, p, { [key]: v }))));
+  const pr = trainer.predictPeople(all), k = vals.length;
+  let tot = 0;
+  for (let i = 0; i < POP.length; i++) { let mn = 1, mx = 0; for (let j = 0; j < k; j++) { const v = pr[i * k + j]; if (v < mn) mn = v; if (v > mx) mx = v; } tot += mx - mn; }
+  return Math.round(tot / POP.length * 100);
+}
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+function setNote(el, cls, head, text) {
+  el.innerHTML = `<b class="verdict ${cls} show" style="padding:2px 8px;border-radius:8px"></b><span></span>`;
+  el.firstChild.textContent = head; el.lastChild.textContent = text;
+}
+
+function updateThink(P) {
+  const sub = $('think-sub'), note = $('junk-note'), el = $('chart-think');
+  const who = `${P.age} р., ІМТ ${dec(P.bmi, 1)}`;
+  if (thinkTab === 'sport') {
+    const list = SPORTS.map((_, s) => Object.assign({}, P, { sport: s }));
+    const vals = Array.from(trainer.predictPeople(list)), truth = list.map(trueProb);
+    sub.textContent = `Ваша людина (${who}, ${ZODIAC[P.zodiac]}, ${P.cats} котів) з різними видами спорту. Мережа має відрізняти спорт, бо він впливає на результат.`;
+    hbarChart(el, { labels: SPORTS, vals, truth, label: 'Відповідь мережі для різних видів спорту' });
+    const err = Math.round(vals.reduce((a, v, i) => a + Math.abs(v - truth[i]), 0) / vals.length * 100);
+    setNote(note, err < 8 ? 'ok' : err < 18 ? 'warn' : 'bad', err < 8 ? 'Спорт розпізнано.' : err < 18 ? 'Спорт розпізнано частково.' : 'Спорт розпізнано погано.', `Середня похибка по ${SPORTS.length} видах спорту ${err} п.п.`);
+    return;
+  }
+  const isZ = thinkTab === 'zodiac', pt = trueProb(P);
+  const list = isZ ? range(0, 11).map((z) => Object.assign({}, P, { zodiac: z })) : range(0, 6).map((c) => Object.assign({}, P, { cats: c }));
+  const vals = Array.from(trainer.predictPeople(list));
+  sub.textContent = isZ ? `Та сама людина (${who}, ${SPORTS[P.sport]}), змінюється лише знак зодіаку. Насправді всі знаки однакові.` : `Та сама людина (${who}, ${SPORTS[P.sport]}), змінюється лише кількість котів. Насправді коти нічого не змінюють.`;
+  hbarChart(el, { labels: isZ ? ZODIAC : CAT_LABELS, vals, truth: pt, label: isZ ? 'Відповідь мережі для різних знаків зодіаку' : 'Відповідь мережі для різної кількості котів' });
+  const sz = popSpread('zodiac', range(0, 11)), sc = popSpread('cats', range(0, 6)), worst = Math.max(sz, sc);
+  const cls = worst < 10 ? 'ok' : worst < 25 ? 'warn' : 'bad';
+  setNote(note, cls, cls === 'ok' ? 'Майже ігнорує сміття.' : cls === 'warn' ? 'Частково піддається.' : 'Піддається на сміття.',
+    `У середньому по 100 різних людей зміна лише знака зодіаку рухає шанс на ${sz} п.п., зміна лише кількості котів на ${sc} п.п. Справжня залежність 0. Стовпчики показують лише вашу людину.`);
+}
+
+const MAP_NX = 56, MAP_NY = 34;
+function updateMap(P) {
+  const sp = +els.mapSport.value, cv = $('cv-map');
+  const list = [], truth = new Float64Array(MAP_NX * MAP_NY);
+  for (let i = 0; i < MAP_NX; i++) for (let j = 0; j < MAP_NY; j++) {
+    const a = AGE0 + (AGE1 - AGE0) * (i + 0.5) / MAP_NX, b = BMI0 + (BMI1 - BMI0) * (j + 0.5) / MAP_NY;
+    const q = Object.assign({}, P, { age: a, bmi: b, sport: sp });
+    list.push(q); truth[i * MAP_NY + j] = trueProb(q);
+  }
+  const model = trainer.predictPeople(list);
+  const dots = [];
+  trainer.trainPeople.forEach((q, i) => { if (q.sport === sp) dots.push({ age: q.age, bmi: q.bmi, y: trainer.ytr[i] }); });
+  const geo = drawMap(cv, { nx: MAP_NX, ny: MAP_NY, model, truth, dots, person: P.sport === sp ? { age: P.age, bmi: P.bmi } : null });
+  cv._ctx = { P, sp, geo };
+}
+
+function updateCharts() {
+  const P = readPerson();
+  // age curve
+  const list = []; for (let a = AGE0; a <= AGE1; a++) list.push(Object.assign({}, P, { age: a }));
+  const model = Array.from(trainer.predictPeople(list));
+  const truth = list.map(trueProb);
+  const dots = [];
+  trainer.trainPeople.forEach((q, i) => { if (q.sport === P.sport) dots.push({ age: q.age, y: trainer.ytr[i] }); });
+  $('age-sub').textContent = `${SPORTS[P.sport]}, ІМТ ${dec(P.bmi, 1)}, ${ZODIAC[P.zodiac]}, ${P.cats} котів`;
+  ageChart($('chart-age'), { model, truth, dots, person: P });
+  // learning
+  const metric = radio('metric');
+  const ld = { history: trainer.history, EP: EPOCHS, bayes: trainer.bayes, metric };
+  learnChart($('chart-learn'), ld);
+  $('tbl-learn').innerHTML = historyTable(trainer.history, EPOCHS);
+  const isDone = trainer.t >= EPOCHS;
+  let note = '';
+  if (metric === 'acc') note = 'Між лініями «навчання» і «нові» утворюються ножиці. Чим ширше розкрились, тим більше мережа запам\'ятала замість того, щоб зрозуміти.';
+  else if (ld.bestEpoch != null && isDone) note = `Найкращою на нових людях мережа була на ${ld.bestEpoch}-й епосі, далі вона лише гіршала. Зупинка в цей момент називається ранньою зупинкою (early stopping).`;
+  else note = 'Нижча лінія означає, що мережа менше самовпевнена. Якщо лінія «нові» росте вгору, мережа впевнено помиляється.';
+  $('learn-note').textContent = note;
+  updateThink(P);
+  updateMap(P);
+}
+
+function refresh(live) { updateBuilder(); updateLanes(live); updateBoard(); updateCharts(); }
+
+// ---------- training loop ----------
+function setStatus(text, cls) { const p = $('pill'); p.textContent = text; p.className = 'pill' + (cls ? ' ' + cls : ''); }
+
+function startTraining() {
+  const id = ++runId;
+  $('verdict').classList.remove('show');
+  trainer = new Trainer(readCfg());
+  setStatus('навчається', 'live');
+  refresh(true);
+  lastUi = performance.now();
+  const loop = () => {
+    if (id !== runId) return;
+    const t0 = performance.now();
+    do {
+      trainer.step();
+      if (trainer.t % REC_EVERY === 0) trainer.record();
+    } while (trainer.t < EPOCHS && performance.now() - t0 < 14);
+    const now = performance.now();
+    $('progress-bar').style.width = (trainer.t / EPOCHS * 100) + '%';
+    $('epoch-label').textContent = `епоха ${trainer.t} з ${EPOCHS}`;
+    if (trainer.t >= EPOCHS) {
+      if (trainer.history[trainer.history.length - 1].epoch !== trainer.t) trainer.record();
+      setStatus('готово', 'done');
+      refresh(false); showVerdict();
+      return;
+    }
+    if (now - lastUi > 150) { lastUi = now; refresh(true); }
+    setTimeout(loop, 0);
+  };
+  setTimeout(loop, 30);
+}
+
+// ---------- scenarios ----------
+function renderChips() {
+  const box = $('chips'); box.innerHTML = '';
+  SCENARIOS.forEach((s) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip-btn'; b.textContent = s.label; b.dataset.id = s.id; b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => applyScenario(s.id));
+    box.appendChild(b);
+  });
+}
+function markChip(id) {
+  activeScenario = id;
+  document.querySelectorAll('.chip-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  const s = SCENARIOS.find((x) => x.id === id);
+  $('story-title').textContent = s ? s.title : 'Своя конфігурація';
+  $('story-text').textContent = s ? s.text : 'Ви змінили налаштування вручну. Дивіться на розрив між «навчанням» і «новими людьми», на вкладки «Що мережа думає про…» і на карту.';
+}
+function applyScenario(id) {
+  const s = SCENARIOS.find((x) => x.id === id), c = s.cfg;
+  els.depth.value = c.depth; els.width.value = c.width; els.nstud.value = c.n;
+  setRadio('act', c.act); setRadio('reg', c.reg);
+  setRegRange(c.reg, c.strength);
+  syncLabels(); markChip(id); startTraining();
+}
+
+// ---------- tabs ----------
+function setTab(t) {
+  thinkTab = t;
+  document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  $('think-panel').setAttribute('aria-labelledby', 'tab-' + t);
+  if (trainer) updateThink(readPerson());
+}
+
+// ---------- map hover ----------
+function wireMap() {
+  const cv = $('cv-map'), out = $('map-read');
+  cv.addEventListener('pointermove', (ev) => {
+    const c = cv._ctx; if (!c || !c.geo || !trainer) return;
+    const r = cv.getBoundingClientRect(), g = c.geo;
+    const x = ev.clientX - r.left - g.L, y = ev.clientY - r.top - g.T;
+    if (x < 0 || y < 0 || x > g.pw || y > g.ph) return;
+    const age = Math.round(AGE0 + x / g.pw * (AGE1 - AGE0)), bmi = Math.round((BMI0 + (1 - y / g.ph) * (BMI1 - BMI0)) * 2) / 2;
+    const q = Object.assign({}, c.P, { age, bmi, sport: c.sp });
+    out.textContent = `${SPORTS[c.sp]}, вік ${age}, ІМТ ${dec(bmi, 1)}: модель ${pct(trainer.predictPeople([q])[0])}, насправді ${pct(trueProb(q))}`;
+  });
+}
+
+// ---------- wiring ----------
+function onModelChange() { syncLabels(); markChip(null); startTraining(); }
+
+function init() {
+  const opt = (arr, sel) => arr.map((t, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${t}</option>`).join('');
+  els.cSport.innerHTML = opt(SPORTS, 3); els.mapSport.innerHTML = opt(SPORTS, 3); els.cZod.innerHTML = opt(ZODIAC, 7);
+  renderChips(); buildLanes();
+  ['depth', 'width', 'nstud', 'strength'].forEach((k) => {
+    els[k].addEventListener('input', syncLabels);
+    els[k].addEventListener('change', onModelChange);
+  });
+  document.querySelectorAll('input[name="act"]').forEach((r) => r.addEventListener('change', onModelChange));
+  document.querySelectorAll('input[name="reg"]').forEach((r) => r.addEventListener('change', () => { setRegRange(radio('reg')); onModelChange(); }));
+  document.querySelectorAll('input[name="metric"]').forEach((r) => r.addEventListener('change', () => trainer && updateCharts()));
+  const live = () => { syncLabels(); updateBuilder(); if (trainer) { updateLanes(trainer.t < EPOCHS); updateCharts(); } };
+  ['cAge', 'cBmi', 'cCats', 'cApt'].forEach((k) => els[k].addEventListener('input', live));
+  els.cZod.addEventListener('change', live);
+  els.cSport.addEventListener('change', () => { els.mapSport.value = els.cSport.value; live(); });
+  els.mapSport.addEventListener('change', () => trainer && updateMap(readPerson()));
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+  $('btn-train').addEventListener('click', startTraining);
+  $('btn-new').addEventListener('click', () => { seed++; startTraining(); });
+  wireHover($('chart-age')); wireHover($('chart-learn')); wireMap();
+  let rz = 0;
+  const redraw = () => { clearTimeout(rz); rz = setTimeout(() => { if (trainer) updateCharts(); }, 120); };
+  const ro = new ResizeObserver(redraw);
+  ['chart-age', 'chart-learn', 'chart-think', 'cv-map'].forEach((id) => ro.observe($(id)));
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw); } catch (e) { /* older browsers */ }
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  syncLabels(); updateBuilder();
+  applyScenario('crammer');
+}
+init();
+
+</script>
+
+</body></html>
