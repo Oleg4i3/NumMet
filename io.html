@@ -118,7 +118,7 @@ const pick=(p,r)=>{let u=r(),s=0;for(let i=0;i<p.length;i++){s+=p[i];if(u<s)retu
 const MOV=['Мультфільм про тварин','Казка-мультфільм','Пригоди','Бойовик','Комедія','Драма','Трилер','Мелодрама','Документальний','Фантастика','Жахи','Мюзикл'];
 const MC=[.3,.25,.15,.05,.1,0,0,0,0,.1,0,.05],MA=[.03,.02,.05,.15,.15,.15,.12,.1,.08,.1,.05,0];
 const PB=[.45,0,0],PS=[[.25,.35,.15,.15,.05,.05],[.08,.17,.15,.2,.2,.2],[.02,.3,.2,.15,.13,.2]],PH=[[.1,.87,.03],[.65,.35,0],[.3,.7,0]];
-const HC=[.3,.7,0],HA=[.4,.57,.03];
+const HC=[.3,.7,0],HA=[.4,.57,.03],HAf=()=>{const b=(SC[1].bald??3)/100;return[.4*(1-b)/.97,.57*(1-b)/.97,b]};
 const SC=[
 {n:'Сценарій 1: хто це?',kind:'cls',cls:['чоловік','жінка','дитина'],pr:[.4,.4,.2],
 d:'Вид спорту, вуса чи борода, довжина волосся та колір очей → <b>чоловік</b>, <b>жінка</b> чи <b>дитина до 12</b>. Колір очей не пов\'язаний із класом (dummy). Жінки та діти бороди не мають. Дані синтетичні.',
@@ -134,8 +134,26 @@ d:'Волосся, час на 100 м та улюблений жанр кіно 
 F:[{k:'ha',n:'Волосся',t:'nom',v:['довге','коротке','лисий'],th:'У генераторі лисих дітей немає взагалі, а лисих дорослих лише близько 1,5 % вибірки: рідкісне значення мережа вивчає погано.'},
 {k:'t',n:'Час на 100 м, с',t:'num',lo:12,bw:2,nb:10,th:'Числова ознака з немонотонним впливом: лінійна модель не бачить горба. Спробуйте кошики або прихований шар.'},
 {k:'mv',n:'Улюблений жанр',t:'nom',v:MOV,th:'Номінальна ознака з 12 значеннями. one-hot або ембединг.'}],
-gen:(n,r)=>Array.from({length:n},()=>{const y=r()<.5?1:0;let t=y?nrm(r)*2.5+21:r()<.85?nrm(r)*1.6+15.5:nrm(r)*3.5+26;t=Math.round(Math.max(12,Math.min(32,t))*10)/10;return{y,t,ha:pick(y?HC:HA,r),mv:pick(y?MC:MA,r)}}),
-lik:(w,c)=>(c?npdf(w.t,21,2.5):.85*npdf(w.t,15.5,1.6)+.15*npdf(w.t,26,3.5))*(c?HC:HA)[w.ha]*(c?MC:MA)[w.mv],ex:{ha:1,t:16,mv:3},
+gen:(n,r)=>Array.from({length:n},()=>{const y=r()<.5?1:0;let t=y?nrm(r)*2.5+21:r()<.85?nrm(r)*1.6+15.5:nrm(r)*3.5+26;t=Math.round(Math.max(12,Math.min(32,t))*10)/10;return{y,t,ha:pick(y?HC:HAf(),r),mv:pick(y?MC:MA,r)}}),
+lik:(w,c)=>(c?npdf(w.t,21,2.5):.85*npdf(w.t,15.5,1.6)+.15*npdf(w.t,26,3.5))*(c?HC:HAf())[w.ha]*(c?MC:MA)[w.mv],ex:{ha:1,t:16,mv:3},
+ba:1,more:`<details><summary>Експеримент: лисий любитель мультфільмів, і чому мережа тут помиляється</summary>
+<p>За генератором <b>лисих дітей не буває</b>, тому правило «лисий ⇒ дорослий» абсолютне. Проте проста мережа його не вчить. У 1200 прикладах лише близько 19 лисих дорослих, і майже всі вони вже правильно розпізнаються за іншими ознаками (швидкий час, «дорослі» жанри). Втрата на них мала, тому градієнт ваги входу «лисий» майже нульовий: мережі нема що виправляти. Вага лишається майже нульовою, і лисий швидкий любитель мультфільмів отримує відповідь «дитина» (на цій комбінації правило ніколи не перевірялося).</p>
+<p>Нижче результати експерименту на цій же задачі (середнє за 5 запусків; проби: лисий, час 16–26 с, п'ять «дитячих» жанрів; ідеальний результат 0). Для коротковолосих на тих самих пробах P(дитина) ≈ 0,8.</p>
+<div class="tw"><table><thead><tr><th>Конфігурація</th><th>Лисих у вибірці</th><th>P(дитина), лисий, середнє за пробами</th><th>Лисий, 21,3 с, казка-мультфільм</th></tr></thead><tbody>
+<tr><td>3 % лисих серед дорослих, 8 нейронів tanh (базова)</td><td>19</td><td>0,47</td><td>0,97</td></tr>
+<tr><td>10 % лисих</td><td>58</td><td>0,16</td><td>0,55</td></tr>
+<tr><td>20 % лисих</td><td>116</td><td>0,06</td><td>0,21</td></tr>
+<tr><td>30 % лисих</td><td>172</td><td>0,04</td><td>0,12</td></tr>
+<tr><td>50 % лисих</td><td>290</td><td>0,01</td><td>0,04</td></tr>
+<tr><td>3 %, 128 нейронів</td><td>19</td><td>0,39</td><td>0,89</td></tr>
+<tr><td>3 %, два шари по 32 нейрони</td><td>19</td><td>0,47</td><td>0,98</td></tr>
+<tr><td>3 %, ReLU, два шари по 32</td><td>19</td><td>0,46</td><td>0,98</td></tr>
+<tr><td>3 %, L2-регуляризація 0,01</td><td>19</td><td>0,62</td><td>0,93</td></tr>
+<tr><td>3 %, 200 епох замість 40</td><td>19</td><td>0,46</td><td>0,97</td></tr>
+<tr><td>3 %, але в 10 разів більше даних</td><td>181</td><td>0,04</td><td>0,15</td></tr>
+</tbody></table></div>
+<p><b>Висновки.</b> (1) Гіпотеза про 20 % підтвердилась частково: помилка падає з 0,97 до 0,21, 30 % дає 0,12, але нуля немає. Вже 10 % дає помітне покращення. (2) Більше нейронів, глибша мережа, ReLU замість tanh і довше навчання <b>не допомагають</b>: вони не створюють нових прикладів, де ознака «лисий» суперечить іншим. (3) L2-регуляризація навіть шкодить: вона притискає вагу рідкісної ознаки до нуля. (4) Допомагає лише більше прикладів (приблизно від 100–200 лисих), тобто більше даних або штучне збільшення частки рідкісного класу. Повзунок вище змінює частку лисих серед дорослих, перенавчіть мережу й порівняйте.</p>
+<p><b>Загальний урок.</b> Мережа вивчає не правила генератора, а будь-які закономірності, достатні для зменшення втрати на навчальних даних. Рідкісна ознака, яка ніде не конфліктує з іншими, лишається невивченою, і поза навчальним розподілом мережа може бути впевнено неправою.</p></details>`,
 O:[['softmax','softmax на 2 виходи + CE'],['sigm','сигмоїда + BCE'],['tanh','tanh (цілі ±1) + MSE'],['lin','лінійний + MSE']],H:[0,2,4,8,16]},
 {n:'Сценарій 3: ширина талії',kind:'reg',unit:'см',noise:2.5,
 d:'Вага, зріст, стать та улюблений жанр кіно → <b>ширина талії на брюках, см</b> (діти 6–11 років є серед прикладів). Жанр кіно тут <b>сміття</b>: з розміром не пов\'язаний. Спробуйте one-hot для кіно й слідкуйте за розривом між навчальною та перевірочною кривими.',
@@ -241,7 +259,7 @@ function load(i){run++;S=SC[i];document.querySelectorAll('.tab').forEach((b,j)=>
 TRN=S.gen(1200,rng(11));VAL=S.gen(1200,rng(22));ex={...S.ex};cfg={};out=S.O[0][0];
 for(const f of S.F){cfg[f.k]=f.t=='nom'?'onehot':f.t=='bin'?'01':'z';if(f.t=='num'){const v=TRN.map(w=>w[f.k]),n=v.length,mu=v.reduce((a,b)=>a+b,0)/n;f.mu=mu;f.sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/n);f.mn=Math.min(...v);f.mx=Math.max(...v);const l=v.map(x=>Math.log(1+x)),lm=l.reduce((a,b)=>a+b,0)/n;f.lm=lm;f.ls=Math.sqrt(l.reduce((a,b)=>a+(b-lm)**2,0)/n)}}
 if(reg()){const v=TRN.map(w=>w.y),n=v.length;S.my=v.reduce((a,b)=>a+b,0)/n;S.sy=Math.sqrt(v.reduce((a,b)=>a+(b-S.my)**2,0)/n);S.mn=Math.min(...v);S.mx=Math.max(...v)}
-$('#sh').textContent=S.n;$('#sd').innerHTML='<p>'+S.d+'</p>';build();
+$('#sh').textContent=S.n;$('#sd').innerHTML='<p>'+S.d+'</p>'+(S.ba?'<p><label>Частка лисих серед дорослих <input type="range" id="bald" min="1" max="30" step="1" value="'+(S.bald??3)+'"> <b id="bv">'+(S.bald??3)+'</b> %</label> <span class="mut">(за замовчуванням їх мало, дані перегенеруються після відпускання повзунка)</span></p>':'')+(S.more||'');build();
 if(reg()){BA=null;ref=S.noise;$('#ceil').textContent='шум генератора '+S.noise+' см';$('#cn').textContent='Менше за це значення RMSE бути не може.'}
 else{const r=rng(99),A=S.gen(30000,r);let a=0,l=0;for(const w of A){const q=S.post?[1-S.post(w),S.post(w)]:S.cls.map((_,c)=>S.pr[c]*S.lik(w,c)),t=q.reduce((x,y)=>x+y,0);if(q.indexOf(Math.max(...q))==w.y)a++;l-=Math.log(q[w.y]/t+1e-12)}
 BA={a:a/A.length,l:l/A.length};$('#ceil').textContent=(100*BA.a).toFixed(1)+' %';$('#cn').textContent='Найкраща можлива точність, обчислена з генератора. Мінімальна крос-ентропія: '+BA.l.toFixed(3)+'.'}
@@ -249,9 +267,10 @@ setRef();$('#dg').innerHTML='';$('#imp').innerHTML='';$('#st').textContent='';$(
 function setRef(){ref=reg()?S.noise:(act()=='s'||(act()=='g'&&OD()==1)?BA.l:null);$('#cap').textContent='Синя лінія: '+(reg()?'похибка (RMSE, см)':'втрата')+' на навчальній вибірці, помаранчева на перевірочній'+(ref!=null?'; зелений пунктир: теоретичний мінімум.':'.')}
 $('#tabs').innerHTML=SC.map((s,i)=>`<button class="s tab" data-t="${i}">Сценарій ${i+1}</button>`).join('');
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.t!=null)return;run++;$('#go').disabled=false;
-if(t.dataset.k){cfg[t.dataset.k]=t.value;init()}else if(t.dataset.e&&t.type!='range'){ex[t.dataset.e]=+t.value;show()}else if(t.id=='out'){out=t.value;setRef();init()}else if(t.id=='hid'){H=+t.value;init()}});
-document.addEventListener('input',e=>{const t=e.target;if(t.type=='range'&&t.dataset.e){ex[t.dataset.e]=+t.value;$('#ev'+t.dataset.e).textContent=t.value;show()}});
+if(t.dataset.k){cfg[t.dataset.k]=t.value;init()}else if(t.dataset.e&&t.type!='range'){ex[t.dataset.e]=+t.value;show()}else if(t.id=='bald'){S.bald=+t.value;reb()}else if(t.id=='out'){out=t.value;setRef();init()}else if(t.id=='hid'){H=+t.value;init()}});
+document.addEventListener('input',e=>{const t=e.target;if(t.id=='bald'){$('#bv').textContent=t.value;return}if(t.type=='range'&&t.dataset.e){ex[t.dataset.e]=+t.value;$('#ev'+t.dataset.e).textContent=t.value;show()}});
 document.addEventListener('click',e=>{const t=e.target;if(t.dataset&&t.dataset.t!=null)load(+t.dataset.t)});
+function reb(){const c={...cfg},o=out,h=H,e={...ex};load(1);cfg=c;out=o;H=h;ex=e;build();document.querySelectorAll('[data-k]').forEach(x=>x.value=cfg[x.dataset.k]);$('#out').value=out;$('#hid').value=H;setRef();init()}
 $('#go').onclick=train;$('#rs').onclick=()=>{run++;$('#go').disabled=false;$('#st').textContent='';init()};
 if(window.katex)document.querySelectorAll('.m').forEach(el=>{try{katex.render(el.textContent,el,{output:'mathml',displayMode:el.classList.contains('d'),throwOnError:false})}catch(_){}});
 load(0);
