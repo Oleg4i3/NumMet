@@ -2,7 +2,7 @@
 <html lang="uk"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Входи та виходи нейромережі: симулятор</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@400;600&family=Noto+Sans+Math&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <style>
 :root{color-scheme:light;--bg:#f6f8fb;--ink:#1b2733;--mut:#5b6b7b;--ln:#d5dde6;--ac:#1f4e8c;--ac2:#b4551d;--ok:#2a7f5a;--card:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -29,6 +29,7 @@ canvas{width:100%;height:170px;border:1px solid var(--ln);border-radius:4px;back
 .imp{display:flex;gap:8px;align-items:center;font-size:13px}.imp .bar{max-width:200px}.imp .bar i{background:var(--ac2)}
 details details{margin-left:10px}details h3{margin-top:14px}input[type=range]{vertical-align:middle;width:120px}
 .tab.on{background:var(--ac);color:#fff}.tab:disabled{opacity:.5}
+math{font-family:"Noto Sans Math","Cambria Math","STIX Two Math",serif;font-size:1.12em}math[display="block"]{margin:.5em 0}.m.d{display:block;overflow-x:auto;padding:2px 0}
 </style></head><body><main>
 <h1>Входи та виходи нейромережі</h1>
 <p class="mut">Оберіть спосіб кодування кожного входу та тип виходу, навчіть мережу та порівняйте спроби.</p>
@@ -63,6 +64,33 @@ details details{margin-left:10px}details h3{margin-top:14px}input[type=range]{ve
 <p>Рухайте повзунки:</p>
 <div class="row"><label>чоловік <input type="range" id="s0" min="-4" max="4" step="0.1" value="2"></label><label>жінка <input type="range" id="s1" min="-4" max="4" step="0.1" value="1"></label><label>дитина <input type="range" id="s2" min="-4" max="4" step="0.1" value="0"></label></div><div id="sv"></div>
 <p>Помітьте: якщо підняти всі три повзунки на однакову величину, відсотки не зміняться, важливі лише різниці. Формула: <span class="m d">p_i=\dfrac{e^{z_i}}{\sum_j e^{z_j}}</span></p></details>
+<details><summary>softmax і крос-ентропія: звідки береться градієнт p − y</summary>
+<p><b>Ідея.</b> Softmax видає ймовірності, а крос-ентропія оцінює, <b>яку ймовірність мережа дала саме правильному класу</b>. Якщо правильна відповідь «дитина», нас цікавить лише <span class="m">p_{\text{дитина}}</span>. Що вона менша, то більший штраф.</p>
+<p><b>Означення.</b> Правильну відповідь записують як one-hot вектор <span class="m">\mathbf y</span> (одиниця в правильному класі, решта нулі). Тоді
+<span class="m d">L=-\sum_i y_i\ln p_i=-\ln p_k,\qquad k\text{ це правильний клас}</span>
+Усі доданки з <span class="m">y_i=0</span> зникають, лишається <span class="m">-\ln p_k</span>.</p>
+<p><b>Приклад.</b> Правильний клас «дитина». Якщо <span class="m">p_k=0{,}7</span>, то <span class="m">L=-\ln0{,}7\approx0{,}36</span>. Якщо <span class="m">p_k=0{,}09</span>, то <span class="m">L\approx2{,}41</span>. Якщо <span class="m">p_k=0{,}01</span>, то <span class="m">L\approx4{,}6</span>. Штраф різко росте для впевнених помилок.</p>
+<p><b>Чому саме логарифм.</b> Ймовірність, яку модель дає всій вибірці, це добуток <span class="m">\prod p_k</span> по прикладах. Логарифм перетворює добуток на суму, а мінімізація <span class="m">-\sum\ln p_k</span> це те саме, що максимізація цієї ймовірності (метод найбільшої правдоподібності).</p>
+<p><b>Що таке диференціювання тут.</b> Похідна <span class="m">\partial L/\partial z_i</span> відповідає на питання: «на скільки зміниться штраф, якщо трохи збільшити логіт <span class="m">z_i</span>?». Градієнтний спуск зсуває ваги у бік, де штраф зменшується: <span class="m">w\leftarrow w-\eta\,\partial L/\partial w</span>. Спочатку шукають похідну за логітами, а далі за ланцюговим правилом її «розповсюджують» назад на всі ваги.</p>
+<p><b>Швидкий вивід.</b> Підставимо softmax у втрату:
+<span class="m d">L=-\ln\frac{e^{z_k}}{\sum_j e^{z_j}}=-z_k+\ln\sum_j e^{z_j}</span>
+Перший доданок залежить від <span class="m">z_i</span> лише при <span class="m">i=k</span>, його похідна дорівнює <span class="m">-1</span> для правильного класу й <span class="m">0</span> для решти, тобто <span class="m">-y_i</span>. Похідна другого за ланцюговим правилом:
+<span class="m d">\frac{\partial}{\partial z_i}\ln\sum_j e^{z_j}=\frac{e^{z_i}}{\sum_j e^{z_j}}=p_i</span>
+Разом
+<span class="m d">\boxed{\ \frac{\partial L}{\partial z_i}=p_i-y_i\ }</span></p>
+<details><summary>Той самий результат окремими кроками (ланцюгове правило)</summary>
+<p>Похідна softmax за логітом: <span class="m">\dfrac{\partial p_j}{\partial z_i}=p_j(\delta_{ij}-p_i)</span>, де <span class="m">\delta_{ij}=1</span> при <span class="m">i=j</span>, інакше <span class="m">0</span>. Похідна втрати за ймовірністю: <span class="m">\dfrac{\partial L}{\partial p_j}=-\dfrac{y_j}{p_j}</span>. Складаємо:
+<span class="m d">\frac{\partial L}{\partial z_i}=\sum_j\frac{\partial L}{\partial p_j}\frac{\partial p_j}{\partial z_i}=-\sum_j y_j(\delta_{ij}-p_i)=-y_i+p_i\sum_j y_j=p_i-y_i</span>
+бо <span class="m">\sum_j y_j=1</span>. Множники <span class="m">p_j</span> скорочуються, тому формула така проста.</p></details>
+<p><b>Що це означає.</b> Градієнт дорівнює «ймовірність мінус правильна відповідь». Для правильного класу він від'ємний (<span class="m">p_k-1</span>), тож логіт підсувається вгору. Для решти він додатний (<span class="m">p_i</span>), тож їхні логіти підсуваються вниз. Коли <span class="m">\mathbf p=\mathbf y</span>, градієнт нуль. Сума градієнтів по класах дорівнює нулю (<span class="m">\sum p_i=\sum y_i=1</span>), це відповідає тому, що зсув усіх логітів на однакову величину нічого не змінює.</p>
+<p><b>Чому цю пару використовують разом.</b> Якби до softmax застосували MSE, градієнт містив би ще множник на кшталт <span class="m">p(1-p)</span>, який майже нульовий, коли мережа впевнена (навіть якщо впевнено помиляється), і навчання застрягало б. У крос-ентропії цей множник скорочується, і сигнал помилки залишається пропорційним самій помилці.</p>
+<p><b>Для сигмоїди й BCE те саме.</b> <span class="m">L=-[y\ln p+(1-y)\ln(1-p)]</span>, <span class="m">\dfrac{\partial L}{\partial p}=-\dfrac yp+\dfrac{1-y}{1-p}</span>, а <span class="m">\sigma'(z)=p(1-p)</span>, тож
+<span class="m d">\frac{\partial L}{\partial z}=\Big(-\frac yp+\frac{1-y}{1-p}\Big)p(1-p)=p-y</span></p>
+<p><b>Поклацайте:</b> змініть логіти та правильний клас і подивіться на штраф і градієнт.</p>
+<div class="row"><label>правильний клас <select id="gk"><option value="0">чоловік</option><option value="1">жінка</option><option value="2" selected>дитина</option></select></label>
+<label>z чоловік <input type="range" id="g0" min="-4" max="4" step="0.1" value="2"></label><label>z жінка <input type="range" id="g1" min="-4" max="4" step="0.1" value="1"></label><label>z дитина <input type="range" id="g2" min="-4" max="4" step="0.1" value="0"></label></div>
+<div class="tw"><table><thead><tr><th>Клас</th><th>p</th><th>y</th><th>градієнт p − y</th></tr></thead><tbody id="gr"></tbody></table></div><p id="gl"></p>
+</details>
 <details><summary>Сигмоїда: ймовірність «так»</summary>
 <p><b>Ідея.</b> Стискає будь-яке число в проміжок від 0 до 1, тому відповідь читається як ймовірність. Доречна для питання «так чи ні» (дитина чи дорослий), для кількох незалежних питань (є борода? любить кіно?) і для величин типу «ризик 0–1».</p>
 <div class="row"><label>z <input type="range" id="sg" min="-6" max="6" step="0.1" value="0"></label><span id="sgv"></span></div>
@@ -281,5 +309,12 @@ const S=[0,1,2].map(i=>$('#s'+i)),r2=()=>{const z=S.map(s=>+s.value),m=Math.max(
 const sg=$('#sg'),r3=()=>{const z=+sg.value;$('#sgv').textContent=`p = ${(1/(1+Math.exp(-z))).toFixed(3)}`};
 w.onchange=r1;S.forEach(s=>s.oninput=r2);sg.oninput=r3;r1();r2();r3();
 [w,...S,sg].forEach(e=>e.addEventListener('change',ev=>ev.stopPropagation()))})();
+</script>
+<script>
+(()=>{const S=[0,1,2].map(i=>$('#g'+i)),k=$('#gk'),N=['чоловік','жінка','дитина'];
+const f=()=>{const z=S.map(s=>+s.value),m=Math.max(...z),q=z.map(v=>Math.exp(v-m)),t=q[0]+q[1]+q[2],p=q.map(v=>v/t),c=+k.value;
+$('#gr').innerHTML=N.map((n,i)=>`<tr><td>${n}</td><td>${p[i].toFixed(3)}</td><td>${i==c?1:0}</td><td><b>${(p[i]-(i==c?1:0)).toFixed(3)}</b></td></tr>`).join('');
+$('#gl').innerHTML=`Штраф <b>L = −ln p = ${(-Math.log(p[c])).toFixed(3)}</b>. Сума градієнтів: ${(p.reduce((a,b)=>a+b,0)-1).toFixed(3)}. Знак «−» біля правильного класу означає «підняти цей логіт».`};
+S.forEach(s=>s.addEventListener('input',f));[...S,k].forEach(e=>e.addEventListener('change',ev=>{ev.stopPropagation();f()}));f()})();
 </script>
 </body></html>
