@@ -4,60 +4,246 @@
 <style>html,body{margin:0;height:100%;background:#fff;overflow:hidden}canvas{display:block;width:100%;height:100%}</style></head>
 <body><canvas id="c"></canvas>
 <script>
-(function(){
-var cv=document.getElementById('c'),g=cv.getContext('2d'),W,H,D,cat,catS=0;
-var BLUE=[47,111,219],RED=[214,69,47],INK='#2c3e50';
-var N=6,fm=new Array(N*N).fill(0),cur=-1,pos={x:0,y:0},LAY=[4,6,3,2];
-function hash(a,b){var s=Math.sin(a*127.1+b*311.7)*43758.5453;return s-Math.floor(s)}
-function col(v,a){var c=v>=0?BLUE:RED;return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'}
-function ell(c,x,y,rx,ry,f,s){c.beginPath();c.ellipse(x,y,rx,ry,0,0,7);if(f){c.fillStyle=f;c.fill()}if(s){c.strokeStyle=s;c.lineWidth=3;c.stroke()}}
-function poly(c,p,f){c.beginPath();c.moveTo(p[0],p[1]);for(var i=2;i<p.length;i+=2)c.lineTo(p[i],p[i+1]);c.closePath();c.fillStyle=f;c.fill()}
-function drawCat(s){var o=document.createElement('canvas');o.width=o.height=s*D;var c=o.getContext('2d');c.scale(s*D/200,s*D/200);
- c.fillStyle='#e8f1fb';c.beginPath();c.roundRect(0,0,200,200,18);c.fill();c.fillStyle='#cfe0f5';c.fillRect(0,168,200,32);
- ell(c,100,188,62,34,'#f2a65a');
- poly(c,[44,70,52,18,92,44],'#f2a65a');poly(c,[156,70,148,18,108,44],'#f2a65a');poly(c,[54,60,57,32,80,48],'#f6b8c4');poly(c,[146,60,143,32,120,48],'#f6b8c4');
- ell(c,100,104,66,58,'#f2a65a');
- c.strokeStyle='#c97a2f';c.lineWidth=5;c.lineCap='round';[[100,48,100,66],[84,50,86,64],[116,50,114,64],[38,100,54,102],[40,116,55,114],[162,100,146,102],[160,116,145,114]].forEach(function(l){c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[2],l[3]);c.stroke()});
- ell(c,100,128,28,20,'#fbe3c4');
- [[72,98],[128,98]].forEach(function(e){ell(c,e[0],e[1],13,15,'#fff','#2c3e50');ell(c,e[0]+1,e[1]+1,8,11,'#5aa469');ell(c,e[0]+1,e[1]+1,4,9,'#14213d');ell(c,e[0]+4,e[1]-4,2.6,2.6,'#fff')});
- poly(c,[93,116,107,116,100,126],'#e87a90');c.strokeStyle='#14213d';c.lineWidth=2.6;c.beginPath();c.moveTo(100,126);c.lineTo(100,133);c.moveTo(100,133);c.quadraticCurveTo(90,142,82,134);c.moveTo(100,133);c.quadraticCurveTo(110,142,118,134);c.stroke();
- c.lineWidth=1.8;[[-1,-4],[-1,3],[1,-4],[1,3]].forEach(function(w,i){var sx=i<2?-1:1;c.beginPath();c.moveTo(100+sx*22,128+w[1]);c.lineTo(100+sx*62,126+w[1]*3.5);c.stroke()});
- ell(c,60,122,9,6,'rgba(240,120,130,.35)');ell(c,140,122,9,6,'rgba(240,120,130,.35)');return o}
-function resize(){D=window.devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*D;cv.height=H*D;catS=Math.min(H*.78,W*.33);cat=drawCat(catS)}
-function arrow(x1,y1,x2,y2){g.strokeStyle='#9fb0c6';g.lineWidth=1.6;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();var a=Math.atan2(y2-y1,x2-x1);g.beginPath();g.moveTo(x2,y2);g.lineTo(x2-8*Math.cos(a-.5),y2-8*Math.sin(a-.5));g.lineTo(x2-8*Math.cos(a+.5),y2-8*Math.sin(a+.5));g.closePath();g.fillStyle='#9fb0c6';g.fill()}
-function label(t,x,y){g.fillStyle='#7a889e';g.font='12px "Segoe UI",sans-serif';g.textAlign='center';g.fillText(t,x,y)}
-function frame(ms){var t=ms/1000;g.setTransform(D,0,0,D,0,0);g.clearRect(0,0,W,H);
- var cx=W*.04,cy=(H-catS)/2-4;g.drawImage(cat,cx,cy,catS,catS);g.strokeStyle='#cfd8e6';g.lineWidth=1;g.strokeRect(cx,cy,catS,catS);
- /* вікно ядра */
- var ww=catS*.3,step=Math.floor(t/.32)%(N*N),col0=step%N,row0=Math.floor(step/N);
- var tx=cx+col0*(catS-ww)/(N-1),ty=cy+row0*(catS-ww)/(N-1);pos.x+=(tx-pos.x)*.25;pos.y+=(ty-pos.y)*.25;if(Math.abs(tx-pos.x)>catS)pos.x=tx;
- if(step!==cur){cur=step;fm[step]=.25+.75*hash(step,Math.floor(t/(.32*N*N)))}
- if(step===0&&t%(.32*N*N)<.4)for(var i=0;i<fm.length;i++)if(i)fm[i]*=.3;
- g.fillStyle='rgba(47,111,219,.14)';g.fillRect(pos.x,pos.y,ww,ww);g.strokeStyle='#2f6fdb';g.lineWidth=2.2;g.strokeRect(pos.x,pos.y,ww,ww);
- g.lineWidth=.8;g.strokeStyle='rgba(47,111,219,.55)';for(var k=1;k<3;k++){g.beginPath();g.moveTo(pos.x+ww*k/3,pos.y);g.lineTo(pos.x+ww*k/3,pos.y+ww);g.moveTo(pos.x,pos.y+ww*k/3);g.lineTo(pos.x+ww,pos.y+ww*k/3);g.stroke()}
- /* ядро 3x3 */
- var ks=Math.min(H*.17,W*.06),kx=cx+catS+W*.07,ky=H*.18;
- for(var r=0;r<3;r++)for(var q=0;q<3;q++){var w=Math.sin(t*.9+r*1.7+q*.9+1.3*r*q);g.fillStyle=col(w,.25+.65*Math.abs(w));g.fillRect(kx+q*ks,ky+r*ks,ks-2,ks-2)}
- g.strokeStyle='#2f6fdb';g.lineWidth=1.6;g.strokeRect(kx-2,ky-2,ks*3+2,ks*3+2);label('ядро (ваги)',kx+ks*1.5,ky-8);
- g.strokeStyle='rgba(47,111,219,.35)';g.lineWidth=1;g.setLineDash([4,4]);g.beginPath();g.moveTo(pos.x+ww,pos.y);g.lineTo(kx-2,ky-2);g.moveTo(pos.x+ww,pos.y+ww);g.lineTo(kx-2,ky+ks*3);g.stroke();g.setLineDash([]);
- /* карта ознак */
- var fs=Math.min(H*.06,W*.021),fx=kx+ks*1.5-fs*N/2,fy=H*.58;
- for(var a=0;a<N;a++)for(var b=0;b<N;b++){var v=fm[a*N+b];g.fillStyle=v>0?col(1,.12+.8*v):'#eef2f8';g.fillRect(fx+b*fs,fy+a*fs,fs-1.5,fs-1.5)}
- g.strokeStyle='#2f6fdb';g.lineWidth=2;g.strokeRect(fx+col0*fs-1,fy+row0*fs-1,fs+.5,fs+.5);label('карта ознак',fx+fs*N/2,fy+fs*N+16);
- arrow(kx+ks*1.5,ky+ks*3+4,kx+ks*1.5,fy-6);
- /* мережа */
- var gx0=fx+fs*N+W*.07,gx1=W*.86,gy0=H*.14,gy1=H*.8,L=LAY.length,P=[];
- arrow(fx+fs*N+6,fy+fs*N/2,gx0-18,fy+fs*N/2);
- for(var l=0;l<L;l++){P[l]=[];for(var n=0;n<LAY[l];n++)P[l].push([gx0+(gx1-gx0)*l/(L-1),(gy0+gy1)/2+(n-(LAY[l]-1)/2)*Math.min(46,(gy1-gy0)/(Math.max.apply(null,LAY)-1))])}
- for(l=0;l<L-1;l++)for(var i2=0;i2<LAY[l];i2++)for(var j=0;j<LAY[l+1];j++){var ph=hash(l*31+i2,j*17+3)*6.28,sp=.35+hash(i2+7,j+l)*.5,wv=Math.sin(t*sp+ph);
-  g.strokeStyle=col(wv,.1+.5*Math.abs(wv));g.lineWidth=.3+1.5*Math.abs(wv);g.beginPath();g.moveTo(P[l][i2][0],P[l][i2][1]);g.lineTo(P[l+1][j][0],P[l+1][j][1]);g.stroke()}
- for(l=0;l<L;l++)for(n=0;n<LAY[l];n++){var av=.5+.5*Math.sin(t*.8+n*1.9+l*1.1);if(l===L-1)av=n===0?.88+.1*Math.sin(t*1.3):.12+.08*Math.sin(t*1.1+1);
-  g.beginPath();g.arc(P[l][n][0],P[l][n][1],l===L-1?15:11,0,7);g.fillStyle='rgba(47,111,219,'+(.12+.75*av)+')';g.fill();g.strokeStyle=INK;g.lineWidth=l===L-1&&n===0?2.4:1.5;g.stroke()}
- g.font=Math.round(Math.min(34,H*.09))+'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';g.textAlign='left';g.textBaseline='middle';g.fillStyle='#000';
- g.fillText('\uD83D\uDC31',P[3][0][0]+24,P[3][0][1]+2);g.fillText('\uD83D\uDC36',P[3][1][0]+24,P[3][1][1]+2);g.textBaseline='alphabetic';
- label('вхід',P[0][0][0],gy1+34);label('приховані шари',P[1][0][0],gy1+34);label('',P[2][0][0],gy1+34);label('вихід',P[3][0][0],gy1+34);
- requestAnimationFrame(frame)}
-if(!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){this.rect(x,y,w,h)};
-window.addEventListener('resize',resize);resize();requestAnimationFrame(frame);
+/* Декоративний банер. Жодних реальних обчислень: усе виглядає як навчання, але просто анімація.
+   Схема кадру зліва направо: пікселізований кіт зі скануючою маскою → ядро 3×3 → карта ознак → нейромережа. */
+(function () {
+'use strict';
+
+/* ============ НАЛАШТУВАННЯ (змінюйте тут) ============ */
+var CAT_PIXELS = 24;          // З скількох «пікселів» складається кіт по ширині.
+                              // МЕНШЕ число = КРУПНІШІ пікселі (12, 15, 18, 21, 24, 30). Бажано кратне KERNEL_SIZE.
+var KERNEL_SIZE = 3;          // розмір ядра/маски у пікселях кота (3 → 3×3)
+var SECONDS_PER_STEP = 0.10;  // скільки секунд маска стоїть на одному місці
+var LONG_STOP_CHANCE = 0.12;  // частка «цікавих» місць, де маска завмирає довше
+var LONG_STOP_EXTRA = 0.8;    // на скільки секунд довше вона там стоїть (і блимає нова вага)
+var PAUSE_AFTER_PASS = 1.4;   // пауза між проходами
+var LAYER_SIZES = [4, 6, 3, 2]; // нейрони: вхід, прихований, «вузьке місце», вихід (кіт, пес)
+
+/* Візерунки ядра: по одному на кожен прохід, далі по колу. Вага: 1 = синя, -1 = червона, 0 = нейтральна. */
+var KERNEL_PATTERNS = [
+  { name: 'точка',        w: [0,0,0, 0,1,0, 0,0,0] },
+  { name: 'горизонталь',  w: [0,0,0, 1,1,1, 0,0,0] },
+  { name: 'вертикаль',    w: [0,1,0, 0,1,0, 0,1,0] },
+  { name: 'хрест',        w: [0,1,0, 1,1,1, 0,1,0] },
+  { name: 'діагональ',    w: [1,0,0, 0,1,0, 0,0,1] },
+  { name: 'ікс',          w: [1,0,1, 0,1,0, 1,0,1] },
+  { name: 'межа (край)',  w: [-1,0,1, -1,0,1, -1,0,1] },
+  { name: 'рамка',        w: [1,1,1, 1,0,1, 1,1,1] }
+];
+
+/* ============ КОЛЬОРИ ============ */
+var BLUE = [47, 111, 219], RED = [214, 69, 47], GOLD = '245,166,35', INK = '#2c3e50';
+
+/* ============ ЗАГАЛЬНІ ЗМІННІ ============ */
+var canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+var width, height, dpr;          // розмір полотна в CSS-пікселях та масштаб екрана
+var catSprite;                   // маленька картинка кота (CAT_PIXELS × CAT_PIXELS)
+var catSize = 0;                 // розмір кота на екрані
+var maskX = null, maskY = null;  // поточне положення маски (для плавного руху)
+var lastPassIndex = -1;          // номер проходу, що був у попередньому кадрі
+
+/* Сітка позицій маски: кіт ділиться на клітинки розміром з ядро, крок = розмір ядра */
+var GRID = Math.floor(CAT_PIXELS / KERNEL_SIZE);   // позицій по горизонталі й по вертикалі
+var STEPS = GRID * GRID;                           // усього позицій за один прохід
+var featureMap = new Array(STEPS).fill(0);         // яскравість клітинок карти ознак
+
+/* Псевдовипадкове число 0..1 з двох аргументів (завжди однакове для однакових аргументів) */
+function hash(a, b) { var s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); }
+function rgba(color, alpha) { return 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',' + alpha + ')'; }
+function weightColor(v, alpha) { return rgba(v >= 0 ? BLUE : RED, alpha); }
+
+/* ============ РОЗКЛАД ОДНОГО ПРОХОДУ ============ */
+/* isLongStop[i] — чи завмирає маска на позиції i; stepStart[i] — момент її прибуття (с від початку проходу) */
+var isLongStop = [], stepStart = [], scanDuration = 0;
+for (var i = 0; i < STEPS; i++) {
+  isLongStop.push(hash(i, 5) < LONG_STOP_CHANCE);
+  stepStart.push(scanDuration);
+  scanDuration += SECONDS_PER_STEP + (isLongStop[i] ? LONG_STOP_EXTRA : 0);
+}
+var passDuration = scanDuration + PAUSE_AFTER_PASS;
+
+/* ============ КІТ ============ */
+function ellipse(c, x, y, rx, ry, fill, stroke, lineWidth) {
+  c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7);
+  if (fill) { c.fillStyle = fill; c.fill(); }
+  if (stroke) { c.strokeStyle = stroke; c.lineWidth = lineWidth || 3; c.stroke(); }
+}
+function polygon(c, pts, fill) {
+  c.beginPath(); c.moveTo(pts[0], pts[1]);
+  for (var k = 2; k < pts.length; k += 2) c.lineTo(pts[k], pts[k + 1]);
+  c.closePath(); c.fillStyle = fill; c.fill();
+}
+/* Малюємо кота у зручних координатах 200×200, потім стискаємо до CAT_PIXELS×CAT_PIXELS */
+function buildCatSprite() {
+  var big = document.createElement('canvas'); big.width = big.height = 200;
+  var c = big.getContext('2d');
+  c.fillStyle = '#e8f1fb'; c.fillRect(0, 0, 200, 200);            // фон
+  c.fillStyle = '#cfe0f5'; c.fillRect(0, 168, 200, 32);           // «підлога»
+  ellipse(c, 100, 188, 62, 34, '#f2a65a');                        // тулуб
+  polygon(c, [44, 70, 52, 18, 92, 44], '#f2a65a');                // ліве вухо
+  polygon(c, [156, 70, 148, 18, 108, 44], '#f2a65a');             // праве вухо
+  polygon(c, [54, 60, 57, 32, 80, 48], '#f6b8c4');                // внутрішня частина вух
+  polygon(c, [146, 60, 143, 32, 120, 48], '#f6b8c4');
+  ellipse(c, 100, 104, 66, 58, '#f2a65a');                        // голова
+  c.strokeStyle = '#c97a2f'; c.lineWidth = 9; c.lineCap = 'round';
+  [[100,48,100,66],[84,50,86,64],[116,50,114,64]].forEach(function (s) { // смужки на лобі
+    c.beginPath(); c.moveTo(s[0], s[1]); c.lineTo(s[2], s[3]); c.stroke(); });
+  ellipse(c, 100, 128, 28, 20, '#fbe3c4');                        // мордочка
+  [[72, 98], [128, 98]].forEach(function (e) {                    // очі
+    ellipse(c, e[0], e[1], 13, 15, '#fff', '#2c3e50', 5);
+    ellipse(c, e[0] + 1, e[1] + 1, 8, 11, '#5aa469');
+    ellipse(c, e[0] + 1, e[1] + 1, 4, 9, '#14213d');
+    ellipse(c, e[0] + 4, e[1] - 4, 2.6, 2.6, '#fff'); });
+  polygon(c, [93, 116, 107, 116, 100, 126], '#e87a90');           // ніс
+  c.strokeStyle = '#14213d'; c.lineWidth = 5; c.beginPath();      // рот
+  c.moveTo(100,126); c.lineTo(100,133); c.moveTo(100,133); c.quadraticCurveTo(90,142,82,134);
+  c.moveTo(100,133); c.quadraticCurveTo(110,142,118,134); c.stroke();
+  c.lineWidth = 4;                                                // вуса
+  [-4, 3].forEach(function (dy) { [-1, 1].forEach(function (side) {
+    c.beginPath(); c.moveTo(100 + side * 22, 128 + dy); c.lineTo(100 + side * 64, 126 + dy * 3.5); c.stroke(); }); });
+
+  catSprite = document.createElement('canvas'); catSprite.width = catSprite.height = CAT_PIXELS;
+  var s = catSprite.getContext('2d'); s.imageSmoothingQuality = 'high';
+  s.drawImage(big, 0, 0, CAT_PIXELS, CAT_PIXELS);                 // усереднення кольорів → «пікселі»
+}
+
+/* ============ ДОПОМІЖНІ МАЛЮНКИ ============ */
+function arrow(x1, y1, x2, y2) {
+  ctx.strokeStyle = ctx.fillStyle = '#9fb0c6'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  var a = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8 * Math.cos(a - .5), y2 - 8 * Math.sin(a - .5));
+  ctx.lineTo(x2 - 8 * Math.cos(a + .5), y2 - 8 * Math.sin(a + .5)); ctx.closePath(); ctx.fill();
+}
+function caption(text, x, y, size) {
+  ctx.fillStyle = '#7a889e'; ctx.font = (size || 12) + 'px "Segoe UI",sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, x, y);
+}
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  width = canvas.clientWidth; height = canvas.clientHeight;
+  canvas.width = width * dpr; canvas.height = height * dpr;
+  catSize = Math.min(height * .78, width * .33);
+  maskX = null;
+}
+
+/* ============ ОДИН КАДР ============ */
+function frame(ms) {
+  var t = ms / 1000;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
+
+  /* --- де ми в розкладі: який прохід, яка позиція маски --- */
+  var passIndex = Math.floor(t / passDuration);
+  var timeInPass = t - passIndex * passDuration;
+  var scanning = timeInPass < scanDuration;                 // false під час паузи між проходами
+  var step = 0; for (var k = STEPS - 1; k >= 0; k--) if (timeInPass >= stepStart[k]) { step = k; break; }
+  var kernel = KERNEL_PATTERNS[passIndex % KERNEL_PATTERNS.length];   // візерунок ядра цього проходу
+  var blinking = scanning && isLongStop[step] && timeInPass - stepStart[step] > .15;  // «нова вага» блимає
+  var pulse = .55 + .45 * Math.sin(t * 16);                 // миготіння золотого кольору
+  if (passIndex !== lastPassIndex) { lastPassIndex = passIndex; featureMap.fill(0); maskX = null; }
+
+  /* --- 1. Піксельований кіт --- */
+  var catX = width * .04, catY = (height - catSize) / 2 - 4;
+  ctx.imageSmoothingEnabled = false;                         // без згладжування → видно квадратні пікселі
+  ctx.drawImage(catSprite, catX, catY, catSize, catSize);
+  ctx.strokeStyle = '#cfd8e6'; ctx.lineWidth = 1; ctx.strokeRect(catX, catY, catSize, catSize);
+
+  /* --- 2. Скануюча маска (одна на прохід) --- */
+  var pixelSize = catSize / CAT_PIXELS, maskSize = KERNEL_SIZE * pixelSize;
+  var col = step % GRID, row = Math.floor(step / GRID);
+  var targetX = catX + col * maskSize, targetY = catY + row * maskSize;
+  if (maskX === null) { maskX = targetX; maskY = targetY; }
+  maskX += (targetX - maskX) * .35; maskY += (targetY - maskY) * .35;      // плавне ковзання
+  /* Відповідь ядра на цій позиції (значення від -1 до +1). Якщо в ядрі є від'ємні ваги, відповідь може бути
+     від'ємною (червона); якщо всі ваги невід'ємні, на додатному зображенні відповідь завжди додатна (синя). */
+  var kernelHasNegative = kernel.w.some(function (x) { return x < 0; });
+  if (scanning && featureMap[step] === 0) {
+    var strength = isLongStop[step] ? .95 : .15 + .45 * hash(step, passIndex);
+    featureMap[step] = (kernelHasNegative && hash(step, passIndex + 11) < .5 ? -1 : 1) * strength;
+  }
+  if (scanning) {
+    ctx.fillStyle = 'rgba(47,111,219,.14)'; ctx.fillRect(maskX, maskY, maskSize, maskSize);
+    ctx.strokeStyle = blinking ? 'rgb(' + GOLD + ')' : '#2f6fdb'; ctx.lineWidth = 2.4; ctx.strokeRect(maskX, maskY, maskSize, maskSize);
+  }
+
+  /* --- 3. Ядро 3×3: чітке, не змінюється протягом проходу --- */
+  var cell = Math.min(height * .17, width * .06), kernelX = catX + catSize + width * .07, kernelY = height * .18;
+  for (var r = 0; r < KERNEL_SIZE; r++) for (var q = 0; q < KERNEL_SIZE; q++) {
+    var w = kernel.w[r * KERNEL_SIZE + q];
+    ctx.fillStyle = w === 0 ? '#eef2f8' : weightColor(w, .85);
+    ctx.fillRect(kernelX + q * cell, kernelY + r * cell, cell - 2, cell - 2);
+  }
+  ctx.strokeStyle = blinking ? 'rgb(' + GOLD + ')' : '#2f6fdb'; ctx.lineWidth = 1.8;
+  ctx.strokeRect(kernelX - 2, kernelY - 2, cell * KERNEL_SIZE + 2, cell * KERNEL_SIZE + 2);
+  caption('ядро: ' + kernel.name, kernelX + cell * 1.5, kernelY - 8);
+  if (scanning) {                                            // пунктир від маски до ядра
+    ctx.strokeStyle = 'rgba(47,111,219,.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath();
+    ctx.moveTo(maskX + maskSize, maskY); ctx.lineTo(kernelX - 2, kernelY - 2);
+    ctx.moveTo(maskX + maskSize, maskY + maskSize); ctx.lineTo(kernelX - 2, kernelY + cell * KERNEL_SIZE); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  /* --- 4. Карта ознак: клітинка забарвлюється, коли маска там побувала --- */
+  var fmCell = Math.min(height * .05, width * .018), fmX = kernelX + cell * 1.5 - fmCell * GRID / 2, fmY = height * .58;
+  for (var a = 0; a < GRID; a++) for (var b = 0; b < GRID; b++) {
+    var v = featureMap[a * GRID + b];
+    ctx.fillStyle = v !== 0 ? weightColor(v, .12 + .8 * Math.abs(v)) : '#eef2f8';   // синя: додатна, червона: від'ємна
+    ctx.fillRect(fmX + b * fmCell, fmY + a * fmCell, fmCell - 1.5, fmCell - 1.5);
+  }
+  if (scanning) { ctx.strokeStyle = blinking ? 'rgb(' + GOLD + ')' : '#2f6fdb'; ctx.lineWidth = 2;
+    ctx.strokeRect(fmX + col * fmCell - 1, fmY + row * fmCell - 1, fmCell + .5, fmCell + .5); }
+  caption('карта ознак', fmX + fmCell * GRID / 2, fmY + fmCell * GRID + 16);
+  arrow(kernelX + cell * 1.5, kernelY + cell * KERNEL_SIZE + 4, kernelX + cell * 1.5, fmY - 6);
+
+  /* --- 5. Нейромережа: вхід → прихований → вузьке місце → вихід (🐱 / 🐶) --- */
+  var netX0 = fmX + fmCell * GRID + width * .07, netX1 = width * .86, netY0 = height * .14, netY1 = height * .8;
+  var layers = LAYER_SIZES.length, pos = [], l, n, i2, j;
+  arrow(fmX + fmCell * GRID + 6, fmY + fmCell * GRID / 2, netX0 - 18, fmY + fmCell * GRID / 2);
+  for (l = 0; l < layers; l++) { pos[l] = [];
+    for (n = 0; n < LAYER_SIZES[l]; n++)
+      pos[l].push([netX0 + (netX1 - netX0) * l / (layers - 1),
+                   (netY0 + netY1) / 2 + (n - (LAYER_SIZES[l] - 1) / 2) * Math.min(46, (netY1 - netY0) / 5)]);
+  }
+  /* яке ребро й який нейрон «отримують нову вагу» (блимають золотом на довгій зупинці) */
+  var hotLayer = 1 + Math.floor(hash(step, passIndex + 3) * (layers - 1));
+  var hotNeuron = Math.floor(hash(step + 9, passIndex) * LAYER_SIZES[hotLayer]);
+  var hotSource = Math.floor(hash(step + 4, passIndex) * LAYER_SIZES[hotLayer - 1]);
+  for (l = 0; l < layers - 1; l++) for (i2 = 0; i2 < LAYER_SIZES[l]; i2++) for (j = 0; j < LAYER_SIZES[l + 1]; j++) {
+    var phase = hash(l * 31 + i2, j * 17 + 3) * 6.28, speed = .3 + hash(i2 + 7, j + l) * .4;
+    var weight = Math.sin(t * speed + phase);                // «вага» ребра повільно дрейфує між -1 і +1
+    var isHot = blinking && l === hotLayer - 1 && i2 === hotSource && j === hotNeuron;
+    ctx.strokeStyle = isHot ? 'rgba(' + GOLD + ',' + pulse + ')' : weightColor(weight, .1 + .5 * Math.abs(weight));
+    ctx.lineWidth = isHot ? 3.4 : .3 + 1.5 * Math.abs(weight);
+    ctx.beginPath(); ctx.moveTo(pos[l][i2][0], pos[l][i2][1]); ctx.lineTo(pos[l + 1][j][0], pos[l + 1][j][1]); ctx.stroke();
+  }
+  for (l = 0; l < layers; l++) for (n = 0; n < LAYER_SIZES[l]; n++) {
+    var glow = .5 + .5 * Math.sin(t * .8 + n * 1.9 + l * 1.1);                  // «активація» нейрона
+    var isOutput = l === layers - 1;
+    if (isOutput) glow = n === 0 ? .88 + .1 * Math.sin(t * 1.3) : .12 + .08 * Math.sin(t * 1.1 + 1); // кіт «перемагає»
+    var hot = blinking && l === hotLayer && n === hotNeuron;
+    ctx.beginPath(); ctx.arc(pos[l][n][0], pos[l][n][1], isOutput ? 15 : 11, 0, 7);
+    ctx.fillStyle = 'rgba(47,111,219,' + (.12 + .75 * glow) + ')'; ctx.fill();
+    ctx.strokeStyle = hot ? 'rgba(' + GOLD + ',' + pulse + ')' : INK; ctx.lineWidth = hot ? 3.4 : (isOutput && n === 0 ? 2.4 : 1.5); ctx.stroke();
+  }
+  ctx.font = Math.round(Math.min(34, height * .09)) + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+  ctx.fillText('🐱', pos[layers - 1][0][0] + 24, pos[layers - 1][0][1] + 2);
+  ctx.fillText('🐶', pos[layers - 1][1][0] + 24, pos[layers - 1][1][1] + 2);
+  ctx.textBaseline = 'alphabetic';
+
+  /* підписи під шарами: у два рядки, розмір залежить від відстані між шарами (щоб не накладались) */
+  var spacing = (netX1 - netX0) / (layers - 1), labelSize = Math.max(9, Math.min(12, spacing / 7));
+  [['вхід', ''], ['прихований', 'шар'], ['вузьке', 'місце'], ['вихід', '']].forEach(function (text, idx) {
+    caption(text[0], pos[idx][0][0], netY1 + 26, labelSize);
+    if (text[1]) caption(text[1], pos[idx][0][0], netY1 + 26 + labelSize + 3, labelSize);
+  });
+
+  requestAnimationFrame(frame);
+}
+
+buildCatSprite();
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(frame);
 })();
 </script></body></html>
