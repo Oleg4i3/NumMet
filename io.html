@@ -127,6 +127,7 @@ math{font-family:"Noto Sans Math","Cambria Math","STIX Two Math",serif;font-size
 <section class="card"><h2>1. Кодування входів</h2><div class="grid" id="feats"></div></section>
 <section class="card"><h2>2. Вихід і прихований шар</h2>
 <div class="row"><label>Тип виходу <select id="out"></select></label><label>Нейронів у прихованому шарі (tanh) <select id="hid"></select></label></div>
+<div id="cb" style="display:none"><h3>Приховані шари (0 нейронів вимикає шар)</h3><div id="lyr"></div><div class="row"><label>L2-регуляризація λ <select id="lam"><option>0</option><option>0.0001</option><option>0.001</option><option>0.01</option><option>0.1</option></select></label></div></div>
 <p class="mut">Пояснення типів виходу: у теоретичному довіднику вище. Значення 0 нейронів означає модель без прихованого шару.</p></section>
 <section class="card"><h2>3. Приклад і внутрішній вектор</h2><div class="row" id="ex"></div>
 <p class="mut">Закодований вектор, який бачить мережа (синій: додатні значення, помаранчевий: від'ємні):</p>
@@ -204,6 +205,22 @@ F:[{k:'a',n:'Вік, років',t:'num',lo:20,bw:10,nb:7,th:'Числова о�
 gen:(n,r)=>Array.from({length:n},()=>{const a=Math.round(25+r()*55),w=Math.round(Math.max(45,Math.min(130,nrm(r)*15+80))),sm=r()<.3?1:0,sp=Math.floor(r()*8);return{a,w,sm,sp,y:r()<R4(a,w,sm,sp)?1:0}}),
 post:w=>R4(w.a,w.w,w.sm,w.sp),ex:{a:55,w:85,sm:0,sp:2},
 O:[['sigm','сигмоїда + BCE'],['softmax','softmax на 2 виходи + CE'],['tanh','tanh (цілі ±1) + MSE'],['lin','лінійний + MSE']],H:[0,2,4,8,16]});
+const POOL=[{k:'a',n:'Вік, років',t:'num',lo:0,bw:10,nb:9,th:'Діти 5–11, дорослі 18–80.'},{k:'w',n:'Вага, кг',t:'num',lo:20,bw:10,nb:12,th:'Числова ознака.'},{k:'h',n:'Зріст, см',t:'num',lo:100,bw:10,nb:10,th:'Числова ознака.'},{k:'t',n:'Час на 100 м, с',t:'num',lo:12,bw:2,nb:10,th:'Немонотонний зв\'язок із віком.'},
+{k:'sx',n:'Стать',t:'bin',v:['жін.','чол.'],th:'Бінарна ознака.'},{k:'bd',n:'Вуса / борода',t:'bin',v:['немає','є'],th:'Бувають лише в чоловіків.'},{k:'sm',n:'Курець',t:'bin',v:['ні','так'],th:'Серед дорослих 30 %.'},
+{k:'ha',n:'Волосся',t:'nom',v:['довге','коротке','лисий'],th:'Слабка ознака, «лисий» рідкісний.'},{k:'ey',n:'Колір очей (dummy)',t:'nom',v:['карі','блакитні','зелені','сірі'],th:'Не пов\'язаний ні з чим.'},
+{k:'mv',n:'Улюблений жанр',t:'nom',v:MOV,th:'Діти люблять мультфільми, інакше майже шум.'},{k:'sp',n:'Вид спорту',t:'nom',v:['Важка атлетика','Футбол','Шахи','Теніс','Фігурне катання','Худ. гімнастика'],th:'Розподіл залежить від класу.'}];
+const O3=[['softmax','softmax + крос-ентропія'],['sigm','3 сигмоїди + BCE'],['lin','лінійний + MSE']],O2=[['softmax','softmax на 2 виходи + CE'],['sigm','сигмоїда + BCE'],['tanh','tanh (цілі ±1) + MSE'],['lin','лінійний + MSE']];
+const TK=[{tn:'Хто це: чоловік, жінка чи дитина',kind:'cls',cls:['чоловік','жінка','дитина'],yk:'cl',O:O3,inc:['sp','bd','ha']},
+{tn:'Дитина чи дорослий',kind:'cls',cls:['дорослий','дитина'],yk:'yc',O:O2,inc:['t','mv','ha']},
+{tn:'Ширина талії, см',kind:'reg',yk:'wa',O:[['linz','лінійний + z-score цілі'],['linraw','лінійний без масштабування цілі'],['sigmm','сигмоїда + min–max цілі'],['sigmraw','сигмоїда без масштабування цілі']],inc:['w','h','sx']},
+{tn:'Ризик ССЗ (подія)',kind:'cls',cls:['немає події','ризик ССЗ'],yk:'ev',O:[['sigm','сигмоїда + BCE'],['softmax','softmax на 2 виходи + CE'],['tanh','tanh (цілі ±1) + MSE'],['lin','лінійний + MSE']],inc:['a','w','sm','sp']}];
+SC.push({n:'Конструктор мережі',custom:1,kind:'cls',cls:['чоловік','жінка','дитина'],F:POOL,gen:(n,r)=>genP(n,r),H:[8],ex:{a:30,w:75,h:172,t:16,sx:1,bd:0,sm:0,ha:1,ey:0,mv:3,sp:1},O:O3,
+d:'Оберіть <b>задачу</b>, які <b>входи</b> подавати та як їх кодувати, а тоді зберіть мережу: до трьох прихованих шарів, кількість нейронів і активація кожного, тип виходу та L2-регуляризація. Усі задачі беруть дані з однієї синтетичної популяції людей. Опорною є базова лінія (відповідь без використання входів).',
+more:`<details><summary>Теорія: шари, активації, регуляризація</summary>
+<p><b>Шар і нейрон.</b> Нейрон рахує зважену суму входів і пропускає її через активацію: <span class="m">h=\\varphi(\\mathbf w^{\\top}\\mathbf x+b)</span>. Шар це набір таких нейронів. Більше нейронів і шарів означає більшу «ємність», тобто мережа може описати складнішу залежність, але легше запам'ятовує шум.</p>
+<p><b>Активації.</b> <b>tanh</b> дає значення від −1 до 1, <b>сигмоїда</b> від 0 до 1, <b>ReLU</b> (у нас з малим нахилом для від'ємних значень) обнуляє від'ємне й не насичується для додатного. <b>Лінійна</b> активація нелінійності не додає: <span class="m">W_2(W_1\\mathbf x)=(W_2W_1)\\mathbf x</span>, тому кілька лінійних шарів дорівнюють одному.</p>
+<p><b>L2-регуляризація.</b> До втрати додають штраф за великі ваги: <span class="m d">L'=L+\\frac{\\lambda}{2}\\sum w^2</span> Градієнт отримує доданок <span class="m">\\lambda w</span>, тож ваги плавно «в'януть» до нуля, поки дані не підтримують протилежного. Це лікує перенавчання на шумових ознаках, але гальмує вивчення слабких і рідкісних (див. сценарій 2).</p>
+<p><b>Що спробувати.</b> (1) Додайте до задачі «Ширина талії» шумовий жанр кіно в one-hot і порівняйте λ = 0 та 0,01. (2) У задачі «Дитина чи дорослий» залиште лише час без шарів, а потім із двома нейронами. (3) Замініть tanh на лінійну активацію й порівняйте результат.</p></details>`});
 const OPT={nom:[['onehot','one-hot'],['ord','порядкове (число)'],['emb','ембединг d=2'],['drop','не подавати']],bin:[['01','0 / 1'],['pm','−1 / +1'],['drop','не подавати']],
 num:[['z','z-score'],['mm','min–max'],['raw','сирі значення'],['log','ln(1+x), z-score'],['bin','кошики (one-hot)'],['drop','не подавати']]};
 let S,TRN,VAL,cfg,out,H,net,hist,run=0,ex,ref,BA;
@@ -225,21 +242,24 @@ if(f.t=='bin')L.push(sn(f));else if(f.t=='num'){if(c=='bin')for(let j=0;j<f.nb;j
 else if(c=='onehot')f.v.forEach(s=>L.push(s.length>9?s.slice(0,8)+'.':s));else L.push(sn(f)+' (код)')}
 for(const f of S.F)if(cfg[f.k]=='emb')L.push(sn(f)+' e1',sn(f)+' e2');return L}
 const D=()=>S.F.reduce((d,f)=>{const c=cfg[f.k];return c=='drop'?d:d+(f.t=='bin'?1:f.t=='num'?(c=='bin'?f.nb:1):c=='onehot'?f.v.length:c=='ord'?1:2)},0);
-function init(){const d=D(),o=OD(),r=rng(7),g=(n,s)=>Array.from({length:n},()=>(r()-.5)*2*s),m=H||d;
-net={W1:Array.from({length:H},()=>g(d,1/Math.sqrt(d))),b1:Array(H).fill(0),W2:Array.from({length:o},()=>g(m,1/Math.sqrt(m))),b2:Array(o).fill(0),E:{}};
+const AC={tanh:[Math.tanh,y=>1-y*y],relu:[x=>x>0?x:.01*x,y=>y>0?1:.01],sigm:[x=>1/(1+Math.exp(-x)),y=>y*(1-y)],lin:[x=>x,y=>1]};
+let LYc=[{n:8,a:'tanh'},{n:0,a:'tanh'},{n:0,a:'tanh'}],LAM=0;
+const layers=()=>S.custom?LYc.filter(l=>l.n>0):(H?[{n:H,a:'tanh'}]:[]);
+function init(){const d=D(),o=OD(),r=rng(7),g=(n,s)=>Array.from({length:n},()=>(r()-.5)*2*s),sz=[d,...layers().map(l=>l.n),o];
+net={W:[],B:[],E:{}};for(let l=0;l<sz.length-1;l++){net.W.push(Array.from({length:sz[l+1]},()=>g(sz[l],1/Math.sqrt(sz[l]))));net.B.push(Array(sz[l+1]).fill(0))}
 for(const f of S.F)if(cfg[f.k]=='emb')net.E[f.k]=Array.from({length:f.v.length},()=>g(2,.5));hist=[];draw();show()}
-function fwd(s){const x=s.x.slice();for(const[k,v]of s.e)x.push(...net.E[k][v]);
-const h=H?net.W1.map((w,i)=>Math.tanh(w.reduce((a,wi,j)=>a+wi*x[j],net.b1[i]))):x;
-const z=net.W2.map((w,i)=>w.reduce((a,wi,j)=>a+wi*h[j],net.b2[i])),a=act();let p;
+function fwd(s){const x=s.x.slice();for(const[k,v]of s.e)x.push(...net.E[k][v]);const Ls=layers(),A=[x];
+for(let l=0;l<net.W.length;l++){const z=net.W[l].map((w,i)=>w.reduce((a,wi,j)=>a+wi*A[l][j],net.B[l][i]));A.push(l<Ls.length?z.map(AC[Ls[l].a][0]):z)}
+const z=A[A.length-1],a=act();let p;
 if(a=='s'){const m=Math.max(...z),q=z.map(v=>Math.exp(v-m)),t=q.reduce((u,v)=>u+v,0);p=q.map(v=>v/t)}else if(a=='g')p=z.map(v=>1/(1+Math.exp(-v)));else if(a=='t')p=z.map(Math.tanh);else p=z;
-return{x,h,z,p}}
+return{x,A,z,p}}
 function lossf(p,t){let l=0;const a=act();for(let i=0;i<p.length;i++){if(a=='s')l-=t[i]*Math.log(p[i]+1e-9);else if(a=='g'&&!reg())l-=t[i]*Math.log(p[i]+1e-9)+(1-t[i])*Math.log(1-p[i]+1e-9);else l+=.5*(p[i]-t[i])**2}return l}
-function step(s,lr){const f=fwd(s),a=act(),dz=f.p.map((p,i)=>{const e=p-s.t[i];return a=='t'?e*(1-p*p):a=='g'&&reg()?e*p*(1-p):e});
-const dh=f.h.map((_,j)=>net.W2.reduce((u,w,i)=>u+w[j]*dz[i],0));let dx=dh;
-for(let i=0;i<dz.length;i++){for(let j=0;j<f.h.length;j++)net.W2[i][j]-=lr*dz[i]*f.h[j];net.b2[i]-=lr*dz[i]}
-if(H){const dp=dh.map((v,j)=>v*(1-f.h[j]**2));dx=f.x.map((_,j)=>net.W1.reduce((u,w,i)=>u+w[j]*dp[i],0));
-for(let i=0;i<H;i++){for(let j=0;j<f.x.length;j++)net.W1[i][j]-=lr*dp[i]*f.x[j];net.b1[i]-=lr*dp[i]}}
-let o=s.x.length;for(const[k,v]of s.e){for(let t=0;t<2;t++)net.E[k][v][t]-=lr*dx[o+t];o+=2}}
+function step(s,lr){const f=fwd(s),a=act(),Ls=layers(),lam=S.custom?LAM:0;
+let d=f.p.map((p,i)=>{const e=p-s.t[i];return a=='t'?e*(1-p*p):a=='g'&&reg()?e*p*(1-p):e});
+for(let l=net.W.length-1;l>=0;l--){const Al=f.A[l],W=net.W[l],nd=Al.map((_,j)=>W.reduce((u,w,i)=>u+w[j]*d[i],0));
+for(let i=0;i<W.length;i++){for(let j=0;j<Al.length;j++)W[i][j]-=lr*(d[i]*Al[j]+lam*W[i][j]);net.B[l][i]-=lr*d[i]}
+d=l>0?nd.map((v,j)=>v*AC[Ls[l-1].a][1](Al[j])):nd}
+let o=s.x.length;for(const[k,v]of s.e){for(let t=0;t<2;t++)net.E[k][v][t]-=lr*d[o+t];o+=2}}
 function ev(rows){let l=0,m=0,ps=0;for(const w of rows){const s=enc(w),f=fwd(s);l+=lossf(f.p,s.t);if(reg())m+=(dec(f.p[0])-s.y)**2;else{ps+=f.p.reduce((a,b)=>a+b,0);if(cl(f.p)==s.y)m++}}const n=rows.length;return{l:l/n,m:reg()?Math.sqrt(m/n):m/n,ps:ps/n}}
 const pv=r=>reg()?r.m:r.l;
 function show0(){const s=enc({...ex,y:null}),f=fwd(s),L=labs();
@@ -247,10 +267,17 @@ $('#vec').innerHTML=f.x.map((x,i)=>{const c=x>=0?'31,78,140':'180,85,29',a=Math.
 if(reg()){const v=dec(f.p[0]);$('#outs').innerHTML=`<div class="o"><span>Талія</span><div class="bar"><i style="width:${Math.max(0,Math.min(100,(v-40)*100/80))}%"></i></div><span><b>${v.toFixed(1)} см</b></span></div>`;return}
 const nm=OD()==K()?S.cls:[S.cls[1]];
 $('#outs').innerHTML=nm.map((c,i)=>`<div class="o"><span>${c}</span><div class="bar"><i style="width:${100*Math.max(0,Math.min(1,act()=='t'?(f.p[i]+1)/2:f.p[i]))}%"></i></div><span>${act()=='t'?'tanh':'p'}=${f.p[i].toFixed(3)} (z=${f.z[i].toFixed(2)})</span></div>`).join('')+`<p class="mut">Відповідь: <b>${S.cls[cl(f.p)]}</b>. Сума виходів: ${f.p.reduce((a,b)=>a+b,0).toFixed(3)}</p>`}
-function cov(){const L=[];for(const f of S.F){const v=ex[f.k];if(f.t=='num'){if(v<f.mn||v>f.mx)L.push(`${sn(f)} = ${v}: поза діапазоном навчальних даних (${f.mn}–${f.mx}), мережа екстраполює`);continue}
+function custBase(){const y=TRN.map(w=>w.y),n=y.length;
+if(reg()){const m=y.reduce((a,b)=>a+b,0)/n;S.noise=Math.sqrt(y.reduce((a,b)=>a+(b-m)**2,0)/n);BA={a:0,l:0};$('#ceil').textContent='базова лінія RMSE '+S.noise.toFixed(1)+' см';$('#cn').textContent='Така похибка, якщо завжди відповідати середнім і не використовувати входи.'}
+else{const c=S.cls.map((_,i)=>y.filter(v=>v==i).length/n);BA={a:Math.max(...c),l:-c.reduce((a,p)=>a+(p>0?p*Math.log(p):0),0)};$('#ceil').textContent=(100*BA.a).toFixed(1)+' %';$('#cn').textContent='Базова лінія: частка найчастішого класу. Крос-ентропія такої моделі: '+BA.l.toFixed(3)+'.'}}
+function genP(n,r){return Array.from({length:n},()=>{const c=pick([.4,.4,.2],r),ch=c==2,sx=ch?(r()<.5?1:0):(c==0?1:0),a=ch?5+Math.floor(r()*7):18+Math.floor(r()*63);let h,b;
+if(ch){h=nrm(r)*10+135;b=nrm(r)*1.6+16.2}else{h=nrm(r)*(sx?7:6)+(sx?177:165);b=nrm(r)*(sx?3.5:3.8)+(sx?25:23.5)}
+const w=Math.round(b*(h/100)**2),sm=!ch&&r()<.3?1:0,sp=pick(PS[c],r);let t=ch?nrm(r)*2.5+21:r()<.85?nrm(r)*1.6+15.5:nrm(r)*3.5+26;t=Math.round(Math.max(12,Math.min(32,t))*10)/10;
+const row={cl:c,yc:ch?1:0,wa:(ch?24+1.9*b:28+2.2*b+3*sx)+nrm(r)*2.5,ev:r()<R4(a,w,sm,sp)?1:0,a,w,h:Math.round(h),t,sx,bd:r()<PB[c]?1:0,sm,ha:pick(PH[c],r),ey:Math.floor(r()*4),sp,mv:pick(ch?MC:MA,r)};row.y=row[S.yk];return row})}
+function cov(){const L=[];for(const f of S.F){if(cfg[f.k]=='drop')continue;const v=ex[f.k];if(f.t=='num'){if(v<f.mn||v>f.mx)L.push(`${sn(f)} = ${v}: поза діапазоном навчальних даних (${f.mn}–${f.mx}), мережа екстраполює`);continue}
 const rows=TRN.filter(w=>w[f.k]==v),n=rows.length;let t=`${sn(f)} = «${f.v[v]}»: у навчальній вибірці ${n} з ${TRN.length}`;if(!reg()&&n)t+=' ('+S.cls.map((c,i)=>c+': '+rows.filter(w=>w.y==i).length).join(', ')+')';if(n<40)t+=' (мало прикладів)';L.push(t)}
 return L.join('<br>')}
-function show(){show0();$('#outs').insertAdjacentHTML('beforeend','<p class="mut"><b>Покриття навчальними даними:</b><br>'+cov()+'</p>');drawEmb()}
+function show(){document.querySelectorAll('#ex label').forEach(l=>{l.style.display=cfg[l.dataset.ef]=='drop'?'none':''});show0();$('#outs').insertAdjacentHTML('beforeend','<p class="mut"><b>Покриття навчальними даними:</b><br>'+cov()+'</p>');drawEmb()}
 function drawEmb(){const fs=S.F.filter(f=>cfg[f.k]=='emb');$('#ecw').style.display=fs.length?'block':'none';if(!fs.length||!net.E[fs[0].k])return;
 const c=$('#ec'),g=c.getContext('2d'),w=c.width,h=c.height,f=fs[0],E=net.E[f.k];g.clearRect(0,0,w,h);
 const xs=E.map(p=>p[0]),ys=E.map(p=>p[1]),a=Math.min(...xs),b=Math.max(...xs),c2=Math.min(...ys),d=Math.max(...ys);
@@ -273,29 +300,31 @@ $('#st').textContent=`Епоха ${ep} з ${E}`;draw();show();
 const last=hist[hist.length-1];if(!isFinite(last.t)||!isFinite(last.v)){$('#st').textContent='Навчання розбіглося (NaN): вхід чи ціль без масштабування.';$('#go').disabled=false;return}
 if(ep<E)requestAnimationFrame(fr);else{$('#go').disabled=false;finish()}})()}
 function finish(){const a=ev(TRN),b=ev(VAL),d=[],q=n=>n.toFixed(1);let s;
-if(reg()){s=`Похибка (RMSE): навчальна ${q(a.m)} см, перевірочна ${q(b.m)} см. Шум генератора ${S.noise} см.`;if(b.m<S.noise*1.5)d.push('Похибка близька до шуму даних, мережа вичерпала можливості задачі.');else if(b.m>10)d.push('Похибка велика: мережа майже не вивчила залежність.');
+if(reg()){s=`Похибка (RMSE): навчальна ${q(a.m)} см, перевірочна ${q(b.m)} см. ${S.custom?'Базова лінія':'Шум генератора'} ${q(S.noise)} см.`;if(S.custom&&b.m>=S.noise*.9)d.push('Мережа майже не краща за базову лінію.');if(!S.custom&&b.m<S.noise*1.5)d.push('Похибка близька до шуму даних, мережа вичерпала можливості задачі.');else if(b.m>10)d.push('Похибка велика: мережа майже не вивчила залежність.');
 if(out=='sigmraw')d.push('Сигмоїда не може вийти за 1, а ціль десятки сантиметрів: вихід фізично не досягає цілі.');if(out=='linraw')d.push('Ціль без масштабування: початкові помилки на порядок більші, збіжність повільніша.');
 if(b.m>a.m*1.25)d.push('Розрив між навчальною та перевірочною похибкою: перенавчання на шумових входах.')}
-else{s=`Точність: навчальна ${q(100*a.m)} %, перевірочна ${q(100*b.m)} %. Теоретична межа ${q(100*BA.a)} %.`;if(b.m>=BA.a-.02)d.push('Точність близька до теоретичної межі.');else if(b.m<.6)d.push('Мережа майже не краща за вгадування за апріорними частотами.');
+else{s=`Точність: навчальна ${q(100*a.m)} %, перевірочна ${q(100*b.m)} %. ${S.custom?'Базова лінія':'Теоретична межа'} ${q(100*BA.a)} %.`;if(S.custom&&b.m<=BA.a+.02)d.push('Мережа не краща за базову лінію.');if(!S.custom&&b.m>=BA.a-.02)d.push('Точність близька до теоретичної межі.');else if(b.m<.6)d.push('Мережа майже не краща за вгадування за апріорними частотами.');
 if(b.l-a.l>.12)d.push('Розрив втрат між навчальною та перевірочною вибіркою: запам\'ятовування шуму.');if(OD()==K()&&act()!='s')d.push(`Сума виходів ${b.ps.toFixed(2)}, а не 1: це не розподіл ймовірностей.`);
-if(!H)d.push('Без прихованого шару модель лінійна за закодованими входами.')}
+if(!layers().length)d.push('Без прихованого шару модель лінійна за закодованими входами.')}
 $('#dg').innerHTML=`<p><b>${s}</b> ${d.join(' ')}</p>`;perm()}
 function build(){const m=S.F;$('#feats').innerHTML=m.map(f=>`<div class="fc"><h3>${f.n}</h3><select data-k="${f.k}">${OPT[f.t].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select><details><summary>Коментар</summary><p>${f.th}</p></details></div>`).join('');
-$('#ex').innerHTML=m.map(f=>f.t=='num'?`<label>${sn(f)} <input type="range" data-e="${f.k}" min="${f.lo}" max="${f.lo+f.nb*f.bw}" step="${f.k=='t'?.1:1}" value="${ex[f.k]}"><b id="ev${f.k}">${ex[f.k]}</b></label>`:`<label>${sn(f)} <select data-e="${f.k}">${f.v.map((s,i)=>`<option value="${i}"${ex[f.k]==i?' selected':''}>${s}</option>`).join('')}</select></label>`).join('');
-$('#out').innerHTML=S.O.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');$('#hid').innerHTML=S.H.map(h=>`<option${h==8||(S.H.length==5&&h==4)?' selected':''}>${h}</option>`).join('');H=+$('#hid').value}
-function load(i){run++;S=SC[i];document.querySelectorAll('.tab').forEach((b,j)=>b.classList.toggle('on',j==i));
+$('#ex').innerHTML=m.map(f=>f.t=='num'?`<label data-ef="${f.k}">${sn(f)} <input type="range" data-e="${f.k}" min="${f.lo}" max="${f.lo+f.nb*f.bw}" step="${f.k=='t'?.1:1}" value="${ex[f.k]}"><b id="ev${f.k}">${ex[f.k]}</b></label>`:`<label data-ef="${f.k}">${sn(f)} <select data-e="${f.k}">${f.v.map((s,i)=>`<option value="${i}"${ex[f.k]==i?' selected':''}>${s}</option>`).join('')}</select></label>`).join('');
+$('#out').innerHTML=S.O.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');$('#hid').innerHTML=S.H.map(h=>`<option${h==8||(S.H.length==5&&h==4)?' selected':''}>${h}</option>`).join('');H=+$('#hid').value;$('#hid').closest('label').style.display=S.custom?'none':'';$('#cb').style.display=S.custom?'block':'none';
+if(S.custom){$('#lyr').innerHTML=LYc.map((l,i)=>`<div class="row">Шар ${i+1}: <select data-ln="${i}">${[0,2,4,8,16,32].map(n=>`<option${n==l.n?' selected':''}>${n}</option>`).join('')}</select> нейронів, активація <select data-la="${i}">${[['tanh','tanh'],['relu','ReLU'],['sigm','сигмоїда'],['lin','лінійна']].map(a=>`<option value="${a[0]}"${a[0]==l.a?' selected':''}>${a[1]}</option>`).join('')}</select></div>`).join('');$('#lam').value=LAM}}
+function load(i){run++;S=SC[i];if(S.custom)Object.assign(S,TK[S.ti||0]);document.querySelectorAll('.tab').forEach((b,j)=>b.classList.toggle('on',j==i));
 TRN=S.gen(1200,rng(11));VAL=S.gen(1200,rng(22));ex={...S.ex};cfg={};out=S.O[0][0];
 for(const f of S.F){cfg[f.k]=f.t=='nom'?'onehot':f.t=='bin'?'01':'z';if(f.t=='num'){const v=TRN.map(w=>w[f.k]),n=v.length,mu=v.reduce((a,b)=>a+b,0)/n;f.mu=mu;f.sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/n);f.mn=Math.min(...v);f.mx=Math.max(...v);const l=v.map(x=>Math.log(1+x)),lm=l.reduce((a,b)=>a+b,0)/n;f.lm=lm;f.ls=Math.sqrt(l.reduce((a,b)=>a+(b-lm)**2,0)/n)}}
+if(S.custom)for(const f of S.F)if(!TK[S.ti||0].inc.includes(f.k))cfg[f.k]='drop';
 if(reg()){const v=TRN.map(w=>w.y),n=v.length;S.my=v.reduce((a,b)=>a+b,0)/n;S.sy=Math.sqrt(v.reduce((a,b)=>a+(b-S.my)**2,0)/n);S.mn=Math.min(...v);S.mx=Math.max(...v)}
-$('#sh').textContent=S.n;$('#sd').innerHTML='<p>'+S.d+'</p>'+(S.ba?'<p><label>Частка лисих серед дорослих <input type="range" id="bald" min="1" max="30" step="1" value="'+(S.bald??3)+'"> <b id="bv">'+(S.bald??3)+'</b> %</label> <span class="mut">(за замовчуванням їх мало, дані перегенеруються після відпускання повзунка)</span></p>':'')+(S.more||'');build();
-if(reg()){BA=null;ref=S.noise;$('#ceil').textContent='шум генератора '+S.noise+' см';$('#cn').textContent='Менше за це значення RMSE бути не може.'}
+$('#sh').textContent=S.n;$('#sd').innerHTML='<p>'+S.d+'</p>'+(S.ba?'<p><label>Частка лисих серед дорослих <input type="range" id="bald" min="1" max="30" step="1" value="'+(S.bald??3)+'"> <b id="bv">'+(S.bald??3)+'</b> %</label> <span class="mut">(за замовчуванням їх мало, дані перегенеруються після відпускання повзунка)</span></p>':'')+(S.more||'')+(S.custom?'<p><label>Задача мережі <select id="task">'+TK.map((t,i)=>`<option value="${i}"${i==(S.ti||0)?' selected':''}>${t.tn}</option>`).join('')+'</select></label></p>':'');build();
+if(S.custom){custBase()}else if(reg()){BA=null;ref=S.noise;$('#ceil').textContent='шум генератора '+S.noise+' см';$('#cn').textContent='Менше за це значення RMSE бути не може.'}
 else{const r=rng(99),A=S.gen(30000,r);let a=0,l=0;for(const w of A){const q=S.post?[1-S.post(w),S.post(w)]:S.cls.map((_,c)=>S.pr[c]*S.lik(w,c)),t=q.reduce((x,y)=>x+y,0);if(q.indexOf(Math.max(...q))==w.y)a++;l-=Math.log(q[w.y]/t+1e-12)}
 BA={a:a/A.length,l:l/A.length};$('#ceil').textContent=(100*BA.a).toFixed(1)+' %';$('#cn').textContent='Найкраща можлива точність, обчислена з генератора. Мінімальна крос-ентропія: '+BA.l.toFixed(3)+'.'}
 setRef();$('#dg').innerHTML='';$('#imp').innerHTML='';$('#st').textContent='';$('#go').disabled=false;init()}
-function setRef(){ref=reg()?S.noise:(act()=='s'||(act()=='g'&&OD()==1)?BA.l:null);$('#cap').textContent='Синя лінія: '+(reg()?'похибка (RMSE, см)':'втрата')+' на навчальній вибірці, помаранчева на перевірочній'+(ref!=null?'; зелений пунктир: теоретичний мінімум.':'.')}
-$('#tabs').innerHTML=SC.map((s,i)=>`<button class="s tab" data-t="${i}">Сценарій ${i+1}</button>`).join('');
+function setRef(){ref=reg()?S.noise:(act()=='s'||(act()=='g'&&OD()==1)?BA.l:null);$('#cap').textContent='Синя лінія: '+(reg()?'похибка (RMSE, см)':'втрата')+' на навчальній вибірці, помаранчева на перевірочній'+(ref!=null?'; зелений пунктир: '+(S.custom?'базова лінія (модель без входів).':'теоретичний мінімум.'):'.')}
+$('#tabs').innerHTML=SC.map((s,i)=>`<button class="s tab" data-t="${i}">${s.custom?'Конструктор мережі':'Сценарій '+(i+1)}</button>`).join('');
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset.t!=null)return;run++;$('#go').disabled=false;
-if(t.dataset.k){cfg[t.dataset.k]=t.value;init()}else if(t.dataset.e&&t.type!='range'){ex[t.dataset.e]=+t.value;show()}else if(t.id=='bald'){S.bald=+t.value;reb()}else if(t.id=='out'){out=t.value;setRef();init()}else if(t.id=='hid'){H=+t.value;init()}});
+if(t.dataset.k){cfg[t.dataset.k]=t.value;init()}else if(t.dataset.e&&t.type!='range'){ex[t.dataset.e]=+t.value;show()}else if(t.id=='bald'){S.bald=+t.value;reb()}else if(t.id=='task'){S.ti=+t.value;load(4)}else if(t.dataset.ln!=null){LYc[+t.dataset.ln].n=+t.value;init()}else if(t.dataset.la!=null){LYc[+t.dataset.la].a=t.value;init()}else if(t.id=='lam'){LAM=+t.value;init()}else if(t.id=='out'){out=t.value;setRef();init()}else if(t.id=='hid'){H=+t.value;init()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.id=='bald'){$('#bv').textContent=t.value;return}if(t.type=='range'&&t.dataset.e){ex[t.dataset.e]=+t.value;$('#ev'+t.dataset.e).textContent=t.value;show()}});
 document.addEventListener('click',e=>{const t=e.target;if(t.dataset&&t.dataset.t!=null)load(+t.dataset.t)});
 function reb(){const c={...cfg},o=out,h=H,e={...ex};load(1);cfg=c;out=o;H=h;ex=e;build();document.querySelectorAll('[data-k]').forEach(x=>x.value=cfg[x.dataset.k]);$('#out').value=out;$('#hid').value=H;setRef();init()}
