@@ -234,6 +234,7 @@ table.mx{border-collapse:collapse;font:13px 'IBM Plex Mono',monospace;margin:8px
     <p>Нагорода — це «таблиця очок», за якою пошук за нагородою вирішує, який постріл кращий. Ми брали <b>−відстань до цілі</b> (щоб було «тепліше-холодніше»), <b>+100</b> за влучання, <b>−50</b> за стіну, <b>+25</b> за вікно, <b>−5</b> за рикошет.</p>
     <ul><li><b>Це дає:</b> 93–94% влучань.</li><li><b>Без штрафу за стіну:</b> майже те саме, 90–94%. Постріли в стіну й так далеко від цілі, тож штраф радше для зрозумілості.</li><li><b>Без премії за вікно:</b> трохи гірше, 89–92%. Але не радикально, бо вікно саме вчить: крізь нього часто єдиний шлях до влучання.</li><li><b>Премія за вікно завелика (+300):</b> тільки 60–61%. Мережа «хитрує»: летить крізь вікно за очками й забуває про ціль. Це називають <b>зламом нагороди</b>.</li><li><b>Без «тепліше-холодніше» (лише влучила / стіна):</b> ще вчиться (~80%), але повільніше, бо серед пробних пострілів іноді випадає влучання, але підказки, куди змінювати, нема.</li></ul>
     <p>Висновок: головне — чесно нагороджувати <b>мету</b> (влучила), а допоміжні бали не мають бути вигіднішими за саму мету.</p>
+    <h4>8 · Чому на виході tanh? Чи не краще лінійний вихід?</h4><p>Вихід мережі треба перетворити на кут гармати. Є два варіанти: <b>tanh</b> (кут = центр + піврозмах·tanh(z), завжди в межах діапазону) або <b>лінійний</b> (кут = центр + піврозмах·z, з обрізанням до допустимого діапазону). У лабораторії, крок «Активатори», це перемикається.</p><ul><li>У гладкому світі лінійний вихід вчиться швидше й стабільніше. У порівнянні (навчання вчителем, 4 нейрони tanh, 10 запусків) на 500-й епосі влучало в середньому 99% проти 77% з tanh, на 1500-й — 100% проти 92%.</li><li>Причина не в «стисненні на краях»: у гладкому світі лише ~6% правильних кутів лежать у зоні сильного стиснення (|v| &gt; 0,8). Просто для лінійного виходу градієнт помилки не множиться на (1 − v²) і не слабшає біля країв.</li><li>У світах із вікном і стелею різниці не видно: там головна проблема — кілька гілок розв’язку й розриви, а не вихідна функція.</li><li>Ціна лінійного виходу: кут може вийти за допустимий діапазон, тому його обрізають; під час навчання градієнт проходить крізь обрізання, щоб мережа поверталась у межі.</li></ul><p class="m">Порівняння зроблено на спрощеному тренері за тими самими формулами, не на цьому коді. Для негладких світів висновок лише такий: різниці не помітно.</p>
 
    </details>
 </section>
@@ -281,7 +282,7 @@ const STEPS=[
  ['Один нейрон: ваги й зсув','Кожен вхід множиться на свою <b>вагу</b> (синя — додатна, червона — від’ємна, товщина — модуль). До суми додається <b style="color:var(--bias)">зсув b</b>: <b>z = w₁x + w₂y + b</b>. Змінюйте ваги — z змінюється.'],
  ['Функція активації tanh','Сума z може бути будь-якою (7 чи −12). Функція <b>tanh</b> перетворює її на <b>активацію a = tanh(z)</b> від −1 до +1: на графіку видно «стелю» й «підлогу», вище яких активація не росте.<br><b>Навіщо вона?</b> 1) Без неї вся мережа була б композицією лінійних відображень, тобто одним лінійним відображенням, а залежність кута від вітру має <i>вигини</i>. Нелінійна активація й дає вигин. 2) При великому |z| активація насичується (±1) і майже не реагує на зміну z (рожеві зони); це важливо для градієнтів.<br><i>Є й інші активації, наприклад ReLU: a = max(0, z). Їх порівняємо в лабораторії.</i>'],
  ['Чотири нейрони','У прихованому шарі чотири такі нейрони з різними вагами. Записувати кожен окремо довго; у матричному вигляді весь шар — це <b>a = tanh(W₁x + b₁)</b>. Тисніть «далі»: кожне натискання — наступний кадр анімації.'],
- ['Вихідний нейрон','Чотири активації множимо на ваги другого шару, додаємо зсув і знову застосовуємо tanh: <b>v = tanh(w₂·a + b₂)</b>, v від −1 до +1. Далі <b>кут = 52° + 23°·v</b>, тобто від 29° до 75°.'],
+ ['Вихідний нейрон','Чотири активації множимо на ваги другого шару, додаємо зсув і знову застосовуємо tanh: <b>v = tanh(w₂·a + b₂)</b>, v від −1 до +1. Далі <b>кут = 52° + 23°·v</b>, тобто від 29° до 75°. <i>У лабораторії вихід можна зробити й лінійним: кут = центр + піврозмах·z з обрізанням до допустимого діапазону (див. вкладку «Лабораторія», крок «Активатори»).</i>'],
  ['Усе разом','Лічимо параметри: 4×2 = 8 ваг + 4 зсуви + 4 ваги + 1 зсув = <b>17 параметрів</b>. Уся залежність кута від вітру й відстані закодована лише в них.']];
 const KN=[
  {l:'вітер x',min:0,max:1,s:.01,g:()=>st.x,set:v=>st.x=v,on:[0,1,2,3,4,5,6],c:'--acc'},
@@ -794,24 +795,26 @@ function look(S,th,w){const f=(th-S.amin)/.5;if(f<0||f>S.na-1.001)return null;co
  for(const[ii,wi]of[[i,1-b],[i+1,b]]){const r=S.R[ii];x+=wi*(r.x[k]*(1-a)+r.x[k+1]*a);bad|=!(r.ok[k]&&r.ok[k+1]);wn+=wi*(r.wn[k]*(1-a)+r.wn[k+1]*a);}
  const r0=S.R[i];return{x,bad,wn:wn>.5,bounces:r0.wh[k]+r0.rh[k],wh:r0.wh[k]|r0.rh[k]};}
 function lbReward(r,p){let R=-Math.abs(r.x-p);if(Math.abs(r.x-p)<3&&!r.bad)R+=100;if(r.wh&&!r.wn)R-=50;if(r.wn)R+=25;R-=5*r.bounces;return R/100;}
-const LB={us:0,un:0,sh:[],man:null,lrv:38,opt:'adam',L:1,n1:4,n2:4,a1:'tanh',a2:'tanh',seed:1,net:null,mom:null,t:0,ep:0,hist:[],tm:null,R:null,world:'smooth',mode:'self',teach:'avg',sw:.5,sp:45,S:null,ok:0,fam:null};
+const LB={us:0,un:0,sh:[],man:null,lrv:38,opt:'adam',L:1,n1:4,n2:4,a1:'tanh',a2:'tanh',ao:'lin',seed:1,net:null,mom:null,t:0,ep:0,hist:[],tm:null,R:null,world:'smooth',mode:'self',teach:'avg',sw:.5,sp:45,S:null,ok:0,fam:null};
 const PRE=[['1 нейрон, без активації',1,1,1,'lin','lin'],['2 tanh',1,2,2,'tanh','tanh'],['4 tanh',1,4,4,'tanh','tanh'],['8 ReLU',1,8,8,'relu','relu'],['4 + 4 tanh',2,4,4,'tanh','tanh'],['5 + 5 ReLU',2,5,5,'relu','relu'],['6 + 6 ReLU',2,6,6,'relu','relu']];
 const MODES={teach:'З учителем',self:'За похибкою',rl:'Пошук за нагородою'};
 const lbLR=()=>.003*Math.pow(.2/.003,LB.lrv/100),lbCount=()=>LB.sz.slice(1).reduce((s,m,l)=>s+m*LB.sz[l]+m,0);
-function lbBuild(){clearInterval(LB.tm);LB.tm=null;DEC=LB.world==='smooth'?.5:.95;LB.S=wsetup(LB.world);const sz=[2,LB.n1].concat(LB.L===2?[LB.n2]:[],[1]),ac=[LB.a1].concat(LB.L===2?[LB.a2]:[],['tanh']),R=mb32(LB.seed*31+5),gs=()=>Math.sqrt(-2*Math.log(R()+1e-9))*Math.cos(6.2832*R());
+function lbBuild(){clearInterval(LB.tm);LB.tm=null;DEC=LB.world==='smooth'?.5:.95;LB.S=wsetup(LB.world);const sz=[2,LB.n1].concat(LB.L===2?[LB.n2]:[],[1]),ac=[LB.a1].concat(LB.L===2?[LB.a2]:[],[LB.ao]),R=mb32(LB.seed*31+5),gs=()=>Math.sqrt(-2*Math.log(R()+1e-9))*Math.cos(6.2832*R());
  LB.sz=sz;LB.net=sz.slice(1).map((m,l)=>({act:ac[l],W:Array.from({length:m},()=>Array.from({length:sz[l]},()=>gs()*1.2/Math.sqrt(sz[l]/2))),b:new Array(m).fill(ac[l]==='relu'?.1:0)}));
  LB.mom=LB.net.map(L=>({mW:L.W.map(r=>r.map(()=>0)),vW:L.W.map(r=>r.map(()=>0)),mb:L.b.map(()=>0),vb:L.b.map(()=>0)}));LB.t=0;LB.ep=0;LB.hist=[];LB.sh=[];LB.us=0;LB.un=0;LB.R=mb32(11);LB.ok=0;LB.fam=null;}
 function lbFwd(net,x,y){const A=[[x,y]],Z=[];net.forEach((L,l)=>{const a=A[l],z=L.W.map((r,j)=>r.reduce((s,w,i)=>s+w*a[i],L.b[j]));Z.push(z);A.push(z.map(AC[L.act].f));});return{A,Z,v:A[A.length-1][0]};}
-const lbAng=(net,S,w,y)=>S.Cm+S.Rm*lbFwd(net,w,y).v;
+/* вихід: tanh (у межах діапазону) або лінійний (з обрізанням до [Cm−Rm, Cm+Rm]) */
+const lbU=v=>LB.ao==='lin'?Math.max(-1,Math.min(1,v)):v,lbAng=(net,S,w,y)=>S.Cm+S.Rm*lbU(lbFwd(net,w,y).v);
 function lbEpoch(){const net=LB.net,S=LB.S,R=LB.R,mode=LB.mode,N=S.cells.length,lr=lbLR()*(1-DEC*Math.min(1,LB.ep/800));let loss=0,cn=0;
  for(let st=0;st<10;st++){const G=net.map(L=>({W:L.W.map(r=>r.map(()=>0)),b:L.b.map(()=>0)}));
-  for(let q=0;q<30;q++){const c=S.cells[Math.floor(R()*N)],f=lbFwd(net,c.w,c.y),v=f.v,mu=S.Cm+S.Rm*v,r0=look(S,mu,c.w);let dth=0,ok=true;
+  for(let q=0;q<30;q++){const c=S.cells[Math.floor(R()*N)],f=lbFwd(net,c.w,c.y),v=f.v,lin=LB.ao==='lin',mu=S.Cm+S.Rm*lbU(v),r0=look(S,mu,c.w);let dth=0,ok=true;
    const ms=r0&&!r0.bad?Math.min(30,Math.abs(r0.x-c.p)):30;loss+=ms*ms;cn++;
    if(mode==='teach'){let tg;if(LB.teach==='avg')tg=c.s.reduce((a,b)=>a+b,0)/c.s.length;else{tg=c.s[0];for(const t of c.s)if(Math.abs(t-mu)<Math.abs(tg-mu))tg=t;}dth=2*(mu-tg)/8464*40;}
-   else if(mode==='self'){const r1=look(S,mu+.25,c.w),r2=look(S,mu-.25,c.w);if(!r0||!r1||!r2||r0.bad||r1.bad||r2.bad)ok=false;else{const Sx=(r1.x-r2.x)/.5;if(Math.abs(Sx)>40)ok=false;else dth=2*(r0.x-c.p)/100*Sx;}}
-   else{let bt=null,br=-1e9;for(let k=0;k<12;k++){const th=k===0?mu:mu+6*gsn(R)*(k%3===0?4:1),r=look(S,th,c.w);if(!r)continue;const rw=lbReward(r,c.p);if(rw>br){br=rw;bt=th;}}
+   else if(mode==='self'){const t1=lin?Math.min(S.Cm+S.Rm,mu+.25):mu+.25,t2=lin?Math.max(S.Cm-S.Rm,mu-.25):mu-.25,r1=look(S,t1,c.w),r2=look(S,t2,c.w);if(!r0||!r1||!r2||r0.bad||r1.bad||r2.bad||t1===t2)ok=false;else{const Sx=(r1.x-r2.x)/(t1-t2);if(Math.abs(Sx)>40)ok=false;else dth=2*(r0.x-c.p)/100*Sx;}}
+   else{let bt=null,br=-1e9;for(let k=0;k<12;k++){let th=k===0?mu:mu+6*gsn(R)*(k%3===0?4:1);if(lin)th=Math.max(S.Cm-S.Rm,Math.min(S.Cm+S.Rm,th));const r=look(S,th,c.w);if(!r)continue;const rw=lbReward(r,c.p);if(rw>br){br=rw;bt=th;}}
     if(bt===null||br<.5)ok=false;else dth=2*(mu-bt)/8464*40;}
-   if(!ok)continue;let dz=[dth*S.Rm*Math.max(.25,1-v*v)/30];
+   if(lin&&((v>1&&dth<0)||(v<-1&&dth>0)))dth=0; /* крізь обрізання градієнт проходить лише всередину: далі за межу вихід не втікає */
+  if(!ok)continue;let dz=[dth*S.Rm*(lin?1:Math.max(.25,1-v*v))/30]; /* крізь обрізання градієнт проходить як є */
    for(let l=net.length-1;l>=0;l--){const L=net[l],a=f.A[l];dz.forEach((d,j)=>{G[l].b[j]+=d;a.forEach((ai,i)=>G[l].W[j][i]+=d*ai);});
     if(l>0){const pv=net[l-1];dz=a.map((ai,i)=>{let t=0;dz.forEach((d,j)=>t+=d*L.W[j][i]);return t*AC[pv.act].d(ai,f.Z[l-1][i]);});}}}
   LB.t++;const t=LB.t,up=(p,m,v,gr)=>{if(LB.opt==='sgd'){const d=lr*({self:.5,teach:10,rl:15}[LB.mode]||.5)*gr;LB.us+=Math.abs(d);LB.un++;return[p-d,m,v];}m=.9*m+.1*gr;v=.999*v+.001*gr*gr;const d=lr*(m/(1-.9**t))/(Math.sqrt(v/(1-.999**t))+1e-8);LB.us+=Math.abs(d);LB.un++;return[p-d,m,v];};
@@ -867,13 +870,14 @@ function msetup(k){
  o+='<ellipse cx="128" cy="174" rx="34" ry="7" fill="#f2ecdd" stroke="#2b241d" stroke-width="2"/><ellipse cx="128" cy="173" rx="22" ry="4" fill="none" stroke="#2b241d" stroke-opacity=".5"/>';
  o+='<path d="M300 176 Q345 150 390 176Z" fill="#ddd2bb" stroke="#2b241d" stroke-width="2"/><g transform="translate(345 160) rotate(-148)"><rect x="-6" y="-8" width="50" height="16" rx="3" fill="#2b241d"/></g><circle cx="345" cy="162" r="13" fill="#2b241d"/><circle cx="345" cy="162" r="8" fill="none" stroke="#e8a33d" stroke-width="2"/>';
  o+=hasWall?wallSVG(205,62,[100,132]):wallSVG(205,134,null);
- if(hasRoof)o+='<rect x="205" y="48" width="60" height="9" rx="2" fill="#4a3f33" stroke="#2b241d" stroke-width="1.6"/>';
+ if(hasRoof)o+='<rect x="98" y="48" width="60" height="9" rx="2" fill="#4a3f33" stroke="#2b241d" stroke-width="1.6"/>';
  /* траєкторії: Безьє від дула (308,137) до цілі (128,172) */
  const arc=(cy,col)=>'<path d="M308 137 Q214 '+cy+' 128 172" fill="none" stroke="'+col+'" stroke-width="2" stroke-dasharray="5 4"/>';
+ const blk='<path d="M308 137 Q222 -70 152 46" fill="none" stroke="#e8a33d" stroke-width="2" stroke-dasharray="5 4"/><path d="M146 40 L158 52 M158 40 L146 52" stroke="#e2574c" stroke-width="2.5"/>';
  if(k==='smooth')o+=arc(70,'#2f6fd0');
  else if(k==='win')o+=arc(88,'#2f6fd0')+arc(-60,'#e8a33d');
- else if(k==='combo')o+=arc(88,'#2f6fd0')+arc(-135,'#e8a33d');
- else o+=arc(35,'#2f6fd0')+arc(-135,'#e8a33d');
+ else if(k==='combo')o+=arc(88,'#2f6fd0')+blk;
+ else o+=arc(35,'#2f6fd0')+blk;
  /* вітер проти пострілу: довжина стрілки ~ максимальна швидкість */
  const wl=Math.round(C.WMAX*4.3);
  o+='<line x1="30" y1="24" x2="'+(30+wl)+'" y2="24" stroke="#2f6fd0" stroke-width="3"/><polygon points="'+(30+wl)+',18 '+(38+wl)+',24 '+(30+wl)+',30" fill="#2f6fd0"/><text x="30" y="14" '+T+'>вітер до '+C.WMAX.toFixed(0)+' м/с</text>';
@@ -881,13 +885,13 @@ function msetup(k){
  o+='<text x="128" y="196" text-anchor="middle" '+T+'>ціль</text><text x="345" y="196" text-anchor="middle" '+T+'>гармата</text>';
  o+='<line x1="128" y1="206" x2="345" y2="206" stroke="#2b241d" stroke-width="1"/><line x1="128" y1="202" x2="128" y2="210" stroke="#2b241d"/><line x1="345" y1="202" x2="345" y2="210" stroke="#2b241d"/><text x="236" y="203" text-anchor="middle" '+T+'>відстань</text>';
  o+=hasWall?'<text x="232" y="148" '+T+'>стіна</text><text x="232" y="160" '+T+'>з вікном</text>':'<text x="232" y="152" '+T+'>низька стіна</text>';
- if(hasRoof)o+='<text x="235" y="42" text-anchor="middle" '+T+'>стеля</text>';
+ if(hasRoof)o+='<text x="128" y="42" text-anchor="middle" '+T+'>стеля</text>';
  o+='</svg>';
  el('mSetupSvg').innerHTML=o;
  const cap={smooth:'Сильний вітер, низька стіна. Один правильний кут (синя траєкторія).',
   win:'Або низько крізь вікно (синя), або високою дугою над стіною (жовта). Два правильних кути.',
-  combo:'Низько крізь вікно (синя) або високо над стелею (жовта).',
-  roof:'Стіни нема, зверху стеля: під нею (синя) або над нею (жовта).'}[k];
+  combo:'Низько крізь вікно (синя). Висока дуга (жовта) упирається в стелю над ціллю: для цілі під стелею лишається лише низький кут.',
+  roof:'Стіни нема, зверху стеля над ціллю: влучити можна низькою дугою (синя); висока (жовта) упирається в стелю.'}[k];
  el('mSetupCap').innerHTML='<b>'+W.n+'.</b> '+cap+' Вітер дме назустріч пострілу; штрихова лінія — траєкторія снаряда.';
 }
 el('tw').onclick=e=>{const k=e.target.dataset.k;if(k){tblDraw(k);el('cellInfo').textContent='← клацніть клітинку';}};
@@ -912,7 +916,7 @@ function ldraw(light){if(!LB.net)lbBuild();const S=LB.S;
  el('lSend').disabled=LB.world!=='smooth';el('lSend').title=LB.world!=='smooth'?'Вкладка «Прогноз» працює лише в гладкому світі':'';
  const H=LB.hist,fm=LB.fam;el('lInfo').innerHTML='параметрів: <b>'+lbCount()+'</b> · епоха '+LB.ep+(H.length?' · типовий промах '+H[H.length-1].toFixed(1)+' м':'')+'<br>влучань: <b>'+LB.ok+'</b> із 100'+(LB.ok>=90?' — <b style="color:#2b7a4b">мету досягнуто!</b> Спробуйте менше параметрів.':'')
   +(fm?'<br>мережа стріляє низько: '+fm.lo+' · високо: '+fm.hi+' · посередині: '+fm.mid+' (з 100). Влучань низько '+fm.loH+', високо '+fm.hiH+'.':'')
-  +(LB.net.slice(0,-1).every(L=>L.act==='lin')?'<br><span style="opacity:.7">Увага: у прихованих шарах функцій активації немає, але вихід кута усе одно tanh — цей «вигин» лишається, тому й одна пряма непогано влучає.</span>':'');}
+  +(LB.net.slice(0,-1).every(L=>L.act==='lin')&&LB.ao==='tanh'?'<br><span style="opacity:.7">Увага: у прихованих шарах функцій активації немає, але вихід кута усе одно tanh — цей «вигин» лишається, тому й одна пряма непогано влучає.</span>':'');}
 function lbSet(p){if(p.mode!==undefined)GS.modeSet=true;if(p.world!==undefined)LB.man=null;Object.assign(LB,p);lbBuild();ldraw();if(typeof labGuide==='function'&&GS.ready)labGuide();}
 function lbWorld(k){clearInterval(LB.tm);LB.tm=null;if(!WS[k]){el('lInfo').textContent='Рахую світ…';setTimeout(()=>lbSet({world:k}),30);}else lbSet({world:k});}
 /* --- Лабораторія: покроковий гайд --- */
@@ -930,11 +934,12 @@ function worldSVG(wall,roof){let o='<svg viewBox="0 0 420 200" class="wsv">'+BRK
  /* гармата */
  o+='<path d="M300 176 Q345 150 390 176Z" fill="#ddd2bb" stroke="#2b241d" stroke-width="2"/><g transform="translate(345 160) rotate(-148)"><rect x="-6" y="-8" width="50" height="16" rx="3" fill="#2b241d"/></g><circle cx="345" cy="162" r="13" fill="#2b241d"/><circle cx="345" cy="162" r="8" fill="none" stroke="#e8a33d" stroke-width="2"/>';
  if(wall)o+=wallSVG(205,62,[100,132]);else o+=wallSVG(205,134,null);
- if(roof)o+=roofSVG(150,262,48);
+ if(roof)o+=roofSVG(98,158,48); /* стеля над ціллю (еліпс у центрі x=128), а не над стіною */
  return o+'</svg>';}
 function spriteWall(){return '<svg viewBox="0 0 40 110" height="60">'+BRK+wallSVG(8,12,[48,72]).replace(/y="(\d+)"/g,(m,y)=>'y="'+(+y-0)+'"')+'</svg>';}
 function spriteRoof(){return '<svg viewBox="0 0 130 40" height="34">'+roofSVG(8,122,22)+'</svg>';}
 const STP=[['','Шари'],['','Нейрони'],['','Активатори'],['','Навчання'],['','Крок'],['','Світ']];
+const ORD=[5,0,1,2,3,4]; /* номер кроку в STP для кожної позиції майстра: «Світ» першим */
 const PADS=[['','1 нейрон','Лінійна модель: один нейрон без нелінійності. Влучає там, де залежність майже лінійна.'],['','2 нейрони tanh','Два нейрони з tanh уже дають вигин; достатньо для гладкого світу.'],['','4 нейрони tanh','Мало параметрів, але для гладкого світу зазвичай вистачає.'],['','8 нейронів ReLU','Один широкий шар: багато кусково-лінійних шматків, але лише один рівень обробки.'],['','2 шари 4+4 tanh','Другий шар комбінує ознаки першого. Потужніша, але навчається довше.'],['','2 шари 5+5 ReLU','Два шари ReLU здатні передати «перемикання» між гілками розв’язку.'],['','2 шари 6+6 ReLU','Найбільша з готових: для світів зі стіною й стелею; навчається довше.']];
 const pCost=p=>{const sz=[2,p[2]].concat(p[1]===2?[p[3]]:[],[1]);return sz.slice(1).reduce((s,m,l)=>s+m*sz[l]+m,0);};
 function curveSVG(a){const d={relu:'M3 24 L21 24 L37 5',tanh:'M3 23 C16 23 22 5 37 5',lin:'M3 24 L37 6'}[a];return '<svg viewBox="0 0 40 28" width="46" height="32"><line x1="3" y1="24" x2="37" y2="24" stroke="#2b241d" stroke-opacity=".25"/><path d="'+d+'" fill="none" stroke="#2b241d" stroke-width="2.6" stroke-linecap="round"/></svg>';}
@@ -954,30 +959,31 @@ function labTrain(){const H=LB.sh,cur=H.length?H[H.length-1]:0,ad=LB.opt==='adam
   +'<g transform="translate(0 150)"><rect x="8" y="10" width="284" height="80" fill="rgba(255,255,255,.5)" stroke="rgba(43,36,29,.25)"/><path d="'+sp+'" transform="translate(0 10)" fill="none" stroke="#2f6fd0" stroke-width="2"/><text x="12" y="104" font-size="10" font-family="IBM Plex Mono" opacity=".6">як змінювався крок по епохах</text></g></svg><p class="m lh" style="font-weight:700">'+say+'</p>';}
 function labGuide(){
  if(LB.tm){el('lgBody').innerHTML=labTrain();return;}
- el('lgSt').innerHTML=STP.map((s,i)=>'<button class="btn lsb'+(i===GS.st?' on':'')+'"'+((i>=1&&i<=4&&GS.placed===0)?' disabled title="спочатку покладіть шар"':'')+' data-s="'+i+'"><span>'+s[0]+'</span> '+(i+1)+' · '+s[1]+'</button>').join('');
- const B=el('lgBody'),st=GS.st;let h='';
- if(st===0){h='<p class="lp"><b>Крок 1 · Шари.</b> Скільки шарів буде в мережі? Перетягніть з полиці на стенд.</p><div class="rack" data-drop="layer"><div class="rend"><br><span>вхід</span></div>';
+ el('lgSt').innerHTML=ORD.map((j,i,_a,s=STP[j])=>'<button class="btn lsb'+(i===GS.st?' on':'')+'"'+((j>=1&&j<=4&&GS.placed===0)?' disabled title="спочатку покладіть шар"':'')+' data-s="'+i+'"><span>'+s[0]+'</span> '+(i+1)+' · '+s[1]+'</button>').join('');
+ const B=el('lgBody'),st=ORD[GS.st]; /* показуємо крок у порядку ORD: світ → шари → нейрони → активатори → як вчимо → крок */let h='';
+ if(st===0){h='<p class="lp"><b>Крок 2 · Шари.</b> Скільки шарів буде в мережі? Перетягніть з полиці на стенд.</p><div class="rack" data-drop="layer"><div class="rend"><br><span>вхід</span></div>';
   for(let i=0;i<2;i++)h+='<div class="rarr">▶</div>'+(GS.placed>i?'<div class="slot full"><span></span><b>шар '+(i+1)+'</b><button class="x" data-rm="1" title="прибрати">✕</button></div>':'<div class="slot">порожньо</div>');
   h+='<div class="rarr">▶</div><div class="rend"><br><span>кут</span></div></div><div class="shelf"><span class="m">полиця:</span><div class="pitem'+(GS.placed>=2?' dis':'')+'" data-p="layer">шар</div></div><p class="m lh">'+(GS.placed===0?'Потрібен хоча б один шар.':GS.placed===1?(LB.S&&LB.S.multi?'<b style="color:#a3392f">У цьому світі два правильних кути — один шар не вміє «стрибати» між ними (зазвичай 35–50%). Візьміть два шари з ReLU.</b>':'Один шар — просто. Два шари — розумніша мережа, але вчиться важче.'):'Два шари: перший шукає прості ознаки, другий складає з них складніші.')+'</p>';}
- if(st===1){h='<p class="lp"><b>Крок 2 · Нейрони.</b> Скільки нейронів у кожному шарі? Кнопки + і −.</p>';
+ if(st===1){h='<p class="lp"><b>Крок 3 · Нейрони.</b> Скільки нейронів у кожному шарі? Кнопки + і −.</p>';
   for(let l=0;l<LB.L;l++){const n=l?LB.n2:LB.n1;h+='<div class="nrow"><span class="m">шар '+(l+1)+'</span><button class="gb" data-nl="'+l+'" data-d="-1">−</button><span class="balls">'+'<i></i>'.repeat(n)+'</span><button class="gb" data-nl="'+l+'" data-d="1">+</button><b>'+n+'</b></div>';}
   h+='<p class="m lh">Більше нейронів — гнучкіша мережа, але більше параметрів: зараз <b>'+lbCount()+'</b>. Мета — якомога менше!</p>';}
- if(st===2){h='<p class="lp"><b>Крок 3 · Активатори.</b> Що робить нейрон із сумою: ReLU, tanh чи – нічого? Потрібен у <b>кожному прихованому шарі</b>.</p>';
+ if(st===2){h='<p class="lp"><b>Крок 4 · Активатори.</b> Що робить нейрон із сумою: ReLU, tanh чи – нічого? Потрібен у <b>кожному прихованому шарі</b>.</p>';
   for(let l=0;l<LB.L;l++){const a=l?LB.a2:LB.a1;h+='<div class="nrow"><span class="m">шар '+(l+1)+'</span>'+['relu','tanh','lin'].map(k=>'<button class="acard'+(a===k?' on':'')+'" data-al="'+l+'" data-k="'+k+'">'+curveSVG(k)+'<br>'+AIC[k]+'</button>').join('')+'</div>';}
-  const lin=(LB.a1==='lin')||(LB.L===2&&LB.a2==='lin');
-  h+='<p class="m lh">'+(lin?'<b style="color:#a3392f">Без активації</b> нейрон лише лінійний: мережа з таких нейронів лишається лінійною (одна пряма). Додайте функцію активації!':'ReLU — «перемикач»: добре для складних світів із вікном чи стелею. tanh — плавний вигин: ідеальний для гладкого світу.')+'</p><p class="m lh">Забули, що це? <button class="btn" data-go="1" style="padding:3px 10px;font-size:11px">→ Будова</button></p>';}
- if(st===3){const mm=LB.mode==='teach'?-1:LB.mode==='self'?0:1;h='<p class="lp"><b>Крок 4 · Як вчимо.</b> Потягніть рубильник або клацніть підпис.</p><svg viewBox="0 0 300 150" class="sw"><rect x="20" y="96" width="260" height="30" rx="12" fill="#2b241d"/>'+['teach','self','rl'].map((k,i)=>'<g data-m="'+k+'" style="cursor:pointer"><rect x="'+(i*100+5)+'" y="2" width="90" height="126" fill="transparent"/><circle cx="'+(50+i*100)+'" cy="26" r="16" fill="'+(LB.mode===k&&GS.modeSet?'#e8a33d':'#f2ecdd')+'" stroke="#2b241d" stroke-width="2"/><text x="'+(50+i*100)+'" y="32" font-size="16" text-anchor="middle">'+['','',''][i]+'</text><text x="'+(50+i*100)+'" y="116" font-size="11" text-anchor="middle" fill="#f2ecdd" font-family="IBM Plex Mono">'+['З учителем','Сам','Пошук за нагородою'][i]+'</text></g>').join('')+'<g id="lever" style="transform-origin:150px 140px;transition:transform .3s;transform:rotate('+(mm*52)+'deg)"><rect x="146" y="70" width="8" height="70" rx="4" fill="#6b5d4a"/><circle cx="150" cy="68" r="12" fill="'+(GS.modeSet?'#e2574c':'#aaa')+'" stroke="#2b241d" stroke-width="2" style="cursor:grab" id="lvKnob"/></g><circle cx="150" cy="140" r="9" fill="#2b241d"/></svg>';
+  h+='<div class="nrow"><span class="m">вихід (кут)</span>'+[['tanh','tanh (кут у межах діапазону)'],['lin','лінійний → градуси']].map(([k,t])=>'<button class="acard'+(LB.ao===k?' on':'')+'" data-ao="'+k+'">'+curveSVG(k)+'<br>'+t+'</button>').join('')+'</div>';
+  const lin=(LB.a1==='lin')||(LB.L===2&&LB.a2==='lin'),allLin=LB.net&&LB.net.slice(0,-1).every(L=>L.act==='lin'),outNote=(LB.ao==='lin'?'Лінійний вихід: кут = центр + піврозмах·z, з обрізанням до допустимого діапазону; градієнт проходить крізь обрізання. У гладкому світі так навчання швидше й стабільніше.':'tanh на виході стискає кут у допустимі межі, але біля країв діапазону навчання сповільнюється.')+(allLin&&LB.ao==='lin'?' Усі шари лінійні: мережа — одна пряма (лінійна модель).':'');
+  h+='<p class="m lh">'+(lin?'<b style="color:#a3392f">Без активації</b> нейрон лише лінійний: мережа з таких нейронів лишається лінійною (одна пряма). Додайте функцію активації!':'ReLU — «перемикач»: добре для складних світів із вікном чи стелею. tanh — плавний вигин: ідеальний для гладкого світу.')+'</p><p class="m lh">'+outNote+'</p><p class="m lh">Забули, що це? <button class="btn" data-go="1" style="padding:3px 10px;font-size:11px">→ Будова</button></p>';}
+ if(st===3){const mm=LB.mode==='teach'?-1:LB.mode==='self'?0:1;h='<p class="lp"><b>Крок 5 · Як вчимо.</b> Потягніть рубильник або клацніть підпис.</p><svg viewBox="0 0 300 150" class="sw"><rect x="20" y="96" width="260" height="30" rx="12" fill="#2b241d"/>'+['teach','self','rl'].map((k,i)=>'<g data-m="'+k+'" style="cursor:pointer"><rect x="'+(i*100+5)+'" y="2" width="90" height="126" fill="transparent"/><circle cx="'+(50+i*100)+'" cy="26" r="16" fill="'+(LB.mode===k&&GS.modeSet?'#e8a33d':'#f2ecdd')+'" stroke="#2b241d" stroke-width="2"/><text x="'+(50+i*100)+'" y="32" font-size="16" text-anchor="middle">'+['','',''][i]+'</text><text x="'+(50+i*100)+'" y="116" font-size="11" text-anchor="middle" fill="#f2ecdd" font-family="IBM Plex Mono">'+['З учителем','За похибкою','Пошук за нагородою'][i]+'</text></g>').join('')+'<g id="lever" style="transform-origin:150px 140px;transition:transform .3s;transform:rotate('+(mm*52)+'deg)"><rect x="146" y="70" width="8" height="70" rx="4" fill="#6b5d4a"/><circle cx="150" cy="68" r="12" fill="'+(GS.modeSet?'#e2574c':'#aaa')+'" stroke="#2b241d" stroke-width="2" style="cursor:grab" id="lvKnob"/></g><circle cx="150" cy="140" r="9" fill="#2b241d"/></svg>';
   h+='<div class="m lh" style="max-width:62ch">'+MDT[LB.mode]+(LB.mode==='teach'&&LB.S&&LB.S.multi?(LB.teach==='avg'?' Правильних кутів два, а вчитель-«посередині» каже середнє — і гармата стріляє в стіну.':' Вчитель підказує той з двох правильних кутів, що ближчий до мережі, — мережа вибирає гілку сама.'):'')+(LB.mode==='self'&&LB.S&&LB.S.multi?' <i>Тут нахил бачить лише найближчу яму.</i>':'')+'</div>';
   if(LB.mode==='teach'&&LB.S&&LB.S.multi)h+='<div class="nrow"><span class="m">відповідь учителя</span><button class="btn'+(LB.teach==='avg'?' on':'')+'" data-t="avg" style="padding:4px 10px">«посередині»</button><button class="btn'+(LB.teach==='wta'?' on':'')+'" data-t="wta" style="padding:4px 10px">«найближчий до відповіді мережі»</button></div>';
   if(LB.S&&LB.S.multi&&LB.mode!=='rl')h+='<p class="m lh" style="color:#a3392f">У цьому світі правильних кутів два. «За похибкою» і «з учителем» тут часто застрягають на 40–60% — спробуйте пошук за нагородою й дві ReLU-шарові мережі.</p>';
   if(LB.mode==='rl')h+='<details style="margin-top:6px"><summary class="m" style="font-size:12px;cursor:pointer">Нагорода за постріл</summary><ul style="margin:4px 0 4px 18px;padding:0;font-size:14px"><li>ближче до цілі — більше очок</li><li>влучила — <b>+100</b> </li><li>стіна чи стеля — <b>−50</b> </li><li>крізь вікно — <b>+25</b> </li><li>кожен рикошет — <b>−5</b></li></ul></details>';}
- if(st===4){h='<p class="lp"><b>Крок 5 · Крок навчання.</b> Як змінювати параметри після кожної помилки?</p><div class="ocards"><button class="ocard'+(LB.opt==='adam'?' on':'')+'" data-o="adam"><span class="oe"></span><b>Оптимізатор Adam</b><br>Сам підбирає крок для кожного параметра: сміливо там, де рівно, обережно там, де круто.</button><button class="ocard'+(LB.opt==='sgd'?' on':'')+'" data-o="sgd"><span class="oe"></span><b>Постійний крок</b><br>Один і той самий крок для всіх параметрів. Завеликий — «трясе», замалий — довго. У світах зі стіною чи стелею він вчиться гірше за Adam.</button></div><div class="knob"><span class="l">'+(LB.opt==='adam'?'найбільший крок':'розмір кроку')+'</span><input type="range" id="lLR" min="0" max="100" value="'+LB.lrv+'"></div>';}
- if(st===5){const k=lbWorldKey();h='<p class="lp"><b>Крок 6 · Світ.</b> Перетягніть предмети на сцену — і світ зміниться.</p><div class="wz" data-drop="world">'+worldSVG(GS.wall,GS.roof)+'<div class="wch">'+(GS.wall?'<span>стіна з вікном <button data-rw="wall">✕</button></span>':'')+(GS.roof?'<span>стеля <button data-rw="roof">✕</button></span>':'')+(!GS.wall&&!GS.roof?'<span>порожньо: лише низька стіна</span>':'')+'</div></div><div class="shelf"><span class="m">полиця:</span><div class="pitem'+(GS.wall?' dis':'')+'" data-p="wall">'+spriteWall()+'стіна з вікном</div><div class="pitem'+(GS.roof?' dis':'')+'" data-p="roof">'+spriteRoof()+'стеля</div></div><p class="m lh">'+WLD[LB.world].d+'</p>'+(GS.worldBuilt?'<p class="m lh" style="color:#2b7a4b">✔ Світ збудовано — під схемою праворуч з’явилось поле «кут».</p>':'<button class="btn" data-done="1" style="margin-top:8px">✔ світ готовий</button>');}
- B.innerHTML=h;el('lgPrev').disabled=st===0;el('lgNext').disabled=st===5||(st===0&&GS.placed===0)||(st===5);
+ if(st===4){h='<p class="lp"><b>Крок 6 · Крок навчання.</b> Як змінювати параметри після кожної помилки?</p><div class="ocards"><button class="ocard'+(LB.opt==='adam'?' on':'')+'" data-o="adam"><span class="oe"></span><b>Оптимізатор Adam</b><br>Сам підбирає крок для кожного параметра: сміливо там, де рівно, обережно там, де круто.</button><button class="ocard'+(LB.opt==='sgd'?' on':'')+'" data-o="sgd"><span class="oe"></span><b>Постійний крок</b><br>Один і той самий крок для всіх параметрів. Завеликий — «трясе», замалий — довго. У світах зі стіною чи стелею він вчиться гірше за Adam.</button></div><div class="knob"><span class="l">'+(LB.opt==='adam'?'найбільший крок':'розмір кроку')+'</span><input type="range" id="lLR" min="0" max="100" value="'+LB.lrv+'"></div>';}
+ if(st===5){const k=lbWorldKey();h='<p class="lp"><b>Крок 1 · Світ.</b> Спершу оберіть світ: від нього залежить, яка мережа знадобиться. Перетягніть предмети на сцену — і світ зміниться.</p><div class="wz" data-drop="world">'+worldSVG(GS.wall,GS.roof)+'<div class="wch">'+(GS.wall?'<span>стіна з вікном <button data-rw="wall">✕</button></span>':'')+(GS.roof?'<span>стеля <button data-rw="roof">✕</button></span>':'')+(!GS.wall&&!GS.roof?'<span>порожньо: лише низька стіна</span>':'')+'</div></div><div class="shelf"><span class="m">полиця:</span><div class="pitem'+(GS.wall?' dis':'')+'" data-p="wall">'+spriteWall()+'стіна з вікном</div><div class="pitem'+(GS.roof?' dis':'')+'" data-p="roof">'+spriteRoof()+'стеля</div></div><p class="m lh">'+WLD[LB.world].d+'</p>'+(GS.worldBuilt?'<p class="m lh" style="color:#2b7a4b">✔ Світ збудовано — під схемою праворуч з’явилось поле «кут».</p>':'<button class="btn" data-done="1" style="margin-top:8px">✔ світ готовий</button>');}
+ B.innerHTML=h;el('lgPrev').disabled=GS.st===0;el('lgNext').disabled=GS.st===5||(st===0&&GS.placed===0);
  const ready=GS.placed>0&&GS.modeSet;el('lRun').style.display=ready?'':'none';el('lLock').style.display=ready?'none':'';el('kSA').style.display=GS.worldBuilt?'':'none';}
 function labSetPlaced(n){GS.placed=n;lbSet({L:Math.max(1,n)});}
 function labWorldSet(){const k=lbWorldKey();if(k===LB.world){labGuide();return;}lbWorld(k);}
-el('lShop').onclick=e=>{const b=e.target.closest('.pbox');if(!b)return;const p=PRE[+b.dataset.i];el('lShopD').open=false;GS.placed=p[1];GS.st=3;lbSet({L:p[1],n1:p[2],n2:p[3],a1:p[4],a2:p[5]});};
+el('lShop').onclick=e=>{const b=e.target.closest('.pbox');if(!b)return;const p=PRE[+b.dataset.i];el('lShopD').open=false;GS.placed=p[1];GS.st=4;lbSet({L:p[1],n1:p[2],n2:p[3],a1:p[4],a2:p[5]});};
 el('lgSt').onclick=e=>{const b=e.target.closest('button');if(b){GS.st=+b.dataset.s;labGuide();}};
 el('lgPrev').onclick=()=>{GS.st=Math.max(0,GS.st-1);labGuide();};el('lgNext').onclick=()=>{GS.st=Math.min(5,GS.st+1);labGuide();};
 el('lgBody').onpointerdown=e=>{const it=e.target.closest('.pitem');if(it&&!it.classList.contains('dis')){const p=it.dataset.p;dragStart(e,it,z=>{if(p==='layer'){if(z==='layer'||z==='click')labSetPlaced(Math.min(2,GS.placed+1));}else if(z==='world'||z==='click'){GS[p]=true;GS.worldBuilt=true;labWorldSet();}});return;}
@@ -985,7 +991,8 @@ el('lgBody').onpointerdown=e=>{const it=e.target.closest('.pitem');if(it&&!it.cl
 el('lgBody').onclick=e=>{const t=e.target;let c;
  if(t.dataset.rm){labSetPlaced(GS.placed-1);return;}
  if((c=t.closest('[data-nl]'))){const l=+c.dataset.nl,d=+c.dataset.d,key=l?'n2':'n1',v=Math.max(1,Math.min(8,LB[key]+d));lbSet({[key]:v});return;}
- if((c=t.closest('[data-al]'))){lbSet({[+c.dataset.al?'a2':'a1']:c.dataset.k});return;}
+ if((c=t.closest('[data-ao]'))){lbSet({ao:c.dataset.ao});return;}
+  if((c=t.closest('[data-al]'))){lbSet({[+c.dataset.al?'a2':'a1']:c.dataset.k});return;}
  if((c=t.closest('[data-m]'))){lbSet({mode:c.dataset.m});return;}
  if((c=t.closest('[data-t]'))){lbSet({teach:c.dataset.t});return;}
  if((c=t.closest('[data-o]'))){LB.opt=c.dataset.o;labGuide();return;}
@@ -1003,7 +1010,7 @@ el('lPlay').onclick=()=>{if(LB.tm){clearInterval(LB.tm);LB.tm=null;ldraw();labGu
 el('lSend').onclick=()=>{if(LB.world!=='smooth')return;const snap=JSON.parse(JSON.stringify(LB.net)),d=LB.sz.slice(1,-1).map((m,l)=>m+' '+LB.net[l].act).join(' + ');BR5=brOfLab(snap,LB.S,'Мережа з Лабораторії: '+d+' ('+lbCount()+' параметрів), влучань '+LB.ok+' із 100');el('lSend').textContent='відправлено ✓';setTimeout(()=>el('lSend').textContent='→ перевірити в сцені',1600);};
 /* --- сенсори → мережа → гармата: спільна «стрільба з мережею» для вкладок 5 і 7 --- */
 const brOfE=()=>{const n=E.net;return{src:'Мережа з вкладки «Епохи»: навчалася '+E.ep+' епох'+(E.ep?'':' (ще не навчена — навчіть її!)'),sz:[2,4,1],W:[n.W1.map(r=>r.slice()),[n.W2.slice()]],C:C0,R:R0,fwd:(w,y)=>{const r=run(n,w,y);return{A:[[w,y],r.a.slice(),[r.v]],v:r.v};}};};
-const brOfLab=(net,S,src)=>({src,sz:[2].concat(net.slice(0,-1).map(L=>L.W.length),[1]),W:net.map(L=>L.W.map(r=>r.slice())),C:S.Cm,R:S.Rm,fwd:(w,y)=>{const f=lbFwd(net,w,y);return{A:f.A,v:f.v};}});
+const brOfLab=(net,S,src)=>({src,sz:[2].concat(net.slice(0,-1).map(L=>L.W.length),[1]),W:net.map(L=>L.W.map(r=>r.slice())),C:S.Cm,R:S.Rm,fwd:(w,y)=>{const f=lbFwd(net,w,y);return{A:f.A,v:lbU(f.v)};}});
 let BR5=null;                                   // мережа, надісланий з лабораторії у «Стрільбу»
 function worldCfg(key){const D=WLD[key],P=Object.assign({},SB,D.C);return{V0:P.V0,KAX:P.KAX,KPERP:P.KPERP,KLEAF:P.KLEAF,VLO:P.VLO,VHI:P.VHI,WMAX:P.WMAX,wallTop:P.wallTop,win:P.win,roof:P.roof,amin:key==='smooth'?30:D.amin};}
 function stageHTML(p,fid,step,title,txt,extra){return '<div class="pst" id="'+p+'St" style="position:relative"><div class="an">'

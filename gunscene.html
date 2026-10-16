@@ -65,7 +65,7 @@
 </head>
 <body>
 <canvas id="scene"></canvas>
-<div id="embedCtl"><button id="eMute" title="звук">звук</button><label>вітер <input type="range" id="eWind" min="0" max="100" value="45"></label></div>
+<div id="embedCtl"><button id="eMute" title="звук вимкнено; клацніть, щоб увімкнути">тиша</button><label>вітер <input type="range" id="eWind" min="0" max="100" value="45"></label></div>
 <footer>
   <span class="lbl">Вітер</span>
   <canvas id="sock" width="176" height="84"></canvas>
@@ -109,7 +109,7 @@ const label=w=>w<.05?'штиль':w<.18?'легкий':w<.42?'свіжий':w<.7
 /* ===================== ЗВУК (синтез WebAudio) ===================== */
 const SFX=(()=>{
   let ac=null,master=null,noiseBuf=null,windGain=null,windFilt=null;
-  let muted=false, duckUntil=0;
+  let muted=true, duckUntil=0;   /* серйозна версія: звук за замовчуванням вимкнено */
   function init(){
     if(ac){ if(ac.state==='suspended')ac.resume(); return; }
     const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
@@ -186,6 +186,8 @@ const SFX=(()=>{
       tone(t,'triangle',520,560,.09,.1); tone(t+.11,'triangle',660,700,.14,.12); },
   };
 })();
+/* cartoonOff: серйозна версія без мультяшних звуків (лідар, бульк, бризки, «весела» мелодія, шльопок, перекид) */
+for(const n of ['splash','lidar','blip','happy','splat','flip'])SFX[n]=()=>{};
 addEventListener('pointerdown',()=>SFX.init(),{passive:true});
 addEventListener('keydown',()=>SFX.init());
 
@@ -1179,7 +1181,8 @@ plateRange.addEventListener('input',()=>{
 });
 fireBtn.addEventListener('click',()=>{SFX.init();wantFire();});
 function wantFire(){if(lockAim){try{parent.postMessage({type:'wantfire'},'*')}catch(e){}return;}fire();}
-let mutedUI=false;
+let mutedUI=true;
+icoSnd.style.display='none';icoMut.style.display='block';
 muteBtn.addEventListener('click',()=>{
   mutedUI=!mutedUI;
   SFX.setMuted(mutedUI||forcedMute);
