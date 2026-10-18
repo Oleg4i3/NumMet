@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Контрольна з чисельних методів</title>
+<style>
+:root{--bg:#eef2f6;--ink:#1b2733;--ac:#0f766e;--ok:#d6f2e4;--bad:#fbd9d9;--ln:#c5d0db}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:900px;margin:0 auto;padding:12px}
+section,#start,#rp{background:#fff;border:1px solid var(--ln);border-radius:8px;padding:16px;margin:14px 0}
+h2{font:600 1.3rem Georgia,serif;margin:0 0 8px}h2 i{float:right;font:500 .9rem system-ui;color:var(--ac)}h3{margin:14px 0 6px;font-size:1rem}
+#bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+#tm{font:600 1.2rem ui-monospace,monospace}
+button,input,select{font:inherit}button{cursor:pointer}
+.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:7px 14px}
+input[type=text],input[type=number],select{border:1px solid var(--ln);border-radius:6px;padding:5px 8px}
+#t2 .wrap table{margin:0}#t2 th.v{vertical-align:bottom;padding:6px 2px}#t2 th.v span{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:600;font-size:.88rem}
+#t2 td+td{padding:3px 2px}#t2 .pm{min-width:30px;height:30px}
+#t2 th:first-child,#t2 td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--ln)}#t2 th:first-child{vertical-align:bottom}
+.k1{display:grid;grid-template-columns:max-content 1fr;gap:28px;align-items:start}.k1 h3{margin-top:0}.k1r{position:sticky;top:58px}
+@media(max-width:760px){.k1{grid-template-columns:1fr}.k1r{position:static}}
+table{border-collapse:collapse}td,th{border:1px solid var(--ln);padding:3px 8px;text-align:center}
+.c0,.pm{min-width:34px;border:1px solid var(--ln);background:#f7f9fb;border-radius:4px}
+.km{display:grid;grid-template-columns:repeat(5,52px);gap:2px;width:max-content;margin-bottom:8px}
+.hd{display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#567}
+.cl{height:52px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ln);cursor:pointer;font-weight:600}
+.cl.sel{background:#fff3b0}
+.gp{display:inline-block;border:2px solid;border-radius:12px;padding:1px 10px;margin:6px 6px 0 0;cursor:pointer}
+.fd{font-size:1.3rem;min-height:2.2rem;border-bottom:2px solid var(--ink);margin:6px 0}
+.n{text-decoration:overline}
+#kb button{min-width:40px;margin:2px;padding:4px 8px}
+.ok{background:var(--ok)!important}.bad{background:var(--bad)!important}
+.fb{margin-top:8px}.hint{color:#567;font-size:.9rem}.wrap{overflow-x:auto}
+.ln{display:inline-block;margin:4px 14px 4px 0}.ans{color:#a11}
+#dr{position:relative;width:360px;max-width:100%;aspect-ratio:360/260;border:1px dashed var(--ln);margin-top:6px}
+#dr svg,#dr canvas{position:absolute;inset:0;width:100%;height:100%}#dr canvas{touch-action:none;cursor:crosshair;opacity:.5}.rg{position:absolute;width:48px;height:22px;padding:0 2px;font-size:12px;text-align:center;border:1px dashed #9ab;border-radius:5px;background:rgba(255,255,255,.7)}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #888;margin-right:6px}
+.big{font:700 3.4rem Georgia,serif;line-height:1.1}.big2{font:600 1.5rem Georgia,serif;margin:6px 0 12px}
+.done .pm,.done .c0,.done .cl,.done #kb,.done #ag,.done .gp{pointer-events:none}
+.mc{font:12px/1.4 ui-monospace,Consolas,monospace;color:#567;margin:12px 0 0;white-space:nowrap}
+@media print{#bar,section,#start,.np{display:none!important}body{background:#fff}#rp{border:0}}
+.vb{background:#4a90e2;color:#fff;border:0;border-radius:3px;padding:10px 22px;font-weight:700;letter-spacing:.5px}
+#cap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:center;justify-content:center}
+.rc{background:#fff;border:1px solid #d3d3d3;border-radius:3px;box-shadow:0 0 6px rgba(0,0,0,.35);width:min(400px,96vw);font-family:Roboto,Arial,sans-serif;color:#222}
+.rc .box{display:flex;align-items:center;gap:14px;padding:18px;background:#f9f9f9}
+.chk{width:28px;height:28px;border:2px solid #c1c1c1;border-radius:2px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.rc .ft{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid #ddd}
+.sp{width:22px;height:22px;border:3px solid #ccc;border-top-color:#4a90e2;border-radius:50%;animation:rot 1s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+.rc.wide{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#faf8f2;padding:6px 20px 0;font-family:Spectral,Georgia,serif}.rc.wide .ft{position:sticky;bottom:0;background:#faf8f2}
+:root{--panel:#fff;--panel-border:rgba(20,27,42,.14);--dim:#5B6472;--gold:#93711A;--teal:#0E7C72;--cgood:#1F7A3D;--cbad:#AE3A2E}
+.sl{max-width:100%}.done section button,.done section select,.done section input{pointer-events:none}section label.ok,section label.bad{display:block}
+.hn{margin:10px 0;border:1px dashed #d4a017;border-radius:6px;padding:4px 10px;background:#fffbea}.hs{cursor:pointer;color:#8a6500;font-weight:600}.hb{margin-top:6px}
+.hint{color:#8a6500;margin-top:6px}
+.scr{margin-top:8px;padding:4px 8px;border-left:3px solid #4a90e2;background:#f3f7fc}
+.fb .hint{font-size:.9rem}
+.vz{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0;align-items:flex-start}.vz figure{margin:0;max-width:100%}.vz figcaption{font-size:.85rem;color:#456;max-width:260px;margin-top:4px}.vz svg,.vzs{max-width:100%;height:auto;background:#fff;border:1px solid var(--ln);border-radius:6px}.vzn{font-size:.88rem;margin-top:6px}
+.rv{margin-top:10px;padding:10px;border:1px solid var(--ln);border-radius:8px;background:#fbfcfd}.rvh{font-size:.92rem;margin-bottom:8px}.rvr{margin:8px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.rvo{margin:6px 0;font-size:.92rem}
+.rj{background:#fff;border:1px solid var(--ln);border-radius:6px;padding:4px 10px}.rv canvas{background:#fff;border:1px solid var(--ln);border-radius:6px;max-width:100%;height:auto}
+.done section .rv button,.done section .rv input{pointer-events:auto}
+.zt{position:relative;height:24px;max-width:440px}.zb{position:absolute;left:10px;right:10px;top:6px;height:12px;border-radius:6px}
+.zt input{position:absolute;left:0;top:0;width:100%;height:24px;margin:0;padding:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.zt input::-webkit-slider-runnable-track{background:transparent;height:24px}.zt input::-moz-range-track{background:transparent;height:24px}
+.zt input::-webkit-slider-thumb{-webkit-appearance:none;box-sizing:border-box;width:20px;height:20px;margin-top:2px;border-radius:50%;background:#fff;border:3px solid #64748b;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.zt input::-moz-range-thumb{box-sizing:border-box;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #64748b;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.zt input.okz::-webkit-slider-thumb{border-color:#16a34a;background:#dcfce7}.zt input.okz::-moz-range-thumb{border-color:#16a34a;background:#dcfce7}
+.zt input.badz::-webkit-slider-thumb{border-color:#e11d48;background:#ffe4e6}.zt input.badz::-moz-range-thumb{border-color:#e11d48;background:#ffe4e6}
+
+  .review { border-top: 1px solid var(--panel-border); padding: 20px 0; }
+  .review:last-child { border-bottom: 1px solid var(--panel-border); }
+  .review-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: 0.78rem; color: var(--dim); }
+  .review-line { font-size: 0.88rem; margin: 4px 0; }
+  .review-line .lbl { color: var(--dim); }
+  .review-explain { margin-top: 10px; font-family: 'Spectral', Georgia, serif; font-size: 0.98rem; color: var(--dim); padding: 10px 12px; background: var(--panel); border: 1px solid var(--panel-border); }
+  .verdict { font-weight: 600; }
+  .verdict.correct { color: var(--cgood); }
+  .verdict.wrong { color: var(--cbad); }
+  .verdict.partial { color: var(--gold); }
+  .score-num { font-family: 'Spectral', Georgia, serif; font-weight: 700; font-size: 2.6rem; }
+  .score-num span { color: var(--dim); font-size: 1.4rem; }
+/* ===== Блок чесності (капчи) ===== */
+  
+  #capBlock.open { display: block; }
+  .cap-section-title { font-family: 'Spectral', Georgia, serif; font-weight: 700; font-size: 1.4rem; margin: 0 0 6px; }
+  .cap-section-sub { color: var(--dim); font-size: 0.85rem; max-width: 66ch; margin: 0 0 4px; }
+  .cap-img { max-width: 100%; width: 520px; border: 1px solid var(--panel-border); display: block; margin: 8px 0 2px; background: #e8e4da; }
+  .cap-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .cap-row input[type="text"] {
+    background: var(--panel); border: 1px solid var(--panel-border); color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.95rem; padding: 10px 12px; width: 220px; max-width: 100%;
+  }
+  .cap-row input[type="text"]:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .cap-note { color: var(--dim); font-size: 0.78rem; }
+  .cap-canvas { border: 1px solid var(--panel-border); background: var(--panel); touch-action: none; cursor: grab; display: block; max-width: 100%; }
+  .cap-canvas:active { cursor: grabbing; }
+  .cap3d { width: 100%; height: 320px; border: 1px solid var(--panel-border); background: var(--panel); position: relative; overflow: hidden; }
+  .cap3d canvas { display: block; touch-action: none; }
+  .cap3d-hint { position: absolute; left: 10px; bottom: 8px; font-size: 0.72rem; color: var(--dim); pointer-events: none; }
+  .cap-check { display: flex; gap: 9px; align-items: center; margin-top: 12px; font-family: 'Spectral', Georgia, serif; font-size: 1rem; cursor: pointer; }
+  .cap-check input { width: 18px; height: 18px; accent-color: var(--teal); }
+  /* капча 5 — стилізація під reCAPTCHA */
+  .rc-frame { max-width: 480px; background: #fff; border: 2px solid #4a90e2; box-shadow: 0 1px 5px rgba(60,64,67,0.25); font-family: Roboto, Arial, sans-serif; }
+  .rc-head { padding: 14px 16px 10px; border-bottom: 1px solid #e8eaed; }
+  .rc-title { font-family: Roboto, Arial, sans-serif; font-size: 1.02rem; font-weight: 500; color: #202124; margin: 0 0 3px; }
+  .rc-sub { font-size: 0.74rem; color: #9aa0a6; margin: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 16px 4px; }
+  .tile {
+    position: relative; aspect-ratio: 1 / 1; background: #f1f3f4; border: 2px solid transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none;
+  }
+  .tile:hover { filter: brightness(0.96); }
+  .tile .matwrap { filter: blur(0.45px); transition: opacity 0.12s ease; }
+  .tile.sel { border-color: #4a90e2; }
+  .tile.sel .matwrap { opacity: 0.5; }
+  .tile .tick {
+    position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 2px;
+    background: #4a90e2; color: #fff; font-size: 14px; font-weight: 700;
+    display: none; align-items: center; justify-content: center;
+  }
+  .tile.sel .tick { display: flex; }
+  .mat { position: relative; display: grid; grid-template-columns: repeat(var(--c, 2), auto); gap: 2px 7px; padding: 5px 9px; }
+  .mat::before, .mat::after { content: ''; position: absolute; top: 0; bottom: 0; width: 5px; border: 1.7px solid #3c4043; }
+  .mat::before { left: 0; border-right: none; border-radius: 7px 0 0 7px; }
+  .mat::after { right: 0; border-left: none; border-radius: 0 7px 7px 0; }
+  .mat span { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: #202124; text-align: center; min-width: 15px; }
+  .rc-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 14px; }
+  .rc-verify {
+    background: #4a90e2; color: #fff; border: none; font-family: Roboto, Arial, sans-serif;
+    font-size: 0.76rem; font-weight: 700; letter-spacing: 0.06em; padding: 10px 18px; cursor: pointer;
+  }
+  .rc-verify:hover { filter: brightness(1.07); }
+  .rc-brand { font-size: 0.6rem; color: #9aa0a6; text-align: right; }
+   #capSummary, #capResults { display: none; }
+  .cap-score-line {
+    display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px;
+    border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border);
+    padding: 18px 0; margin: 34px 0 12px;
+  }
+  .cap-verdict-big { font-family: 'Spectral', Georgia, serif; font-size: 1.06rem; color: var(--ink); margin: 0 0 16px; }
+  .trustbar { height: 6px; background: rgba(20,27,42,0.1); margin: 4px 0 6px; }
+  .trustfill { height: 100%; background: var(--teal); }
+  .trustfill.mid { background: var(--gold); }
+  .trustfill.low { background: var(--cbad); }
+  @media (prefers-reduced-motion: reduce) { .sw-progress-fill { transition: none; } }
+
+</style><link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head><body>
+<div id="bar" hidden><b>Контрольна: чисельні методи</b><span id="tm">00:00</span><button class="b" id="fin">Завершити</button></div>
+<main>
+<div id="start"><h2>Контрольна: чисельні методи</h2>
+<p>Таймер лише відліковує час. Варіант визначається прізвищем та ім’ям, тому оновлення сторінки його не змінює; відповіді зберігаються автоматично.</p>
+<input type="text" id="nm" placeholder="Прізвище та ім’я" size="30"> <button class="b" id="go">Почати</button></div>
+<div id="rp" hidden></div>
+<div id="app" hidden><section id="t1"></section><section id="t2"></section><section id="t3"></section><section id="t4"></section><section id="t5"></section><section id="t6"></section></div>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],KEY='nm-test-v2';
+let R,seed,NAME,t0,tick,done=false,T={},st={};
+const seedFrom=s=>{let h=2166136261;for(const c of s.trim().toLowerCase()){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}
+ h^=h>>>16;h=Math.imul(h,0x85ebca6b);h^=h>>>13;h=Math.imul(h,0xc2b2ae35);h^=h>>>16;return h>>>0};const mul=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1)),pick=a=>a[ri(0,a.length-1)];
+const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const rd=x=>Math.round(x*10)/10,bits=(x,n)=>x.toString(2).padStart(n,'0'),pc=x=>{let c=0;while(x){c+=x&1;x>>=1}return c};
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+/* контрольний код протоколу (FNV-1a + «сіль»); той самий SALT має стояти в userscript для Classroom */
+const SALT='dm-2c991a600e',sig=t=>{let h=2166136261;for(const c of t+SALT){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')};
+const C=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
+const fact=n=>n<=1?1:n*fact(n-1);
+const plural=(n,one,few,many)=>{const a=n%10,b=n%100;return a==1&&b!=11?one:a>=2&&a<=4&&(b<12||b>14)?few:many};
+const joinList=a=>a.length==1?a[0]:a.slice(0,-1).join(', ')+' і '+a[a.length-1];
+const COL=['#e11d48','#2563eb','#16a34a','#9333ea','#f59e0b','#0891b2','#ea580c','#475569'];
+
+const CAP=(()=>{
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[rnd(0, arr.length - 1)];
+function shuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = rnd(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
+const R = String.raw;
+const BS = '\\';
+const M = s => BS + '(' + s + BS + ')';   // inline LaTeX
+const D = s => BS + '[' + s + BS + ']';   // display LaTeX
+const NZ = [-3,-2,-1,1,2,3];
+
+function tx(v){ return typeof v === 'number' ? String(v === 0 ? 0 : v) : v; }
+function paren(v){ return typeof v === 'number' ? (v < 0 ? `(${v})` : String(v)) : v; }
+function fr(n, d){
+  if (d < 0){ n = -n; d = -d; }
+  const g = gcd(n, d) || 1; n /= g; d /= g;
+  if (d === 1) return String(n === 0 ? 0 : n);
+  return (n < 0 ? '-' : '') + BS + 'frac{' + Math.abs(n) + '}{' + d + '}';
+}
+function pm(rows){ return R`\begin{pmatrix}` + rows.map(r => r.map(tx).join(' & ')).join(R` \\ `) + R`\end{pmatrix}`; }
+function vc(a){ return pm(a.map(x => [x])); }
+function randMat(r, c, lo, hi){ return Array.from({length:r}, () => Array.from({length:c}, () => rnd(lo, hi))); }
+function mulMV(A, x){ return A.map(row => row.reduce((s, a, j) => s + a * x[j], 0) + 0); }
+function det2(m){ return m[0][0]*m[1][1] - m[0][1]*m[1][0]; }
+function detN(A){
+  const n = A.length;
+  if (n === 1) return A[0][0];
+  let t = 0;
+  for (let j = 0; j < n; j++){
+    const minor = A.slice(1).map(r => r.filter((_, k) => k !== j));
+    t += (j % 2 ? -1 : 1) * A[0][j] * detN(minor);
+  }
+  return t + 0;
+}
+function eqTex(a, b, c){
+  const coef = (k, v) => (k === 1 ? '' : (k === -1 ? '-' : String(k))) + v;
+  let t = '';
+  if (a !== 0) t += coef(a, 'x');
+  if (b !== 0) t += (t === '' ? coef(b, 'y') : (b < 0 ? '-' : '+') + coef(Math.abs(b), 'y'));
+  return `${t}=${c}`;
+}
+function dotTex(a, b){ return a.map((v, i) => `${paren(v)}${BS}cdot ${paren(b[i])}`).join(' + '); }
+function linTex(c, S, v){ // c·v + S
+  const cs = c === 1 ? '' : (c === -1 ? '-' : String(c));
+  const ss = S === 0 ? '' : (S < 0 ? `-${-S}` : `+${S}`);
+  return `${cs}${v}${ss}`;
+}
+function cstr(re, im){
+  if (im === 0) return String(re);
+  const a = Math.abs(im), s = a === 1 ? 'i' : a + 'i';
+  if (re === 0) return (im < 0 ? '-' : '') + s;
+  return `${re}${im < 0 ? '-' : '+'}${s}`;
+}
+function divisors(n){ const r = []; for (let d = 1; d <= n; d++) if (n % d === 0) r.push(d); return r; }
+function parseExpr(raw){
+  if (raw == null) return NaN;
+  let s = String(raw).toLowerCase().trim().replace(/[−–]/g, '-');
+  if (s === '') return NaN;
+  s = s.replace(/,/g, '.').replace(/\s+/g, '');
+  if (!/^[0-9+\-*/().]+$/.test(s)) return NaN;
+  try {
+    const val = Function('"use strict";return (' + s + ')')();
+    return (typeof val === 'number' && isFinite(val)) ? val : NaN;
+  } catch (e) { return NaN; }
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtPts(p){ return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''); }
+const MATH_OPTS = { delimiters: [ {left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false} ], throwOnError: false };
+function typeset(el){ if (window.renderMathInElement) { try { window.renderMathInElement(el, MATH_OPTS); } catch (e) {} } }
+// ==================================================================================
+// ===================== БЛОК ЧЕСНОСТІ: ШІСТЬ КАПЧ ==================================
+// ==================================================================================
+const CAPW = [1, 1, 1, 1, 1, 0.3];   // ваги капч у підсумку (№6 — розважальна)
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+const capTrust = (lo, hi) => Math.round(clampN(lo + Math.random() * (hi - lo), 3, 99));
+function capTypeset(el){ if (window.__capTypeset) window.__capTypeset(el); }
+function angNorm(a){ a = a % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; if (a < -Math.PI) a += 2 * Math.PI; return a; }
+function angDist(a, b){ return Math.abs(angNorm(a - b)); }
+function capCard(n, title, promptHtml){
+  const el = document.createElement('div');
+  el.className = 'q';
+  el.innerHTML = `<div class="topic">Капча ${n}/6 · ${title}</div><p class="q-prompt">${promptHtml}</p><div class="cap-body"></div>`;
+  document.getElementById('capHost').appendChild(el);
+  return { el, body: el.querySelector('.cap-body') };
+}
+
+// ---------- Капча 1: фото з дзеркалом ----------
+const cap1 = { variant: Math.random() < 0.5 ? 'A' : 'B', input: null, t0: 0 };
+function buildCap1(){
+  const file = cap1.variant === 'A' ? 'MatrixDet40.png' : 'MatrixDet-16.png';
+  const card = capCard(1, 'Дзеркало',
+    `Чому дорівнює визначник матриці, яку записують у блокнот?`);
+  card.body.innerHTML = `
+    <img class="cap-img" id="cap1img" alt="фото: блокнот із матрицею та дзеркало" src="${file}">
+    <div class="cap-row">
+      <input type="text" id="cap1ans" placeholder="визначник — число" autocomplete="off">
+       </div>`;
+  const img = card.body.querySelector('#cap1img');
+  img.addEventListener('error', () => { img.outerHTML = cap1Fallback(cap1.variant); });
+  cap1.input = card.body.querySelector('#cap1ans');
+  cap1.t0 = Date.now();
+}
+function cap1Fallback(variant){
+  const inner = `
+    <rect x="0" y="0" width="520" height="320" fill="#efece4"/>
+    <rect x="0" y="210" width="520" height="110" fill="#d9c9a8"/>
+    <rect x="252" y="18" width="220" height="192" fill="#d7e4ea" stroke="#8fa6ae" stroke-width="3"/>
+    <text x="330" y="80" font-family="monospace" font-size="30" fill="#41505c">1  2</text>
+    <text x="330" y="120" font-family="monospace" font-size="30" fill="#41505c">8  0</text>
+    <rect x="40" y="230" width="200" height="80" fill="#ffffff" stroke="#171E2C" stroke-width="2"/>
+    <text x="86" y="262" font-family="monospace" font-size="30" fill="#171E2C">8  0</text>
+    <text x="86" y="298" font-family="monospace" font-size="30" fill="#171E2C">1  5</text>`;
+  const g = variant === 'B' ? `<g transform="translate(520,0) scale(-1,1)">${inner}</g>` : inner;
+  return `<svg class="cap-img" viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="схема: блокнот і дзеркало">${g}<text x="10" y="316" font-size="12" fill="#8a8577">фото не знайдено — умовна схема</text></svg>`;
+}
+function gradeCap1(){
+  const v = parseExpr(cap1.input ? cap1.input.value : '');
+  const A = cap1.variant === 'A';
+  const full = A ? 40 : -16, part = A ? 16 : -40;
+  const secs = (Date.now() - cap1.t0) / 1000;
+  let points = 0, trust = 10, note = '', explain = '';
+  if (!isNaN(v) && Math.abs(v - full) < 1e-6){
+    points = 1;
+    trust = Math.min(98, capTrust(88, 94) + (secs > 20 ? 2 : 0));
+    note = secs > 20 ? 'довго вглядувалися в дзеркало — по-людськи' : 'розібрали дзеркальну конструкцію швидко — вражає';
+    explain = A
+      ? `На папері рядки <b>8 0</b> (верхній) і <b>1 5</b> (нижній): верхній край блокнота — до дзеркала, тож у відображенні рядки міняються місцями, а ${M('5')} читається як перевернута ${M('2')}. Отже, ${M(R`\det=8\cdot5-0\cdot1=40`)}; відповідь ${M('-16')} — це детермінант відображення.`
+      : `Фото віддзеркалене: правильна відповідь ${M('-16')}. Значення ${M('-40')} виходить, якщо не помітити обмін ${M('2\\leftrightarrow5')}.`;
+  } else if (!isNaN(v) && Math.abs(v - part) < 1e-6){
+    points = 0.5;
+    trust = capTrust(55, 70);
+    note = 'цифри впізнано, але дзеркальна логіка спрацювала наполовину';
+    explain = A
+      ? `Майже! На папері рядки <b>8 0</b> (верх) і <b>1 5</b> (низ), тому ${M(R`\det=40`)}.`
+      : `Майже! У віддзеркаленому фото ${M('5')} читається як перевернута ${M('2')} (і навпаки) — без цього обміну виходить ${M('-40')} замість ${M('-16')}.`;
+  } else {
+    points = 0;
+    if (A && !isNaN(v) && Math.abs(v + 16) < 1e-6){
+      trust = capTrust(8, 18);
+      note = '−16 — це детермінант відображення, а не матриці на папері';
+    } else if (!A && !isNaN(v) && v > 0){
+      trust = capTrust(5, 15);
+      note = 'додатний детермінант для віддзеркаленого фото';
+    } else {
+      trust = capTrust(6, 16);
+      note = 'відповідь не збігається ані з «паперовою», ані з «дзеркальною» інтерпретацією';
+    }
+    explain = A
+      ? `На папері: ${M(R`\begin{pmatrix}8&0\\1&5\end{pmatrix}`)}, ${M(R`\det=40`)}; у дзеркалі видно ${M(R`\begin{pmatrix}1&2\\8&0\end{pmatrix}`)} з ${M(R`\det=-16`)}.`
+      : `Правильна відповідь — <b>−16</b> (з урахуванням обміну ${M('2\\leftrightarrow5')}); ${M('-40')} — якщо обміну не помітити.`;
+  }
+  return { n: 1, title: 'Дзеркало', points, max: 1, trust, note, explain };
+}
+
+// ---------- Капча 2: крутілка (червоний вектор проти синього) ----------
+const cap2 = { mode: null, beta: 0, alpha: 0, dragging: false, drags: 0, canvas: null, ctx: null };
+const CAP2_MODES = {
+  dot0: {
+    label: 'щоб <b>скалярний добуток</b> червоного й синього дорівнював <b>нулю</b>',
+    sols: b => [b + Math.PI / 2, b - Math.PI / 2],
+    explain: () => `Нуль скалярного добутку ${M(R`(\mathbf a,\mathbf b)=|\mathbf a||\mathbf b|\cos\varphi`)} — рівно при ${M(R`\varphi=\pm90^\circ`)}; обидва перпендикулярні положення зараховуються.`
+  },
+  dotmax: {
+    label: 'щоб <b>скалярний добуток</b> був <b>максимальним</b>',
+    sols: b => [b],
+    explain: () => `${M(R`(\mathbf a,\mathbf b)=|\mathbf a||\mathbf b|\cos\varphi`)} максимальний при ${M(R`\varphi=0^\circ`)} — вектори мають дивитися в один бік.`
+  },
+  dotmin: {
+    label: 'щоб <b>скалярний добуток</b> був <b>мінімальним</b>',
+    sols: b => [b + Math.PI],
+    explain: () => `Мінімум при ${M(R`\cos\varphi=-1`)} — вектори протилежні (${M(R`180^\circ`)}), добуток ${M(R`-|\mathbf a||\mathbf b|`)}.`
+  },
+  detmax: {
+    label: 'щоб <b>визначник</b> матриці зі стовпчиками (червоний, синій) був <b>максимальним</b>',
+    sols: b => [b - Math.PI / 2],
+    explain: () => `${M(R`\det(\mathbf a,\mathbf b)=|\mathbf a||\mathbf b|\sin(\beta-\alpha)`)}, максимум при ${M(R`\beta-\alpha=90^\circ`)}: від червоного до синього — проти годинникової стрілки. Зворотні ${M(R`90^\circ`)} дали б мінімум!`
+  }
+};
+function buildCap2(){
+  cap2.mode = pick(Object.keys(CAP2_MODES));
+  cap2.beta = Math.random() * 2 * Math.PI;
+  do { cap2.alpha = Math.random() * 2 * Math.PI; }
+  while (CAP2_MODES[cap2.mode].sols(cap2.beta).some(s => angDist(cap2.alpha, s) < 25 * Math.PI / 180));
+  const card = capCard(2, 'Крутілка: вектор під ціль',
+    `Тягніть червоний вектор по колу (синій нерухомий) так, ${CAP2_MODES[cap2.mode].label}. Зараховується точність до кількох градусів; положення фіксується в момент «Завершити тест».`);
+  card.body.innerHTML = `<canvas id="cap2cv" class="cap-canvas" width="380" height="330"></canvas>`;
+  cap2.canvas = card.body.querySelector('#cap2cv');
+  cap2.ctx = cap2.canvas.getContext('2d');
+  const cv = cap2.canvas;
+  const angFromEvent = e => {
+    const r = cv.getBoundingClientRect();
+    const sx = cv.width / r.width, sy = cv.height / r.height;
+    return Math.atan2(-((e.clientY - r.top) * sy - cv.height / 2), (e.clientX - r.left) * sx - cv.width / 2);
+  };
+  cv.addEventListener('pointerdown', e => {
+    cap2.dragging = true; cap2.drags++;
+    if (cv.setPointerCapture) { try { cv.setPointerCapture(e.pointerId); } catch (_){} }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!cap2.dragging) return;
+    cap2.alpha = angFromEvent(e);
+    drawCap2();
+  });
+  cv.addEventListener('pointerup', () => { cap2.dragging = false; });
+  cv.addEventListener('pointercancel', () => { cap2.dragging = false; });
+  drawCap2();
+}
+function capArrow(ctx, x0, y0, x1, y1, color, width){
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  const ang = Math.atan2(y1 - y0, x1 - x0), hl = 11;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - hl * Math.cos(ang - 0.42), y1 - hl * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - hl * Math.cos(ang + 0.42), y1 - hl * Math.sin(ang + 0.42));
+  ctx.closePath(); ctx.fill();
+}
+function drawCap2(){
+  const ctx = cap2.ctx; if (!ctx) return;
+  const cv = cap2.canvas, W = cv.width, H = cv.height, cx = W / 2, cy = H / 2, RR = 118;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(20,27,42,0.07)'; ctx.lineWidth = 1;
+  for (let x = 0.5; x < W; x += 28){ ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0.5; y < H; y += 28){ ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(20,27,42,0.22)';
+  ctx.beginPath(); ctx.arc(cx, cy, RR, 0, 2 * Math.PI); ctx.stroke();
+  const sweep = angNorm(cap2.alpha - cap2.beta);
+  ctx.strokeStyle = 'rgba(20,27,42,0.35)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (sweep >= 0) ctx.arc(cx, cy, 30, -cap2.beta, -cap2.alpha, true);
+  else ctx.arc(cx, cy, 30, -cap2.alpha, -cap2.beta, true);
+  ctx.stroke();
+  const P = a => [cx + RR * Math.cos(a), cy - RR * Math.sin(a)];
+  const bx = P(cap2.beta)[0], by = P(cap2.beta)[1], rx = P(cap2.alpha)[0], ry = P(cap2.alpha)[1];
+  capArrow(ctx, cx, cy, bx, by, '#2B6CB0', 3.5);
+  capArrow(ctx, cx, cy, rx, ry, '#AE3A2E', 3.5);
+  ctx.fillStyle = '#171E2C';
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * Math.PI); ctx.fill();
+  ctx.font = '13px "IBM Plex Mono", monospace';
+  ctx.fillStyle = '#2B6CB0';
+  ctx.fillText('b', Math.max(4, Math.min(W - 12, bx + 8 * (Math.sign(bx - cx) || 1))), by + (by < cy ? -8 : 16));
+  ctx.fillStyle = '#AE3A2E';
+  ctx.fillText('a', Math.max(4, Math.min(W - 12, rx + 8 * (Math.sign(rx - cx) || 1))), ry + (ry < cy ? -8 : 16));
+}
+function gradeCap2(){
+  if (!cap2.canvas) return null;
+  const targets = { dot0: [Math.PI / 2, -Math.PI / 2], dotmax: [0], dotmin: [Math.PI], detmax: [-Math.PI / 2] }[cap2.mode];
+  const rel = angNorm(cap2.alpha - cap2.beta);
+  const dist = Math.min.apply(null, targets.map(t => angDist(rel, t)));
+  let points = dist <= 8 * Math.PI / 180 ? 1 : (dist <= 16 * Math.PI / 180 ? 0.5 : 0);
+  let trust, note;
+  if (cap2.drags === 0){ points = 0; trust = capTrust(5, 12); note = 'червоний вектор навіть не крутили — такій відповіді взятися нізвідки'; }
+  else if (points === 1){ trust = capTrust(85, 94); note = 'прицілилися точно, руками чесно покрутили'; }
+  else if (points === 0.5){ trust = capTrust(60, 74); note = 'майже в ціль — відхилення кілька градусів'; }
+  else { trust = capTrust(25, 40); note = 'крутили, але в ціль не влучили'; }
+  const deg = Math.round(rel * 180 / Math.PI);
+  const explain = `Кут від синього до червоного (проти годинникової стрілки) на момент здачі ≈ ${deg}°. ` + CAP2_MODES[cap2.mode].explain();
+  return { n: 2, title: 'Крутілка: вектор під ціль', points, max: 1, trust, note, explain };
+}
+
+// ---------- Спільне для 3D-капч ----------
+let capsActive = true, capAnimStarted = false;
+function make3D(wrap, w, h){
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(w, h);
+  renderer.setClearColor(0x000000, 0);
+  wrap.appendChild(renderer.domElement);
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = 'auto';
+  renderer.domElement.style.touchAction = 'none';
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 100);
+  return { renderer, scene, camera };
+}
+function attachDrag(el, st){
+  el.addEventListener('pointerdown', e => {
+    st.active = true; st.downs++;
+    st.lastX = e.clientX; st.lastY = e.clientY;
+    if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (_){} }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!st.active) return;
+    const dx = e.clientX - st.lastX, dy = e.clientY - st.lastY;
+    st.lastX = e.clientX; st.lastY = e.clientY;
+    st.pixels += Math.abs(dx) + Math.abs(dy);
+    if (st.onDrag) st.onDrag(dx, dy);
+  });
+  el.addEventListener('pointerup', () => { st.active = false; });
+  el.addEventListener('pointercancel', () => { st.active = false; });
+}
+function capAnim(){
+  if (capAnimStarted) return;
+  capAnimStarted = true;
+  const loop = () => {
+    if (!capsActive) return;
+    requestAnimationFrame(loop);
+    if (cap3.renderer && cap3.group){
+      if (cap3.dragSt && !cap3.dragSt.active) cap3.group.rotation.y += 0.0035;
+      cap3.renderer.render(cap3.scene, cap3.camera);
+    }
+    if (cap4.renderer && cap4.group){
+      const g = cap4.group, t = cap4.targetRot;
+      ['x', 'y', 'z'].forEach(ax => { g.rotation[ax] += (t[ax] - g.rotation[ax]) * 0.15; });
+      const now = performance.now() * 0.001;
+      cap4.camera.position.x = 0.16 * Math.sin(now * 0.45);
+      cap4.camera.position.y = 0.4 + 0.09 * Math.sin(now * 0.31 + 1.2);
+      cap4.camera.lookAt(0, 0, 0);
+      cap4.renderer.render(cap4.scene, cap4.camera);
+    }
+  };
+  loop();
+}
+
+// ---------- Капча 3: 3D, знак скалярного добутку ----------
+const cap3 = { built: false, no3d: false, sign: 0, group: null, scene: null, camera: null, renderer: null, dragSt: null };
+function buildCap3(){
+  const card = capCard(3, '3D: скалярний добуток',
+    `У сцені — вектори <b style="color:var(--teal)">a</b> (бірюзовий) та <b style="color:var(--gold)">b</b> (золотий) під довільним ракурсом. Покрутіть сцену та оберіть відповідь.`);
+  cap3.built = true;
+  if (typeof THREE === 'undefined'){
+    cap3.no3d = true;
+    card.body.innerHTML = '<div style="padding:24px;color:var(--dim);font-size:0.85rem">three.js не завантажився — капча буде нейтральною.</div>';
+    return;
+  }
+  try {
+    const wrap = document.createElement('div');
+    wrap.className = 'cap3d';
+    wrap.innerHTML = '<div class="cap3d-hint">тягніть, щоб обертати</div>';
+    card.body.appendChild(wrap);
+    const w = Math.max(320, wrap.clientWidth || 640), h = 320;
+    const r3 = make3D(wrap, w, h);
+    r3.camera.position.set(0, 1.15, 4.6); r3.camera.lookAt(0, 0, 0);
+    cap3.renderer = r3.renderer; cap3.scene = r3.scene; cap3.camera = r3.camera;
+    const c = (Math.random() < 0.5 ? 1 : -1) * (0.35 + Math.random() * 0.55);
+    cap3.sign = c > 0 ? 1 : -1;
+    const s = Math.sqrt(1 - c * c);
+    const rndUnit = () => { const z = 2 * Math.random() - 1, t = 2 * Math.PI * Math.random(), rr = Math.sqrt(1 - z * z); return new THREE.Vector3(rr * Math.cos(t), z, rr * Math.sin(t)); };
+    const e1 = rndUnit();
+    let e2 = new THREE.Vector3().crossVectors(e1, rndUnit());
+    if (e2.lengthSq() < 1e-4) e2 = new THREE.Vector3().crossVectors(e1, new THREE.Vector3(0, 1, 0.001));
+    e2.normalize();
+    const la = 1.7 + Math.random() * 1.2, lb = 1.7 + Math.random() * 1.2;
+    const a = e1.clone().multiplyScalar(la);
+    const b = e1.clone().multiplyScalar(c * lb).addScaledVector(e2, s * lb);
+    const group = new THREE.Group();
+    group.add(new THREE.ArrowHelper(a.clone().normalize(), new THREE.Vector3(0, 0, 0), la, 0x0E7C72, 0.26, 0.14));
+    group.add(new THREE.ArrowHelper(b.clone().normalize(), new THREE.Vector3(0, 0, 0), lb, 0x93711A, 0.26, 0.14));
+    const grid = new THREE.GridHelper(4.6, 9, 0xd9d5c9, 0xe9e6dc);
+    grid.position.y = -0.02; group.add(grid);
+    cap3.scene.add(group); cap3.group = group;
+    const st = { active: false, downs: 0, pixels: 0 };
+    st.onDrag = (dx, dy) => {
+      group.rotation.y += dx * 0.008;
+      group.rotation.x = Math.max(-1.4, Math.min(1.4, group.rotation.x + dy * 0.008));
+    };
+    cap3.dragSt = st;
+    attachDrag(r3.renderer.domElement, st);
+    card.body.insertAdjacentHTML('beforeend', `
+      <div class="opts" style="margin-top:12px">
+        <label class="opt"><input type="radio" name="cap3sign" value="1"><span>скалярний добуток додатний</span></label>
+        <label class="opt"><input type="radio" name="cap3sign" value="0"><span>скалярний добуток нульовий</span></label>
+        <label class="opt"><input type="radio" name="cap3sign" value="-1"><span>скалярний добуток від'ємний</span></label>
+      </div>`);
+  } catch (e){
+    console.warn('cap3 build failed:', e);
+    cap3.no3d = true;
+  }
+}
+function gradeCap3(){
+  if (!cap3.built) return null;
+  if (cap3.no3d) return { n: 3, title: '3D: скалярний добуток', points: 0, max: 1, trust: 50, note: '3D не завантажився — капча нейтральна', explain: 'Тут мала бути сцена з двома векторами, яку треба покрутити.' };
+  const sel = document.querySelector('input[name="cap3sign"]:checked');
+  const chosen = sel ? Number(sel.value) : null;
+  const moved = cap3.dragSt && cap3.dragSt.pixels > 40;
+  let points = 0, trust, note;
+  if (chosen === null){ trust = capTrust(10, 18); note = 'не обрано взагалі нічого'; }
+  else if (chosen === cap3.sign){
+    points = 1;
+    if (moved){ trust = capTrust(83, 92); note = 'сцену покручено — чесний 3D-аналіз'; }
+    else { trust = capTrust(46, 60); note = 'жодного обертання — або пощастило з ракурсом, або монетка'; }
+  } else if (chosen === 0){
+    trust = moved ? capTrust(22, 34) : capTrust(10, 20);
+    note = 'нульовий добуток тут не при чому';
+  } else {
+    trust = moved ? capTrust(24, 38) : capTrust(8, 18);
+    note = moved ? 'крутили, але знак визначено неправильно' : 'знак визначено з одного статичного ракурсу';
+  }
+  const explain = `Тут ${M(R`(\mathbf a,\mathbf b)`)} ${cap3.sign > 0 ? '> 0' : '< 0'}, тобто кут між векторами ${cap3.sign > 0 ? 'менший' : 'більший'} за ${M('90^\\circ')} (${M(R`|\cos\varphi|\ge 0.35`)}, тож рівно ${M('90^\\circ')} виключено). Перспективна проєкція з одного ракурсу обманює — обертання сцени показує справжній кут.`;
+  return { n: 3, title: '3D: скалярний добуток', points, max: 1, trust, note, explain };
+}
+
+// ---------- Капча 4: 3D, матриця на прозорій площині ----------
+const cap4 = { built: false, no3d: false, base: null, dets: null, target: 0, targetRot: { x: 0, y: 0, z: 0 }, toggles: 0, checked: false, group: null, scene: null, camera: null, renderer: null, dragSt: null };
+const SEG_PTS = {
+  a: [0.14, 0.04, 0.72, 0.13], b: [0.76, 0.13, 0.12, 0.35], c: [0.76, 0.52, 0.12, 0.35],
+  d: [0.14, 0.83, 0.72, 0.13], e: [0.12, 0.52, 0.12, 0.35], f: [0.12, 0.13, 0.12, 0.35], g: [0.14, 0.44, 0.72, 0.12]
+};
+const SEG_MAP = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fbgc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+const mirG = d => d === 2 ? 5 : d === 5 ? 2 : (d === 6 || d === 9) ? null : d;
+const rotG = d => d === 6 ? 9 : d === 9 ? 6 : d;
+function drawSegDigit(ctx, d, cx, cy, s, color){
+  const segs = SEG_MAP[d] || '';
+  for (let k = 0; k < segs.length; k++){
+    const p = SEG_PTS[segs[k]];
+    ctx.fillStyle = color;
+    ctx.fillRect(cx - s / 2 + p[0] * s, cy - s / 2 + p[1] * s, p[2] * s, p[3] * s);
+  }
+}
+function cap4Reading(Mm, flip, mirror){
+  const out = [[null, null], [null, null]];
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++){
+    const ii = flip ? 1 - i : i;
+    const jj = (flip !== mirror) ? 1 - j : j;
+    let g = Mm[i][j];
+    if (mirror) g = mirG(g);
+    if (flip) g = rotG(g);
+    out[ii][jj] = g;
+  }
+  return out;
+}
+function cap4Gen(){
+  for (let attempt = 0; attempt < 200; attempt++){
+    const cells = [];
+    for (let i = 0; i < 4; i++) cells.push(Math.random() < 0.42 ? pick([2, 5, 6, 9]) : pick([0, 1, 8, 0, 1, 8, 1]));
+    const Mm = [[cells[0], cells[1]], [cells[2], cells[3]]];
+    const dets = [[0, 0], [1, 0], [0, 1], [1, 1]].map(pr => {
+      const Rr = cap4Reading(Mm, !!pr[0], !!pr[1]);
+      return Rr.flat().some(v => v === null) ? null : det2(Rr);
+    });
+    const distinct = [...new Set(dets.filter(v => v !== null))];
+    if (distinct.length >= 2) return { Mm, dets, target: pick(distinct) };
+  }
+  const Mm = [[2, 1], [8, 5]];
+  return { Mm, dets: [2, 2, -2, -2], target: -2 };
+}
+function cap4DrawTex(cv, Mm){
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = '#171E2C'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(72, 38); ctx.quadraticCurveTo(28, 150, 72, 262); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(488, 38); ctx.quadraticCurveTo(532, 150, 488, 262); ctx.stroke();
+  ctx.strokeStyle = 'rgba(20,27,42,0.10)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(290, 55); ctx.lineTo(290, 255); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(120, 155); ctx.lineTo(440, 155); ctx.stroke();
+  const pos = [[205, 105], [375, 105], [205, 205], [375, 205]];
+  Mm.forEach((row, i) => row.forEach((v, j) => drawSegDigit(ctx, v, pos[i * 2 + j][0], pos[i * 2 + j][1], 78, '#171E2C')));
+}
+function buildCap4(){
+  const card = capCard(4, '3D: матриця на прозорій площині', `Завантаження…`);
+  cap4.built = true;
+  if (typeof THREE === 'undefined'){
+    cap4.no3d = true;
+    card.body.innerHTML = '<div style="padding:24px;color:var(--dim);font-size:0.85rem">three.js не завантажився — капча буде нейтральною.</div>';
+    return;
+  }
+  try {
+    const gen = cap4Gen();
+    cap4.base = gen.Mm; cap4.dets = gen.dets; cap4.target = gen.target;
+    const opts = [[0, 0], [1, 0], [0, 1], [1, 1]].filter((o, k) => cap4.dets[k] !== null && cap4.dets[k] !== cap4.target);
+    const init = pick(opts);
+    cap4.targetRot = { x: -0.12, y: init[1] * Math.PI, z: init[0] * Math.PI };
+    card.el.querySelector('.q-prompt').innerHTML =
+      `На прозорій площині — матриця із семисегментних цифр. Обертайте сцену (або кнопки нижче) так, щоб визначник матриці в поточному читанні дорівнював <b>${cap4.target}</b>, і поставте галочку «Готово».`;
+    card.body.innerHTML = `
+      <div class="cap3d" id="cap4wrap"><div class="cap3d-hint">тягніть, щоб обертати</div></div>
+      <div class="cap-row">
+        <button class="hint-btn" id="cap4rot">⟲ повернути на 180°</button>
+        <button class="hint-btn" id="cap4mir">⇄ дзеркало (інший бік)</button>
+      </div>
+      <label class="cap-check"><input type="checkbox" id="cap4done"><span>Готово: визначник поточного читання дорівнює ${cap4.target}</span></label>`;
+    const wrap = document.getElementById('cap4wrap');
+    const w = Math.max(320, wrap.clientWidth || 640), h = 320;
+    const r4 = make3D(wrap, w, h);
+    r4.camera.position.set(0, 0.4, 3.9); r4.camera.lookAt(0, 0, 0);
+    cap4.renderer = r4.renderer; cap4.scene = r4.scene; cap4.camera = r4.camera;
+    const cv = document.createElement('canvas');
+    cv.width = 560; cv.height = 300;
+    cap4DrawTex(cv, cap4.base);
+    const tex = new THREE.CanvasTexture(cv);
+    const group = new THREE.Group();
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.9, 1.554),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
+    );
+    group.add(plane);
+    group.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(2.9, 1.554)),
+      new THREE.LineBasicMaterial({ color: 0x8a8577 })
+    ));
+    cap4.scene.add(group); cap4.group = group;
+    card.body.querySelector('#cap4rot').addEventListener('click', () => { cap4.targetRot.z += Math.PI; cap4.toggles++; });
+    card.body.querySelector('#cap4mir').addEventListener('click', () => { cap4.targetRot.y += Math.PI; cap4.toggles++; });
+    card.body.querySelector('#cap4done').addEventListener('change', e => {
+      cap4.checked = e.target.checked;
+      if (e.target.checked){
+        cap4.targetRot.x = 0;
+        cap4.targetRot.y = Math.round(cap4.targetRot.y / Math.PI) * Math.PI;
+        cap4.targetRot.z = Math.round(cap4.targetRot.z / Math.PI) * Math.PI;
+      }
+    });
+    const st = { active: false, downs: 0, pixels: 0 };
+    st.onDrag = (dx, dy) => {
+      cap4.targetRot.y += dx * 0.008;
+      cap4.targetRot.x = Math.max(-1.2, Math.min(1.2, cap4.targetRot.x + dy * 0.008));
+    };
+    cap4.dragSt = st;
+    attachDrag(r4.renderer.domElement, st);
+  } catch (e){
+    console.warn('cap4 build failed:', e);
+    cap4.no3d = true;
+  }
+}
+function gradeCap4(){
+  if (!cap4.built) return null;
+  if (cap4.no3d) return { n: 4, title: '3D: матриця на прозорій площині', points: 0, max: 1, trust: 50, note: '3D не завантажився — капча нейтральна', explain: 'Тут мала бути матриця на площині, яку треба орієнтувати під заданий визначник.' };
+  const flip = ((Math.round(cap4.targetRot.z / Math.PI) % 2) + 2) % 2 === 1;
+  const mirror = ((Math.round(cap4.targetRot.y / Math.PI) % 2) + 2) % 2 === 1;
+  const reading = cap4Reading(cap4.base, flip, mirror);
+  const invalid = reading.flat().some(v => v === null);
+  const det = invalid ? null : det2(reading);
+  let points = 0, trust, note;
+  if (!invalid && det === cap4.target){
+    points = 1; trust = capTrust(84, 93);
+    note = cap4.checked ? 'орієнтовано правильно і підтверджено галочкою' : 'орієнтовано правильно (галочку забули, але стан зафіксовано)';
+  } else if (!invalid && cap4.target !== 0 && det === -cap4.target){
+    points = 0.5; trust = capTrust(55, 68); note = 'одержано протилежний знак — класична дзеркальна плутанина';
+  } else if (invalid){
+    trust = capTrust(20, 34); note = 'поточне читання містить «нецифру» (дзеркальна 6 чи 9)';
+  } else {
+    trust = capTrust(16, 32); note = 'орієнтація не дає потрібного визначника';
+  }
+  const names = ['як є', '180°', 'дзеркало', '180° + дзеркало'];
+  const dmap = cap4.dets.map((d, k) => `${names[k]}: ${d === null ? 'цифри не читаються' : M(String(d))}`).join('; ');
+  const explain = `Базовий запис ${M(pm(cap4.base))}. Читання за орієнтаціями: ${dmap}. Потрібно було ${M(R`\det=${cap4.target}`)}.`;
+  return { n: 4, title: '3D: матриця на прозорій площині', points, max: 1, trust, note, explain };
+}
+
+// ---------- Капча 5: плитки reCAPTCHA-стилю ----------
+const cap5 = { built: false, tiles: [], selected: new Set(), clickTimes: [] };
+const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+function cap5MatHTML(m){
+  const cols = m[0].length;
+  const cells = m.map(r => r.map(v => `<span>${v}</span>`).join('')).join('');
+  return `<span class="matwrap"><span class="mat" style="--c:${cols}">${cells}</span></span>`;
+}
+function cap5Gen(){
+  const Z = [
+    { m: [[0, 0], [0, 0]], why: 'нульова матриця' },
+    { m: [[0, 0], [pick(NZ), pick(NZ)]], why: 'нульовий рядок' }
+  ];
+  {
+    const a = pick([1, 2, 3]), b = pick([-3, -2, -1, 1, 2, 3]), k = pick([-2, -1, 2, 3]);
+    Z.push({ m: [[a, b], [k * a, k * b]], why: 'рядки пропорційні' });
+  }
+  {
+    const r1 = [rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)], r2 = [rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)];
+    Z.push({ m: [r1, r2, r1.map((v, i) => v + r2[i])], why: 'третій рядок = сума перших двох' });
+  }
+  {
+    const r1 = [rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)], r2 = [rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)];
+    Z.push({ m: [r1, r2, r1.slice()], why: 'два однакові рядки' });
+  }
+  const N = [
+    { m: [[2, 4], [3, 7]] },
+    { m: [[1, 2], [3, 4]] }
+  ];
+  {
+    const d = [pick([-2, -1, 1, 2, 3]), pick([-2, -1, 1, 2, 3]), pick([-2, -1, 1, 2, 3])];
+    N.push({ m: [[d[0], rnd(-3, 3), rnd(-3, 3)], [0, d[1], rnd(-3, 3)], [0, 0, d[2]]] });
+  }
+  { let m; do { m = randMat(3, 3, -2, 2); } while (detN(m) === 0); N.push({ m }); }
+  { let m; do { m = randMat(2, 2, -4, 4); } while (det2(m) === 0); N.push({ m }); }
+  N.push({ m: [[1, 1], [1, -1]] });
+  const zeros = shuffle(Z).slice(0, 4), nons = shuffle(N).slice(0, 5);
+  return shuffle(zeros.map(t => ({ ...t, zero: true })).concat(nons.map(t => ({ ...t, zero: false }))));
+}
+function buildCap5(){
+  const card = capCard(5, 'Плитки: нульові визначники',
+    `Виберіть усі плитки, визначник яких дорівнює нулю.`);
+  cap5.built = true;
+  cap5.tiles = cap5Gen();
+  card.body.innerHTML = `
+    <div class="rc-frame">
+         <div class="rc-head" style="background:#4a90e2">
+        <p class="rc-title" style="color:#fff">Доведіть, що ви не робот</p>
+        <p class="rc-sub" style="color:rgba(255,255,255,0.85)">Виберіть усі матриці з визначником 0 · якщо таких більше немає, натисніть «Перевірити»</p>
+      </div>
+      <div class="tiles">${cap5.tiles.map((t, i) => `<div class="tile" data-i="${i}">${cap5MatHTML(t.m)}<span class="tick">✓</span></div>`).join('')}</div>
+      <div class="rc-foot">
+        <button class="rc-verify" id="cap5v">ПЕРЕВІРИТИ</button>
+        <span class="rc-brand">reCAPTCHA · Конфіденційність · Умови</span>
+      </div>
+    </div>`;
+  card.body.querySelectorAll('.tile').forEach(el => el.addEventListener('click', () => {
+    const i = Number(el.dataset.i);
+    if (cap5.selected.has(i)){ cap5.selected.delete(i); el.classList.remove('sel'); }
+    else { cap5.selected.add(i); el.classList.add('sel'); cap5.clickTimes.push(Date.now()); }
+    const btn = card.body.querySelector('#cap5v');
+    btn.textContent = cap5.selected.size ? 'ПЕРЕВІРИТИ · ' + cap5.selected.size : 'ПЕРЕВІРИТИ';
+  }));
+  card.body.querySelector('#cap5v').addEventListener('click', function(){
+    this.textContent = 'ПЕРЕВІРИТИ · вибрано ' + cap5.selected.size;
+  });
+}
+function gradeCap5(){
+  if (!cap5.built) return null;
+  const Nzero = cap5.tiles.filter(t => t.zero).length;
+  let TP = 0, FP = 0;
+  cap5.tiles.forEach((t, i) => { if (cap5.selected.has(i)) (t.zero ? TP++ : FP++); });
+  const fraction = Math.max(0, (TP - FP) / Nzero);
+  const gaps = [];
+  for (let k = 1; k < cap5.clickTimes.length; k++) gaps.push((cap5.clickTimes[k] - cap5.clickTimes[k - 1]) / 1000);
+  const med = median(gaps);
+  let trust, note;
+  if (cap5.selected.size === 0){ trust = 6; note = 'не обрано жодної плитки'; }
+  else if (cap5.selected.size === cap5.tiles.length){ trust = capTrust(4, 9); note = 'обрано все підряд'; }
+  else if (fraction === 1 && gaps.length >= 3 && med < 0.33){ trust = capTrust(40, 55); note = 'все правильно, але темп кліків машинний: людина б хоч мить постояла перед 3×3'; }
+  else if (fraction === 1){ trust = capTrust(80, 92); note = 'очевидні — одразу, решту — з паузою: дуже людська поведінка'; }
+  else if (fraction >= 0.5){ trust = capTrust(52, 68); note = 'майже: щось із залежностей між рядками не розпізнано'; }
+  else { trust = capTrust(14, 28); note = 'нульові визначники розпізнано слабо'; }
+  const zeros = cap5.tiles.filter(t => t.zero);
+  const explain = `Нульові плитки: ${zeros.map(t => M(pm(t.m)) + ' — ' + t.why).join('; ')}. Решта мають ${M(R`\det\ne 0`)}.`;
+  return { n: 5, title: 'Плитки: нульові визначники', points: fraction, max: 1, trust, note, explain };
+}
+
+// ---------- Капча 6: число обумовленості (розважальна, вага 0.3) ----------
+const cap6 = { built: false, m: 0, stmts: [], order: [], bodyEl: null };
+function buildCap6(){
+  const card = capCard(6, 'Число обумовленості', `Завантаження…`);
+  cap6.built = true;
+  const m = pick([500, 1000, 2000]);
+  cap6.m = m;
+  cap6.stmts = [
+    { t: `Прямі, що відповідають рівнянням, майже паралельні`, ok: true },
+    { t: `Число обумовленості матриці системи дуже велике`, ok: true },
+    { t: `Визначник матриці системи близький до нуля`, ok: false },
+    { t: `Малі зміни у числах (наприклад, 2 → 2.001) може дати величезну похибку у розв'язку`, ok: true },
+    { t: pick([`Система несумісна — розв'язків немає`, `Система має безліч розв'язків`]), ok: false }
+  ];
+  cap6.order = shuffle(cap6.stmts.map((_, i) => i));
+  card.el.querySelector('.q-prompt').innerHTML =
+    `Матриця системи ${D(R`\begin{cases}x + ${m}y = 1\\ x + ${m + 1}y = 2\end{cases}`)} погано обумовлена, тому що:`;
+  card.body.innerHTML = `<div class="opts">${cap6.order.map(i => `<label class="opt"><input type="checkbox" data-i="${i}"><span>${cap6.stmts[i].t}</span></label>`).join('')}</div>`;
+  cap6.bodyEl = card.body;
+}
+function gradeCap6(){
+  if (!cap6.built) return null;
+  let TP = 0, FP = 0;
+  cap6.bodyEl.querySelectorAll('input[type="checkbox"]').forEach(b => {
+    const i = Number(b.dataset.i);
+    if (b.checked) (cap6.stmts[i].ok ? TP++ : FP++);
+  });
+  const fraction = Math.max(0, (TP - FP) / 3);
+  let trust, note;
+  if (fraction === 1){ trust = capTrust(42, 64); note = 'розважальна капча: так само відповість і підготовлений студент'; }
+  else if (fraction > 0){ trust = capTrust(22, 38); note = 'щось відмічено правильно, але не все'; }
+  else { trust = capTrust(8, 18); note = 'нуль з трьох'; }
+  const m = cap6.m;
+  const explain = `${M(R`\det A=(${m + 1})-${m}=1`)} — визначник аж ніяк не близький до нуля. Але кут між прямими — порядку ${M(R`1/m^{2}`)} радіан, ${M(R`\operatorname{cond}_{\infty}(A)=(${m + 2})(${2 * m + 1})=${(m + 2) * (2 * m + 1)}`)}, а зсув вільного члена на 0.001 зсуває розв'язок по ${M('x')} на ≈ ${(m * 0.001).toFixed(1)}. Розв'язок системи: ${M(R`x=${1 - m},\ y=1`)}.`;
+  return { n: 6, title: 'Число обумовленості', points: fraction, max: 1, trust, note, explain };
+}
+
+// ---------- Збірка та результати блоку чесності ----------
+function buildAllCaptchas(){
+  const jobs = [buildCap1, buildCap2, buildCap3, buildCap4, buildCap5, buildCap6];
+  jobs.forEach(f => { try { f(); } catch (e){ console.warn('captcha build failed:', e); } });
+  try { capTypeset(document.getElementById('capHost')); } catch (e){}
+  capAnim();
+}
+function gradeAllCaptchas(){
+  const out = [];
+  const tryG = (fn, guard) => { try { if (guard()) { const r = fn(); if (r) out.push(r); } } catch (e){ console.warn('captcha grade failed:', e); } };
+  tryG(gradeCap1, () => cap1.input);
+  tryG(gradeCap2, () => cap2.canvas);
+  tryG(gradeCap3, () => cap3.built);
+  tryG(gradeCap4, () => cap4.built);
+  tryG(gradeCap5, () => cap5.built);
+  tryG(gradeCap6, () => cap6.built);
+  return out;
+}
+function renderCapResults(results){
+  const sum = document.getElementById('capSummary');
+  const host = document.getElementById('capResults');
+  if (!results.length){ sum.style.display = 'none'; host.style.display = 'none'; return; }
+  sum.style.display = 'block'; host.style.display = 'block';
+  const wsum = results.reduce((s, r) => s + CAPW[r.n - 1], 0);
+  const agg = Math.round(results.reduce((s, r) => s + r.trust * CAPW[r.n - 1], 0) / wsum);
+  const verdict = agg >= 90 ? 'Людина. Майже напевно.'
+    : agg >= 60 ? 'Дуже схоже на людину — трошки неуважну, але все ж людину.'
+    : agg >= 30 ? 'Підозріло: то ви людина на межі сил, чи дуже розумний бот?'
+    : 'Діагноз: чат-бот зі скріншотом (або людина о 3-й ночі перед дедлайном).';
+  const pts = fmtPts(results.reduce((s, r) => s + r.points, 0));
+  sum.innerHTML = `
+    <div class="cap-score-line">
+      <div>
+        <div class="score-num">${agg}<span> % довіри</span></div>
+        <p class="score-note">індекс чесності за ${results.length} із 6 капч · капч-балів: ${pts}</p>
+      </div>
+    </div>
+    <p class="cap-verdict-big">${verdict}</p>`;
+  host.innerHTML = results.map(r => `
+      <div class="review">
+        <div class="review-head"><span>Капча ${r.n} · ${r.title}</span><span class="verdict ${r.points >= 1 ? 'correct' : (r.points > 0 ? 'partial' : 'wrong')}">${fmtPts(r.points)} / ${fmtPts(r.max)} б. · довіра ${r.trust}%</span></div>
+        <div class="trustbar"><div class="trustfill ${r.trust >= 70 ? '' : (r.trust >= 40 ? 'mid' : 'low')}" style="width:${r.trust}%"></div></div>
+        <p class="review-line" style="margin-top:8px">${esc(r.note)}</p>
+        <div class="review-explain">${r.explain}</div>
+      </div>`).join('');
+  capTypeset(host);
+}
+
+
+window.__capTypeset=typeset;
+return{jobs:[buildCap1,buildCap2,buildCap3,buildCap4,buildCap5,buildCap6],typeset:capTypeset,anim:capAnim,build:buildAllCaptchas,grade:gradeAllCaptchas,render:renderCapResults,stop(){capsActive=false},
+ agg(rs){if(!rs.length)return 0;const w=rs.reduce((q,r)=>q+CAPW[r.n-1],0);return Math.round(rs.reduce((q,r)=>q+r.trust*CAPW[r.n-1],0)/w)}};
+})();
+/* ---------- допоміжне ---------- */
+const Z=[],K={};
+const H=(i,t)=>`<h2>Завдання ${i} · ${t} <i>3 б.</i></h2>`;
+const num=s=>{s=(s||'').replace(',','.').trim();const m=s.match(/^(-?\d+)\/(\d+)$/);return m?m[1]/m[2]:s===''?NaN:+s};
+const near=(a,b,t=1e-6)=>isFinite(a)&&Math.abs(a-b)<=t*Math.max(1,Math.abs(b));
+const FB=(i,s)=>{$('#t'+i+' .fb').innerHTML=s};
+const mat=M=>`<table style="display:inline-table;margin:2px 10px">${M.map(r=>`<tr>${r.map(v=>`<td>${v}`).join('')}`).join('')}</table>`;
+const mk=(e,g)=>e.classList.add(g?'ok':'bad');
+const ni=(i,ph,sz=8)=>`<input class="ni" type="text" size="${sz}" placeholder="${ph}">`;
+const gI=(i,vals,tol)=>{const els=$$('#t'+i+' input.ni[type=text]');let s=0;els.forEach((e,k)=>{const g=near(num(e.value),vals[k],tol);s+=g;mk(e,g);if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(${rd(vals[k]*100)/100})</b>`)});return s/vals.length};
+
+
+const HN=(i,t)=>`<details class="hn"${Z[i].h?' open':''}><summary class="hs">💡 Підказка (−0.5 б.)</summary><div class="hb">${t}</div></details>`;
+document.addEventListener('click',e=>{const sm=e.target.closest('summary.hs');if(!sm)return;const d=sm.parentNode;if(done){e.preventDefault();return}if(d.open)return;e.preventDefault();
+ if(confirm('Увага: перегляд підказки коштує 0.5 бала за це завдання. Показати підказку?')){d.open=true;Z[+d.closest('section').id.slice(1)].h=1;save()}},true);
+
+/* 1. катастрофічне скорочення */
+K.cancel=i=>{const k=ri(16,28),m=ri(1,4),X=m*10**k,V=Math.exp(m),
+ cv=s=>{s=s.replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/\s+/g,'').replace(/\^/g,'**').replace(/,/g,'.');let bad=!s;
+  s=s.replace(/\d+\.?\d*(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z0-9_]*/g,t=>{if(/^\d/.test(t))return t;const q={x:'('+X+')',X:'('+X+')',e:'Math.E',pi:'Math.PI',exp:'Math.exp',log:'Math.log',ln:'Math.log',log1p:'Math.log1p',sqrt:'Math.sqrt',pow:'Math.pow'}[t];if(!q)bad=1;return q||t});
+  if(bad||/[^0-9a-zA-Z_.+\-*\/()]/.test(s))return NaN;try{return +Function('"use strict";return ('+s+')')()}catch(e){return NaN}};Z[i]={};
+ return{ti:'катастрофічне скорочення',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Обчисліть значення виразу <b>(1+10<sup>−${k}</sup>)<sup><i>x</i></sup></b> при <i>x</i> = ${m}·10<sup>${k}</sup>. Наївне обчислення в double дає 1. Яке значення правильне? Введіть число або вираз.</p><p>Відповідь: ${ni(i,'число або вираз',30)}</p>${HN(i,'Згадайте другу чудову границю.')}<div class="fb"></div>`},
+ g(){const e=$('#t'+i+' input.ni[type=text]'),good=near(cv(e.value),V,5e-4);mk(e,good);
+  FB(i,`<div class="${good?'ok':'bad'}" style="padding:4px 8px">${good?'Правильно. ':'Невірно. '}(1+h)<sup>x</sup> = exp(<i>x</i>·ln(1+h)) ≈ exp(<i>x</i>·h) = e<sup>${m}</sup> ≈ ${+V.toPrecision(6)}. У double сума 1+10<sup>−${k}</sup> дорівнює 1, тому наївний результат 1; точно обчислити можна через exp(<i>x</i>·log1p(h)).</div>`);return +good}}};
+
+/* 2. порядок додавання */
+K.sum=i=>{const p=ri(4,6),B=10**(p+1),sm=[1,2,3,4].map(()=>ri(1,9)),it=shuf([B,-B,...sm]),ex=sm.reduce((a,b)=>a+b),
+ fold=(o,q)=>o.reduce((s,k)=>+(s+it[k]).toPrecision(q),0),seq=o=>o.map(k=>it[k]).join(' + ').replace(/\+ -/g,'− ');Z[i]={o:[],q:p};
+ return{ti:'машинна арифметика: порядок суми',
+ r(){const z=Z[i];$('#t'+i).innerHTML=H(i,this.ti)+`<p>Арифметика з <b>${p}</b> значущими десятковими цифрами: результат кожного додавання округлюється до ${p} цифр. Натискайте доданки в тому порядку, в якому їх треба додавати зліва направо, щоб сума ${it.join(' + ').replace(/\+ -/g,'− ')} вийшла точною.</p><div>${it.map((v,k)=>`<button class="b" data-k="${k}" ${z.o.includes(k)?'disabled':''}>${v}</button> `).join('')}<button data-k="x">Скинути</button></div><div class="fd"></div>${HN(i,'Перевіряйте свій порядок за різної розрядності: <label><input type="range" min="3" max="12" value="'+z.q+'" class="ni sl"> розрядність <b class="ql"></b></label><div class="hr"></div>')}<div class="fb"></div>`;
+  $('#t'+i).onclick=e=>{const k=e.target.closest('button')?.dataset.k;if(k==null||done)return;k=='x'?z.o=[]:z.o.push(+k);this.r()};
+  $('#t'+i+' .sl').oninput=()=>this.u();this.u()},
+ u(){const z=Z[i],sl=$('#t'+i+' .sl');if(sl){z.q=+sl.value;$('#t'+i+' .ql').textContent=z.q;$('#t'+i+' .hr').innerHTML='Результат вашого порядку: <b>'+(z.o.length==6?fold(z.o,z.q):'?')+'</b>'}$('#t'+i+' .fd').textContent=seq(z.o)||'…'},
+ g(){const o=Z[i].o,res=o.length==6?fold(o,p):NaN,e=Math.abs(res-ex),s=e==0?1:e<=ex/3?.4:0;
+  FB(i,`<div class="${s==1?'ok':'bad'}" style="padding:4px 8px">Ваш порядок при ${p} цифрах: ${isNaN(res)?'не всі доданки обрано':res} (точно ${ex}). Спершу складіть великі числа, що скорочуються (${B} + (−${B}) = 0), і лише потім малі: інакше малі доданки «тонуть» у великому.</div>`);return s}}};
+
+/* 3. Ньютон */
+K.newton=i=>{const c=pick([-2,-1,0,1,2,3]),k=pick([.25,.5,1,2]),L=c+1/k,xlo=c-.6/k,xhi=c+Math.max(3/k,3),ym=1/(k*Math.E),ylo=-1.5*ym,yhi=1.3*ym,f=x=>(x-c)*Math.exp(-k*(x-c)),sp=xhi-xlo,stp=sp<=4?.25:sp<=8?.5:sp<=16?1:2,tol=.05+.04/k,
+ t=c==0?'<i>x</i>':`(<i>x</i> ${c>0?'−':'+'} ${Math.abs(c)})`,kk=k==1?'':String(k).replace('0.','0.'),PX=x=>40+(x-xlo)/(xhi-xlo)*510,PY=y=>266-(y-ylo)/(yhi-ylo)*256,
+ nvz=u=>rvNW(c,k,u);Z[i]={};
+ return{ti:'метод Ньютона: межа збіжності',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Метод Ньютона шукає корінь функції <i>f</i>(<i>x</i>) = ${t}·e<sup>−${kk}${t}</sup> (графік нижче). Існує таке число <b>L</b>, що при <i>x</i><sub>0</sub> &lt; L ітерації збігаються до кореня, а при <i>x</i><sub>0</sub> &gt; L — ні. Визначте L за графіком або аналітично й вкажіть, що відбувається з ітераціями при <i>x</i><sub>0</sub> &gt; L.</p><canvas width="560" height="300" style="border:1px solid var(--ln);max-width:100%"></canvas><p>L = ${ni(i,'число')} &nbsp; При <i>x</i><sub>0</sub> &gt; L ітерації <select class="ni"><option value="">—</option><option value="0">прямують до +∞</option><option value="1">збігаються до кореня</option><option value="2">прямують до −∞</option><option value="3">зациклюються</option></select></p>${HN(i,'Знайдіть точку максимуму: де <i>f′</i>(<i>x</i>) = 0? Що робить дотична, коли <i>x</i><sub>0</sub> правіше за максимум?')}<div class="fb"></div>`;this.u()},
+ u(){const g=$('#t'+i+' canvas').getContext('2d');g.clearRect(0,0,560,300);g.font='11px sans-serif';g.textAlign='center';g.strokeStyle='#e3e8ee';g.fillStyle='#567';
+  for(let x=Math.ceil(xlo/stp)*stp;x<=xhi+1e-9;x+=stp){g.beginPath();g.moveTo(PX(x),10);g.lineTo(PX(x),266);g.stroke();g.fillText(String(+x.toFixed(2)),PX(x),280)}
+  g.strokeStyle='#1b2733';g.beginPath();g.moveTo(40,PY(0));g.lineTo(550,PY(0));g.stroke();g.save();g.beginPath();g.rect(40,10,510,256);g.clip();g.strokeStyle='#e11d48';g.lineWidth=2;g.beginPath();
+  for(let n=0;n<=300;n++){const x=xlo+(xhi-xlo)*n/300;n?g.lineTo(PX(x),PY(f(x))):g.moveTo(PX(x),PY(f(x)))}g.stroke();g.restore()},
+ g(){const e=$('#t'+i+' input.ni[type=text]'),s=$('#t'+i+' select'),a=Math.abs(num(e.value)-L)<=tol,b=s.value==='0';mk(e,a);mk(s,b);if(!a)e.insertAdjacentHTML('afterend',` <b class="ans">(${L})</b>`);
+  FB(i,`У змінній t = <i>x</i>−${c}: ітерація t<sub>n+1</sub> = −k·t²/(1−k·t). При t &gt; 1/k (правіше максимуму, де <i>f′</i> &lt; 0) вона зростає й прямує до +∞; при t &lt; 1/k метод збігається. Отже L = ${c} + 1/${k} = ${L} — абсциса максимуму.`+nvz(num(e.value)));return(a?.6:0)+(b?.4:0)}}};
+
+/* 4. прості ітерації */
+K.fp=i=>{const cl=a=>a<=2?'t':a<3?'s':'d',
+ L={t:'сходинки (монотонна збіжність)',s:'спіраль (збіжність із чергуванням знака)',d:'розбіжність або цикл (немає збіжності)'},tg=pick(['t','s','d']),
+ viz=(a,c)=>rvFP(tg,a);Z[i]={};
+ return{ti:'прості ітерації: вигляд ітерацій',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Ітерації <i>x</i><sub>n+1</sub> = φ(<i>x</i><sub>n</sub>), φ(<i>x</i>) = <i>a</i>·<i>x</i>(1−<i>x</i>), <i>x</i><sub>0</sub> = 0.3. Повзунком виставте параметр <i>a</i> так, щоб ітерації мали вигляд: <b>${L[tg]}</b>. На малюнку лише графіки <i>y</i> = φ(<i>x</i>) (синій) і <i>y</i> = <i>x</i> (сірий). Масштаби осей однакові, тому пряма <i>y</i> = <i>x</i> справді має нахил 45°, тобто кутовий коефіцієнт 1: порівнюйте з ним нахил φ у точці перетину.</p><input type="range" class="ni sl" min="0.5" max="3.9" step="0.01" value="1" style="width:260px"> <b class="ql"></b><br><canvas width="300" height="300" style="border:1px solid var(--ln);max-width:100%"></canvas>${HN(i,'Подивіться на знак і модуль похідної φ′ у нерухомій точці.')}<div class="fb"></div>`;
+  $('#t'+i+' .sl').oninput=()=>this.u();this.u()},
+ u(){const a=+$('#t'+i+' .sl').value,c=$('#t'+i+' canvas'),g=c.getContext('2d'),X=x=>20+x*260,Y=y=>280-y*260;$('#t'+i+' .ql').textContent='a = '+a.toFixed(2);g.clearRect(0,0,300,300);
+  g.strokeStyle='#999';g.beginPath();g.moveTo(X(0),Y(0));g.lineTo(X(1),Y(1));g.stroke();g.strokeStyle='#2563eb';g.beginPath();for(let k=0;k<=100;k++){const x=k/100;k?g.lineTo(X(x),Y(a*x*(1-x))):g.moveTo(X(x),Y(a*x*(1-x)))}g.stroke();
+  g.fillStyle='#567';g.font='11px sans-serif';g.textAlign='center';[0,.5,1].forEach(v=>{g.fillText(v,X(v),295);g.fillText(v,10,Y(v)+4)})},
+
+ g(){const a=+$('#t'+i+' .sl').value,c=cl(a);FB(i,`<div class="${c==tg?'ok':'bad'}" style="padding:4px 8px">Ваше <i>a</i> = ${a.toFixed(2)} дає: ${L[c]}. Поведінку визначає φ′(<i>x</i>*) = 2−<i>a</i>: 0&lt;φ′&lt;1 — сходинки (1&lt;<i>a</i>&lt;2), −1&lt;φ′&lt;0 — спіраль (2&lt;<i>a</i>&lt;3), |φ′|&gt;1 — немає збіжності.</div>`+viz(a,c));return +(c==tg)}}};
+
+/* 5. Якобі / Зейдель: перестановки */
+const jconv=(M,b,gs)=>{let x=[0,0,0];for(let n=0;n<500;n++){const y=[...x];for(let r=0;r<3;r++){let s=b[r];for(let c=0;c<3;c++)if(c!=r)s-=M[r][c]*(gs?y[c]:x[c]);y[r]=s/M[r][r]}x=y;if(!x.every(isFinite))return false}return Math.max(...M.map((row,r)=>Math.abs(row.reduce((s,v,c)=>s+v*x[c],0)-b[r])))<1e-6};
+K.jac=i=>{let A,b,rp,cp,B;
+ do{A=[0,1,2].map(r=>{const d=ri(7,9),o=[0,0,0];let left=d-2;for(let c=0;c<3;c++)if(c!=r){const v=ri(-3,3);o[c]=Math.abs(v)<=left?v:0;left-=Math.abs(o[c])}o[r]=d;return o});b=[0,1,2].map(()=>ri(-9,9));rp=shuf([0,1,2]);cp=shuf([0,1,2]);B=rp.map(r=>cp.map(c=>A[r][c]));
+  var bb=rp.map(r=>b[r])}while(jconv(B,bb,0)||jconv(B,bb,1));
+ Z[i]={r:[0,1,2],c:[0,1,2]};
+ return{ti:'Якобі / Зейдель: перестановки',
+ r(){const z=Z[i];$('#t'+i).innerHTML=H(i,this.ti)+`<p>Система записана невдало: методи Якобі й Зейделя (зі стартом 0) не збігаються. Переставляйте <b>рядки</b> (↑ ↓) та <b>стовпці</b> (← →; разом із змінними), щоб збігалися <b>обидва</b> методи.</p><table><tr><td>${z.c.map((c,k)=>`<td><button data-c="${k}" data-d="-1">←</button> x<sub>${cp.indexOf(c)+1}</sub> <button data-c="${k}" data-d="1">→</button>`).join('')}<td>b${z.r.map((r,k)=>`<tr><td><button data-r="${k}" data-d="-1">↑</button><button data-r="${k}" data-d="1">↓</button>${z.c.map(c=>`<td>${B[r][c]}`).join('')}<td>${bb[r]}`).join('')}</table>${HN(i,'Достатня умова збіжності — діагональна перевага: на діагоналі має стояти найбільший за модулем елемент рядка.')}<div class="fb"></div>`;
+  $('#t'+i).onclick=e=>{const d=e.target.closest('button')?.dataset;if(!d||done)return;const a=d.r!=null?z.r:z.c,k=+(d.r??d.c),l=k+ +d.d;if(l<0||l>2)return;[a[k],a[l]]=[a[l],a[k]];this.r()}},
+ g(){const z=Z[i],M=z.r.map(r=>z.c.map(c=>B[r][c])),q=z.r.map(r=>bb[r]),j=jconv(M,q,0),s=jconv(M,q,1);
+  FB(i,`<div class="${j&&s?'ok':'bad'}" style="padding:4px 8px">Якобі: ${j?'збігається':'розбігається'}; Зейдель: ${s?'збігається':'розбігається'}. Діагональну перевагу достатньо, але не необхідно: перевіряється й реальним запуском.</div>`);return(j+s)/2}}};
+
+/* 6. SOR і теплий старт */
+K.sor=i=>{const n=4,d=pick([2,2.5,3]),A=(r,c)=>r==c?d:Math.abs(r-c)==1?-1:0,
+ run=(w,b,x0)=>{let x=[...x0];for(let k=0;k<4000;k++){for(let r=0;r<n;r++){let s=b[r];for(let c=0;c<n;c++)if(c!=r)s-=A(r,c)*x[c];x[r]=(1-w)*x[r]+w*s/d}const e=Math.max(...x.map((v,r)=>Math.abs(x.reduce((q,y,c)=>q+A(r,c)*y,0)-b[r])));if(!isFinite(e)||e>1e30)return{k:Infinity,x};if(e<1e-8)return{k:k+1,x}}return{k:Infinity,x}},
+ b0=Array(n).fill(1),mu=2/d*Math.cos(Math.PI/(n+1)),wo=2/(1+Math.sqrt(1-mu*mu)),k1=run(1,b0,Array(n).fill(0)).k;
+ let w;do w=pick([.4,.6,.8,1.15,1.3,1.5,1.7,1.9,2,2.2]);while(w==1||(()=>{const k=run(w,b0,Array(n).fill(0)).k;return isFinite(k)&&Math.abs(k-k1)<=1})());
+ const kw=run(w,b0,Array(n).fill(0)).k,V=!isFinite(kw)?2:kw<k1?0:1,Rg=w<1?0:w<wo?1:w<2?2:3,f=pick([1.001,-1,4]),xo=run(1,b0,Array(n).fill(0)).x,
+ b1=b0.map(v=>v*f),c1=run(1,b1,Array(n).fill(0)).k,w1=run(1,b1,run(1e0,b0,Array(n).fill(0)).x).k,Wm=w1<c1-1?0:w1>c1+1?2:1;Z[i]={};
+ const so=a=>`<option value="">—</option>${a.map((t,k)=>`<option value="${k}">${t}</option>`).join('')}`;
+ return{ti:'верхня/нижня релаксація, теплий старт',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Система <i>Ax</i> = <i>b</i>: матриця ${n}×${n}, на діагоналі ${d}, на сусідніх діагоналях −1, <i>b</i> = (1,1,1,1), старт <i>x</i><sub>0</sub> = 0, зупинка при нев’язці &lt; 10<sup>−8</sup>. Метод SOR із <b>ω = ${w}</b> порівняйте з методом Зейделя (ω = 1).</p>
+ <p>а) Порівняно з Зейделем SOR(ω=${w}) <select class="ni">${so(['збігається швидше','збігається повільніше','розбігається'])}</select></p>
+ <p>б) Причина <select class="ni">${so(['ω&lt;1 (нижня релаксація): кроки обережніші за зейделівські, збіжність повільніша','1&lt;ω&lt;2, ω ближче до оптимального: верхня релаксація прискорює збіжність','1&lt;ω&lt;2, але ω більше за оптимальне: перерегулювання, повільніше за Зейделя','ω≥2: метод SOR розбігається (теорема)'])}</select></p>
+ <p>в) Теплий старт. Для <i>b</i> знайдено розв’язок <i>x</i><sub>old</sub>. Тепер права частина стала <i>b′</i> = ${f}·<i>b</i>. Метод Зейделя з <i>x</i><sub>0</sub> = <i>x</i><sub>old</sub> проти <i>x</i><sub>0</sub> = 0 потребує ітерацій <select class="ni">${so(['помітно менше','приблизно стільки ж (±1)','помітно більше'])}</select></p>${HN(i,'ω&lt;1 — нижня релаксація, 1&lt;ω&lt;2 — верхня. Для цієї матриці є оптимальне ω між 1 і 2; після нього збіжність знову погіршується.')}<div class="fb"></div>`},
+ g(){const s=$$('#t'+i+' select');const r=[+s[0].value===V&&s[0].value!=='',+s[1].value===Rg&&s[1].value!=='',+s[2].value===Wm&&s[2].value!==''];s.forEach((e,k)=>mk(e,r[k]));
+  FB(i,`Ітерацій: Зейдель ${k1}, SOR ${isFinite(kw)?kw:'не збігається'}; ω<sub>опт</sub> ≈ ${rd(wo*1e3)/1e3}. Теплий старт: ${w1} проти ${c1} (наближення <i>x</i><sub>old</sub> лежить від нового розв’язку ${Math.abs(f-1)<.1?'дуже близько':'не ближче, ніж нуль'}).`);return r[0]*.4+r[1]*.3+r[2]*.3}}};
+
+/* 7. визначник */
+K.det=i=>{const k=pick([2,3,-2]),u1=k*pick([1,2,3,-1]),u=[u1,pick([-3,-2,-1,1,2,3]),pick([-2,-1,1,2,4])],ops=[];let sw=0;
+ for(let j=ri(1,3);j--;){const a=ri(0,2),b=(a+ri(1,2))%3;sw++;ops.push(`поміняли місцями рядки ${a+1} і ${b+1}`)}
+ ops.push(`помножили один рядок на ${k}`);
+ for(let j=ri(1,2);j--;){const a=ri(0,2),b=(a+ri(1,2))%3;ops.push(`R<sub>${a+1}</sub> ← R<sub>${a+1}</sub> ${pick(['+','−'])} ${ri(1,3)}·R<sub>${b+1}</sub>`)}
+ const O=shuf(ops),ans=u[0]*u[1]*u[2]*(sw%2?-1:1)/k;Z[i]={};
+ return{ti:'визначник через метод Гауса',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Матрицю <i>A</i> (3×3) прямим ходом Гауса привели до верхньої трикутної <i>U</i> такими кроками: ${O.map((t,j)=>`${j+1}) ${t}`).join('; ')}. Діагональ <i>U</i>: <b>${u.join(', ')}</b>. Знайдіть det <i>A</i>. ${ni(i,'число')}</p>${HN(i,'Перестановка двох рядків міняє знак, множення рядка на число множить визначник на це число, додавання кратного рядка його не змінює.')}<div class="fb"></div>`},
+ g(){const s=gI(i,[ans],1e-9);FB(i,`det <i>U</i> = ${u.join('·')} = ${u[0]*u[1]*u[2]}. Перестановки рядків (${sw}) змінюють знак, множення рядка на ${k} множить визначник на ${k}, додавання рядків його не змінює: det <i>A</i> = ${ans}.`);return s}}};
+
+/* 8. обумовленість із власних чисел */
+K.cond=i=>{const E=shuf([.5,1,2,3,4,5,8,10,-1,-2,-4,-6,-10,-.25]).slice(0,4),ab=E.map(Math.abs),kp=Math.max(...ab)/Math.min(...ab);Z[i]={};
+ return{ti:'число обумовленості',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Симетрична невироджена матриця <i>A</i> має власні числа <b>${E.join(', ')}</b>. Знайдіть (спектральна норма):</p><p>cond<sub>2</sub>(<i>A</i>) = ${ni(i,'')} &nbsp; cond<sub>2</sub>(<i>A</i>²) = ${ni(i,'')} &nbsp; cond<sub>2</sub>(<i>A</i><sup>−1</sup>) = ${ni(i,'')}</p>${HN(i,'Для симетричної матриці сингулярні числа дорівнюють модулям власних чисел.')}<div class="fb"></div>`},
+ g(){const s=gI(i,[kp,kp*kp,kp],1e-3);FB(i,`Для симетричної матриці σ = |λ|, тому cond₂ = max|λ|/min|λ| = ${kp}; cond(A²)=cond(A)²; cond(A⁻¹)=cond(A).`);return s}}};
+
+/* 9. спектральний чи сингулярний */
+K.spec=i=>{const r=()=>ri(-3,4),sym=n=>{const A=Array.from({length:n},()=>Array(n).fill(0));for(let a=0;a<n;a++)for(let b=a;b<n;b++)A[a][b]=A[b][a]=r();return A},
+ gen=(n,m)=>{let A;do A=Array.from({length:n},()=>Array.from({length:m},r));while(n==m&&A.every((row,a)=>row.every((v,b)=>v==A[b][a])));return A},
+ M=shuf([[sym(2),1],[sym(3),1],[sym(3),1],[gen(2,2),0],[gen(3,3),0],[gen(2,3),0],[[[1,1],[0,1]],0],[gen(3,2),0]]).slice(0,6);Z[i]={};
+ return{ti:'спектральний чи сингулярний розклад',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Для кожної матриці оберіть розклад, який <b>доцільно</b> застосувати (стабільний, з ортогональними множниками, існує завжди).</p>${M.map((m,k)=>`<div class="ln">${mat(m[0])}<select class="ni"><option value="">—</option><option value="1">спектральний QΛQᵀ</option><option value="0">сингулярний UΣVᵀ</option></select></div>`).join('')}${HN(i,'Ортогональна діагоналізація A = QΛQᵀ гарантована для симетричних матриць.')}<div class="fb"></div>`},
+ g(){const s=$$('#t'+i+' select');let c=0;s.forEach((e,k)=>{const g=e.value!==''&&+e.value==M[k][1];c+=g;mk(e,g)});FB(i,'Симетричні — спектральний (ортогональна діагоналізація, дійсні λ). Несиметричні й прямокутні — сингулярний; [[1,1],[0,1]] взагалі не діагоналізується.');return c/6}}};
+
+/* 10. ортогональний базис */
+K.orth=i=>{const B=pick([[[1,2,2],[2,1,-2],[2,-2,1]],[[2,3,6],[3,-6,2],[6,2,-3]],[[1,1,0],[1,-1,0],[0,0,2]],[[1,2,0],[2,-1,0],[0,0,3]]]),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];let V,tr;
+ do{const pm=shuf([0,1,2]),sg=[0,1,2].map(()=>pick([1,-1])),T3=B.map(v=>pm.map((c,k)=>v[c]*sg[k])),ex=[0,1].map(()=>{let w;do w=[0,1,2].map(()=>ri(-3,3));while(!w.some(x=>x));return w});V=shuf([...T3,...ex]);
+  tr=[];for(let a=0;a<5;a++)for(let b=a+1;b<5;b++)for(let c=b+1;c<5;c++)if(!dot(V[a],V[b])&&!dot(V[a],V[c])&&!dot(V[b],V[c]))tr.push([a,b,c])}while(tr.length!=1);
+ Z[i]={s:[]};
+ return{ti:'ортогональний базис',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Серед п’яти векторів у ℝ³ оберіть <b>три</b>, що утворюють ортогональний базис.</p>${V.map((v,k)=>`<button class="cl${Z[i].s.includes(k)?' sel':''}" style="display:inline-flex;width:auto;padding:0 12px;margin:4px" data-k="${k}">v${k+1} = (${v.join(', ')})</button>`).join('')}${HN(i,'Вектори ортогональні, якщо їхній скалярний добуток дорівнює нулю. Перевірте пари.')}<div class="fb"></div>`;
+  $('#t'+i).onclick=e=>{const k=e.target.closest('button')?.dataset.k;if(k==null||done)return;const s=Z[i].s,p=s.indexOf(+k);p<0?s.push(+k):s.splice(p,1);this.r()}},
+ g(){const s=Z[i].s,c=s.filter(k=>tr[0].includes(k)).length,sc=s.length>3?0:c/3;FB(i,`Правильна трійка: ${tr[0].map(k=>'v'+(k+1)).join(', ')} (попарні скалярні добутки дорівнюють 0).`);return sc}}};
+
+/* 11. Лагранж */
+K.lagr=i=>{const xs=shuf([-2,-1,0,1,2,3]).slice(0,3).sort((a,b)=>a-b),c=[ri(-3,3),ri(-3,3),pick([-3,-2,-1,1,2,3])],P=x=>c[2]*x*x+c[1]*x+c[0],X=pick([4,-3,5]);Z[i]={};
+ return{ti:'інтерполяційний поліном Лагранжа',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Поліном Лагранжа через точки ${xs.map(x=>`(${x}; ${P(x)})`).join(', ')} має вигляд <i>P</i>(<i>x</i>) = <i>ax</i>² + <i>bx</i> + <i>c</i>.</p><p><i>a</i> = ${ni(i,'')} <i>b</i> = ${ni(i,'')} <i>c</i> = ${ni(i,'')} <i>P</i>(${X}) = ${ni(i,'')}</p>${HN(i,'Підставте три точки в ax²+bx+c — вийде система з трьох рівнянь.')}<div class="fb"></div>`},
+ g(){const s=gI(i,[c[2],c[1],c[0],P(X)],1e-9);FB(i,`<i>P</i>(<i>x</i>) = ${c[2]}x² ${c[1]<0?'−':'+'} ${Math.abs(c[1])}x ${c[0]<0?'−':'+'} ${Math.abs(c[0])}. Через 3 точки проходить єдиний поліном степеня ≤2.`);return s}}};
+
+/* 12. МНК: вибір степеня полінома */
+const fit=(X,Y,d)=>{const n=d+1,A=Array.from({length:n},(_,r)=>Array.from({length:n},(_,c)=>X.reduce((s,x)=>s+x**(r+c),0)).concat(X.reduce((s,x,k)=>s+Y[k]*x**r,0)));for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];for(let r=0;r<n;r++)if(r!=c){const f=A[r][c]/A[c][c];for(let k=c;k<=n;k++)A[r][k]-=f*A[c][k]}}return A.map((r,k)=>r[n]/r[k])},
+ pv=(c,x)=>c.reduceRight((s,a)=>s*x+a,0),ns=(sp,n)=>{const r=sp/n,p=10**Math.floor(Math.log10(r)),f=r/p;return p*(f<1.5?1:f<3.5?2:f<7.5?5:10)};
+K.lsq=i=>{const sc=pick(['ski','chain']);let X,Y,x0,x1,sg,intro,ok,why,hint;
+ if(sc=='ski'){const y0=ri(20,30),a1=.2+R()*.4,a2=.008+R()*.008,a3=R()*4e-5;sg=.3+R()*.2;x0=0;x1=40;X=Array.from({length:14},(_,k)=>40*k/13+(R()-.5)*1.2);Y=X.map(x=>y0+a1*x-a2*x*x-a3*x**3+(R()+R()+R()-1.5)*2*sg);
+  intro=`Стрибок лижника з трампліна сфотографували серією з 14 кадрів «тремтячими руками». На кожному кадрі виміряли горизонтальну відстань <i>x</i> (м) і висоту <i>y</i> (м) з похибкою близько ${rd(sg*10)/10} м. Потрібно відтворити траєкторію польоту поліномом, підібраним за МНК.`;ok=[2,3];
+  why='Тіло, що летить, рухається по параболі (степінь 2); опір повітря додає невелику кубічну поправку (степінь 3), тому адекватні обидва. Степені 0–1 не відтворюють викривлення траєкторії, а 4 і вище підбирають шум: крива «підстрибує» між кадрами, чого не буває з реальним польотом.';hint='Яка крива описує політ тіла в полі тяжіння? Що змінює опір повітря?'}
+ else{const L=ri(25,40)/10,u=3+R()*.5,c=L/(2*u),sag=c*(Math.cosh(u)-1),H=Math.max(ri(22,28)/10,sag+.4),f=x=>H-sag+c*(Math.cosh((x-L/2)/c)-1);sg=.025*sag;x0=0;x1=L;X=Array.from({length:7},(_,k)=>L*k/6+(R()-.5)*L*.02);Y=X.map(x=>f(x)+(R()+R()+R()-1.5)*2*sg);
+  intro=`Ланцюг із надмірним запасом довжини підвішено між двома стовпами однакової висоти, відстань між ними ${L} м. За фото визначили координати 7 ланок: горизонтальну відстань <i>x</i> (м) і висоту <i>y</i> (м) з похибкою близько ${rd(sg*100)/100} м. Потрібно відтворити форму ланцюга поліномом, підібраним за МНК.`;ok=[4];
+  why='Ланцюг висить за ланцюговою лінією <i>y</i> = <i>y</i><sub>0</sub> + <i>c</i>(ch((<i>x</i>−<i>x</i><sub>0</sub>)/<i>c</i>) − 1). Це парна функція: ch <i>u</i> = 1 + <i>u</i>²/2 + <i>u</i>⁴/24 + …, тому поліном 4-го степеня майже вичерпує її форму. Парабола (степінь 2, а також 3) при сильному провисанні недонавчена: ланцюгова лінія «крутіша» за параболу, тому точки систематично відхиляються від кривої. Степені 5 і вище додають непарні члени, яких у реальному ланцюгу немає, і підганяють шум. Через 7 точок можна провести єдиний поліном степеня 6 — це поліном Лагранжа: він проходить точно через усі точки, але між ними (особливо біля кінців) сильно коливається — ефект Рунге на рівновіддалених вузлах.';hint='Розкладіть ch u в ряд: які степені там є? Чи парна ця функція?'}
+ const xc=(x0+x1)/2,xs=(x1-x0)/2,yl0=Math.min(...Y),yh0=Math.max(...Y),xl=x0-.05*(x1-x0),xh=x1+.05*(x1-x0),yl=yl0-.08*(yh0-yl0),yh=yh0+.08*(yh0-yl0),PX=x=>44+(x-xl)/(xh-xl)*506,PY=y=>262-(y-yl)/(yh-yl)*250,u=x=>(x-xc)/xs;Z[i]={};
+ return{ti:'МНК: вибір степеня полінома',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>${intro} Оберіть <b>степінь полінома</b>, який дає адекватну криву: не настільки простий, щоб втратити її форму, і не настільки складний, щоб крива починала відтворювати шум вимірювань.</p><label>Степінь <select class="ni">${Array.from({length:Math.min(8,X.length)},(_,d)=>d).map(d=>`<option value="${d}">${d}</option>`).join('')}</select></label><br><canvas width="560" height="300" style="border:1px solid var(--ln);max-width:100%"></canvas>${HN(i,hint)}<div class="fb"></div>`;
+  $('#t'+i+' select').onchange=()=>this.u();this.u()},
+ u(){const d=+$('#t'+i+' select').value,g=$('#t'+i+' canvas').getContext('2d'),c=fit(X.map(u),Y,d),sx=ns(xh-xl,8),sy=ns(yh-yl,6);g.clearRect(0,0,560,300);g.font='11px sans-serif';g.fillStyle='#567';g.strokeStyle='#e3e8ee';g.textAlign='center';
+  for(let x=Math.ceil(xl/sx)*sx;x<=xh;x+=sx){g.beginPath();g.moveTo(PX(x),12);g.lineTo(PX(x),262);g.stroke();g.fillText(+x.toFixed(2),PX(x),276)}g.fillText('x, м',300,292);g.textAlign='right';
+  for(let y=Math.ceil(yl/sy)*sy;y<=yh;y+=sy){g.beginPath();g.moveTo(44,PY(y));g.lineTo(550,PY(y));g.stroke();g.fillText(+y.toFixed(2),38,PY(y)+4)}
+  g.fillStyle='#1b2733';X.forEach((x,k)=>{g.beginPath();g.arc(PX(x),PY(Y[k]),3.5,0,7);g.fill()});
+  g.save();g.beginPath();g.rect(44,12,506,250);g.clip();g.strokeStyle='#e11d48';g.lineWidth=2;g.beginPath();for(let n=0;n<=300;n++){const x=xl+(xh-xl)*n/300,y=PY(pv(c,u(x)));n?g.lineTo(PX(x),y):g.moveTo(PX(x),y)}g.stroke();g.restore()},
+ g(){const sel=$('#t'+i+' select'),d=+sel.value,good=ok.includes(d);mk(sel,good);FB(i,`Адекватний степінь: ${ok.join(' або ')}. ${why}`);return +good}}};
+
+/* 13. O-нотація */
+K.onot=i=>{const C=['O(1)','O(log n)','O(n)','O(n log n)','O(n²)','O(n³)','O(2ⁿ)','O(n!)','O(nⁿ)'],P=[['Доступ до елемента масиву за індексом',0],['Бінарний пошук у відсортованому масиві',1],['Лінійний пошук у невпорядкованому масиві',2],['Знаходження максимуму в масиві',2],['Швидке сортування (quicksort), у середньому випадку',3],['Сортування бульбашкою',4],['Наївне множення матриць n×n',5],['Метод Гаусса для СЛАР',5],['Алгоритм Флойда–Уоршелла',5],['Наївне рекурсивне обчислення чисел Фібоначчі',6],['Комівояжер повним перебором',7],['Генерація всіх перестановок',7],['Обчислення визначника за рекурсивною формулою (розклад за рядком)',7],['Повне перебирання всіх кістякових дерев повного графа на n вершинах (формула Кейлі)',8,'за формулою Кейлі таких дерев n<sup>n−2</sup>. Це майже збігається з n<sup>n</sup>: на великих масштабах різниця (множник n²) непомітна на тлі самого n<sup>n</sup>, тому з наявних класів обираємо O(n<sup>n</sup>).'],['Перебирання всіх паролів довжини n з алфавіту з n символів',8]],Q=shuf(P).slice(0,6);Z[i]={};
+ return{ti:'складність алгоритмів',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Зіставте алгоритми з їхньою складністю в найгіршому випадку (якщо не вказано інше). Для швидко зростаючих функцій оберіть клас із найближчим порядком зростання.</p>${Q.map(q=>`<div class="ln">${q[0]} <select class="ni"><option value="">—</option>${C.map((c,k)=>`<option value="${k}">${c}</option>`).join('')}</select></div>`).join('<br>')}<p>У скільки разів збільшиться час методу Гауса при подвоєнні <i>n</i>? ${ni(i,'число')}</p>${HN(i,'Порахуйте вкладені цикли й подумайте, як зростає час при подвоєнні n.')}<div class="fb"></div>`},
+ g(){const s=$$('#t'+i+' select');let c=0;s.forEach((e,k)=>{const g=e.value!==''&&+e.value==Q[k][1];c+=g;mk(e,g);if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(${C[Q[k][1]]})</b>`)});const t=gI(i,[8],1e-9),nt=Q.filter(q=>q[2]).map(q=>`<b>${q[0]}</b>: ${q[2]}`).join('<br>');if(nt)FB(i,`<div class="hint">${nt}</div>`);return(c/6+t)/2}}};
+
+/* 14. теорія похибок: лінійна оцінка */
+const gR=(i,vals,rt)=>{const els=$$('#t'+i+' input.ni[type=text]');let s=0;els.forEach((e,k)=>{const g=isFinite(num(e.value))&&Math.abs(num(e.value)-vals[k])<=rt*Math.abs(vals[k]);s+=g;mk(e,g);if(!g)e.insertAdjacentHTML('afterend',` <b class="ans">(${+vals[k].toPrecision(3)})</b>`)});return s/vals.length};
+K.err1=i=>{const R0=pick([4,5,8,10,12]),dR=pick([.1,.2,.5]),S=pick([['площа круга S = πR²',2],['об’єм кулі V = 4/3·πR³',3],['об’єм куба V = a³',3],['площа квадрата S = a²',2]]),L=pick([10,20,5,8]),d2=pick([.5,1,.2,.4]),x=pick([.99,.995,.999]),dx=pick([.001,.002,.005]),
+ v=[2*Math.PI*R0*dR,S[1]*d2/L*100,dx/Math.sqrt(1-x*x)];Z[i]={};
+ return{ti:'теорія похибок: лінійна оцінка',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Відповіді запишіть із трьома значущими цифрами.</p><p>а) Радіус круга <i>R</i> = ${R0} ± ${dR}. Лінійна оцінка абсолютної похибки площі: Δ<i>S</i> ≈ ${ni(i,'число')}</p><p>б) ${S[0]}; лінійний розмір дорівнює ${L} ± ${d2}. Відносна похибка величини, %: δ ≈ ${ni(i,'число')}</p><p>в) Кут α = arcsin(<i>x</i>) знайдено за виміряним <i>x</i> = ${x} з похибкою Δ<i>x</i> = ${dx}. Похибка кута (рад): Δα ≈ ${ni(i,'число')}</p>${HN(i,'Лінійна оцінка: Δ<i>F</i> ≈ |<i>F′</i>(<i>x</i>)|·Δ<i>x</i>, відносна похибка δ<i>F</i> = Δ<i>F</i>/|<i>F</i>|. Для <i>F</i> ∝ <i>x</i><sup>n</sup> маємо δ<i>F</i> ≈ n·δ<i>x</i>.')}<div class="fb"></div>`},
+ g(){const s=gR(i,v,.02);FB(i,`а) 2π·${R0}·${dR} = ${+v[0].toPrecision(4)}; б) δ ≈ ${S[1]}·${d2}/${L} = ${+v[1].toPrecision(3)}%; в) Δα ≈ Δx/√(1−x²) = ${+v[2].toPrecision(3)}: біля межі області визначення похибка сильно підсилюється.`);return s}}};
+
+/* 15. теорія похибок: віднімання близьких чисел */
+K.err2=i=>{const a=pick([2.345,1.512,3.1416,0.8765]),d=pick([.001,.002,.0005]),df=pick([.002,.004,.01,.02]),b=+(a-df).toFixed(4),v=[2*d,2*d/df*100,2*d/(a+b)*100];Z[i]={};
+ return{ti:'теорія похибок: віднімання близьких чисел',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Наближені числа <i>a</i> = ${a} і <i>b</i> = ${b}, кожне з абсолютною похибкою ${d}. Відповіді запишіть із трьома значущими цифрами.</p><p>а) Гранична абсолютна похибка різниці <i>a</i> − <i>b</i>: ${ni(i,'число')}</p><p>б) Відносна похибка різниці <i>a</i> − <i>b</i>, %: ${ni(i,'число')}</p><p>в) Відносна похибка суми <i>a</i> + <i>b</i>, %: ${ni(i,'число')}</p>${HN(i,'Абсолютні похибки суми й різниці додаються. Відносна похибка — це абсолютна, поділена на модуль самого результату.')}<div class="fb"></div>`},
+ g(){const s=gR(i,v,.02);FB(i,`Абсолютні похибки додаються: Δ = ${+v[0].toPrecision(3)}. Різниця мала (${+(a-b).toFixed(4)}), тому її відносна похибка ≈ ${+v[1].toPrecision(3)}%, а суми лише ≈ ${+v[2].toPrecision(3)}%: віднімання близьких чисел катастрофічно погіршує точність.`);return s}}};
+
+/* ---------- теорія (multiple choice) ---------- */
+const MC=[
+['Що таке машинний епсилон ε<sub>mach</sub>?','Найменше ε, для якого 1+ε>1 у машинній арифметиці','Найменше додатне число, яке може представити комп’ютер','Відносна похибка будь-якого обчислення','Найбільше число, що зберігається в змінній'],
+['Обумовленість — це властивість…','задачі: чутливість розв’язку до збурень входу','алгоритму: накопичення похибок округлення','лише ітераційних методів','лише комп’ютера'],
+['Збіжність простих ітерацій x=φ(x) поблизу кореня x* гарантується, якщо…','|φ′(x*)| < 1','|φ(x*)| < 1','φ неперервна','x₀ = x*'],
+['Катастрофічна втрата точності найчастіше виникає при…','відніманні близьких чисел','додаванні додатних чисел','множенні великих чисел','діленні на велике число'],
+['Кількість ітерацій дихотомії на [a,b] для точності ε — приблизно…','log₂((b−a)/ε)','(b−a)/ε','ln(1/ε)²','не залежить від ε'],
+['Поблизу простого кореня метод Ньютона збігається…','квадратично','лінійно, зі швидкістю 1/2','повільніше за дихотомію','лише при f′>0'],
+['Достатня (але не необхідна) умова збіжності методів Якобі й Зейделя:','строга діагональна перевага','симетричність матриці','det A = 1','трикутність матриці'],
+['Швидкість збіжності степеневого методу визначається відношенням…','|λ₂/λ₁|','|λ₁/λ₂|','λ₁−λ₂','кількості ненульових елементів'],
+['Сингулярний розклад існує…','для будь-якої матриці','лише для квадратних','лише для симетричних','лише для невироджених'],
+['Низькорангове наближення матриці (стиснення даних, рекомендаційні системи) будують, залишаючи…','k найбільших сингулярних чисел із відповідними векторами','k найменших сингулярних чисел із відповідними векторами','k довільних рядків матриці','лише ті елементи, що за модулем більші за 1'],
+['Ефект Рунге виникає при…','інтерполяції поліномом високого степеня на рівновіддалених вузлах','МНК із сильним шумом','розв’язанні СЛАР','обчисленні визначника'],
+['Вузли Чебишова зменшують ефект Рунге, бо…','згущуються до країв відрізка','розташовані рівномірно','розташовані лише в центрі','їх менше, ніж рівновіддалених'],
+['Коефіцієнт демпфування в PageRank потрібен, щоб…','гарантувати збіжність і єдиність, обробити dangling-вузли та пастки','пришвидшити множення матриці','зробити матрицю симетричною','зменшити кількість вузлів'],
+['Перенавчання при апроксимації даних із шумом (наприклад, поліномом) — це коли…','апроксимаційна функція починає відтворювати шум, а не закономірність у даних','функція має надто малий степінь і не відтворює основну залежність','похибка округлення накопичується в ході обчислень','ітераційний метод розбігається через невдале початкове наближення'],
+['Власні вектори симетричної дійсної матриці…','можна обрати ортонормованими','завжди колінеарні','можуть не існувати','завжди комплексні'],
+['Абсолютна похибка суми двох наближених чисел оцінюється як…','сума абсолютних похибок доданків','різниця абсолютних похибок доданків','добуток абсолютних похибок доданків','більша з відносних похибок доданків'],
+['Відносна похибка добутку двох наближених чисел приблизно дорівнює…','сумі відносних похибок множників','добутку відносних похибок множників','різниці відносних похибок множників','сумі абсолютних похибок множників'],
+['Які джерела похибок виділяють у обчислювальному експерименті?','похибка моделі, вхідних даних, методу та округлення','лише похибка округлення','лише похибка методу','лише похибка вхідних даних'],
+['Похибка методу (усічення), на відміну від похибки округлення…','визначається самим алгоритмом і зменшується з наближенням до точного розв’язку (наприклад, при зменшенні кроку), а округлення — розрядністю чисел','залежить лише від розрядності чисел','завжди дорівнює нулю для ітераційних методів','не залежить від вибору методу'],
+['Лінійна оцінка похибки функції f(x) при похибці аргументу Δx:','|f′(x)|·Δx','|f(x)|·Δx','|f′(x)|/Δx','|f′(x)|·Δx²'],
+['Відносна похибка різниці двох близьких наближених чисел порівняно з відносними похибками аргументів…','різко зростає, бо різниця мала, а абсолютні похибки додаються','зменшується','залишається такою самою','дорівнює нулю']];
+let MQ;
+const rMC=()=>{$('#t6').innerHTML=`<h2>Завдання 6 · теорія <i>5 б.</i></h2>`+MQ.map((q,k)=>`<p><b>${k+1}. ${q.q}</b><br>${q.o.map(o=>`<label style="display:block"><input type="radio" class="ni" name="m${k}"> ${o[0]}</label>`).join('')}</p>`).join('')},
+ gMC=()=>{let c=0;MQ.forEach((q,k)=>{const rs=$$(`#t6 [name=m${k}]`);rs.forEach((r,j)=>{if(q.o[j][1]){r.parentNode.classList.add('ok');if(r.checked)c++}else if(r.checked)r.parentNode.classList.add('bad')})});return c};
+
+/* ---------- інтерактивні міні-канваси у розборі ---------- */
+const RV={cls:a=>a<=2?'t':a<3?'s':'d',NM:{t:'сходинки (монотонна збіжність)',s:'спіраль (збіжність із чергуванням знака)',d:'розбіжність або цикл (немає збіжності)'},SUB:'₀₁₂₃₄₅₆₇₈'};
+const rvRow=(b,mx,n)=>`<div class="rvr">${b}</div><div class="rvo"></div><div class="rvr">ітерацій: <input type="range" class="rn" min="0" max="${mx}" step="1" value="${n}" style="width:180px"> <b class="rnl"></b> <button type="button" class="b rp">▶ Анімація</button></div>`;
+const rvFP=(tg,a)=>{const lo={t:.5,s:2,d:3}[tg],hi={t:2,s:3,d:3.9}[tg],f=v=>((v-.5)/3.4*100).toFixed(2),ex={t:1.8,s:2.6,d:3.5}[tg],as=a.toFixed(2);
+ return `<div class="rv" data-w="fp" data-tg="${tg}"><div class="rvh">Дослідіть самі: рухайте повзунок <b>a</b> і дивіться, як працюють ітерації. Зелена смуга — значення <b>a</b>, що дають потрібну фігуру.</div><div class="zt"><div class="zb" style="background:linear-gradient(90deg,#cbd5e1 0%,#cbd5e1 ${f(lo)}%,#22c55e ${f(lo)}%,#22c55e ${f(hi)}%,#cbd5e1 ${f(hi)}%,#cbd5e1 100%)"></div><input type="range" class="ra" min="0.5" max="3.9" step="0.01" value="${as}"></div>${rvRow(`<button type="button" class="rj" data-v="${as}">мій вибір (a = ${as})</button> <button type="button" class="rj" data-v="${ex}">правильний приклад (a = ${ex})</button>`,40,40)}<div class="vz"><figure><canvas class="cb" width="300" height="300"></canvas><figcaption>павутинка: φ(x), y = x і траєкторія ітерацій</figcaption></figure><figure><canvas class="ct" width="300" height="300"></canvas><figcaption>значення <i>x</i><sub>n</sub> залежно від номера ітерації n</figcaption></figure></div></div>`};
+const rvNW=(c,k,u)=>{const xlo=c-.6/k,xhi=c+Math.max(3/k,3),L=c+1/k,p=((L-xlo)/(xhi-xlo)*100).toFixed(2),x1=+(c+.4/k).toFixed(2),x2=+(c+1.4/k).toFixed(2);
+ return `<div class="rv" data-w="nw" data-c="${c}" data-k="${k}" data-u="${isFinite(u)?u:''}"><div class="rvh">Дослідіть самі: рухайте повзунок <b>x₀</b>. Зелена зона — початкові наближення, з яких метод збігається, червона — з яких розбігається. Повзунком «ітерацій» (або кнопкою ▶) пройдіть метод крок за кроком.</div><div class="zt"><div class="zb" style="background:linear-gradient(90deg,#22c55e 0%,#22c55e ${p}%,#ef4444 ${p}%,#ef4444 100%)"></div><input type="range" class="ra" min="${+xlo.toFixed(4)}" max="${+xhi.toFixed(4)}" step="0.01" value="${x1}"></div>${rvRow(`<button type="button" class="rj" data-v="${x1}">x₀ у зеленій зоні</button> <button type="button" class="rj" data-v="${x2}">x₀ у червоній зоні</button>`,8,4)}<canvas width="560" height="300"></canvas></div>`};
+const rvFPdraw=w=>{
+ const ra=w.querySelector('.ra'),a=+ra.value,N=+w.querySelector('.rn').value,tg=w.dataset.tg,c=RV.cls(a),xs=[.3];
+ for(let n=0;n<N;n++)xs.push(a*xs[n]*(1-xs[n]));
+ w.querySelector('.rnl').textContent=N;ra.classList.toggle('okz',c==tg);ra.classList.toggle('badz',c!=tg);
+ w.querySelector('.rvo').innerHTML=`<b>a = ${a.toFixed(2)}</b> — ${RV.NM[c]}. ${c==tg?'<span style="color:#15803d">✓ це потрібна фігура</span>':'<span style="color:#be123c">✗ потрібна інша фігура</span>'}`;
+ let g=w.querySelector('.cb').getContext('2d');const X=x=>20+x*260,Y=y=>280-y*260;
+ g.clearRect(0,0,300,300);g.lineWidth=1;g.strokeStyle='#999';g.beginPath();g.moveTo(X(0),Y(0));g.lineTo(X(1),Y(1));g.stroke();
+ g.strokeStyle='#2563eb';g.beginPath();for(let k=0;k<=100;k++){const x=k/100;k?g.lineTo(X(x),Y(a*x*(1-x))):g.moveTo(X(x),Y(a*x*(1-x)))}g.stroke();
+ g.strokeStyle='#e11d48';g.lineWidth=1.3;g.beginPath();g.moveTo(X(xs[0]),Y(0));for(let n=0;n<N;n++){g.lineTo(X(xs[n]),Y(xs[n+1]));g.lineTo(X(xs[n+1]),Y(xs[n+1]))}g.stroke();
+ g.fillStyle='#e11d48';g.beginPath();g.arc(X(xs[N]),Y(xs[N]),3.5,0,7);g.fill();
+ g.fillStyle='#567';g.font='11px sans-serif';g.textAlign='center';[0,.5,1].forEach(v=>{g.fillText(v,X(v),295);g.fillText(v,10,Y(v)+4)});
+ g=w.querySelector('.ct').getContext('2d');const T=n=>34+n/40*256;
+ g.clearRect(0,0,300,300);g.strokeStyle='#e3e8ee';g.lineWidth=1;g.fillStyle='#567';g.font='11px sans-serif';g.textAlign='center';
+ [0,10,20,30,40].forEach(n=>{g.beginPath();g.moveTo(T(n),20);g.lineTo(T(n),280);g.stroke();g.fillText(n,T(n),295)});
+ [0,.5,1].forEach(v=>{g.beginPath();g.moveTo(34,Y(v));g.lineTo(290,Y(v));g.stroke();g.textAlign='right';g.fillText(v,28,Y(v)+4);g.textAlign='center'});
+ if(a>1){g.setLineDash([4,3]);g.strokeStyle='#0f766e';g.beginPath();g.moveTo(34,Y(1-1/a));g.lineTo(290,Y(1-1/a));g.stroke();g.setLineDash([]);g.fillStyle='#0f766e';g.textAlign='left';g.fillText('x*',38,Y(1-1/a)-4)}
+ g.strokeStyle='#e11d48';g.lineWidth=1.3;g.beginPath();xs.forEach((x,n)=>n?g.lineTo(T(n),Y(x)):g.moveTo(T(n),Y(x)));g.stroke();
+ g.fillStyle='#e11d48';xs.forEach((x,n)=>{g.beginPath();g.arc(T(n),Y(x),2.5,0,7);g.fill()})};
+const rvNWdraw=w=>{
+ const c=+w.dataset.c,k=+w.dataset.k,u=w.dataset.u===''?NaN:+w.dataset.u,L=c+1/k,xlo=c-.6/k,xhi=c+Math.max(3/k,3),ym=1/(k*Math.E),ylo=-1.5*ym,yhi=1.3*ym,
+  f=x=>(x-c)*Math.exp(-k*(x-c)),PX=x=>40+(x-xlo)/(xhi-xlo)*510,PY=y=>266-(y-ylo)/(yhi-ylo)*256,sp=xhi-xlo,stp=sp<=4?.25:sp<=8?.5:sp<=16?1:2,
+  ra=w.querySelector('.ra'),x0=+ra.value,N=+w.querySelector('.rn').value,xs=[x0],fx=v=>!isFinite(v)?'∞':Math.abs(v)>1e5?v.toExponential(2):String(+v.toFixed(4)),
+  good=x0<L-1e-9,flat=Math.abs(x0-L)<1e-9,col=flat?'#f59e0b':good?'#16a34a':'#e11d48';
+ for(let n=0;n<N;n++){const q=xs[n]-c,d=1-k*q;if(!isFinite(xs[n])||Math.abs(d)<1e-9){xs.push(NaN);break}xs.push(c-k*q*q/d)}
+ w.querySelector('.rnl').textContent=N;ra.classList.toggle('okz',good);ra.classList.toggle('badz',!good);
+ w.querySelector('.rvo').innerHTML=`<b>x₀ = ${fx(x0)}</b> — ${flat?'x₀ = L: дотична горизонтальна, метод не визначений':good?'<span style="color:#15803d">зелена зона (x₀ &lt; L): метод збігається до кореня '+c+'</span>':'<span style="color:#be123c">червона зона (x₀ &gt; L): ітерації йдуть у +∞</span>'}.<br>${xs.slice(0,6).map((v,j)=>'x'+RV.SUB[j]+' = '+fx(v)).join(' → ')}${xs.length>6?' …':''}`;
+ const g=w.querySelector('canvas').getContext('2d');g.clearRect(0,0,560,300);
+ g.fillStyle='rgba(22,163,74,.13)';g.fillRect(40,10,PX(L)-40,256);g.fillStyle='rgba(225,29,72,.08)';g.fillRect(PX(L),10,550-PX(L),256);
+ g.font='11px sans-serif';g.textAlign='center';g.strokeStyle='#e3e8ee';g.lineWidth=1;g.fillStyle='#567';
+ for(let x=Math.ceil(xlo/stp)*stp;x<=xhi+1e-9;x+=stp){g.beginPath();g.moveTo(PX(x),10);g.lineTo(PX(x),266);g.stroke();g.fillText(String(+x.toFixed(2)),PX(x),280)}
+ g.strokeStyle='#1b2733';g.beginPath();g.moveTo(40,PY(0));g.lineTo(550,PY(0));g.stroke();
+ g.save();g.beginPath();g.rect(40,10,510,256);g.clip();
+ g.strokeStyle='#2563eb';g.lineWidth=2;g.beginPath();for(let n=0;n<=300;n++){const x=xlo+(xhi-xlo)*n/300;n?g.lineTo(PX(x),PY(f(x))):g.moveTo(PX(x),PY(f(x)))}g.stroke();
+ g.strokeStyle=col;g.lineWidth=1.6;
+ for(let j=0;j<xs.length-1;j++){const x=xs[j],x1=xs[j+1];if(!isFinite(x)||!isFinite(x1))break;g.beginPath();g.moveTo(PX(x),PY(0));g.lineTo(PX(x),PY(f(x)));g.lineTo(PX(x1),PY(0));g.stroke()}
+ g.restore();
+ g.setLineDash([5,3]);g.strokeStyle='#0f766e';g.lineWidth=2;g.beginPath();g.moveTo(PX(L),10);g.lineTo(PX(L),266);g.stroke();
+ if(isFinite(u)&&Math.abs(u-L)>.05+.04/k&&u>=xlo&&u<=xhi){g.setLineDash([2,3]);g.strokeStyle='#f59e0b';g.beginPath();g.moveTo(PX(u),10);g.lineTo(PX(u),266);g.stroke();g.setLineDash([]);g.fillStyle='#b45309';g.textAlign=u<L?'right':'left';g.fillText('ваше L = '+fx(u),PX(u)+(u<L?-4:4),244)}
+ g.setLineDash([]);
+ g.textAlign='left';g.font='bold 11px sans-serif';g.fillStyle='#15803d';g.fillText('x₀ < L: збігається',46,26);g.fillStyle='#be123c';g.fillText('x₀ > L: розбігається',PX(L)+6,26);g.font='11px sans-serif';g.fillStyle='#0f766e';g.fillText('L = '+fx(L),PX(L)+4,258);
+ let lp=-99;g.textAlign='center';xs.forEach((x,j)=>{if(isFinite(x)&&x>=xlo&&x<=xhi&&Math.abs(PX(x)-lp)>15){lp=PX(x);g.fillStyle=col;g.beginPath();g.arc(PX(x),PY(0),3.5,0,7);g.fill();g.font='bold 11px sans-serif';g.fillText('x'+RV.SUB[j],PX(x),PY(0)+(j%2?-8:16))}})};
+function initRev(root){root.querySelectorAll('.rv').forEach(w=>{const fp=w.dataset.w=='fp',draw=fp?rvFPdraw:rvNWdraw,ra=w.querySelector('.ra'),rn=w.querySelector('.rn');
+ ra.oninput=rn.oninput=()=>draw(w);
+ w.querySelectorAll('.rj').forEach(b=>b.onclick=()=>{ra.value=b.dataset.v;draw(w)});
+ w.querySelector('.rp').onclick=()=>{clearInterval(w._t);rn.value=0;draw(w);w._t=setInterval(()=>{if(+rn.value>=+rn.max){clearInterval(w._t);return}rn.value=+rn.value+1;draw(w)},fp?100:700)};
+ draw(w)})}
+
+/* ---------- сесія, таймер, звіт ---------- */
+const PL=['cancel','sum','newton','fp','jac','sor','det','cond','spec','orth','lagr','lsq','onot','err1','err2'];
+let ids;
+function save(){if(!t0||done)return;try{localStorage.setItem(KEY,JSON.stringify({n:NAME,t0,z:Z,ni:$$('#app .ni').map(e=>e.type=='radio'?+e.checked:e.value)}))}catch(e){}}
+document.addEventListener('input',save);document.addEventListener('click',()=>setTimeout(save,0));
+window.onbeforeunload=e=>{if(t0&&!done){e.preventDefault();return e.returnValue=''}};
+function begin(n,s){NAME=n;seed=seedFrom(n+(new URLSearchParams(location.search).get('v')||''));R=mul(seed);for(let j=0;j<8;j++)R();
+ ids=shuf(PL).slice(0,5);ids.forEach((id,j)=>T[j+1]=K[id](j+1));MQ=shuf(MC).slice(0,5).map(q=>({q:q[0],o:shuf(q.slice(1).map((t,k)=>[t,!k]))}));if(s)s.z.forEach((v,j)=>{if(v)Object.assign(Z[j],v)});t0=s?s.t0:Date.now();
+ for(let j=1;j<=5;j++)T[j].r();rMC();
+ if(s){$$('#app .ni').forEach((e,k)=>{const v=s.ni[k];if(v==null)return;e.type=='radio'?e.checked=!!v:e.value=v});for(let j=1;j<=5;j++)T[j].u&&T[j].u()}
+ $('#start').hidden=true;$('#app').hidden=false;$('#bar').hidden=false;tick=setInterval(()=>$('#tm').textContent=fmt(Date.now()-t0),500);save()}
+const mxs=[3,3,3,3,3,5];
+async function runCaptcha(){const ov=document.createElement('div');ov.id='cap';ov.innerHTML='<div class="rc"><div class="box"><div class="chk" id="ck"></div><div>Я сумлінний студент (-ка)<br><small>і ШІ мені не допомагав (ну майже 😉)</small></div></div></div>';document.body.appendChild(ov);const rc=ov.firstChild;
+ await new Promise(r=>{$('#ck').onclick=function(){this.innerHTML='<div class="sp"></div>';setTimeout(r,900)}});
+ rc.classList.add('wide');rc.innerHTML='<div id="capHost"></div><div class="ft"><small id="capPg"></small><button class="b" id="capNext"></button></div>';
+ for(let cs=0;cs<6;cs++){try{CAP.jobs[cs]()}catch(e){console.warn(e)}const c=[...$('#capHost').children];c.forEach((x,k)=>x.style.display=k==c.length-1?'':'none');CAP.typeset($('#capHost'));CAP.anim();
+  $('#capPg').textContent='Перевірка доброчесності · '+(cs+1)+' / 6';$('#capNext').textContent=cs==5?'Завершити':'Далі →';rc.scrollTop=0;await new Promise(r=>{$('#capNext').onclick=r})}
+ CAP.stop();const R6=CAP.grade();ov.remove();return{pct:CAP.agg(R6),v:R6.length+'/6'}}
+async function fin(){if(done||!confirm('Завершити контрольну? Змінити відповіді буде неможливо.'))return;
+ done=true;clearInterval(tick);const ms=Date.now()-t0;document.body.classList.add('done');
+ const hs=[1,2,3,4,5].map(j=>Z[j].h?1:0),sc=[1,2,3,4,5].map(j=>Math.max(0,3*T[j].g()-.5*hs[j-1])),th=gMC(),p=[...sc,th].map(rd);
+ $$('#app .ni').forEach(e=>e.disabled=true);
+ sc.forEach((v,k)=>$('#t'+(k+1)+' .fb').insertAdjacentHTML('beforeend',`<div class="scr"><b>Бали: ${rd(v*100)/100} / 3</b>${hs[k]?' (враховано підказку: −0.5)':''}</div>`));
+ $('#t6').insertAdjacentHTML('beforeend',`<div class="scr"><b>Теорія: ${th} / 5</b></div>`);
+ const pend={n:NAME,ms,p,hs,ids,sd:seed.toString(16),rev:$('#app').innerHTML};
+ try{localStorage.setItem(KEY,JSON.stringify({pend}))}catch(e){}
+ await finish(pend)}
+async function finish(pend){done=true;document.body.classList.add('done');if(!t0&&pend.rev){$('#app').innerHTML=pend.rev;$('#app').hidden=false}
+ initRev($('#app'));$('#start').hidden=true;$('#bar').hidden=true;
+ const cap=await runCaptcha(),{n,ms,p,hs,ids,sd}=pend,tot=rd(p.reduce((x,y)=>x+y,0)),mx=20,pl=p.join(','),
+ mc=`NM1|${tot}|${mx}|${pl}|${sd}|${sig([tot,mx,pl,sd].join('|'))}`,
+ rep=`<h2>Протокол контрольної роботи</h2><p><b>${esc(n)}</b><br>Дата й час здачі: ${new Date().toLocaleString('uk-UA')}<br>Витрачений час: ${fmt(ms)}<br>Довіра за капчею: ${cap.pct}% (пройдено капч: ${cap.v})<br>Код варіанта: ${sd} (${ids.join(', ')})<br>Підказок використано: ${hs.reduce((x,y)=>x+y,0)}</p><div class="big">${tot} / ${mx}</div><div class="big2">${p.join(' / ')} <small>(максимум ${mxs.join(' / ')})</small></div><p class="mc">Контрольний код: <span>${mc}</span></p><p><small>Нижче — розбір вашої роботи: правильні відповіді, пояснення й бали за кожне завдання.</small></p><button class="b np" onclick="print()">Зберегти як PDF</button>`;
+ $('#rp').innerHTML=rep;$('#rp').hidden=false;document.title=`${n}_${tot}`;scrollTo(0,0);
+ try{localStorage.setItem(KEY,JSON.stringify({done:1,rep,rev:$('#app').innerHTML}))}catch(e){}}
+$('#go').onclick=()=>{const n=$('#nm').value.trim();if(!n)return alert('Введіть прізвище та ім’я');begin(n)};
+$('#fin').onclick=fin;
+try{if(new URLSearchParams(location.search).has('reset'))localStorage.removeItem(KEY)}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');
+ if(s&&s.pend){NAME=s.pend.n;finish(s.pend)}else if(s&&s.done){$('#start').hidden=true;$('#rp').hidden=false;$('#rp').innerHTML=s.rep;if(s.rev){$('#app').innerHTML=s.rev;$('#app').hidden=false;document.body.classList.add('done');initRev($('#app'))}}
+ else if(s){if(confirm(`Знайдено незавершену спробу: ${s.n}. Продовжити?`))begin(s.n,s);else localStorage.removeItem(KEY)}}catch(e){}
+</script></body></html>

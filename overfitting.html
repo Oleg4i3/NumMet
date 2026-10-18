@@ -235,6 +235,20 @@ td { font-variant-numeric: tabular-nums; }
 .btnrow{display:flex;flex-wrap:wrap;gap:8px}
 .btnrow .btn{min-height:34px;padding:0 10px;font-size:13px}
 .btn.on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.modebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 14px}
+.modelab{font:500 12px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.grp{display:flex;flex-direction:column;gap:12px}
+.grp[hidden]{display:none!important}
+.grp+.grp{padding-top:12px;border-top:1px solid var(--hair)}
+.modebar .seg{max-width:100%}.modebar .seg label{flex:1 1 auto;text-align:center}
+.legend i.bl{width:14px;height:14px;border:0;border-radius:50%;margin:0 3px;background:radial-gradient(circle at 35% 35%,#f6a04d,#cf6a1b);box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--train)}
+.legend i.bl.ghost{opacity:.5;box-shadow:none;outline:2px dashed var(--test);outline-offset:1.5px}
+.bridge{margin-top:18px;padding-top:14px;border-top:1px solid var(--hair)}
+.bridge h3{margin:0 0 6px;font:700 15px/1.3 var(--font-body)}
+.bridge p{margin:0 0 10px;font-size:14px;color:var(--ink2);max-width:80ch}
+.xmap th,.xmap td{text-align:left;white-space:normal;vertical-align:top;font-size:13px;line-height:1.4}
+.xmap th{text-transform:none;letter-spacing:0}
+.xmap td:first-child{font-weight:500;min-width:110px}
 @media (max-width:900px){.demo{grid-template-columns:minmax(0,1fr)}}
 </style>
 <div class="wrap">
@@ -251,7 +265,7 @@ td { font-variant-numeric: tabular-nums; }
     </aside>
   </header>
 
-  <nav class="toc" aria-label="Розділи"><a href="#lab-nn">1. Студенти: мережа й захист</a><a href="#lab-poly">2. Многочлени: траєкторія м’яча</a><a href="#lab-spiral">3. Дві спіралі: мережа</a></nav>
+  <nav class="toc" aria-label="Розділи"><a href="#lab-nn">1. Студенти: мережа й захист</a><a href="#lab-poly">2. М’яч: многочлен чи нейромережа</a><a href="#lab-spiral">3. Дві спіралі: мережа</a></nav>
 
   <main class="lab" id="lab-nn">
     <section class="panel" aria-label="Налаштування досліду">
@@ -396,27 +410,62 @@ td { font-variant-numeric: tabular-nums; }
 
   <section class="fig demo-sec" id="lab-poly" aria-labelledby="h-poly">
     <h2 id="h-poly">Класичний приклад 1. М’яч, сфотографований із рук</h2>
-    <p class="watch">М’яч у польоті сфотографували кілька разів. Кожен знімок дає одну точку траєкторії, але положення відлічено з похибкою: камера тремтіла в руках. Через точки проводимо многочлен. Степінь 2 здається надто простим (недонавчання), надто високий степінь проходить через кожну точку й гойдається між ними (перенавчання). Точки можна перетягувати мишею, а клацання по порожньому місцю додає новий знімок.</p>
-    <p class="note-box"><b>Перевірка припущень.</b> У вакуумі траєкторія — точна парабола, і тоді саме квадратична модель була б правильною. Тут м’яч легкий і відчуває опір повітря: спуск крутіший за підйом, тож кубічна модель описує його краще. Поставте опір повітря на 0 і перевірте: найкращим стане степінь 2.</p>
+    <p class="watch">Баскетбольний м’яч у польоті сфотографували кілька разів в один кадр, через однакові проміжки часу. Камера тремтіла в руках, тож кожен м’яч зафіксовано трохи не там, де він був насправді: сірий відрізок показує це зміщення. Через м’ячі проводимо криву. Занадто проста крива не вловлює форму польоту (недонавчання). Занадто гнучка проходить через кожен м’яч разом з тремтінням і гойдається між ними (перенавчання). М’ячі можна перетягувати мишею, а клацання по порожньому місцю додає новий знімок.</p>
+    <div class="modebar">
+      <span class="modelab" id="mode-lab">Чим проводимо криву</span>
+      <div class="seg" role="radiogroup" aria-labelledby="mode-lab">
+        <label><input type="radio" name="pmode" value="poly" checked><span>Поліноміальна апроксимація</span></label>
+        <label><input type="radio" name="pmode" value="nn"><span>Нейромережа</span></label>
+      </div>
+    </div>
+    <p class="note-box"><b>Перевірка припущень.</b> У вакуумі траєкторія — точна парабола, і тоді саме квадратична модель була б правильною. Тут м’яч відчуває опір повітря: спуск крутіший за підйом, тож кубічна модель описує його краще. Поставте опір повітря на 0 і перевірте: найкращим стане степінь 2.</p>
     <div class="demo">
       <div>
-        <div class="legend"><span><i class="dot" style="background:var(--train)"></i>знімки (навчання)</span><span><i class="dot" style="background:var(--test);opacity:.6"></i>нові знімки (контроль)</span><span><i class="ref" style="border-color:var(--ghost)"></i>справжня траєкторія</span><span><i style="border-color:var(--train)"></i>многочлен</span></div>
+        <div class="legend"><span><i class="bl"></i>знімки (навчання)</span><span><i class="bl ghost"></i>нові знімки (контроль)</span><span><i class="ref" style="border-color:var(--ghost)"></i>справжня траєкторія</span><span><i style="border-color:var(--train)"></i><em id="lg-fit" style="font-style:normal">многочлен</em></span></div>
         <p class="pen" id="p-verdict"></p>
-        <div><canvas id="pcv" class="cv" role="img" aria-label="Точки траєкторії м’яча та підігнаний многочлен"></canvas></div>
-        <p class="sub">Похибка залежно від степеня (клацніть, щоб вибрати степінь)</p>
-        <div><canvas id="ucv" class="cv pan" role="img" aria-label="Похибка навчання й контролю залежно від степеня многочлена"></canvas></div>
+        <div><canvas id="pcv" class="cv" role="img" aria-label="Знімки м’яча в польоті та підігнана крива"></canvas></div>
+        <p class="sub" id="p-sub">Похибка залежно від степеня (клацніть, щоб вибрати степінь)</p>
+        <div><canvas id="ucv" class="cv pan" role="img" aria-label="Похибка навчання й контролю"></canvas></div>
         <dl class="stats" id="p-stats"></dl>
       </div>
       <div class="box">
-        <div><p class="group-title">Швидкий вибір</p><div class="btnrow"><button class="btn" data-deg="2" type="button">Занадто проста (2)</button><button class="btn" data-deg="3" type="button">Адекватна (3)</button><button class="btn" data-deg="11" type="button">Занадто складна (11)</button></div></div>
-        <div class="ctl"><label for="pdeg">Степінь многочлена</label><output id="pdeg-o"></output><input id="pdeg" type="range" min="1" max="14" step="1" value="9"></div>
-        <div class="ctl"><label for="pn">Кількість знімків</label><output id="pn-o"></output><input id="pn" type="range" min="5" max="40" step="1" value="16"></div>
-        <div class="ctl"><label for="pnoise">Тремтіння камери, м</label><output id="pnoise-o"></output><input id="pnoise" type="range" min="0" max="0.6" step="0.01" value="0.08"></div>
-        <div class="ctl"><label for="pdrag">Опір повітря</label><output id="pdrag-o"></output><input id="pdrag" type="range" min="0" max="0.25" step="0.01" value="0.15"><small>0 — вакуум, траєкторія є точною параболою.</small></div>
+        <div id="poly-ctl" class="grp">
+          <div><p class="group-title">Швидкий вибір</p><div class="btnrow"><button class="btn" data-deg="2" type="button">Занадто проста (2)</button><button class="btn" data-deg="3" type="button">Адекватна (3)</button><button class="btn" data-deg="8" type="button" id="deg-over">Занадто складна (8)</button></div></div>
+          <div class="ctl"><label for="pdeg">Степінь многочлена</label><output id="pdeg-o"></output><input id="pdeg" type="range" min="1" max="14" step="1" value="7"></div>
+        </div>
+        <div id="nn-ctl" class="grp" hidden>
+          <div class="btnrow" style="margin-bottom:12px"><button class="btn primary" id="nrun" type="button" style="flex:1">Пауза</button><button class="btn" id="nreset" type="button" title="Навчити мережу заново на тих самих знімках">Спочатку</button></div>
+          <div><p class="group-title">Швидкий вибір</p><div class="btnrow"><button class="btn" data-nn="under" type="button">Занадто проста</button><button class="btn" data-nn="good" type="button">Адекватна</button><button class="btn" data-nn="over" type="button">Занадто складна</button></div></div>
+          <div class="ctl"><label for="nw">Нейронів у шарі (ширина)</label><output id="nw-o"></output><input id="nw" type="range" min="2" max="64" step="2" value="16"></div>
+          <div class="ctl"><label for="nd">Прихованих шарів (глибина)</label><output id="nd-o"></output><input id="nd" type="range" min="1" max="4" step="1" value="2"></div>
+          <div class="ctl"><label for="nl2">Регуляризація L2</label><output id="nl2-o"></output><input id="nl2" type="range" min="0" max="0.02" step="0.0005" value="0"><small>Штраф λ·Σw² за великі ваги. Діє на ходу: рухайте під час навчання.</small></div>
+          <div class="ctl" style="margin:0"><label for="nspeed">Швидкість показу</label><select id="nspeed"><option value="6">Повільно</option><option value="25" selected>Звичайно</option><option value="100">Швидко</option></select></div>
+        </div>
+        <div class="grp">
+          <p class="group-title">Знімки</p>
+          <div class="ctl"><label for="pn">Кількість знімків</label><output id="pn-o"></output><input id="pn" type="range" min="4" max="24" step="1" value="9"></div>
+          <div class="ctl"><label for="pnoise">Тремтіння камери, м</label><output id="pnoise-o"></output><input id="pnoise" type="range" min="0" max="0.4" step="0.01" value="0.12"></div>
+          <div class="ctl"><label for="pdrag">Опір повітря</label><output id="pdrag-o"></output><input id="pdrag" type="range" min="0" max="0.25" step="0.01" value="0.15"><small>0 — вакуум, траєкторія є точною параболою.</small></div>
+        </div>
         <label class="chk"><input type="checkbox" id="pshowtrue" checked>показати справжню траєкторію</label>
         <label class="chk"><input type="checkbox" id="pshowtest" checked>показати нові знімки</label>
         <button class="btn primary" id="pnew" type="button">Зробити нові знімки</button>
       </div>
+    </div>
+    <div class="bridge">
+      <h3>Це не лише «про штучний інтелект»</h3>
+      <p>Недонавчання й перенавчання виникають щоразу, коли ми добираємо функцію з певного сімейства за скінченною кількістю неточних даних. Не важливо, що це за сімейство: многочлени, сплайни, ряди Фур’є, сітка скінченних елементів чи нейромережа. Похибка завжди має дві складові. Зсув виникає, коли сімейство надто бідне для форми розв’язку. Розкид виникає, коли сімейство надто гнучке для наявних даних і вчить їхній шум. Перемкніть режим угорі й порівняйте: на тих самих м’ячах обидва методи поводяться схоже, лише «ручки складності» в них різні.</p>
+      <div class="tablewrap"><table class="xmap">
+        <thead><tr><th>Поняття</th><th>У чисельних методах</th><th>У машинному навчанні</th><th>Тут</th></tr></thead>
+        <tbody>
+          <tr><td>Складність моделі</td><td>Степінь многочлена, число вузлів сплайна, крок сітки</td><td>Ширина, глибина, число параметрів</td><td>Степінь ↔ ширина й глибина</td></tr>
+          <tr><td>Шум у даних</td><td>Похибки вимірювань, округлення</td><td>Шум у мітках</td><td>Тремтіння камери</td></tr>
+          <tr><td>Недонавчання</td><td>Похибка апроксимації: надто грубий многочлен чи сітка</td><td>Надто проста модель: великі похибки і на навчанні, і на контролі</td><td>Степінь 1–2; 2 нейрони з сильним L2</td></tr>
+          <tr><td>Перенавчання</td><td>Інтерполяція шумних даних многочленом високого степеня: коливання між вузлами (явище Рунге), погана обумовленість матриці</td><td>Запам’ятовування шуму: мала похибка на навчанні, велика на контролі</td><td>Степінь на 1 менший за число знімків; широка мережа без захисту</td></tr>
+          <tr><td>Регуляризація</td><td>Метод Тихонова для некоректних задач, згладжувальні сплайни</td><td>L2 (ваги прагнуть до нуля), L1, дропаут</td><td>Повзунок L2</td></tr>
+          <tr><td>Рання зупинка</td><td>Напівзбіжність ітераційних методів для некоректних задач: пізні ітерації підсилюють шум</td><td>Зупинка навчання, коли похибка на контролі перестала спадати</td><td>Червоне коло на графіку епох</td></tr>
+          <tr><td>Контроль</td><td>Відкладена вибірка, перехресна перевірка для вибору степеня чи параметра регуляризації</td><td>Контрольна (валідаційна) вибірка</td><td>Нові знімки</td></tr>
+        </tbody></table></div>
     </div>
   </section>
 
@@ -582,6 +631,8 @@ const Lab = (function () {
       this.sizes = [opts.d].concat(opts.hidden, [1]);
       this.L = this.sizes.length - 1;
       this.lr = opts.lr || 0.01;
+      // task: 'reg' — регресія (лінійний вихід, MSE); інакше класифікація (сигмоїда, BCE)
+      this.reg = opts.task === 'reg';
       this.rng = mulberry32((opts.seed || 1) * 7919 + 13);
       this.W = []; this.b = [];
       this.mW = []; this.vW = []; this.mb = []; this.vb = [];
@@ -675,6 +726,7 @@ const Lab = (function () {
       // градиент по логиту
       const dpOut = c.dp[L - 1];
       for (let s = 0; s < n; s++) {
+        if (this.reg) { dpOut[s] = (logits[s] - data.y[s]) / n; continue; }
         const p = sigmoid(logits[s]);
         dpOut[s] = (p - data.y[s]) / n;
       }
@@ -738,6 +790,11 @@ const Lab = (function () {
     // Оценка без dropout: потери (BCE) и точность.
     evaluate(data, c) {
       const logits = this.forward(data.X, data.stride, data.n, c, 0);
+      if (this.reg) {
+        let se = 0;
+        for (let s = 0; s < data.n; s++) { const e = logits[s] - data.y[s]; se += e * e; }
+        return { loss: se / data.n, acc: 0 };   // loss тут — середній квадрат похибки (MSE)
+      }
       let loss = 0, hit = 0;
       for (let s = 0; s < data.n; s++) {
         const z = logits[s], y = data.y[s];
@@ -1666,15 +1723,22 @@ function el(t,cls,txt,par){var e=document.createElement(t);if(cls)e.className=cl
 function stats(dl,rows){dl.textContent='';rows.forEach(function(r){var d=el('div','stat',undefined,dl);el('dt',null,r[0],d);var dd=el('dd',null,r[1],d);if(r[2])el('small',null,r[2],dd)})}
 function line(c,pts,col,w,dash){c.beginPath();pts.forEach(function(p,i){i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])});c.strokeStyle=col;c.lineWidth=w;c.setLineDash(dash||[]);c.lineJoin='round';c.stroke();c.setLineDash([])}
 
-/* ===== 1. Многочлени ===== */
-var P={n:16,deg:9,noise:.08,drag:.15,pts:[],test:[],curve:[],X1:1,Y1:1,lay:null,sel:-1,showTrue:true,showTest:true};
+/* ===== 1. М’яч: многочлен чи нейромережа ===== */
+var P={n:9,deg:7,noise:.12,drag:.15,mode:'poly',pts:[],test:[],curve:[],X1:1,Y1:1,lay:null,sel:-1,showTrue:true,showTest:true};
+var YM=1.8,YS=1.3,NSHOW=8,NMAX=24,NG=241;
+var NN={w:16,d:2,l2:0,seed:1,run:false,ep:0,MAXE:6000,pf:25,net:null,tr:null,te:null,cTr:null,cTe:null,cG:null,GX:new Float64Array(NG),h:{e:[],tr:[],te:[]},last:0};
 function simulate(){var k=P.drag,g=9.81,a=55*PI/180,vx=10*Math.cos(a),vy=10*Math.sin(a),x=0,y=1,dt=.004,pts=[[0,1]];
  while(y>=0&&pts.length<6000){var s=Math.sqrt(vx*vx+vy*vy);vx-=k*s*vx*dt;vy-=(g+k*s*vy)*dt;x+=vx*dt;y+=vy*dt;pts.push([x,y])}
  P.curve=pts;P.X1=pts[pts.length-1][0];P.Y1=Math.max.apply(null,pts.map(function(p){return p[1]}))}
-function nb(){return{f:rng(),z1:gr(rng),z2:gr(rng),man:false,x:0,y:0}}
-function place(p){if(p.man)return;var q=P.curve[Math.min(P.curve.length-1,Math.floor(p.f*P.curve.length))];p.x=q[0]+P.noise*.5*p.z1;p.y=q[1]+P.noise*p.z2}
-function regen(){simulate();P.pts.forEach(place);P.test.forEach(place)}
-function resample(){P.pts=[];P.test=[];for(var i=0;i<P.n;i++)P.pts.push(nb());for(i=0;i<150;i++)P.test.push(nb());regen()}
+/* f — частка часу польоту; j — випадкова добавка до рівномірного кроку між знімками */
+function nb(){return{f:rng(),j:rng(),z1:gr(rng),z2:gr(rng),man:false,x:0,y:0}}
+/* стробоскопічне фото: знімки через майже однакові проміжки часу, тож у кадрі вони не збиваються в хмару */
+function layout(){var auto=P.pts.filter(function(p){return!p.man}),m=auto.length;auto.forEach(function(p,i){p.f=Math.min(.999,(i+.5+.6*(p.j-.5))/m)})}
+function tpos(p){return P.curve[Math.min(P.curve.length-1,Math.floor(p.f*P.curve.length))]}
+function place(p){if(p.man)return;var q=tpos(p);p.x=q[0]+P.noise*.5*p.z1;p.y=q[1]+P.noise*p.z2}
+function regen(){simulate();layout();P.pts.forEach(place);P.test.forEach(place)}
+function resample(){P.pts=[];P.test=[];for(var i=0;i<P.n;i++)P.pts.push(nb());for(i=0;i<150;i++)P.test.push(nb());P.test.sort(function(a,b){return a.f-b.f});regen()}
+function testShown(){var a=[],T=P.test;for(var i=0;i<NSHOW;i++)a.push(T[Math.floor((i+.5)*T.length/NSHOW)]);return a}
 function U(x){return 2*x/P.X1-1}
 function cheb(u,m){var t=[1,u];for(var i=2;i<=m;i++)t[i]=2*u*t[i-1]-t[i-2];return t}
 function fitPoly(pts,deg){var m=deg+1,A=[],b=[],i,j,k;for(i=0;i<m;i++){A.push(new Array(m).fill(0));b.push(0)}
@@ -1687,20 +1751,57 @@ function ev(c,x){var t=cheb(U(x),c.length-1),s=0;for(var i=0;i<c.length;i++)s+=c
 function rmse(c,pts){var s=0;pts.forEach(function(p){var e=ev(c,p.x)-p.y;s+=e*e});return Math.sqrt(s/pts.length)}
 function errs(){var a=[],i;for(var d=1;d<=14;d++){var c=fitPoly(P.pts,d);a.push({d:d,tr:rmse(c,P.pts),te:rmse(c,P.test)})}
  var mn=Math.min.apply(null,a.map(function(r){return r.te})),b=1;for(i=0;i<a.length;i++)if(a[i].te<=mn*1.05){b=a[i].d;break}return{a:a,best:b}}
-function drawPoly(){var s=setup($('pcv'),.56);if(!s)return;var c=s.c,w=s.w,h=s.h,m={l:40,r:10,t:10,b:30},pw=w-m.l-m.r,ph=h-m.t-m.b;
- var x0=-.3,x1=P.X1+.3,y0=-1.5,y1=Math.ceil(P.Y1+1.5);P.lay={m:m,pw:pw,ph:ph,x0:x0,x1:x1,y0:y0,y1:y1};
+
+/* ---- нейромережа (регресія на готовому рушії Lab.Net) ---- */
+function nnData(pts){var n=pts.length,X=new Float64Array(n),y=new Float64Array(n);pts.forEach(function(p,i){X[i]=U(p.x);y[i]=(p.y-YM)/YS});return{n:n,stride:1,X:X,y:y}}
+function nnRec(){var a=NN.net.evaluate(NN.tr,NN.cTr),b=NN.net.evaluate(NN.te,NN.cTe),h=NN.h;h.e.push(NN.ep);h.tr.push(Math.sqrt(a.loss)*YS);h.te.push(Math.sqrt(b.loss)*YS)}
+/* нові дані, мережа та її ваги ті самі: навчання триває на ходу */
+function nnSync(){NN.tr=nnData(P.pts);NN.te=nnData(P.test);NN.cTr=NN.net.makeCache(NN.tr.n,1);NN.cTe=NN.net.makeCache(NN.te.n,1);
+ for(var i=0;i<NG;i++)NN.GX[i]=U(P.X1*i/(NG-1));NN.h={e:[],tr:[],te:[]};nnRec()}
+function nnBuild(){var hid=[];for(var i=0;i<NN.d;i++)hid.push(NN.w);
+ NN.net=new Lab.Net({d:1,hidden:hid,seed:NN.seed,lr:.01,task:'reg'});NN.cG=NN.net.makeCache(NG,1);NN.ep=0;nnSync()}
+function nnCurve(){var lg=NN.net.forward(NN.GX,1,NG,NN.cG,0),r=new Array(NG);for(var i=0;i<NG;i++)r[i]=lg[i]*YS+YM;return r}
+var nraf=0;
+function nframe(){nraf=0;if(!(P.mode==='nn'&&NN.run))return;var t0=performance.now(),d=0,cfg={dropout:0,dropIn:0,l1:0,l2:NN.l2};
+ while(d<NN.pf&&NN.ep<NN.MAXE&&performance.now()-t0<12){NN.net.step(NN.tr,NN.cTr,cfg);NN.ep++;d++;if(NN.ep%10==0)nnRec()}
+ if(NN.ep>=NN.MAXE){NN.run=false;nnRec()}
+ var now=performance.now();if(!NN.run||now-NN.last>60){NN.last=now;renderPoly()}
+ if(NN.run)nraf=requestAnimationFrame(nframe)}
+function nnStart(){NN.run=true;if(!nraf)nraf=requestAnimationFrame(nframe)}
+
+/* ---- малювання ---- */
+function ball(c,x,y,r,a,ring,dash){c.save();c.globalAlpha=a;
+ var g=c.createRadialGradient(x-r*.35,y-r*.4,r*.1,x,y,r);g.addColorStop(0,'#f7a653');g.addColorStop(1,'#cc6618');
+ c.beginPath();c.arc(x,y,r,0,6.3);c.fillStyle=g;c.fill();
+ c.save();c.clip();c.strokeStyle='#4a2108';c.lineWidth=Math.max(1,r*.1);
+ c.beginPath();c.moveTo(x-r,y);c.lineTo(x+r,y);c.moveTo(x,y-r);c.lineTo(x,y+r);c.stroke();
+ c.beginPath();c.arc(x-r*1.5,y,r*1.1,0,6.3);c.stroke();c.beginPath();c.arc(x+r*1.5,y,r*1.1,0,6.3);c.stroke();c.restore();
+ c.beginPath();c.arc(x,y,r,0,6.3);c.lineWidth=Math.max(1,r*.1);c.strokeStyle='#4a2108';c.stroke();
+ if(ring){c.beginPath();c.arc(x,y,r+3.5,0,6.3);c.strokeStyle=ring;c.lineWidth=2;c.setLineDash(dash||[]);c.stroke()}
+ c.restore()}
+function drawPoly(){var cv=$('pcv'),w0=cv.parentNode.clientWidth;if(!w0)return;
+ var x0=-.3,x1=P.X1+.3,y0=-.5,y1=Math.ceil(P.Y1+.5),mm={l:40,r:10,t:10,b:30};
+ /* масштаб однаковий по обох осях, щоб м’яч був круглим, а траєкторія виглядала як на справжньому фото */
+ var ratio=Math.min(.8,((w0-mm.l-mm.r)*(y1-y0)/(x1-x0)+mm.t+mm.b)/w0);
+ var s=setup(cv,ratio);if(!s)return;var c=s.c,w=s.w,h=s.h,m=mm,pw=w-m.l-m.r,ph=h-m.t-m.b;
+ var R=Math.max(6,Math.min(15,.12*Math.min(pw/(x1-x0),ph/(y1-y0))));
+ P.lay={m:m,pw:pw,ph:ph,x0:x0,x1:x1,y0:y0,y1:y1,R:R};
  function X(x){return m.l+(x-x0)/(x1-x0)*pw}function Y(y){return m.t+(y1-y)/(y1-y0)*ph}
  c.save();c.beginPath();c.rect(m.l,m.t,pw,ph);c.clip();
  c.fillStyle=C.mut;
- for(var v=0;v<=y1;v+=1){line(c,[[m.l,Y(v)],[m.l+pw,Y(v)]],v==0?C.axis:C.hair,1)}
+ for(var v=0;v<=y1;v+=1){line(c,[[m.l,Y(v)],[m.l+pw,Y(v)]],v==0?C.axis:C.hair,v==0?2:1)}
  for(v=0;v<=x1;v+=1){line(c,[[X(v),m.t],[X(v),m.t+ph]],C.hair,1)}
  if(P.showTrue)line(c,P.curve.filter(function(_,i){return i%4==0}).map(function(p){return[X(p[0]),Y(p[1])]}),C.ghost,2,[6,4]);
- var co=fitPoly(P.pts,P.deg),cur=[];for(var i=0;i<=240;i++){var x=P.X1*i/240;cur.push([X(x),Y(ev(co,x))])}line(c,cur,C.tr,2.6);
- if(P.showTest)P.test.forEach(function(p,i){if(i>=80)return;c.beginPath();c.arc(X(p.x),Y(p.y),2.6,0,6.3);c.fillStyle='rgba(235,104,48,.35)';c.fill()});
- P.pts.forEach(function(p){c.beginPath();c.arc(X(p.x),Y(p.y),5,0,6.3);c.fillStyle=C.tr;c.fill();c.lineWidth=2;c.strokeStyle='#fff';c.stroke()});
+ if(P.showTrue)P.pts.forEach(function(p){if(p.man)return;var q=tpos(p);line(c,[[X(q[0]),Y(q[1])],[X(p.x),Y(p.y)]],'rgba(93,108,120,.85)',1.6)});
+ var cur=[],i;
+ if(P.mode==='poly'){var co=fitPoly(P.pts,P.deg);for(i=0;i<=240;i++){var x=P.X1*i/240;cur.push([X(x),Y(ev(co,x))])}}
+ else if(NN.net){var ys=nnCurve();for(i=0;i<NG;i++)cur.push([X(P.X1*i/(NG-1)),Y(ys[i])])}
+ line(c,cur,C.tr,2.6);
+ if(P.showTest)testShown().forEach(function(p){ball(c,X(p.x),Y(p.y),R,.42,C.te,[3,3])});
+ P.pts.forEach(function(p){ball(c,X(p.x),Y(p.y),R,1,C.tr)});
  c.restore();
- c.fillStyle=C.mut;c.textAlign='right';for(v=0;v<=y1;v+=2)c.fillText(String(v),m.l-6,Y(v)+4);
- c.textAlign='center';for(v=0;v<=x1;v+=2)c.fillText(String(v),X(v),h-14);
+ c.fillStyle=C.mut;c.textAlign='right';for(v=0;v<=y1;v+=1)c.fillText(String(v),m.l-6,Y(v)+4);
+ c.textAlign='center';var st=(x1-x0)>8?2:1;for(v=0;v<=x1;v+=st)c.fillText(String(v),X(v),h-14);
  c.fillText('відстань, м',m.l+pw/2,h-2);c.textAlign='left';c.fillText('висота, м',2,10)}
 function drawU(E){var s=setup($('ucv'),.34);if(!s)return;var c=s.c,w=s.w,h=s.h,m={l:40,r:10,t:8,b:24},pw=w-m.l-m.r,ph=h-m.t-m.b;
  var all=[];E.a.forEach(function(r){all.push(r.tr,r.te)});var lo=Math.max(1e-3,Math.min.apply(null,all)*.7),hi=Math.min(1e4,Math.max.apply(null,all)*1.3);
@@ -1712,29 +1813,72 @@ function drawU(E){var s=setup($('ucv'),.34);if(!s)return;var c=s.c,w=s.w,h=s.h,m
  E.a.forEach(function(r){[[r.tr,C.tr],[r.te,C.te]].forEach(function(q){c.beginPath();c.arc(X(r.d),Y(q[0]),r.d==P.deg?5:3,0,6.3);c.fillStyle=q[1];c.fill()})});
  c.beginPath();c.arc(X(E.best),Y(E.a[E.best-1].te),8,0,6.3);c.strokeStyle=C.bad;c.lineWidth=1.6;c.stroke();
  P.ulay={m:m,pw:pw}}
-function renderPoly(){var E=errs(),r=E.a[P.deg-1];drawPoly();drawU(E);
+function nnBest(){var H=NN.h,b=0;for(var i=1;i<H.te.length;i++)if(H.te[i]<H.te[b])b=i;return b}
+function drawNL(){var s=setup($('ucv'),.34);if(!s)return;var c=s.c,w=s.w,h=s.h,m={l:44,r:10,t:8,b:24},pw=w-m.l-m.r,ph=h-m.t-m.b,H=NN.h,i;
+ var all=[Math.max(P.noise,.01)];for(i=0;i<H.e.length;i++)all.push(H.tr[i],H.te[i]);
+ var lo=Math.max(1e-3,Math.min.apply(null,all)*.7),hi=Math.min(1e4,Math.max.apply(null,all)*1.3),l0=Math.log10(lo),l1=Math.log10(hi);
+ function X(e){return m.l+e/NN.MAXE*pw}function Y(v){return m.t+(1-(Math.log10(Math.max(lo,Math.min(hi,v)))-l0)/(l1-l0))*ph}
+ for(var e=Math.ceil(l0);e<=l1;e++){line(c,[[m.l,Y(Math.pow(10,e))],[m.l+pw,Y(Math.pow(10,e))]],C.hair,1);c.fillStyle=C.mut;c.textAlign='right';c.fillText(fmt(Math.pow(10,e),e<0?-e:0),m.l-6,Y(Math.pow(10,e))+4)}
+ c.textAlign='center';c.fillStyle=C.mut;for(var k=0;k<=4;k++)c.fillText(String(Math.round(NN.MAXE*k/4)),X(NN.MAXE*k/4),h-8);
+ if(P.noise>0){line(c,[[m.l,Y(P.noise)],[m.l+pw,Y(P.noise)]],C.ghost,1.4,[5,4]);c.fillStyle=C.mut;c.textAlign='right';c.fillText('рівень тремтіння',m.l+pw-4,Y(P.noise)-4)}
+ line(c,H.e.map(function(e,i){return[X(e),Y(H.te[i])]}),C.te,2);line(c,H.e.map(function(e,i){return[X(e),Y(H.tr[i])]}),C.tr,2);
+ if(H.e.length>3){var b=nnBest();c.beginPath();c.arc(X(H.e[b]),Y(H.te[b]),8,0,6.3);c.strokeStyle=C.bad;c.lineWidth=1.6;c.stroke()}}
+
+/* ---- оформлення ---- */
+function renderPoly(){var od=Math.min(14,Math.max(5,P.pts.length-1)),v;
+ $('deg-over').textContent='Занадто складна ('+od+')';$('deg-over').dataset.deg=od;
+ drawPoly();
  $('pdeg-o').textContent=P.deg;$('pn-o').textContent=P.pts.length;$('pnoise-o').textContent=fmt(P.noise,2);$('pdrag-o').textContent=fmt(P.drag,2);
  $('pdeg').value=P.deg;$('pn').value=P.pts.length;
- var v=P.deg<E.best?'Недонавчання: модель надто проста, похибка велика і на знімках, і на нових.':(P.deg>E.best+1&&r.te>1.25*E.a[E.best-1].te)?'Перенавчання: крива підлаштувалась під шум, на нових знімках похибка зросла.':'Адекватна складність: похибки близькі до рівня шуму.';
- $('p-verdict').textContent=v;
- stats($('p-stats'),[['Степінь',String(P.deg),'параметрів '+(P.deg+1)+' на '+P.pts.length+' знімків'],['Похибка на знімках',fmt(r.tr,3),'м'],['Похибка на нових',fmt(r.te,3),'м'],['Найкращий степінь',String(E.best),'за контролем']])}
+ if(P.mode==='poly'){var E=errs(),r=E.a[P.deg-1];drawU(E);
+  v=P.deg<E.best?'Недонавчання: модель надто проста, похибка велика і на знімках, і на нових.':(P.deg>E.best+1&&r.te>1.25*E.a[E.best-1].te)?'Перенавчання: крива підлаштувалась під шум, на нових знімках похибка зросла.':'Адекватна складність: похибки близькі до рівня шуму.';
+  $('p-verdict').textContent=v;
+  stats($('p-stats'),[['Степінь',String(P.deg),'параметрів '+(P.deg+1)+' на '+P.pts.length+' знімків'],['Похибка на знімках',fmt(r.tr,3),'м'],['Похибка на нових',fmt(r.te,3),'м'],['Найкращий степінь',String(E.best),'за контролем']])}
+ else if(NN.net){drawNL();var H=NN.h,i=H.e.length-1,tr=H.tr[i],te=H.te[i],bi=nnBest();
+  $('nw-o').textContent=NN.w;$('nd-o').textContent=NN.d;$('nl2-o').textContent=fmt(NN.l2,4);
+  $('nw').value=NN.w;$('nd').value=NN.d;$('nl2').value=NN.l2;
+  $('nrun').textContent=NN.run?'Пауза':(NN.ep>=NN.MAXE?'Ще раз':'Старт');
+  v=NN.ep<150?'Мережа тільки почала вчитися.':(tr<.6*P.noise&&te>1.1*tr)?'Перенавчання: похибка на знімках нижча за саме тремтіння камери, отже мережа вчить шум. На нових знімках вона гірша.':tr>1.8*Math.max(P.noise,.05)?'Недонавчання: мережа не вловлює форму польоту навіть на знімках.':'Адекватно: похибка на знімках близька до рівня тремтіння, на нових знімках лише трохи більша.';
+  if(NN.ep>=150&&H.e[bi]<NN.ep-600&&te>1.12*H.te[bi])v+=' Найкращий момент зупинки був раніше (червоне коло).';
+  $('p-verdict').textContent=v;
+  stats($('p-stats'),[['Епоха',String(NN.ep),'з '+NN.MAXE],['Параметрів',String(NN.net.paramCount()),'на '+P.pts.length+' знімків'],['Похибка на знімках',fmt(tr,3),'м'],['Похибка на нових',fmt(te,3),'м']])}}
+function setMode(m){P.mode=m;$('poly-ctl').hidden=m!=='poly';$('nn-ctl').hidden=m!=='nn';
+ $('lg-fit').textContent=m==='poly'?'многочлен':'нейромережа';
+ $('p-sub').textContent=m==='poly'?'Похибка залежно від степеня (клацніть, щоб вибрати степінь)':'Похибка за епохами навчання (логарифмічна шкала). Червоне коло: найкращий момент зупинки';
+ if(m==='nn'){if(!NN.net)nnBuild();else nnSync();if(NN.ep<NN.MAXE)nnStart();else NN.run=false}else NN.run=false;
+ renderPoly()}
+/* дані змінилися (м’яч перетягнули, шум, кількість): мережа продовжує вчитися; restart — нова задача, мережа з нуля */
+function changed(restart){if(P.mode==='nn'){if(restart){nnBuild();nnStart()}else{nnSync();if(NN.ep<NN.MAXE&&!nraf&&NN.run)nnStart()}}renderPoly()}
 function wirePoly(){
  function pos(ev,cv){var b=cv.getBoundingClientRect();return[ev.clientX-b.left,ev.clientY-b.top]}
+ function toX(L,q){return L.x0+(q[0]-L.m.l)/L.pw*(L.x1-L.x0)}function toY(L,q){return L.y1-(q[1]-L.m.t)/L.ph*(L.y1-L.y0)}
  var cv=$('pcv');
- cv.addEventListener('pointerdown',function(ev){if(!P.lay)return;var L=P.lay,q=pos(ev,cv),best=-1,bd=14;P.pts.forEach(function(p,i){var px=L.m.l+(p.x-L.x0)/(L.x1-L.x0)*L.pw,py=L.m.t+(L.y1-p.y)/(L.y1-L.y0)*L.ph,d=Math.hypot(px-q[0],py-q[1]);if(d<bd){bd=d;best=i}});
-  if(best<0&&P.pts.length<40&&q[0]>L.m.l&&q[0]<L.m.l+L.pw){var p=nb();p.man=true;p.x=L.x0+(q[0]-L.m.l)/L.pw*(L.x1-L.x0);p.y=L.y1-(q[1]-L.m.t)/L.ph*(L.y1-L.y0);P.pts.push(p);best=P.pts.length-1}
+ cv.addEventListener('pointerdown',function(ev){if(!P.lay)return;var L=P.lay,q=pos(ev,cv),best=-1,bd=L.R+5;P.pts.forEach(function(p,i){var px=L.m.l+(p.x-L.x0)/(L.x1-L.x0)*L.pw,py=L.m.t+(L.y1-p.y)/(L.y1-L.y0)*L.ph,d=Math.hypot(px-q[0],py-q[1]);if(d<bd){bd=d;best=i}});
+  if(best<0&&P.pts.length<NMAX&&q[0]>L.m.l&&q[0]<L.m.l+L.pw&&q[1]>L.m.t&&q[1]<L.m.t+L.ph){var p=nb();p.man=true;p.x=toX(L,q);p.y=toY(L,q);P.pts.push(p);best=P.pts.length-1;changed(false)}
   P.sel=best;if(best>=0){cv.setPointerCapture(ev.pointerId);renderPoly()}});
- cv.addEventListener('pointermove',function(ev){if(P.sel<0)return;var L=P.lay,q=pos(ev,cv),p=P.pts[P.sel];p.man=true;p.x=L.x0+(q[0]-L.m.l)/L.pw*(L.x1-L.x0);p.y=L.y1-(q[1]-L.m.t)/L.ph*(L.y1-L.y0);renderPoly()});
+ cv.addEventListener('pointermove',function(ev){if(P.sel<0)return;var L=P.lay,q=pos(ev,cv),p=P.pts[P.sel];p.man=true;p.x=toX(L,q);p.y=toY(L,q);changed(false)});
  ['pointerup','pointercancel'].forEach(function(n){cv.addEventListener(n,function(){P.sel=-1})});
- $('ucv').addEventListener('pointerdown',function(ev){var L=P.ulay,q=pos(ev,$('ucv'));P.deg=Math.max(1,Math.min(14,Math.round((q[0]-L.m.l)/L.pw*13)+1));renderPoly()});
+ $('ucv').addEventListener('pointerdown',function(ev){if(P.mode!=='poly')return;var L=P.ulay,q=pos(ev,$('ucv'));P.deg=Math.max(1,Math.min(14,Math.round((q[0]-L.m.l)/L.pw*13)+1));renderPoly()});
  $('pdeg').addEventListener('input',function(){P.deg=+this.value;renderPoly()});
- $('pn').addEventListener('input',function(){var n=+this.value;while(P.pts.length<n){var p=nb();place(p);P.pts.push(p)}while(P.pts.length>n)P.pts.pop();renderPoly()});
- $('pnoise').addEventListener('input',function(){P.noise=+this.value;P.pts.forEach(place);P.test.forEach(place);renderPoly()});
- $('pdrag').addEventListener('input',function(){P.drag=+this.value;regen();renderPoly()});
+ $('pn').addEventListener('input',function(){var n=+this.value;while(P.pts.length<n){P.pts.push(nb())}while(P.pts.length>n)P.pts.pop();layout();P.pts.forEach(place);changed(false)});
+ $('pnoise').addEventListener('input',function(){P.noise=+this.value;P.pts.forEach(place);P.test.forEach(place);changed(false)});
+ $('pdrag').addEventListener('input',function(){P.drag=+this.value;regen();changed(true)});
  $('pshowtrue').addEventListener('change',function(){P.showTrue=this.checked;renderPoly()});
  $('pshowtest').addEventListener('change',function(){P.showTest=this.checked;renderPoly()});
- $('pnew').addEventListener('click',function(){P.n=P.pts.length;resample();renderPoly()});
- Array.prototype.forEach.call(document.querySelectorAll('[data-deg]'),function(b){b.addEventListener('click',function(){P.deg=+b.dataset.deg;renderPoly()})})}
+ $('pnew').addEventListener('click',function(){P.n=P.pts.length;resample();changed(true)});
+ Array.prototype.forEach.call(document.querySelectorAll('[data-deg]'),function(b){b.addEventListener('click',function(){P.deg=+b.dataset.deg;renderPoly()})});
+ /* нейромережа */
+ Array.prototype.forEach.call(document.querySelectorAll('input[name=pmode]'),function(r){r.addEventListener('change',function(){if(r.checked)setMode(r.value)})});
+ var ntm=0;function laterNN(){clearTimeout(ntm);ntm=setTimeout(function(){nnBuild();nnStart();renderPoly()},160)}
+ $('nw').addEventListener('input',function(){NN.w=+this.value;$('nw-o').textContent=NN.w;laterNN()});
+ $('nd').addEventListener('input',function(){NN.d=+this.value;$('nd-o').textContent=NN.d;laterNN()});
+ $('nl2').addEventListener('input',function(){NN.l2=+this.value;$('nl2-o').textContent=fmt(NN.l2,4)});
+ $('nspeed').addEventListener('change',function(){NN.pf=+this.value});
+ $('nrun').addEventListener('click',function(){if(NN.run){NN.run=false}else{if(NN.ep>=NN.MAXE)nnBuild();nnStart()}renderPoly()});
+ $('nreset').addEventListener('click',function(){nnBuild();nnStart();renderPoly()});
+ var NP={under:{w:2,d:1,l2:.02},good:{w:16,d:2,l2:.002},over:{w:64,d:3,l2:0}};
+ Array.prototype.forEach.call(document.querySelectorAll('[data-nn]'),function(b){b.addEventListener('click',function(){var o=NP[b.dataset.nn];NN.w=o.w;NN.d=o.d;NN.l2=o.l2;nnBuild();nnStart();renderPoly()})});
+ document.addEventListener('visibilitychange',function(){if(document.hidden&&NN.run){NN.run=false;if(P.mode==='nn')renderPoly()}})}
 
 /* ===== 2. Спіралі ===== */
 var Sp={npa:14,noise:.18,hid:32,lay:2,l2:0,seed:1,run:true,MAXE:2000,pf:25,showTest:true,G:56,last:0};
