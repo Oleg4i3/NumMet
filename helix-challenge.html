@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Челендж: K-means vs HDBSCAN (пресети)</title>
+
+    <script>
+    MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
+        .panel {
+            position: absolute; background: rgba(255,255,255,0.95); padding: 16px 18px;
+            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-height: 92vh; overflow-y: auto; backdrop-filter: blur(5px); box-sizing: border-box;
+        }
+        #left-panel { top: 10px; left: 10px; width: 330px; border-left: 5px solid #e67e22; }
+        #right-panel { top: 10px; right: 10px; width: 290px; }
+        h2 { margin: 0 0 8px; font-size: 1.1rem; color: #2c3e50; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+        h3 { margin: 10px 0 5px; font-size: 0.98rem; color: #34495e; }
+        p, li { font-size: 0.86rem; color: #555; line-height: 1.45; }
+        p { margin: 6px 0; }
+        ul, ol { padding-left: 20px; margin: 5px 0; }
+        a { color: #2980b9; }
+        label { display: block; margin: 8px 0 3px; font-weight: 600; font-size: 0.83rem; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        input[type="number"], select { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; margin-top: 6px; background: #fff; font-size: 0.85rem; }
+        button.primary { background: #3498db; color: #fff; border: none; font-weight: bold; }
+        button.primary:hover { background: #2980b9; }
+        button.warn { background: #e67e22; color: #fff; border: none; }
+        .row { display: flex; gap: 6px; }
+        .row button { margin-top: 6px; }
+        .view-btn.active { background: #27ae60; color: #fff; border-color: #27ae60; font-weight: bold; }
+        .chk { display: flex; align-items: center; gap: 6px; font-weight: normal; margin: 6px 0 0; }
+        hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 6px; }
+        td, th { padding: 4px 3px; border-bottom: 1px solid #eee; text-align: left; }
+        th { color: #888; font-weight: 600; }
+        .status { background: #f8f9fa; border: 1px solid #eee; border-radius: 4px; padding: 8px; font-size: 0.8rem; margin-top: 8px; color: #444; }
+        details { background: #fdf6ec; border: 1px solid #f5dfbf; border-radius: 4px; padding: 6px 8px; margin-top: 10px; }
+        summary { cursor: pointer; font-weight: bold; color: #b9650f; font-size: 0.85rem; }
+        .legend span.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+        .legend { line-height: 1.7; }
+        #preset-box { background: #fff8f0; border: 1px solid #fae5cd; border-radius: 6px; padding: 4px 10px 6px; }
+        #preset-box b { color: #b9650f; }
+    </style>
+</head>
+<body>
+
+<div id="left-panel" class="panel">
+    <h2>🧬 Челендж: K-means vs HDBSCAN</h2>
+
+    <div id="preset-box">
+        <p><b id="pName"></b></p>
+        <p id="pDesc"></p>
+        <p><b>❌ K-means:</b> <span id="pWhy"></span></p>
+        <p><b>✅ HDBSCAN:</b> <span id="pHd"></span></p>
+    </div>
+    <p class="legend" id="legend"></p>
+
+    <h3>🎯 Правила чесної гри</h3>
+    <p>K-means отримує <b>правильне K</b> (кількість структур). Усе одно він ріже простір <b>опуклими комірками Вороного</b>, а HDBSCAN стежить за <b>неперервністю щільності</b>: у mutual reachability-метриці
+    $d_{mreach}(a,b)=\max\{d_{core}(a),d_{core}(b),d(a,b)\}$ перемичка через порожнечу «дорога», тож структури — окремі «гори» щільності.</p>
+
+    <h3>💥 Коли ламається?</h3>
+    <p>Кнопка «Зламати» збільшує шум і/або стискає геометрію. Коли порожнеча між структурами стає меншою за відстань між сусідніми точками, щільнісний підхід теж їх зливає. Внизу праворуч видно це порівняння.</p>
+
+    <details>
+        <summary>📐 Що всередині цього HDBSCAN</summary>
+        <ol>
+            <li>Core-відстань: $d_{core}$ — відстань до $m_{pts}$-го сусіда.</li>
+            <li>MST на $d_{mreach}$ (алгоритм Пріма, $O(N^2)$).</li>
+            <li>Дендрограма (single linkage) із відсортованих ребер MST.</li>
+            <li>Стиснення дерева: гілки менші за <code>min_cluster_size</code> вважаються «опаданням точок», а не справжнім розщепленням. Тут $\lambda = 1/d$.</li>
+            <li>Стабільність кластера $\sum_p(\lambda_p-\lambda_{birth})$ та вибір <b>EOM</b>: беремо або батька, або нащадків — залежно від того, що стабільніше.</li>
+        </ol>
+        <p>Точки, що не потрапили у вибрані кластери, — <b>шум</b>.</p>
+    </details>
+
+    <p style="margin-top:12px">👉 Бонус: <a href="umap-intro.html">знайомство з UMAP</a> (там самі пресети, розгортка в 3D і теорія спектра графа)</p>
+</div>
+
+<div id="right-panel" class="panel">
+    <h2>⚙️ Параметри</h2>
+
+    <label>Пресет даних:</label>
+    <select id="preset">
+        <option value="helix_rod">Хелікс + паличка (базовий)</option>
+        <option value="nested">Вкладені спіралі (паличка + 2 хеліксы)</option>
+        <option value="chain">Ланцюжок зчеплених кілець</option>
+        <option value="moons">Класика: два півмісяці</option>
+        <option value="shells">Класика: кулька в оболонці</option>
+        <option value="swiss">Класика: швейцарський рулет</option>
+        <option value="blobs">Класика: три гаусові групи (базова лінія)</option>
+    </select>
+
+    <div class="row">
+        <button class="primary" id="btn-new">🔄 Нові дані</button>
+    </div>
+    <div class="row">
+        <button class="warn" id="btn-easy">Легко</button>
+        <button class="warn" id="btn-hard">Зламати</button>
+    </div>
+
+    <label>Розмір / радіус R: <span id="Rv">4.0</span></label>
+    <input type="range" id="R" min="0.2" max="6" step="0.05" value="4">
+
+    <label>Шум точок σ: <span id="sv">0.15</span></label>
+    <input type="range" id="sigma" min="0" max="1.5" step="0.01" value="0.15">
+
+    <label>Фонові шумові точки: <span id="bgv">10</span></label>
+    <input type="range" id="bgN" min="0" max="60" step="1" value="10">
+
+    <hr>
+    <label>Показати розмітку:</label>
+    <div class="row">
+        <button class="view-btn active" data-view="truth">Істина</button>
+        <button class="view-btn" data-view="kmeans">K-means</button>
+        <button class="view-btn" data-view="hdbscan">HDBSCAN</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="chkMST"> Показати MST-ребра</label>
+
+    <hr>
+    <label>K-means: кількість кластерів K</label>
+    <input type="number" id="K" value="2" min="1" max="8">
+    <button id="btn-km-seed">🎲 Інший старт K-means</button>
+
+    <label>HDBSCAN: min_samples ($m_{pts}$): <span id="mpv">5</span></label>
+    <input type="range" id="mpts" min="2" max="20" step="1" value="5">
+    <label>HDBSCAN: min_cluster_size: <span id="mcv">30</span></label>
+    <input type="range" id="mcs" min="5" max="80" step="1" value="30">
+
+    <div id="stats" class="status"></div>
+    <div id="gap" class="status"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+
+const PALETTE = [0xe6194b, 0x3cb44b, 0x4363d8, 0xf58231, 0x911eb4, 0x42d4f4, 0xf032e6, 0xbfef45, 0xfabed4, 0x008080, 0x9a6324, 0x800000];
+const CLS_HEX = [0x3498db, 0xe67e22, 0x16a085, 0x8e44ad];
+const CLS_CSS = ['#3498db', '#e67e22', '#16a085', '#8e44ad'];
+const BG = 255, BG_HEX = 0x7f8c8d;
+const NOISE_COL = 0x2c3e50;
+const N_STRUCT = 700;
+
+// ====================== ПРЕСЕТИ ======================
+const PRESETS = {
+    helix_rod: {
+        name: 'Хелікс + паличка', nc: 2, cn: ['паличка', 'хелікс'], kDef: 2,
+        def: { R: 4, s: 0.15 }, hard: { R: 0.25, s: 0.2 },
+        desc: 'Гвинтова лінія з прямою «палкою» по осі Y.',
+        why: 'центр мас хеліксу лежить на осі палки, тож обидва центроїди майже збігаються, а площина-бісектриса розрізає і палку, і витки.',
+        hd: 'між паличкою та витками є порожнеча → дві «гори» щільності. Ламається, коли зазор менший за крок точок палки.'
+    },
+    nested: {
+        name: 'Вкладені спіралі', nc: 3, cn: ['паличка', 'внутрішній хелікс', 'зовнішній хелікс'], kDef: 3,
+        def: { R: 4, s: 0.15 }, hard: { R: 1, s: 0.25 },
+        desc: 'Три співвісні структури: паличка, хелікс радіуса R/2 (у протифазі) і хелікс радіуса R.',
+        why: 'усі три мають спільний центр мас на осі, тому K-means ріже простір «скибками» уздовж осі, а не за структурами.',
+        hd: 'між шарами по радіусу є порожнеча R/2 — три окремі «хребти» щільності. Зменшіть R, і шари зіллються.'
+    },
+    chain: {
+        name: 'Ланцюжок зчеплених кілець', nc: 4, cn: ['кільце 1', 'кільце 2', 'кільце 3', 'кільце 4'], kDef: 4,
+        def: { R: 4, s: 0.15 }, hard: { R: 4, s: 1.3 },
+        desc: 'Чотири кільця радіуса R, що лежать у перпендикулярних площинах і попарно зчеплені (як ланки ланцюга).',
+        why: 'комірки Вороного — опуклі «скибки» вздовж ланцюга; кожна скибка містить шматки сусідніх кілець, бо вони геометрично проходять одне крізь одне.',
+        hd: 'кільця ЗЧЕПЛЕНІ, але НЕ перетинаються: між ними є порожнеча ≈ R. Для щільнісного методу — чотири окремі кластери.'
+    },
+    moons: {
+        name: 'Два півмісяці', nc: 2, cn: ['верхній місяць', 'нижній місяць'], kDef: 2,
+        def: { R: 4, s: 0.15 }, hard: { R: 4, s: 0.9 },
+        desc: 'Класична «two moons» (у 3D з легкою хвилею по Z).',
+        why: 'півмісяці вигнуті й вкладені один у одного — пряма (площина) межа їх не розділить.',
+        hd: 'два неперервні ланцюжки щільності. Класичний приклад, де DBSCAN-подібні методи виграють.'
+    },
+    shells: {
+        name: 'Кулька в оболонці', nc: 2, cn: ['кулька', 'оболонка'], kDef: 2,
+        def: { R: 4, s: 0.15 }, hard: { R: 4, s: 1.1 },
+        desc: 'Класичні «концентричні кола» у 3D: щільна кулька радіуса 0.35R всередині сферичної оболонки радіуса R.',
+        why: 'обидва центроїди майже в центрі, а комірки Вороного опуклі — «обвести» оболонку навколо кульки неможливо.',
+        hd: 'кулька й оболонка розділені порожнечею ≈ 0.65R. Два кластери.'
+    },
+    swiss: {
+        name: 'Швейцарський рулет', nc: 1, cn: ['рулет'], kDef: 3, grad: true,
+        def: { R: 4, s: 0.1 }, hard: { R: 4, s: 1.4 },
+        desc: 'Класичний «Swiss roll»: двовимірний лист, згорнутий у рулон. Колір — положення вздовж листа.',
+        why: 'при K=3 він розрізає лист за відстанню у 3D, а не за положенням вздовж листа (сусідні витки рулону близькі в просторі).',
+        hd: 'правильна відповідь — ОДИН кластер (лист неперервний). Це класика для UMAP: дивіться бонусну сторінку, там рулет розгортається.'
+    },
+    blobs: {
+        name: 'Три гаусові групи', nc: 3, cn: ['група A', 'група B', 'група C'], kDef: 3,
+        def: { R: 4, s: 0.15 }, hard: { R: 1.5, s: 0.6 },
+        desc: 'Базова лінія: три сферичні групи — ідеальний випадок для K-means.',
+        why: 'тут він працює! Це контрольний приклад: K-means не «поганий», він просто для іншої геометрії.',
+        hd: 'теж знаходить три групи, до того ж позначає віддалені точки шумом.'
+    }
+};
+
+function mulberry(a) {
+    return function () {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+function gaussR(rng) {
+    let u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// Генератор: ті самі випадкові числа при зміні R, σ (детермінований rng)
+function genPreset(key, N, R, s, rng, tilt = 0) {
+    const X = new Float32Array(N * 3), cls = new Uint8Array(N), tv = new Float32Array(N);
+    let p = 0;
+    const g = () => gaussR(rng);
+    const put = (x, y, z, c, t = 0) => { X[p * 3] = x; X[p * 3 + 1] = y; X[p * 3 + 2] = z; cls[p] = c; tv[p] = t; p++; };
+    const split = fr => {
+        const out = fr.map(f => Math.floor(N * f));
+        out[out.length - 1] += N - out.reduce((a, b) => a + b, 0);
+        return out;
+    };
+    const ca = Math.cos(tilt), sa = Math.sin(tilt);
+    const rod = (m, c) => {
+        for (let i = 0; i < m; i++) {
+            const u = (i + rng()) / m;
+            const x = s * g(), y = -11 + 22 * u + 0.2 * s * g(), z = s * g();
+            put(x * ca - y * sa, x * sa + y * ca, z, c, u);
+        }
+    };
+    const helix = (m, c, rad, phase) => {
+        for (let i = 0; i < m; i++) {
+            const u = (i + rng()) / m, th = u * 4 * 2 * Math.PI + phase;
+            put(rad * Math.cos(th) + s * g(), -10 + 20 * u + s * g(), rad * Math.sin(th) + s * g(), c, u);
+        }
+    };
+    let center = false;
+    switch (key) {
+        case 'helix_rod': {
+            const [a, b] = split([0.3, 0.7]);
+            rod(a, 0); helix(b, 1, R, 0);
+            break;
+        }
+        case 'nested': {
+            const [a, b, c] = split([0.2, 0.3, 0.5]);
+            rod(a, 0); helix(b, 1, 0.5 * R, Math.PI); helix(c, 2, R, 0);
+            break;
+        }
+        case 'chain': {
+            const m = split([0.25, 0.25, 0.25, 0.25]);
+            for (let k = 0; k < 4; k++) {
+                const cx = (k - 1.5) * R;
+                for (let i = 0; i < m[k]; i++) {
+                    const th = 2 * Math.PI * (i + rng()) / m[k];
+                    const nx = s * g(), ny = s * g(), nz = s * g();
+                    if (k % 2 === 0) put(cx + R * Math.cos(th) + nx, R * Math.sin(th) + ny, nz, k, i / m[k]);
+                    else put(cx + R * Math.cos(th) + nx, ny, R * Math.sin(th) + nz, k, i / m[k]);
+                }
+            }
+            center = true;
+            break;
+        }
+        case 'moons': {
+            const [a, b] = split([0.5, 0.5]);
+            for (let i = 0; i < a; i++) {
+                const u = (i + rng()) / a, t = Math.PI * u;
+                put(R * Math.cos(t) + s * g(), R * Math.sin(t) + s * g(), 0.15 * R * Math.cos(2 * t) + s * g(), 0, u);
+            }
+            for (let i = 0; i < b; i++) {
+                const u = (i + rng()) / b, t = Math.PI * u;
+                put(R * (1 - Math.cos(t)) + s * g(), R * (0.5 - Math.sin(t)) + s * g(), -0.15 * R * Math.cos(2 * t) + s * g(), 1, u);
+            }
+            center = true;
+            break;
+        }
+        case 'shells': {
+            const [a, b] = split([0.25, 0.75]);
+            for (let i = 0; i < a; i++) {
+                const vx = g(), vy = g(), vz = g(), l = Math.hypot(vx, vy, vz) || 1;
+                const r = 0.35 * R * Math.cbrt(rng());
+                put(vx / l * r + 0.3 * s * g(), vy / l * r + 0.3 * s * g(), vz / l * r + 0.3 * s * g(), 0, 0);
+            }
+            for (let i = 0; i < b; i++) {
+                const vx = g(), vy = g(), vz = g(), l = Math.hypot(vx, vy, vz) || 1;
+                const r = R + s * g();
+                put(vx / l * r, vy / l * r, vz / l * r, 1, 0);
+            }
+            break;
+        }
+        case 'swiss': {
+            const k = R * 0.18;
+            for (let i = 0; i < N; i++) {
+                const u = (i + rng()) / N, t = 1.5 * Math.PI * (1 + 2 * u);
+                const h = -6 + 12 * rng();
+                put(k * t * Math.cos(t) + s * g(), h + s * g(), k * t * Math.sin(t) + s * g(), 0, u);
+            }
+            center = true;
+            break;
+        }
+        case 'blobs': {
+            const m = split([1 / 3, 1 / 3, 1 / 3]);
+            const C = [[1.5 * R, 0, 0], [-0.75 * R, 1.3 * R, 0], [-0.75 * R, -1.3 * R, 0.7 * R]];
+            const sd = 0.2 * R + 0.5 * s;
+            for (let k = 0; k < 3; k++) for (let i = 0; i < m[k]; i++)
+                put(C[k][0] + sd * g(), C[k][1] + sd * g(), C[k][2] + sd * g(), k, 0);
+            center = true;
+            break;
+        }
+    }
+    if (center) {
+        let mx = 0, my = 0, mz = 0;
+        for (let i = 0; i < N; i++) { mx += X[i * 3]; my += X[i * 3 + 1]; mz += X[i * 3 + 2]; }
+        mx /= N; my /= N; mz /= N;
+        for (let i = 0; i < N; i++) { X[i * 3] -= mx; X[i * 3 + 1] -= my; X[i * 3 + 2] -= mz; }
+    }
+    return { X, cls, tv };
+}
+
+// ====================== СТАН ======================
+let cur = 'helix_rod', seed = 1;
+let n = 0, X, truth, tv, D, core;
+let mst = [];
+let hd = { labels: null, k: 0, noise: 0 };
+let km = { labels: null, cent: null };
+let view = 'truth';
+let kmSeed = 1;
+
+// ====================== Three.js ======================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f4f9);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+camera.position.set(30, 16, 32);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+dl.position.set(10, 30, 15);
+scene.add(dl);
+const grid = new THREE.GridHelper(40, 40, 0xcccccc, 0xe3e3e3);
+grid.position.y = -13;
+scene.add(grid);
+
+let mesh = null, mstLines = null;
+const kmGroup = new THREE.Group();
+scene.add(kmGroup);
+const planeMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(34, 34),
+    new THREE.MeshBasicMaterial({ color: 0x8e44ad, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
+);
+planeMesh.visible = false;
+scene.add(planeMesh);
+
+addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+(function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+})();
+
+// ====================== дані ======================
+function buildData() {
+    const R = +$('R').value, s = +$('sigma').value, nb = +$('bgN').value;
+    const G = genPreset(cur, N_STRUCT, R, s, mulberry(seed), 0);
+    n = N_STRUCT + nb;
+    X = new Float32Array(n * 3); truth = new Uint8Array(n); tv = new Float32Array(n);
+    X.set(G.X); truth.set(G.cls); tv.set(G.tv);
+    const brng = mulberry((seed ^ 0x5bd1e995) >>> 0);
+    for (let i = 0; i < 60; i++) {
+        const x = (brng() - .5) * 28, y = (brng() - .5) * 26, z = (brng() - .5) * 28;
+        if (i < nb) {
+            const p = N_STRUCT + i;
+            X[p * 3] = x; X[p * 3 + 1] = y; X[p * 3 + 2] = z; truth[p] = BG;
+        }
+    }
+    ensureMesh();
+    D = new Float32Array(n * n);
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const dx = X[i * 3] - X[j * 3], dy = X[i * 3 + 1] - X[j * 3 + 1], dz = X[i * 3 + 2] - X[j * 3 + 2];
+            const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            D[i * n + j] = d; D[j * n + i] = d;
+        }
+    }
+}
+
+function ensureMesh() {
+    if (mesh && mesh.count === n) return;
+    if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+    mesh = new THREE.InstancedMesh(
+        new THREE.SphereGeometry(0.22, 12, 12),
+        new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40, specular: 0x111111 }),
+        n
+    );
+    scene.add(mesh);
+}
+
+// ====================== K-means ======================
+function runKMeans(K) {
+    const rng = mulberry(kmSeed);
+    const cent = new Float64Array(K * 3);
+    const first = Math.floor(rng() * n);
+    for (let d = 0; d < 3; d++) cent[d] = X[first * 3 + d];
+    const d2 = new Float64Array(n).fill(Infinity);
+    for (let c = 1; c < K; c++) {
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = X[i * 3] - cent[(c - 1) * 3], dy = X[i * 3 + 1] - cent[(c - 1) * 3 + 1], dz = X[i * 3 + 2] - cent[(c - 1) * 3 + 2];
+            const dd = dx * dx + dy * dy + dz * dz;
+            if (dd < d2[i]) d2[i] = dd;
+            sum += d2[i];
+        }
+        let r = rng() * sum, idx = n - 1;
+        for (let i = 0; i < n; i++) { r -= d2[i]; if (r <= 0) { idx = i; break; } }
+        for (let d = 0; d < 3; d++) cent[c * 3 + d] = X[idx * 3 + d];
+    }
+    const lab = new Int16Array(n).fill(-1);
+    for (let iter = 0; iter < 100; iter++) {
+        let changed = false;
+        for (let i = 0; i < n; i++) {
+            let best = 0, bd = Infinity;
+            for (let c = 0; c < K; c++) {
+                const dx = X[i * 3] - cent[c * 3], dy = X[i * 3 + 1] - cent[c * 3 + 1], dz = X[i * 3 + 2] - cent[c * 3 + 2];
+                const dd = dx * dx + dy * dy + dz * dz;
+                if (dd < bd) { bd = dd; best = c; }
+            }
+            if (lab[i] !== best) { lab[i] = best; changed = true; }
+        }
+        const sums = new Float64Array(K * 3), cnt = new Int32Array(K);
+        for (let i = 0; i < n; i++) {
+            const c = lab[i]; cnt[c]++;
+            for (let d = 0; d < 3; d++) sums[c * 3 + d] += X[i * 3 + d];
+        }
+        for (let c = 0; c < K; c++) if (cnt[c] > 0) for (let d = 0; d < 3; d++) cent[c * 3 + d] = sums[c * 3 + d] / cnt[c];
+        if (!changed) break;
+    }
+    return { labels: lab, cent };
+}
+
+// ====================== HDBSCAN ======================
+function computeCore(mp) {
+    core = new Float32Array(n);
+    const row = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+        row.set(D.subarray(i * n, (i + 1) * n));
+        row.sort();
+        core[i] = row[Math.min(mp - 1, n - 1)];
+    }
+}
+
+function computeMST() {
+    const inT = new Uint8Array(n), key = new Float32Array(n).fill(Infinity), par = new Int32Array(n).fill(-1);
+    key[0] = 0;
+    mst = [];
+    for (let it = 0; it < n; it++) {
+        let u = -1, best = Infinity;
+        for (let v = 0; v < n; v++) if (!inT[v] && key[v] < best) { best = key[v]; u = v; }
+        if (u < 0) break;
+        inT[u] = 1;
+        if (par[u] >= 0) mst.push({ u: par[u], v: u, w: key[u] });
+        for (let v = 0; v < n; v++) {
+            if (!inT[v]) {
+                const w = Math.max(core[u], core[v], D[u * n + v]);
+                if (w < key[v]) { key[v] = w; par[v] = u; }
+            }
+        }
+    }
+}
+
+function runHDBSCAN(mcs) {
+    const order = mst.slice().sort((p, q) => p.w - q.w);
+    const tot = 2 * n - 1;
+    const L = new Int32Array(tot).fill(-1), Rr = new Int32Array(tot).fill(-1);
+    const W = new Float64Array(tot), S = new Int32Array(tot);
+    for (let i = 0; i < n; i++) S[i] = 1;
+    const uf = new Int32Array(n), node = new Int32Array(n);
+    for (let i = 0; i < n; i++) { uf[i] = i; node[i] = i; }
+    const find = x => { while (uf[x] !== x) { uf[x] = uf[uf[x]]; x = uf[x]; } return x; };
+    let id = n;
+    for (const e of order) {
+        const a = find(e.u), b = find(e.v);
+        if (a === b) continue;
+        L[id] = node[a]; Rr[id] = node[b]; W[id] = e.w;
+        S[id] = S[node[a]] + S[node[b]];
+        uf[a] = b; node[b] = id; id++;
+    }
+    const root = id - 1;
+
+    const cl = [];
+    const newC = (lb, start) => { cl.push({ lb, stab: 0, ch: [], start }); return cl.length - 1; };
+    const lam = w => 1 / Math.max(w, 1e-9);
+    const walk = (nd, cid) => {
+        while (nd >= n) {
+            const l = L[nd], r = Rr[nd], sl = S[l], sr = S[r], lm = lam(W[nd]);
+            const c = cl[cid];
+            if (sl >= mcs && sr >= mcs) {
+                c.stab += (sl + sr) * (lm - c.lb);
+                const c1 = newC(lm, l), c2 = newC(lm, r);
+                c.ch.push(c1, c2);
+                walk(l, c1); walk(r, c2);
+                return;
+            } else if (sl < mcs && sr < mcs) {
+                c.stab += (sl + sr) * (lm - c.lb);
+                return;
+            } else {
+                const big = sl >= mcs ? l : r, small = sl >= mcs ? r : l;
+                c.stab += S[small] * (lm - c.lb);
+                nd = big;
+            }
+        }
+    };
+    const c0 = newC(0, root);
+    if (S[root] >= mcs) walk(root, c0);
+
+    const sel = new Uint8Array(cl.length), sub = new Float64Array(cl.length);
+    const unsel = c => { for (const x of cl[c].ch) { sel[x] = 0; unsel(x); } };
+    for (let c = cl.length - 1; c >= 0; c--) {
+        const C = cl[c];
+        if (!C.ch.length) { sel[c] = 1; sub[c] = C.stab; }
+        else {
+            const cs = C.ch.reduce((s, x) => s + sub[x], 0);
+            if (C.stab >= cs && c !== 0) { sel[c] = 1; sub[c] = C.stab; unsel(c); }
+            else sub[c] = cs;
+        }
+    }
+    const leaves = nd => {
+        const out = [], st = [nd];
+        while (st.length) { const x = st.pop(); if (x < n) out.push(x); else st.push(L[x], Rr[x]); }
+        return out;
+    };
+    const labels = new Int16Array(n).fill(-1);
+    let k = 0;
+    for (let c = 0; c < cl.length; c++) {
+        if (!sel[c]) continue;
+        for (const p of leaves(cl[c].start)) labels[p] = k;
+        k++;
+    }
+    let noise = 0;
+    for (let i = 0; i < n; i++) if (labels[i] < 0) noise++;
+    return { labels, k, noise };
+}
+
+// ====================== оцінка (довільна кількість класів) ======================
+function evaluate(lbl, kCount) {
+    const C = PRESETS[cur].nc;
+    const cnt = new Map();
+    const tot = new Array(C).fill(0);
+    let assigned = 0, noiseStruct = 0, bgNoise = 0, bgTot = 0;
+    for (let i = 0; i < n; i++) {
+        const t = truth[i], l = lbl[i];
+        if (t === BG) { bgTot++; if (l < 0) bgNoise++; continue; }
+        tot[t]++;
+        if (l < 0) { noiseStruct++; continue; }
+        let a = cnt.get(l);
+        if (!a) { a = new Array(C).fill(0); cnt.set(l, a); }
+        a[t]++; assigned++;
+    }
+    let ok = 0;
+    for (const a of cnt.values()) ok += Math.max(...a);
+    const purity = assigned ? ok / assigned : 0;
+    const main = new Array(C).fill(-1), cover = new Array(C).fill(0);
+    for (const [c, a] of cnt) {
+        for (let t = 0; t < C; t++) {
+            const f = tot[t] ? a[t] / tot[t] : 0;
+            if (f > cover[t]) { cover[t] = f; main[t] = c; }
+        }
+    }
+    const distinct = new Set(main).size === C && !main.includes(-1);
+    const success = purity >= 0.97 && cover.every(c => c >= 0.9) && distinct && cnt.size === C;
+    return { purity, success, k: kCount, noiseStruct, bgNoise, bgTot, cover };
+}
+
+function renderStats() {
+    const P = PRESETS[cur];
+    const eK = evaluate(km.labels, +$('K').value);
+    const eH = evaluate(hd.labels, hd.k);
+    const row = (name, e) => `<tr><td><b>${name}</b></td><td>${e.k}</td><td>${(e.purity * 100).toFixed(0)}%</td><td>${e.success ? '✅' : '❌'}</td></tr>`;
+    $('stats').innerHTML =
+        `<table><tr><th></th><th>Кластерів</th><th>Чистота</th><th>Розділено?</th></tr>${row('K-means', eK)}${row('HDBSCAN', eH)}</table>` +
+        `<div style="margin-top:6px">HDBSCAN: шум — <b>${hd.noise}</b> точок; з ${eH.bgTot} фонових відсіяно ${eH.bgNoise}; ` +
+        `втрачено зі структур: ${eH.noiseStruct}.</div>` +
+        `<div style="margin-top:4px;color:#888">«Розділено» = рівно по одному кластеру на кожну з ${P.nc} структур(и), чистота ≥ 97%, жодна не роздроблена.</div>`;
+
+    // порожнеча між структурами vs крок точок
+    const coreStruct = [];
+    for (let i = 0; i < n; i++) if (truth[i] !== BG) coreStruct.push(core[i]);
+    coreStruct.sort((a, b) => a - b);
+    const med = coreStruct[Math.floor(coreStruct.length / 2)] || 0;
+    if (P.nc > 1) {
+        let minInter = Infinity;
+        for (let i = 0; i < n; i++) {
+            if (truth[i] === BG) continue;
+            for (let j = i + 1; j < n; j++) {
+                if (truth[j] === BG || truth[j] === truth[i]) continue;
+                const d = D[i * n + j];
+                if (d < minInter) minInter = d;
+            }
+        }
+        const good = minInter > 2 * med;
+        $('gap').innerHTML = `Мін. відстань між різними структурами ≈ <b>${minInter.toFixed(2)}</b><br>медіана d_core структур ≈ <b>${med.toFixed(2)}</b><br>` +
+            (good ? '✅ Порожнеча значно більша за крок точок.' : '⚠️ Порожнеча зникає — щільнісний підхід теж зліпить їх.');
+    } else {
+        $('gap').innerHTML = `Одна структура: порожнини всередині немає.<br>медіана d_core ≈ <b>${med.toFixed(2)}</b>. Питання лише в тому, чи роздробить її алгоритм.`;
+    }
+}
+
+function updatePresetText() {
+    const P = PRESETS[cur];
+    $('pName').textContent = P.name;
+    $('pDesc').textContent = P.desc;
+    $('pWhy').textContent = P.why;
+    $('pHd').textContent = P.hd;
+    const bg = '<span class="dot" style="background:#7f8c8d"></span>фоновий шум';
+    $('legend').innerHTML = P.grad
+        ? '<span class="dot" style="background:linear-gradient(90deg,#e0f,#00f,#0e0,#fa0,#f00)"></span>положення вздовж листа (істина) &nbsp; ' + bg
+        : P.cn.map((c, i) => `<span class="dot" style="background:${CLS_CSS[i]}"></span>${c}`).join(' &nbsp; ') + ' &nbsp; ' + bg;
+}
+
+// ====================== візуалізація ======================
+function truthHex(i) {
+    if (truth[i] === BG) return BG_HEX;
+    if (PRESETS[cur].grad) return new THREE.Color().setHSL(0.75 * (1 - tv[i]), 0.8, 0.5, THREE.SRGBColorSpace).getHex();
+    return CLS_HEX[truth[i]];
+}
+
+function updateInstances() {
+    const dummy = new THREE.Object3D(), col = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+        let hex, s = 1;
+        if (view === 'truth') { hex = truthHex(i); if (truth[i] === BG) s = 0.7; }
+        else if (view === 'kmeans') hex = PALETTE[km.labels[i] % PALETTE.length];
+        else {
+            const l = hd.labels[i];
+            if (l < 0) { hex = NOISE_COL; s = 0.55; } else hex = PALETTE[l % PALETTE.length];
+        }
+        dummy.position.set(X[i * 3], X[i * 3 + 1], X[i * 3 + 2]);
+        dummy.scale.setScalar(s);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+        mesh.setColorAt(i, col.setHex(hex));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceColor.needsUpdate = true;
+    updateKMGraphics();
+}
+
+function updateKMGraphics() {
+    kmGroup.clear();
+    planeMesh.visible = false;
+    if (view !== 'kmeans' || !km.cent) return;
+    const K = +$('K').value;
+    for (let c = 0; c < K; c++) {
+        const m = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.9),
+            new THREE.MeshBasicMaterial({ color: PALETTE[c % PALETTE.length], wireframe: true })
+        );
+        m.position.set(km.cent[c * 3], km.cent[c * 3 + 1], km.cent[c * 3 + 2]);
+        kmGroup.add(m);
+    }
+    if (K === 2) {
+        const a = new THREE.Vector3(km.cent[0], km.cent[1], km.cent[2]);
+        const b = new THREE.Vector3(km.cent[3], km.cent[4], km.cent[5]);
+        const nrm = new THREE.Vector3().subVectors(b, a);
+        if (nrm.length() > 1e-6) {
+            nrm.normalize();
+            planeMesh.position.copy(a).add(b).multiplyScalar(0.5);
+            planeMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm);
+            planeMesh.visible = true;
+        }
+    }
+}
+
+function updateMSTLines() {
+    if (mstLines) { scene.remove(mstLines); mstLines.geometry.dispose(); mstLines.material.dispose(); }
+    const pos = new Float32Array(mst.length * 6);
+    mst.forEach((e, i) => {
+        pos.set([X[e.u * 3], X[e.u * 3 + 1], X[e.u * 3 + 2], X[e.v * 3], X[e.v * 3 + 1], X[e.v * 3 + 2]], i * 6);
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    mstLines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.35 }));
+    mstLines.visible = $('chkMST').checked;
+    scene.add(mstLines);
+}
+
+// ====================== пайплайн ======================
+function recomputeKM() {
+    const K = Math.max(1, Math.min(8, parseInt($('K').value) || 2));
+    $('K').value = K;
+    km = runKMeans(K);
+}
+function recomputeDensity() {
+    const mp = +$('mpts').value, mcs = +$('mcs').value;
+    $('mpv').textContent = mp; $('mcv').textContent = mcs;
+    computeCore(mp);
+    computeMST();
+    hd = runHDBSCAN(mcs);
+    updateMSTLines();
+}
+function showAll() { updateInstances(); renderStats(); }
+
+function fullRebuild() {
+    $('Rv').textContent = (+$('R').value).toFixed(2);
+    $('sv').textContent = (+$('sigma').value).toFixed(2);
+    $('bgv').textContent = $('bgN').value;
+    buildData();
+    recomputeDensity();
+    recomputeKM();
+    showAll();
+}
+
+// ====================== події ======================
+['R', 'sigma', 'bgN'].forEach(id => $(id).addEventListener('input', fullRebuild));
+['mpts', 'mcs'].forEach(id => $(id).addEventListener('input', () => { recomputeDensity(); showAll(); }));
+$('K').addEventListener('change', () => { recomputeKM(); showAll(); });
+$('btn-km-seed').addEventListener('click', () => { kmSeed = (kmSeed * 7919 + 13) % 100000; recomputeKM(); showAll(); });
+$('btn-new').addEventListener('click', () => { seed = (seed * 1103515245 + 12345) % 2147483647; fullRebuild(); });
+$('btn-easy').addEventListener('click', () => { const d = PRESETS[cur].def; $('R').value = d.R; $('sigma').value = d.s; fullRebuild(); });
+$('btn-hard').addEventListener('click', () => { const h = PRESETS[cur].hard; $('R').value = h.R; $('sigma').value = h.s; fullRebuild(); });
+$('chkMST').addEventListener('change', () => { if (mstLines) mstLines.visible = $('chkMST').checked; });
+$('preset').addEventListener('change', () => {
+    cur = $('preset').value;
+    const P = PRESETS[cur];
+    $('R').value = P.def.R; $('sigma').value = P.def.s; $('K').value = P.kDef;
+    updatePresetText();
+    fullRebuild();
+});
+document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => {
+    view = b.dataset.view;
+    document.querySelectorAll('.view-btn').forEach(x => x.classList.toggle('active', x === b));
+    updateInstances();
+}));
+
+updatePresetText();
+fullRebuild();
+</script>
+</body>
+</html>

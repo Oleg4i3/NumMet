@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бонус: знайомство з UMAP</title>
+
+    <script>
+    MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] } };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; overflow-y: auto; }
+        header { background: #2c3e50; color: #fff; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        header b { font-size: 1.05rem; padding: 10px 0; }
+        header a { color: #f5b041; text-decoration: none; font-size: 0.9rem; }
+        #tabs { display: flex; gap: 4px; }
+        .tabbtn { background: transparent; color: #bdc3c7; border: none; border-bottom: 3px solid transparent; padding: 12px 16px; font-size: 0.92rem; font-weight: 600; cursor: pointer; border-radius: 0; }
+        .tabbtn:hover { color: #fff; background: rgba(255,255,255,.07); }
+        .tabbtn.active { color: #fff; border-bottom-color: #f5b041; }
+        .tab { display: none; }
+        .tab.active { display: block; }
+        #controls { background: #fff; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: flex-end; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+        .ctl { display: flex; flex-direction: column; font-size: 0.78rem; font-weight: 600; min-width: 130px; }
+        .ctl input[type=range] { width: 140px; }
+        .ctl select { padding: 4px; max-width: 230px; }
+        .chk { flex-direction: row; align-items: center; gap: 5px; font-weight: normal; min-width: 0; }
+        button { padding: 8px 12px; border: none; border-radius: 4px; background: #3498db; color: #fff; font-weight: bold; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        button.alt { background: #7f8c8d; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #app { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; padding: 10px; height: 74vh; min-height: 520px; box-sizing: border-box; }
+        #view3d, #mechView { position: relative; background: #f4f4f9; border-radius: 8px; border: 2px solid #ddd; min-width: 0; overflow: hidden; }
+        #c3d, #cMech { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        .hint { position: absolute; left: 10px; bottom: 8px; background: rgba(0,0,0,.65); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 4px; pointer-events: none; }
+        #right { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; min-height: 0; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.1); display: flex; flex-direction: column; min-height: 0; padding: 6px 10px 8px; }
+        .card h4 { margin: 2px 0 4px; font-size: 0.86rem; color: #2c3e50; display: flex; justify-content: space-between; gap: 8px; }
+        .card h4 small { font-weight: normal; color: #888; }
+        .cv-wrap { position: relative; flex: 1; min-height: 0; background: #fcfcfe; border: 1px solid #eee; border-radius: 4px; }
+        .cv-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .cap { font-size: 0.74rem; color: #666; margin-top: 3px; line-height: 1.3; }
+        .doc { max-width: 940px; margin: 10px auto 60px; background: #fff; padding: 10px 28px 24px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+        .doc h3 { color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 26px; }
+        .doc h4 { color: #34495e; margin: 16px 0 4px; }
+        .doc p, .doc li { line-height: 1.6; font-size: 0.95rem; }
+        .doc table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 8px 0; }
+        .doc td, .doc th { border: 1px solid #e3e3e8; padding: 6px 8px; text-align: left; vertical-align: top; }
+        .doc th { background: #f4f6f8; }
+        .box { background: #fff8f0; border: 1px solid #fae5cd; border-radius: 6px; padding: 8px 14px; margin: 10px 0; }
+        .box.blue { background: #f0f7fb; border-color: #cceeff; }
+        .box.green { background: #f0faf3; border-color: #c9ecd3; }
+        a { color: #2980b9; }
+        /* механіка */
+        #mechTop { background: #fff; padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; border-top: 1px solid #eee; }
+        .stg { background: #ecf0f1; color: #2c3e50; }
+        .stg:hover { background: #dfe6e9; }
+        .stg.active { background: #27ae60; color: #fff; }
+        #mechApp { display: grid; grid-template-columns: 1fr 330px; gap: 10px; padding: 10px; height: 76vh; min-height: 520px; box-sizing: border-box; }
+        #mechInfo { background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.1); padding: 10px 14px; overflow-y: auto; font-size: 0.86rem; line-height: 1.5; }
+        #mechInfo h4 { margin: 4px 0 6px; color: #2c3e50; }
+        .bar { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; margin: 2px 0; }
+        .bar i { display: inline-block; height: 9px; background: #3498db; border-radius: 2px; }
+        @media (max-width: 900px) { #app, #mechApp { grid-template-columns: 1fr; height: auto; } #view3d, #mechView { height: 60vh; } #right { grid-template-rows: none; } .card { height: 300px; } }
+    </style>
+</head>
+<body>
+
+<header>
+    <b>🗺️ Бонус: знайомство з UMAP</b>
+    <div id="tabs">
+        <button class="tabbtn active" data-tab="over">① Огляд: тінь · PCA · UMAP</button>
+        <button class="tabbtn" data-tab="mech">② Механіка розгортання в 3D</button>
+        <button class="tabbtn" data-tab="theory">③ Теорія детально (спектр графа)</button>
+    </div>
+    <a href="helix-challenge.html">← Челендж: K-means vs HDBSCAN</a>
+</header>
+
+<div id="controls">
+    <div class="ctl">Пресет даних:
+        <select id="preset">
+            <option value="helix_rod">Хелікс + паличка (базовий)</option>
+            <option value="nested">Вкладені спіралі (паличка + 2 хеліксы)</option>
+            <option value="chain">Ланцюжок зчеплених кілець</option>
+            <option value="moons">Класика: два півмісяці</option>
+            <option value="shells">Класика: кулька в оболонці</option>
+            <option value="swiss">Класика: швейцарський рулет</option>
+            <option value="blobs">Класика: три гаусові групи</option>
+        </select>
+    </div>
+    <div class="ctl">Нахил палки: <span id="tiltV">0°</span><input type="range" id="tilt" min="0" max="80" step="1" value="0"></div>
+    <div class="ctl">Розмір / радіус R: <span id="RV">4.0</span><input type="range" id="R" min="0.3" max="6" step="0.05" value="4"></div>
+    <div class="ctl">Шум σ: <span id="sV">0.12</span><input type="range" id="sigma" min="0" max="1.2" step="0.01" value="0.12"></div>
+    <div class="ctl">«Тінь» на: <select id="shadowMode"><option value="floor">підлогу (вздовж Y)</option><option value="wall">стіну (вздовж Z)</option></select></div>
+    <div class="ctl">n_neighbors: <span id="nnV">15</span><input type="range" id="nn" min="5" max="50" step="1" value="15"></div>
+    <div class="ctl">min_dist: <span id="mdV">0.10</span><input type="range" id="md" min="0" max="0.8" step="0.05" value="0.1"></div>
+    <div class="ctl">Ініціалізація UMAP: <select id="init"><option value="spectral">спектральна</option><option value="random">випадкова</option></select></div>
+    <label class="ctl chk"><input type="checkbox" id="chkRays"> промені проєкції</label>
+    <label class="ctl chk"><input type="checkbox" id="chkLines" checked> ланцюжки точок</label>
+    <button id="btnUmap">▶ Запустити UMAP</button>
+    <button id="btnNew" class="alt">🔄 Нові дані</button>
+</div>
+
+<!-- ============ ВКЛАДКА 1: ОГЛЯД ============ -->
+<div id="tab-over" class="tab active">
+    <div id="app">
+        <div id="view3d">
+            <canvas id="c3d"></canvas>
+            <div class="hint">ЛКМ — обертати · ПКМ — рухати · коліщатко — зум</div>
+        </div>
+        <div id="right">
+            <div class="card">
+                <h4><span>① Лінійна: «тінь»</span><small id="shadowTitle"></small></h4>
+                <div class="cv-wrap"><canvas id="cShadow"></canvas></div>
+                <div class="cap" id="shadowCap"></div>
+            </div>
+            <div class="card">
+                <h4><span>② Лінійна: PCA (2 компоненти)</span><small>найбільша дисперсія</small></h4>
+                <div class="cv-wrap"><canvas id="cPCA"></canvas></div>
+                <div class="cap">Обирає ракурс із найбільшим розкидом: це лише поворот + проєкція, тому частини об’єкта, що лежать «одна за одною», накладаються.</div>
+            </div>
+            <div class="card">
+                <h4><span>③ Нелінійна: UMAP (спрощений)</span><small id="umapStatus">—</small></h4>
+                <div class="cv-wrap"><canvas id="cUMAP"></canvas></div>
+                <div class="cap" id="umapCap">Нитки сусідства тягнуть точки одного ланцюжка разом, випадкові пари — відштовхуються.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="doc">
+        <h3>🧶 UMAP за 1 хвилину (гумова сітка)</h3>
+        <p>Лінійні методи (PCA, SVD) шукають <b>вигляд збоку</b>: «з якого боку подивитися на 3D-об’єкт, щоб тінь була найбільшою». Тінь — це завжди <i>проєкція</i>: якщо дві частини об’єкта лежать одна за одною, вони накладаються. UMAP робить інакше — він не дивиться на об’єкт «ззовні», а <b>зберігає, хто чий сусід</b>.</p>
+        <div class="box blue"><p><b>Крок 1.</b> Для кожної точки знаходимо $k$ найближчих сусідів і з’єднуємо їх «гумовою ниткою» вагою $w\in(0,1]$ (ближчий сусід — міцніша нитка). <b>Крок 2.</b> Нитки «i→j» та «j→i» об’єднуємо в одну. <b>Крок 3.</b> Кидаємо точки на площину (спектральна ініціалізація або випадково) і багато разів: притягуємо кінці ниток, відштовхуємо точку від кількох випадкових.</p></div>
+        <ul>
+            <li><b>PCA/SVD — лінійні:</b> поворот і стиснення простору. Об’єкт не можна розгорнути — лише подивитись збоку. Хелікс ⟶ коло (тінь на підлогу) або синусоїда (на стіну); паличка ⟶ точка (відрізок, якщо нахилити).</li>
+            <li><b>UMAP — нелінійний:</b> нічого не проєктує, а намагається, щоб <i>граф сусідства</i> у 2D був схожий на граф у 3D. Тому гвинтову лінію «розкручує» у відрізок, кільце залишає кільцем, а швейцарський рулет розгортає в прямокутник.</li>
+            <li>Ланцюжок зчеплених кілець: у 3D вони «продіті» одне в одне, у проєкціях накладаються, а UMAP бачить 4 окремі петлі (граф сусідства про зчеплення «не знає»).</li>
+        </ul>
+        <p>👉 Як саме працює розгортка — вкладка <b>② Механіка</b>. Повна теорія, спектр графа і спектральна ініціалізація — вкладка <b>③ Теорія детально</b>.</p>
+        <div class="box"><p><b>⚠️ Застереження.</b> У UMAP-картинці відстані між кластерами та їхні розміри — умовні (довіряйте «разом/нарізно», а не «далеко/близько»). Реалізація спрощена, алгоритм стохастичний — кожен запуск дає трохи іншу картинку. Нахил палки &gt; ~70° у базовому пресеті геометрично перетинає виток.</p></div>
+    </div>
+</div>
+
+<!-- ============ ВКЛАДКА 2: МЕХАНІКА ============ -->
+<div id="tab-mech" class="tab">
+    <div id="mechTop">
+        <b style="font-size:.85rem">Етапи:</b>
+        <button class="stg active" data-s="0">0 · Дані</button>
+        <button class="stg" data-s="1">1 · Нитки kNN</button>
+        <button class="stg" data-s="2">2 · Спектральна ініціалізація</button>
+        <button class="stg" data-s="3">3 · Оптимізація (SGD)</button>
+        <span style="width:10px"></span>
+        <button id="mPlay">▶ Грати</button>
+        <button id="mNext" class="alt">⏭ Далі / 1 епоха</button>
+        <button id="mReset" class="alt">↺ Спочатку</button>
+        <div class="ctl" style="min-width:170px">Швидкість SGD: <span id="mSpeedV">3</span> епох/с<input type="range" id="mSpeed" min="0.5" max="40" step="0.5" value="3"></div>
+        <label class="ctl chk"><input type="checkbox" id="mEdges" checked> нитки</label>
+        <label class="ctl chk"><input type="checkbox" id="mForces" checked> сили (епоха)</label>
+        <label class="ctl chk"><input type="checkbox" id="mFiedler"> колір = вектор Фідлера $v_2$</label>
+    </div>
+    <div id="mechApp">
+        <div id="mechView">
+            <canvas id="cMech"></canvas>
+            <div class="hint">ЛКМ — обертати · ПКМ — рухати · коліщатко — зум · точки переїжджають із 3D на «підлогу»</div>
+        </div>
+        <div id="mechInfo"></div>
+    </div>
+</div>
+
+<!-- ============ ВКЛАДКА 3: ТЕОРІЯ ============ -->
+<div id="tab-theory" class="tab">
+    <div class="doc">
+        <h3>1. Алгоритм UMAP крок за кроком</h3>
+        <p>Вхід: точки $x_1,\dots,x_N\in\mathbb R^D$, параметри <code>n_neighbors</code> $=k$, <code>min_dist</code>, розмірність виходу $d$ (тут 2). Вихід: $y_1,\dots,y_N\in\mathbb R^d$.</p>
+
+        <h4>Крок 1 · kNN-граф</h4>
+        <p>Для кожної точки знаходимо $k$ найближчих сусідів за обраною метрикою (у нас — Евклідова, повним перебором $O(N^2)$; у <code>umap-learn</code> — наближений NN-descent).</p>
+
+        <h4>Крок 2 · «Гладка» локальна метрика та нечіткі ваги</h4>
+        <p>Припущення UMAP: дані лежать на многовиді, де відстань <i>локально</i> різна в різних місцях. Тому для кожної точки $i$ підбираємо власні $\rho_i,\sigma_i$:</p>
+        $$ \rho_i=\min_j d(x_i,x_j),\qquad w_{i\to j}=\exp\!\Big(-\frac{\max(0,\,d_{ij}-\rho_i)}{\sigma_i}\Big),\qquad \sum_{j}w_{i\to j}=\log_2 k. $$
+        <p>$\rho_i$ гарантує, що найближчий сусід завжди має вагу 1 («кожна точка пов’язана принаймні з одним сусідом»). $\sigma_i$ знаходять бінарним пошуком так, щоб «ефективна кількість сусідів» була однаковою (≈$\log_2 k$) і в щільних, і в розріджених місцях. Саме тому UMAP не залежить від локальної густини.</p>
+
+        <h4>Крок 3 · Нечітке об’єднання (симетризація)</h4>
+        <p>$w_{i\to j}\neq w_{j\to i}$. Їх поєднують як ймовірність «існує хоча б одна нитка»:</p>
+        $$ w_{ij}=w_{i\to j}+w_{j\to i}-w_{i\to j}\,w_{j\to i}. $$
+        <p>Це «ймовірнісне АБО» (t-коnorma); на відміну від середнього, воно не послаблює ребро, що чітко видно хоча б з одного боку. Результат — зважений неорієнтований граф $G=(V,E,w)$. <b>Далі всі етапи працюють лише з цим графом, а вихідні координати $x$ більше не потрібні.</b></p>
+
+        <h4>Крок 4 · Ініціалізація 2D-координат</h4>
+        <p>Або випадкова, або <b>спектральна</b> — див. розділ 2. Спектральна дає хорошу «глобальну» структуру: сусідні групи опиняються поруч, а не де попало.</p>
+
+        <h4>Крок 5 · Крива подібності в 2D і параметри $a,b$</h4>
+        $$ \phi(d)=\frac{1}{1+a\,d^{2b}}. $$
+        <p>Це «м’яка сходинка»: майже 1 при малих $d$ і спадає до 0. Параметри $a,b$ підбираються регресією до кривої $\mathbb 1[d\le\text{min\_dist}]+e^{-(d-\text{min\_dist})}\mathbb 1[d>\text{min\_dist}]$. Менший <code>min_dist</code> — щільніше упаковані точки в кластері.</p>
+
+        <h4>Крок 6 · Оптимізація: перехресна ентропія нечітких множин</h4>
+        $$ C=\sum_{i<j}\Big[\,w_{ij}\log\frac{w_{ij}}{\phi_{ij}}+(1-w_{ij})\log\frac{1-w_{ij}}{1-\phi_{ij}}\Big],\qquad \phi_{ij}=\phi(\|y_i-y_j\|). $$
+        <p>Перший доданок — <b>притягання</b>: якщо в 3D нитка міцна ($w\approx1$), то в 2D точки мають бути близько ($\phi\to1$). Другий — <b>відштовхування</b>: якщо нитки нема ($w\approx0$), точки мають бути далеко. Градієнти (як у коді сторінки, $d^2=\|y_i-y_j\|^2$):</p>
+        $$ \text{притягання: }\ \frac{-2ab\,(d^2)^{\,b-1}}{1+a\,(d^2)^{b}}\,(y_i-y_j),\qquad \text{відштовхування: }\ \frac{2b}{(\varepsilon+d^2)\,(1+a\,(d^2)^{b})}\,(y_i-y_k). $$
+        <p>Рахувати відштовхування для всіх $N^2$ пар дорого, тому UMAP застосовує <b>негативне семплування</b>:</p>
+        <ul>
+            <li>кожну епоху кожне ребро вибирається з ймовірністю $\propto w_{ij}$ (міцні нитки оновлюються частіше);</li>
+            <li>для вибраного ребра робиться один крок притягання;</li>
+            <li>після цього точка $i$ відштовхується від ≈5 <i>випадкових</i> точок $k$ (вони майже напевно не є сусідами);</li>
+            <li>крок навчання $\alpha$ лінійно спадає від 1 до 0 за $n\_epochs$ (200–500) епох; градієнт обрізається до $[-4,4]$.</li>
+        </ul>
+
+        <h4>Параметри</h4>
+        <table>
+            <tr><th>Параметр</th><th>Що робить</th><th>Наслідок</th></tr>
+            <tr><td><code>n_neighbors</code></td><td>скільки сусідів у нитках</td><td>мале — локальні деталі, роздроблена картинка; велике — більше глобальної структури, але сильніше «змазування»</td></tr>
+            <tr><td><code>min_dist</code></td><td>наскільки щільно можна стиснути точки</td><td>0 — точкові «грудочки» (добре для кластеризації); 0.5+ — рівномірне покриття</td></tr>
+            <tr><td><code>metric</code></td><td>відстань у вихідному просторі</td><td>Евклідова, косинусна, ... (для тексту — косинусна)</td></tr>
+            <tr><td><code>init</code></td><td>початкові 2D-координати</td><td>спектральна — стабільна, повторювана глобальна структура; випадкова — швидша, але може «заплутати» картинку</td></tr>
+            <tr><td><code>n_epochs</code></td><td>кількість епох SGD</td><td>більше — акуратніше застигання</td></tr>
+        </table>
+
+        <h3>2. Спектральна ініціалізація</h3>
+        <p><b>Ідея одним реченням:</b> розв’язати «гумову» задачу розкладання <i>точно і в замкненій формі</i>, але для спрощеної (квадратичної) енергії — власними векторами лапласіана графа. Це метод <b>лапласіанових власних відображень</b> (Belkin–Niyogi), той самий, що в спектральній кластеризації.</p>
+
+        <h4>2.1 Матриці графа</h4>
+        <p>Нехай $W=(w_{ij})$ — матриця ваг (симетрична), $d_i=\sum_j w_{ij}$ — степені, $D=\mathrm{diag}(d_i)$. Тоді</p>
+        $$ L=D-W\quad(\text{комбінаторний лапласіан}),\qquad L_{sym}=I-D^{-1/2}WD^{-1/2}\quad(\text{нормалізований}). $$
+        <p>UMAP використовує нормалізований $L_{sym}$. Його спектр: $0=\lambda_1\le\lambda_2\le\dots\le\lambda_N\le2$.</p>
+
+        <h4>2.2 Енергія пружин = квадратична форма</h4>
+        <p>Для довільного вектора $x\in\mathbb R^N$ (одна координата на вершину):</p>
+        $$ x^\top L\,x=\tfrac12\sum_{i,j}w_{ij}\,(x_i-x_j)^2. $$
+        <p>Це <b>сумарна енергія пружин</b> з жорсткістю $w_{ij}$, якщо розмістити вершини на прямій у точках $x_i$. Мінімізувати її — значить розмістити пов’язані вершини близько. Тривіальний мінімум $x=\mathbf 1$ (усі в одній точці) відкидаємо, шукаючи вектор, <i>ортогональний до нього</i>, з нормою 1. За теоремою Куранта–Фішера мінімум Релея $x^\top L x/x^\top x$ на цьому підпросторі досягається на <b>власному векторі $v_2$ з найменшим ненульовим власним значенням $\lambda_2$</b> — вектор Фідлера.</p>
+        <p>Наступна координата — наступний власний вектор $v_3$ (ортогональний до $v_1,v_2$), і так далі. 2D-ініціалізація: $y_i=(v_2(i),\,v_3(i))$, потім масштабування до діапазону $[-10,10]$ і додавання малого шуму.</p>
+
+        <h4>2.3 Що означає спектр графа</h4>
+        <ul>
+            <li><b>Кратність власного значення 0 = кількість компонент зв’язності.</b> Власні вектори для $\lambda=0$ — кусково-сталі на компонентах (індикатори компонент). Тому окремі компоненти спектральна ініціалізація розносить у різні місця — це і видно для пресетів «паличка+хелікс» і «ланцюжок кілець» (на вкладці ② виведено $\lambda_1,\dots,\lambda_5$: кілька майже нульових = кілька компонент).</li>
+            <li><b>$\lambda_2$ (алгебраїчна зв’язність)</b> вимірює, наскільки граф «майже» розпадається: мале $\lambda_2$ означає вузьке «горло» між двома частинами. Знак $v_2$ ділить граф на ці частини (спектральний розріз, <i>normalized cut</i> Ші–Маліка).</li>
+            <li><b>Ланцюжок (шлях) $P_N$:</b> власні вектори — косинуси, $v_k(i)=\cos\!\big(\tfrac{(k-1)\pi (i-1/2)}{N}\big)$, а $\lambda_k=2-2\cos\tfrac{(k-1)\pi}{N}$. $v_2$ монотонно змінюється вздовж ланцюжка — це «координата вздовж кривої». $v_3$ — «U-подібна». Пара $(v_2,v_3)$ малює <b>дугу (підкову)</b> — відомий «horseshoe effect»: ланцюжок розгортається у вигнуту лінію, яку SGD потім випрямляє. Увімкніть «колір = $v_2$» на вкладці ② і побачите плавний градієнт уздовж хеліксу.</li>
+            <li><b>Цикл (кільце) $C_N$:</b> $\lambda_k=2-2\cos\tfrac{2\pi k}{N}$, власні вектори — $\cos\tfrac{2\pi ki}{N}$ та $\sin\tfrac{2\pi ki}{N}$ (пара з однаковим $\lambda$). Пара $(v_2,v_3)=(\cos,\sin)$ дає <b>коло</b>: кільце залишається кільцем. Саме тому в пресеті «ланцюжок кілець» UMAP не «розплутує» петлі, а лише розносить.</li>
+        </ul>
+
+        <h4>2.3.1 Чому не «просто» залишити випадкову ініціалізацію?</h4>
+        <p>SGD з випадкової розкладки знаходить лише <i>локальний</i> мінімум. Дві точки, що в графі «через усю структуру», але випадково опинилися поруч, самі не розійдуться. Спектральна ініціалізація вже дає глобально узгоджене розміщення (наближений розв’язок квадратичної задачі), і SGD лише <i>уточнює</i> локальну геометрію. Побічно — повторюваність: однакові дані дають схожу картинку.</p>
+
+        <h4>2.4 Як це обчислюють</h4>
+        <p>Власні вектори в кінці спектра $L_{sym}$ — це <i>найбільші</i> власні вектори матриці $A=D^{-1/2}WD^{-1/2}$ (бо $L_{sym}=I-A$, $\lambda=1-\mu$). У нашій сторінці: <b>підпросторова (блочна степенева) ітерація</b> на матриці $I+A$ (щоб усі власні значення були невід’ємними): множимо 5 векторів на матрицю, ортонормуємо (Грам–Шмідт), повторюємо. Кожне множення «підсилює» компоненти з найбільшими $\mu$. Збіжність швидка, коли між сусідніми власними значеннями є зазор; на довгих ланцюжках зазори крихітні, тож вектори збігаються лише наближено (тому біля значень $\lambda$ стоїть «≈»). У <code>umap-learn</code> використовують розріджений розв’язувач (ARPACK / LOBPCG).</p>
+        <div class="box green"><p><b>Зверніть увагу:</b> у <code>umap-learn</code> для незв’язних графів власні вектори рахуються окремо для кожної компоненти, а потім компоненти розкладаються за «мета-графом» — тут цього немає, тому для кількох компонент ініціалізація груба. Це одна з відмінностей нашої спрощеної версії.</p></div>
+
+        <h3>3. Звідки в UMAP «топологія»</h3>
+        <p>Оригінальне обґрунтування — теорія нечітких симпліційних множин: локальні «нечіткі» мережі зв’язності склеюються в один об’єкт, а UMAP шукає низьковимірний об’єкт з найближчою «нечіткою топологією». Практичний висновок простий: <b>зберігається те, що відбито у графі сусідства</b> — зв’язність, ланцюжки, петлі. Не зберігається: глобальні відстані, густина, зчеплення, якого граф не бачить (кільця на пресеті «ланцюжок» — тому що між ними порожнеча).</p>
+
+        <h3>4. UMAP vs PCA vs t-SNE (коротко)</h3>
+        <table>
+            <tr><th></th><th>PCA / SVD</th><th>t-SNE</th><th>UMAP</th></tr>
+            <tr><td>Тип</td><td>лінійний, проєкція</td><td>нелінійний</td><td>нелінійний</td></tr>
+            <tr><td>Що зберігає</td><td>глобальну дисперсію</td><td>локальні сусідства</td><td>локальні + частково глобальні (при спектральній ініціалізації)</td></tr>
+            <tr><td>Швидкість</td><td>дуже швидкий</td><td>повільний</td><td>швидший за t-SNE</td></tr>
+            <tr><td>Нова точка</td><td>легко проєктується</td><td>ні</td><td>є наближене перетворення</td></tr>
+            <tr><td>Інтерпретація осей</td><td>є (напрями в даних)</td><td>немає</td><td>немає</td></tr>
+        </table>
+
+        <h3>5. UMAP + HDBSCAN</h3>
+        <p>У 3D (див. <a href="helix-challenge.html">челендж</a>) UMAP перед HDBSCAN <b>не потрібен</b>: щільнісний метод сам бачить дві «гори» щільності. Коли вимірів десятки-сотні, проблема «прокляття розмірності» стирає порожнечу між структурами. Тоді: спершу UMAP у 2–10D (зберігаючи сусідство), потім HDBSCAN. Пам’ятайте: у UMAP-просторі відстані й густини вже не «справжні», тому <code>min_cluster_size</code> краще підбирати на самому графіку.</p>
+    </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+const N = 500;               // точок у структурі
+const n = N;
+const FLOOR = -14, WALLZ = -14, MF = -13;
+
+// ====================== ПРЕСЕТИ ======================
+const PRESETS = {
+    helix_rod: { name: 'Хелікс + паличка', nc: 2, chain: true, hasRod: true, def: { R: 4, s: 0.12 } },
+    nested:    { name: 'Вкладені спіралі', nc: 3, chain: true, hasRod: true, def: { R: 4, s: 0.12 } },
+    chain:     { name: 'Ланцюжок кілець', nc: 4, chain: true, hasRod: false, def: { R: 4, s: 0.12 } },
+    moons:     { name: 'Два півмісяці', nc: 2, chain: true, hasRod: false, def: { R: 4, s: 0.12 } },
+    shells:    { name: 'Кулька в оболонці', nc: 2, chain: false, hasRod: false, def: { R: 4, s: 0.12 } },
+    swiss:     { name: 'Швейцарський рулет', nc: 1, chain: false, hasRod: false, grad: true, def: { R: 4, s: 0.08 } },
+    blobs:     { name: 'Три гаусові групи', nc: 3, chain: false, hasRod: false, def: { R: 4, s: 0.12 } }
+};
+
+function mulberry(a) {
+    return function () {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+function gaussR(rng) {
+    let u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function genPreset(key, N, R, s, rng, tilt = 0) {
+    const X = new Float32Array(N * 3), cls = new Uint8Array(N), tv = new Float32Array(N);
+    let p = 0;
+    const g = () => gaussR(rng);
+    const put = (x, y, z, c, t = 0) => { X[p * 3] = x; X[p * 3 + 1] = y; X[p * 3 + 2] = z; cls[p] = c; tv[p] = t; p++; };
+    const split = fr => {
+        const out = fr.map(f => Math.floor(N * f));
+        out[out.length - 1] += N - out.reduce((a, b) => a + b, 0);
+        return out;
+    };
+    const ca = Math.cos(tilt), sa = Math.sin(tilt);
+    const rod = (m, c) => {
+        for (let i = 0; i < m; i++) {
+            const u = (i + rng()) / m;
+            const x = s * g(), y = -11 + 22 * u + 0.2 * s * g(), z = s * g();
+            put(x * ca - y * sa, x * sa + y * ca, z, c, u);
+        }
+    };
+    const helix = (m, c, rad, phase) => {
+        for (let i = 0; i < m; i++) {
+            const u = (i + rng()) / m, th = u * 4 * 2 * Math.PI + phase;
+            put(rad * Math.cos(th) + s * g(), -10 + 20 * u + s * g(), rad * Math.sin(th) + s * g(), c, u);
+        }
+    };
+    let center = false;
+    switch (key) {
+        case 'helix_rod': { const [a, b] = split([0.3, 0.7]); rod(a, 0); helix(b, 1, R, 0); break; }
+        case 'nested': { const [a, b, c] = split([0.2, 0.3, 0.5]); rod(a, 0); helix(b, 1, 0.5 * R, Math.PI); helix(c, 2, R, 0); break; }
+        case 'chain': {
+            const m = split([0.25, 0.25, 0.25, 0.25]);
+            for (let k = 0; k < 4; k++) {
+                const cx = (k - 1.5) * R;
+                for (let i = 0; i < m[k]; i++) {
+                    const th = 2 * Math.PI * (i + rng()) / m[k];
+                    const nx = s * g(), ny = s * g(), nz = s * g();
+                    if (k % 2 === 0) put(cx + R * Math.cos(th) + nx, R * Math.sin(th) + ny, nz, k, i / m[k]);
+                    else put(cx + R * Math.cos(th) + nx, ny, R * Math.sin(th) + nz, k, i / m[k]);
+                }
+            }
+            center = true; break;
+        }
+        case 'moons': {
+            const [a, b] = split([0.5, 0.5]);
+            for (let i = 0; i < a; i++) {
+                const u = (i + rng()) / a, t = Math.PI * u;
+                put(R * Math.cos(t) + s * g(), R * Math.sin(t) + s * g(), 0.15 * R * Math.cos(2 * t) + s * g(), 0, u);
+            }
+            for (let i = 0; i < b; i++) {
+                const u = (i + rng()) / b, t = Math.PI * u;
+                put(R * (1 - Math.cos(t)) + s * g(), R * (0.5 - Math.sin(t)) + s * g(), -0.15 * R * Math.cos(2 * t) + s * g(), 1, u);
+            }
+            center = true; break;
+        }
+        case 'shells': {
+            const [a, b] = split([0.25, 0.75]);
+            for (let i = 0; i < a; i++) {
+                const vx = g(), vy = g(), vz = g(), l = Math.hypot(vx, vy, vz) || 1;
+                const r = 0.35 * R * Math.cbrt(rng());
+                put(vx / l * r + 0.3 * s * g(), vy / l * r + 0.3 * s * g(), vz / l * r + 0.3 * s * g(), 0, 0);
+            }
+            for (let i = 0; i < b; i++) {
+                const vx = g(), vy = g(), vz = g(), l = Math.hypot(vx, vy, vz) || 1;
+                const r = R + s * g();
+                put(vx / l * r, vy / l * r, vz / l * r, 1, 0);
+            }
+            break;
+        }
+        case 'swiss': {
+            const k = R * 0.18;
+            for (let i = 0; i < N; i++) {
+                const u = (i + rng()) / N, t = 1.5 * Math.PI * (1 + 2 * u);
+                const h = -6 + 12 * rng();
+                put(k * t * Math.cos(t) + s * g(), h + s * g(), k * t * Math.sin(t) + s * g(), 0, u);
+            }
+            center = true; break;
+        }
+        case 'blobs': {
+            const m = split([1 / 3, 1 / 3, 1 / 3]);
+            const C = [[1.5 * R, 0, 0], [-0.75 * R, 1.3 * R, 0], [-0.75 * R, -1.3 * R, 0.7 * R]];
+            const sd = 0.2 * R + 0.5 * s;
+            for (let k = 0; k < 3; k++) for (let i = 0; i < m[k]; i++)
+                put(C[k][0] + sd * g(), C[k][1] + sd * g(), C[k][2] + sd * g(), k, 0);
+            center = true; break;
+        }
+    }
+    if (center) {
+        let mx = 0, my = 0, mz = 0;
+        for (let i = 0; i < N; i++) { mx += X[i * 3]; my += X[i * 3 + 1]; mz += X[i * 3 + 2]; }
+        mx /= N; my /= N; mz /= N;
+        for (let i = 0; i < N; i++) { X[i * 3] -= mx; X[i * 3 + 1] -= my; X[i * 3 + 2] -= mz; }
+    }
+    return { X, cls, tv };
+}
+
+// ====================== дані та кольори ======================
+let cur = 'helix_rod', seed = 7;
+let X = new Float32Array(n * 3), grp = new Uint8Array(n), tv = new Float32Array(n);
+const CLS_HEX = [0x3498db, 0xe67e22, 0x16a085, 0x8e44ad];
+const CLS_CSS = ['#3498db', '#e67e22', '#16a085', '#8e44ad'];
+
+function buildData() {
+    const R = +$('R').value, s = +$('sigma').value, al = +$('tilt').value * Math.PI / 180;
+    const G = genPreset(cur, N, R, s, mulberry(seed), PRESETS[cur].hasRod ? al : 0);
+    X.set(G.X); grp.set(G.cls); tv.set(G.tv);
+}
+function ptHex(i) {
+    if (PRESETS[cur].grad) return new THREE.Color().setHSL(0.75 * (1 - tv[i]), 0.8, 0.5, THREE.SRGBColorSpace).getHex();
+    return CLS_HEX[grp[i]];
+}
+function ptCss(i) {
+    if (PRESETS[cur].grad) return `hsl(${270 * (1 - tv[i])},80%,50%)`;
+    return CLS_CSS[grp[i]];
+}
+
+// ====================== Three.js: вкладка 1 ======================
+const canvas3d = $('c3d'), holder = $('view3d');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f4f9);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+camera.position.set(34, 20, 38);
+const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const controls = new OrbitControls(camera, canvas3d);
+controls.enableDamping = true;
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+dl.position.set(10, 30, 20);
+scene.add(dl);
+
+const floorGrid = new THREE.GridHelper(36, 18, 0xbbbbbb, 0xdddddd);
+floorGrid.position.y = FLOOR;
+scene.add(floorGrid);
+const wallGrid = new THREE.GridHelper(36, 18, 0xbbbbbb, 0xdddddd);
+wallGrid.rotation.x = Math.PI / 2;
+wallGrid.position.z = WALLZ;
+scene.add(wallGrid);
+
+const pointsMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 12, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 }), n);
+const shadowMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }), n);
+scene.add(pointsMesh, shadowMesh);
+
+const RAY_STEP = 4;
+const rayCount = Math.ceil(n / RAY_STEP);
+const rayGeom = new THREE.BufferGeometry();
+rayGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(rayCount * 6), 3));
+const rays = new THREE.LineSegments(rayGeom, new THREE.LineBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.18 }));
+rays.frustumCulled = false;
+scene.add(rays);
+
+function resize3d() {
+    const w = holder.clientWidth, h = holder.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize3d).observe(holder);
+
+function shadowXY(i) {
+    return $('shadowMode').value === 'floor' ? [X[i * 3], X[i * 3 + 2]] : [X[i * 3], X[i * 3 + 1]];
+}
+
+function applyColors() {
+    const c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+        const hex = ptHex(i);
+        pointsMesh.setColorAt(i, c.setHex(hex));
+        shadowMesh.setColorAt(i, c.setHex(hex).multiplyScalar(0.55));
+    }
+    pointsMesh.instanceColor.needsUpdate = true;
+    shadowMesh.instanceColor.needsUpdate = true;
+    mechColors();
+}
+
+function updateScene() {
+    const floor = $('shadowMode').value === 'floor';
+    floorGrid.visible = floor; wallGrid.visible = !floor;
+    const d = new THREE.Object3D();
+    const rp = rayGeom.attributes.position.array;
+    let r = 0;
+    for (let i = 0; i < n; i++) {
+        const x = X[i * 3], y = X[i * 3 + 1], z = X[i * 3 + 2];
+        d.position.set(x, y, z); d.scale.set(1, 1, 1); d.updateMatrix();
+        pointsMesh.setMatrixAt(i, d.matrix);
+        let sx, sy, sz;
+        if (floor) { sx = x; sy = FLOOR + 0.03; sz = z; d.scale.set(1, 0.15, 1); }
+        else { sx = x; sy = y; sz = WALLZ + 0.03; d.scale.set(1, 1, 0.15); }
+        d.position.set(sx, sy, sz); d.updateMatrix();
+        shadowMesh.setMatrixAt(i, d.matrix);
+        if (i % RAY_STEP === 0) { rp.set([x, y, z, sx, sy, sz], r * 6); r++; }
+    }
+    pointsMesh.instanceMatrix.needsUpdate = true;
+    shadowMesh.instanceMatrix.needsUpdate = true;
+    rayGeom.attributes.position.needsUpdate = true;
+    rays.visible = $('chkRays').checked;
+}
+
+// ====================== 2D малювання ======================
+function fit(cv) {
+    const r = cv.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const w = Math.max(10, Math.round(r.width * dpr)), h = Math.max(10, Math.round(r.height * dpr));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return dpr;
+}
+function drawScatter(cv, P, opts = {}) {
+    const dpr = fit(cv);
+    const ctx = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!P) {
+        ctx.fillStyle = '#999'; ctx.font = `${13 * dpr}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText(opts.msg || '', w / 2, h / 2);
+        return;
+    }
+    let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+    for (let i = 0; i < n; i++) {
+        const x = P[2 * i], y = P[2 * i + 1];
+        if (x < minx) minx = x; if (x > maxx) maxx = x;
+        if (y < miny) miny = y; if (y > maxy) maxy = y;
+    }
+    const pad = 18 * dpr;
+    const sx = (w - 2 * pad) / Math.max(maxx - minx, 1e-6), sy = (h - 2 * pad) / Math.max(maxy - miny, 1e-6);
+    const sc = Math.min(sx, sy), cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
+    const tx = x => w / 2 + (x - cx) * sc, ty = y => h / 2 - (y - cy) * sc;
+    if (opts.axes) {
+        ctx.strokeStyle = '#e3e3e8'; ctx.lineWidth = dpr;
+        ctx.beginPath(); ctx.moveTo(tx(0), 0); ctx.lineTo(tx(0), h); ctx.moveTo(0, ty(0)); ctx.lineTo(w, ty(0)); ctx.stroke();
+    }
+    if ($('chkLines').checked && PRESETS[cur].chain) {
+        ctx.lineWidth = dpr; ctx.globalAlpha = 0.35;
+        for (let i = 0; i < n - 1; i++) {
+            if (grp[i] !== grp[i + 1]) continue;
+            ctx.strokeStyle = ptCss(i);
+            ctx.beginPath(); ctx.moveTo(tx(P[2 * i]), ty(P[2 * i + 1])); ctx.lineTo(tx(P[2 * i + 2]), ty(P[2 * i + 3])); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+    for (let i = 0; i < n; i++) {
+        ctx.fillStyle = ptCss(i);
+        ctx.beginPath(); ctx.arc(tx(P[2 * i]), ty(P[2 * i + 1]), 2.6 * dpr, 0, Math.PI * 2); ctx.fill();
+    }
+}
+
+// ====================== PCA ======================
+function pcaScores() {
+    let mx = 0, my = 0, mz = 0;
+    for (let i = 0; i < n; i++) { mx += X[i * 3]; my += X[i * 3 + 1]; mz += X[i * 3 + 2]; }
+    mx /= n; my /= n; mz /= n;
+    const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let i = 0; i < n; i++) {
+        const v = [X[i * 3] - mx, X[i * 3 + 1] - my, X[i * 3 + 2] - mz];
+        for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a][b] += v[a] * v[b] / n;
+    }
+    const mul = (M, v) => [0, 1, 2].map(a => M[a][0] * v[0] + M[a][1] * v[1] + M[a][2] * v[2]);
+    const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return v.map(t => t / l); };
+    const power = (M, v0) => { let v = norm(v0); for (let it = 0; it < 200; it++) v = norm(mul(M, v)); return v; };
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let v1 = power(C, [0.37, 0.91, 0.23]);
+    const lam = dot(v1, mul(C, v1));
+    const C2 = C.map((row, a) => row.map((c, b) => c - lam * v1[a] * v1[b]));
+    let v2 = power(C2, [0.83, 0.11, 0.57]);
+    const pr = dot(v2, v1);
+    v2 = norm(v2.map((t, k) => t - pr * v1[k]));
+    const fix = v => { let m = 0; for (let k = 1; k < 3; k++) if (Math.abs(v[k]) > Math.abs(v[m])) m = k; return v[m] < 0 ? v.map(t => -t) : v; };
+    v1 = fix(v1); v2 = fix(v2);
+    const P = new Float32Array(2 * n);
+    for (let i = 0; i < n; i++) {
+        const v = [X[i * 3] - mx, X[i * 3 + 1] - my, X[i * 3 + 2] - mz];
+        P[2 * i] = dot(v, v1); P[2 * i + 1] = dot(v, v2);
+    }
+    return P;
+}
+
+const SHADOW_CAPS = {
+    helix_rod: { floor: 'Виток → <b>коло</b>, паличка → <b>точка</b> у центрі (нахиліть палку — стане відрізком).', wall: 'Виток → <b>синусоїда</b>, паличка → <b>вертикальна пряма</b>, що її перетинає.' },
+    nested: { floor: 'Два витки → <b>два концентричні кола</b>, паличка → точка. Шари <i>не</i> накладаються, але всі «пласкі».', wall: 'Два синусоїди різної амплітуди + пряма: усе накладено.' },
+    chain: { floor: 'Кільця в площині XY — відрізки, в XZ — кола: зчеплення зникло, фігури накладаються.', wall: 'Кільця в площині XY — кола, в XZ — відрізки.' },
+    moons: { floor: 'Півмісяці майже плоскі — тінь майже та сама; легка хвиля по Z зникає.', wall: 'Тінь на стіну (XY) — класична картинка «two moons».' },
+    shells: { floor: 'Кулька й оболонка → <b>диск у диску</b>: оболонка проєктується в суцільний диск і заливає кульку.', wall: 'Те саме: порожнеча між кулькою та оболонкою зникає.' },
+    swiss: { floor: 'Рулет → <b>спіраль</b> (вид зверху), але колір показує: сусідні витки накладені.', wall: 'Рулет → прямокутник із змішаними кольорами: шари накладені.' },
+    blobs: { floor: 'Три групи → три плями (деякі можуть частково накласти одна одну).', wall: 'Три групи → три плями.' }
+};
+
+function drawLinear() {
+    const floor = $('shadowMode').value === 'floor';
+    const S = new Float32Array(2 * n);
+    for (let i = 0; i < n; i++) { const p = shadowXY(i); S[2 * i] = p[0]; S[2 * i + 1] = p[1]; }
+    drawScatter($('cShadow'), S, { axes: true });
+    $('shadowTitle').textContent = floor ? 'вздовж осі Y → площина XZ' : 'вздовж осі Z → площина XY';
+    $('shadowCap').innerHTML = SHADOW_CAPS[cur][floor ? 'floor' : 'wall'];
+    drawScatter($('cPCA'), pcaScores(), { axes: true });
+}
+
+// ====================== UMAP: ядро ======================
+function fitAB(minDist) {
+    const xs = [], ys = [];
+    for (let i = 0; i < 300; i++) {
+        const x = 3 * i / 299;
+        xs.push(x); ys.push(x < minDist ? 1 : Math.exp(-(x - minDist)));
+    }
+    const err = (a, b) => { let e = 0; for (let i = 0; i < xs.length; i++) { const f = 1 / (1 + a * Math.pow(xs[i], 2 * b)); e += (f - ys[i]) ** 2; } return e; };
+    let bestA = 1.5, bestB = 0.9, be = Infinity;
+    let a0 = 0.05, a1 = 6, b0 = 0.2, b1 = 2;
+    for (let pass = 0; pass < 3; pass++) {
+        const G = 40;
+        let ba = bestA, bb = bestB;
+        for (let i = 0; i <= G; i++) for (let j = 0; j <= G; j++) {
+            const a = a0 + (a1 - a0) * i / G, b = b0 + (b1 - b0) * j / G;
+            const e = err(a, b);
+            if (e < be) { be = e; ba = a; bb = b; }
+        }
+        bestA = ba; bestB = bb;
+        const da = (a1 - a0) / G * 2, db = (b1 - b0) / G * 2;
+        a0 = Math.max(0.01, bestA - da); a1 = bestA + da; b0 = Math.max(0.05, bestB - db); b1 = bestB + db;
+    }
+    return [bestA, bestB];
+}
+
+// Будує граф, спектр та початкову розкладку. Повертає стан S.
+function makeUMAPState() {
+    const k = Math.min(+$('nn').value, n - 1);
+    const md = +$('md').value;
+    const [a, b] = fitAB(md);
+
+    // 1) kNN
+    const knnI = new Int32Array(n * k), knnD = new Float32Array(n * k);
+    const dist = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            const dx = X[i * 3] - X[j * 3], dy = X[i * 3 + 1] - X[j * 3 + 1], dz = X[i * 3 + 2] - X[j * 3 + 2];
+            dist[j] = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        const idx = Array.from({ length: n }, (_, j) => j).filter(j => j !== i).sort((p, q) => dist[p] - dist[q]);
+        for (let t = 0; t < k; t++) { knnI[i * k + t] = idx[t]; knnD[i * k + t] = dist[idx[t]]; }
+    }
+
+    // 2) нечіткі ваги
+    const Wd = new Float32Array(n * n);
+    const target = Math.log2(k);
+    for (let i = 0; i < n; i++) {
+        const rho = knnD[i * k];
+        let lo = 0, hi = Infinity, mid = 1;
+        for (let it = 0; it < 64; it++) {
+            let s = 0;
+            for (let t = 0; t < k; t++) s += Math.exp(-Math.max(0, knnD[i * k + t] - rho) / mid);
+            if (Math.abs(s - target) < 1e-5) break;
+            if (s > target) { hi = mid; mid = (lo + hi) / 2; }
+            else { lo = mid; mid = hi === Infinity ? mid * 2 : (lo + hi) / 2; }
+        }
+        for (let t = 0; t < k; t++) Wd[i * n + knnI[i * k + t]] = Math.exp(-Math.max(0, knnD[i * k + t] - rho) / mid);
+    }
+
+    // 3) симетризація
+    const ei = [], ew = [], ej = [];
+    let wmax = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        const p = Wd[i * n + j], q = Wd[j * n + i];
+        if (p === 0 && q === 0) continue;
+        const w = p + q - p * q;
+        ei.push(i); ej.push(j); ew.push(w);
+        if (w > wmax) wmax = w;
+    }
+
+    // компоненти зв'язності
+    const uf = Array.from({ length: n }, (_, i) => i);
+    const find = x => { while (uf[x] !== x) { uf[x] = uf[uf[x]]; x = uf[x]; } return x; };
+    for (let e = 0; e < ei.length; e++) { const A = find(ei[e]), B = find(ej[e]); if (A !== B) uf[A] = B; }
+    const comps = new Set(Array.from({ length: n }, (_, i) => find(i))).size;
+
+    // 4) спектр нормалізованого лапласіана (підпросторова ітерація на I + A)
+    const deg = new Float64Array(n);
+    for (let e = 0; e < ei.length; e++) { deg[ei[e]] += ew[e]; deg[ej[e]] += ew[e]; }
+    const ds = Array.from(deg, d => 1 / Math.sqrt(d || 1));
+    const m = 5;
+    let V = Array.from({ length: m }, () => Float64Array.from({ length: n }, () => Math.random() - 0.5));
+    const orth = () => {
+        for (let c = 0; c < m; c++) {
+            for (let p = 0; p < c; p++) {
+                let d = 0; for (let i = 0; i < n; i++) d += V[c][i] * V[p][i];
+                for (let i = 0; i < n; i++) V[c][i] -= d * V[p][i];
+            }
+            let l = 0; for (let i = 0; i < n; i++) l += V[c][i] ** 2;
+            l = Math.sqrt(l) || 1;
+            for (let i = 0; i < n; i++) V[c][i] /= l;
+        }
+    };
+    orth();
+    for (let it = 0; it < 800; it++) {
+        const NV = V.map(v => Float64Array.from(v));
+        for (let c = 0; c < m; c++) {
+            const v = V[c], o = NV[c];
+            for (let e = 0; e < ei.length; e++) {
+                const i = ei[e], j = ej[e], w = ew[e] * ds[i] * ds[j];
+                o[i] += w * v[j]; o[j] += w * v[i];
+            }
+        }
+        V = NV; orth();
+    }
+    const eig = [];
+    for (let c = 0; c < m; c++) {
+        const v = V[c], o = new Float64Array(n);
+        for (let e = 0; e < ei.length; e++) {
+            const i = ei[e], j = ej[e], w = ew[e] * ds[i] * ds[j];
+            o[i] += w * v[j]; o[j] += w * v[i];
+        }
+        let mu = 0; for (let i = 0; i < n; i++) mu += v[i] * o[i];
+        eig.push(Math.max(0, 1 - mu));
+    }
+
+    // нормалізований вектор Фідлера (колонка 1) для розфарбування
+    const fiedler = new Float32Array(n);
+    {
+        let mean = 0; for (let i = 0; i < n; i++) mean += V[1][i]; mean /= n;
+        let mx = 1e-9;
+        for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(V[1][i] - mean));
+        for (let i = 0; i < n; i++) fiedler[i] = (V[1][i] - mean) / mx;
+    }
+
+    // 5) початкова розкладка
+    const Y = new Float32Array(2 * n);
+    if ($('init').value === 'random') {
+        for (let i = 0; i < 2 * n; i++) Y[i] = (Math.random() * 2 - 1) * 10;
+    } else {
+        let mean1 = 0, mean2 = 0;
+        for (let i = 0; i < n; i++) { mean1 += V[1][i]; mean2 += V[2][i]; }
+        mean1 /= n; mean2 /= n;
+        let mxabs = 1e-9;
+        for (let i = 0; i < n; i++) mxabs = Math.max(mxabs, Math.abs(V[1][i] - mean1), Math.abs(V[2][i] - mean2));
+        for (let i = 0; i < n; i++) {
+            Y[2 * i] = (V[1][i] - mean1) / mxabs * 10 + 0.05 * (Math.random() - 0.5);
+            Y[2 * i + 1] = (V[2][i] - mean2) / mxabs * 10 + 0.05 * (Math.random() - 0.5);
+        }
+    }
+
+    return {
+        Y, ei: Int32Array.from(ei), ej: Int32Array.from(ej), ew: Float32Array.from(ew), wmax, a, b,
+        ep: 0, E: 300, comps, edges: ei.length, eig, fiedler, k, initMode: $('init').value
+    };
+}
+
+function clip(v) { return v > 4 ? 4 : (v < -4 ? -4 : v); }
+
+function epoch(S, trace) {
+    const { Y, ei, ej, ew, wmax, a, b } = S;
+    const alpha = 1 - S.ep / S.E;
+    if (trace) { trace.att.length = 0; trace.rep.length = 0; }
+    for (let e = 0; e < ei.length; e++) {
+        if (Math.random() * wmax > ew[e]) continue;
+        const i = ei[e], j = ej[e];
+        let dx = Y[2 * i] - Y[2 * j], dy = Y[2 * i + 1] - Y[2 * j + 1];
+        let d2 = dx * dx + dy * dy;
+        if (d2 > 0) {
+            const c = -2 * a * b * Math.pow(d2, b - 1) / (1 + a * Math.pow(d2, b));
+            const gx = clip(c * dx) * alpha, gy = clip(c * dy) * alpha;
+            Y[2 * i] += gx; Y[2 * i + 1] += gy; Y[2 * j] -= gx; Y[2 * j + 1] -= gy;
+        }
+        if (trace && trace.att.length < 40 && Math.random() < 0.01) trace.att.push(i, j);
+        for (let s = 0; s < 5; s++) {
+            const kk = (Math.random() * n) | 0;
+            if (kk === i) continue;
+            dx = Y[2 * i] - Y[2 * kk]; dy = Y[2 * i + 1] - Y[2 * kk + 1];
+            d2 = dx * dx + dy * dy;
+            if (d2 <= 0) continue;
+            const c = 2 * b / ((0.001 + d2) * (1 + a * Math.pow(d2, b)));
+            Y[2 * i] += clip(c * dx) * alpha; Y[2 * i + 1] += clip(c * dy) * alpha;
+            if (trace && trace.rep.length < 80 && Math.random() < 0.003) trace.rep.push(i, kk);
+        }
+    }
+}
+
+// ====================== UMAP: вкладка 1 ======================
+let U = null, runId = 0;
+
+function startUMAP() {
+    const id = ++runId;
+    const S = makeUMAPState();
+    S.id = id;
+    U = S;
+    const e0 = S.eig.map(x => x.toFixed(3)).join(', ');
+    $('umapStatus').textContent = `граф: ${S.edges} ниток · компонент: ${S.comps}`;
+    $('umapCap').innerHTML = S.comps >= 2
+        ? `Граф має <b>${S.comps}</b> окремих компонент — між структурами ниток немає. Спектр $\\lambda_{1..5}$ ≈ ${e0} (кілька нульових = кілька компонент).`
+        : `Граф <b>зв’язний</b> (1 компонента), $\\lambda_{1..5}$ ≈ ${e0}.`;
+    $('umapCap').innerHTML = $('umapCap').innerHTML.replace(/\$\\lambda_\{1\.\.5\}\$/g, 'λ₁..₅');
+    requestAnimationFrame(() => frame(S));
+}
+
+function frame(S) {
+    if (S !== U || S.id !== runId) return;
+    for (let s = 0; s < 3 && S.ep < S.E; s++) { epoch(S, null); S.ep++; }
+    drawScatter($('cUMAP'), S.Y, {});
+    const pct = Math.round(S.ep / S.E * 100);
+    $('umapStatus').textContent = `${S.ep < S.E ? 'розгортаємо… ' + pct + '%' : 'готово'} · компонент: ${S.comps}`;
+    if (S.ep < S.E) requestAnimationFrame(() => frame(S));
+}
+
+function markStale() {
+    runId++; U = null; mechDirty = true;
+    drawScatter($('cUMAP'), null, { msg: 'Дані змінено — запустіть UMAP' });
+    $('umapStatus').textContent = 'застаріло';
+}
+
+// ====================== Three.js: вкладка 2 «Механіка» ======================
+const mHolder = $('mechView');
+const mScene = new THREE.Scene();
+mScene.background = new THREE.Color(0xf4f4f9);
+const mCam = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+mCam.position.set(30, 20, 34);
+const mRenderer = new THREE.WebGLRenderer({ canvas: $('cMech'), antialias: true });
+mRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const mControls = new OrbitControls(mCam, $('cMech'));
+mControls.enableDamping = true;
+mScene.add(new THREE.AmbientLight(0xffffff, 0.65));
+const mdl = new THREE.DirectionalLight(0xffffff, 0.8);
+mdl.position.set(10, 30, 20);
+mScene.add(mdl);
+const mFloor = new THREE.GridHelper(30, 15, 0xaaaaaa, 0xdddddd);
+mFloor.position.y = MF;
+mScene.add(mFloor);
+
+const mPoints = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 }), n);
+mScene.add(mPoints);
+let mEdgesObj = null;
+const MAXF = 40, MAXR = 40;
+function mkForce(color, opacity, cnt) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(cnt * 6), 3));
+    const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+    l.frustumCulled = false;
+    g.setDrawRange(0, 0);
+    mScene.add(l);
+    return l;
+}
+const forceAtt = mkForce(0x27ae60, 0.95, MAXF);
+const forceRep = mkForce(0xe74c3c, 0.7, MAXR);
+
+function resizeM() {
+    const w = mHolder.clientWidth, h = mHolder.clientHeight;
+    if (!w || !h) return;
+    mRenderer.setSize(w, h, false);
+    mCam.aspect = w / h;
+    mCam.updateProjectionMatrix();
+}
+new ResizeObserver(resizeM).observe(mHolder);
+
+let M = null, mechDirty = true;
+let stage = 0, mMorph = 0, playing = false, epAcc = 0, tourT = 0, mScale = 1, infoT = 0;
+const trace = { att: [], rep: [] };
+const P3 = new Float32Array(n * 3);
+
+function mechColors() {
+    const c = new THREE.Color();
+    const useF = $('mFiedler').checked && M;
+    for (let i = 0; i < n; i++) {
+        if (useF) c.setHSL(0.66 * (1 - (M.fiedler[i] * 0.5 + 0.5)), 0.85, 0.5, THREE.SRGBColorSpace);
+        else c.setHex(ptHex(i));
+        mPoints.setColorAt(i, c);
+    }
+    if (mPoints.instanceColor) mPoints.instanceColor.needsUpdate = true;
+}
+
+function rebuildMech() {
+    M = makeUMAPState();
+    M.initY = Float32Array.from(M.Y);
+    let mx = 1e-9; for (let i = 0; i < 2 * n; i++) mx = Math.max(mx, Math.abs(M.Y[i]));
+    mScale = 11 / mx;
+    mMorph = 0; playing = false; epAcc = 0; tourT = 0;
+    if (mEdgesObj) { mScene.remove(mEdgesObj); mEdgesObj.geometry.dispose(); mEdgesObj.material.dispose(); }
+    const E = M.edges;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(E * 6), 3));
+    const col = new Float32Array(E * 6);
+    for (let e = 0; e < E; e++) {
+        const w = Math.pow(M.ew[e], 0.6);
+        const r = 0.93 - 0.75 * w, gg = 0.93 - 0.70 * w, bb = 0.95 - 0.45 * w;
+        col.set([r, gg, bb, r, gg, bb], e * 6);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    mEdgesObj = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    mEdgesObj.frustumCulled = false;
+    mScene.add(mEdgesObj);
+    mechDirty = false;
+    mechColors();
+    $('mPlay').textContent = '▶ Грати';
+    setStage(0);
+}
+
+function setStage(s) {
+    stage = s; tourT = 0;
+    if (s <= 2) { M.Y.set(M.initY); M.ep = 0; epAcc = 0; }
+    document.querySelectorAll('.stg').forEach(b => b.classList.toggle('active', +b.dataset.s === s));
+    updateMechInfo();
+}
+
+function eigBars() {
+    const mxv = Math.max(0.01, ...M.eig);
+    return M.eig.map((l, i) => `<div class="bar"><span style="width:34px">λ<sub>${i + 1}</sub></span><i style="width:${Math.max(2, 150 * l / Math.max(mxv, 0.5))}px"></i><span>≈ ${l.toFixed(3)}</span></div>`).join('');
+}
+
+function updateMechInfo() {
+    if (!M) return;
+    const modeTxt = M.initMode === 'spectral' ? 'спектральна' : 'випадкова';
+    let h = '';
+    if (stage === 0) {
+        h = `<h4>0 · Дані (3D)</h4>
+        <p>${n} точок у просторі ℝ³. Колір — клас (або положення вздовж листа для рулету). Далі UMAP <b>забуде координати</b> і працюватиме тільки з графом сусідства.</p>
+        <p>Натисніть <b>▶ Грати</b> — етапи пройдуть самі (≈4 с кожен), або клацайте по етапах вручну.</p>`;
+    } else if (stage === 1) {
+        h = `<h4>1 · Нитки kNN</h4>
+        <p>Кожна точка з’єднана з ${M.k} найближчими сусідами. Показано <b>${M.edges}</b> ниток після симетризації; чим темніша нитка, тим більша вага $w_{ij}$.</p>
+        <p>Компонент зв’язності графа: <b>${M.comps}</b>. ${M.comps >= 2 ? 'Між структурами ниток немає — вони тягнутимуться окремо.' : 'Граф зв’язний: або структури торкаються, або це одна структура.'}</p>`;
+    } else if (stage === 2) {
+        h = `<h4>2 · Спектральна ініціалізація</h4>
+        <p>Режим: <b>${modeTxt}</b>. Точки переїжджають на «підлогу» в координати $(v_2, v_3)$ — власні вектори нормалізованого лапласіана $L_{sym}$.</p>
+        <p><b>Спектр графа</b> (наближено):</p>${eigBars()}
+        <p>Кількість нулів у спектрі = кількість компонент (тут ${M.comps}). Увімкніть <b>«колір = вектор Фідлера»</b>: $v_2$ плавно змінюється вздовж ланцюжка — це «координата вздовж кривої».</p>
+        <p style="color:#888">Нитки при цьому розтягуються — це і є «енергія пружин», яку SGD зараз мінімізуватиме.</p>`;
+    } else {
+        const alpha = 1 - M.ep / M.E;
+        h = `<h4>3 · Оптимізація (SGD)</h4>
+        <p>Епоха <b>${M.ep}</b> / ${M.E} · крок навчання α = <b>${alpha.toFixed(2)}</b></p>
+        <p>Кожну епоху: <span style="color:#27ae60"><b>зелені</b></span> лінії — вибрані нитки, кінці яких <b>притягуються</b> (сильніші нитки обираються частіше); <span style="color:#e74c3c"><b>червоні</b></span> — точка <b>відштовхується</b> від випадкової (негативне семплування). Показано невелику вибірку з ≈${Math.round(M.edges * 0.5)} притягань і ≈5× відштовхувань за епоху.</p>
+        <p>Повільніше / швидше — слайдер швидкості. <b>⏭</b> робить рівно одну епоху.</p>
+        ${M.ep >= M.E ? '<p><b>Готово:</b> α дійшло до 0, сітка застигла. Порівняйте з панеллю ③ вкладки «Огляд».</p>' : ''}`;
+    }
+    $('mechInfo').innerHTML = h;
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([$('mechInfo')]).catch(() => {});
+}
+
+function updateMechPositions() {
+    const t = mMorph * mMorph * (3 - 2 * mMorph);
+    let mx = 1e-9; for (let i = 0; i < 2 * n; i++) mx = Math.max(mx, Math.abs(M.Y[i]));
+    mScale += (11 / mx - mScale) * 0.2;
+    const d = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+        const ex = M.Y[2 * i] * mScale, ez = M.Y[2 * i + 1] * mScale;
+        const px = X[i * 3] * (1 - t) + ex * t, py = X[i * 3 + 1] * (1 - t) + MF * t, pz = X[i * 3 + 2] * (1 - t) + ez * t;
+        P3[i * 3] = px; P3[i * 3 + 1] = py; P3[i * 3 + 2] = pz;
+        d.position.set(px, py, pz); d.updateMatrix();
+        mPoints.setMatrixAt(i, d.matrix);
+    }
+    mPoints.instanceMatrix.needsUpdate = true;
+
+    mEdgesObj.visible = stage >= 1 && $('mEdges').checked;
+    if (mEdgesObj.visible) {
+        const pos = mEdgesObj.geometry.attributes.position.array;
+        for (let e = 0; e < M.edges; e++) {
+            const i = M.ei[e], j = M.ej[e];
+            pos[e * 6] = P3[i * 3]; pos[e * 6 + 1] = P3[i * 3 + 1]; pos[e * 6 + 2] = P3[i * 3 + 2];
+            pos[e * 6 + 3] = P3[j * 3]; pos[e * 6 + 4] = P3[j * 3 + 1]; pos[e * 6 + 5] = P3[j * 3 + 2];
+        }
+        mEdgesObj.geometry.attributes.position.needsUpdate = true;
+    }
+    const showF = stage === 3 && $('mForces').checked && M.ep > 0 && M.ep < M.E;
+    const fill = (obj, arr) => {
+        const pos = obj.geometry.attributes.position.array;
+        const cnt = showF ? arr.length / 2 : 0;
+        for (let q = 0; q < cnt; q++) {
+            const i = arr[2 * q], j = arr[2 * q + 1];
+            pos.set([P3[i * 3], P3[i * 3 + 1] + 0.05, P3[i * 3 + 2], P3[j * 3], P3[j * 3 + 1] + 0.05, P3[j * 3 + 2]], q * 6);
+        }
+        obj.geometry.setDrawRange(0, cnt * 2);
+        obj.geometry.attributes.position.needsUpdate = true;
+    };
+    fill(forceAtt, trace.att);
+    fill(forceRep, trace.rep);
+}
+
+function mechTick(dt) {
+    if (mechDirty || !M) return;
+    const target = stage >= 2 ? 1 : 0;
+    if (mMorph < target) mMorph = Math.min(target, mMorph + dt / 3);
+    else if (mMorph > target) mMorph = Math.max(target, mMorph - dt / 2);
+    if (playing) {
+        if (stage < 3) {
+            tourT += dt;
+            if (tourT > 4) setStage(stage + 1);
+        } else if (mMorph >= 0.999 && M.ep < M.E) {
+            epAcc += dt * (+$('mSpeed').value);
+            let did = false;
+            while (epAcc >= 1 && M.ep < M.E) { epoch(M, trace); M.ep++; epAcc -= 1; did = true; }
+            if (did) updateMechInfo();
+            if (M.ep >= M.E) { playing = false; $('mPlay').textContent = '▶ Грати'; updateMechInfo(); }
+        }
+    }
+    updateMechPositions();
+}
+
+// ====================== головний цикл і вкладки ======================
+let tab = 'over', last = performance.now();
+function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (tab === 'over') { controls.update(); renderer.render(scene, camera); }
+    else if (tab === 'mech') { mechTick(dt); mControls.update(); mRenderer.render(mScene, mCam); }
+}
+requestAnimationFrame(loop);
+
+function showTab(name) {
+    tab = name;
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+    $('controls').style.display = name === 'theory' ? 'none' : 'flex';
+    if (name === 'over') { resize3d(); drawLinear(); if (U) drawScatter($('cUMAP'), U.Y, {}); }
+    if (name === 'mech') { resizeM(); if (mechDirty || !M) setTimeout(rebuildMech, 30); }
+    if (name === 'theory' && window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise().catch(() => {});
+}
+document.querySelectorAll('.tabbtn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+// кнопки механіки
+document.querySelectorAll('.stg').forEach(b => b.addEventListener('click', () => { if (M) setStage(+b.dataset.s); }));
+$('mPlay').addEventListener('click', () => {
+    if (!M) return;
+    playing = !playing;
+    if (playing && stage === 3 && M.ep >= M.E) setStage(3 - 1 >= 0 ? 2 : 0);
+    $('mPlay').textContent = playing ? '⏸ Пауза' : '▶ Грати';
+});
+$('mNext').addEventListener('click', () => {
+    if (!M) return;
+    playing = false; $('mPlay').textContent = '▶ Грати';
+    if (stage < 3) setStage(stage + 1);
+    else if (mMorph >= 0.999 && M.ep < M.E) { epoch(M, trace); M.ep++; updateMechInfo(); }
+});
+$('mReset').addEventListener('click', () => { if (M) { playing = false; $('mPlay').textContent = '▶ Грати'; mMorph = 0; setStage(0); } });
+$('mSpeed').addEventListener('input', () => { $('mSpeedV').textContent = $('mSpeed').value; });
+$('mFiedler').addEventListener('change', mechColors);
+
+// ====================== події керування ======================
+function refreshLabels() {
+    $('tiltV').textContent = $('tilt').value + '°';
+    $('RV').textContent = (+$('R').value).toFixed(2);
+    $('sV').textContent = (+$('sigma').value).toFixed(2);
+    $('nnV').textContent = $('nn').value;
+    $('mdV').textContent = (+$('md').value).toFixed(2);
+}
+function dataChanged() { refreshLabels(); buildData(); updateScene(); drawLinear(); mechDirty = true; }
+function afterChange() { if (tab === 'mech') rebuildMech(); else startUMAP(); }
+
+['tilt', 'R', 'sigma'].forEach(id => {
+    $(id).addEventListener('input', () => { dataChanged(); markStale(); });
+    $(id).addEventListener('change', afterChange);
+});
+['nn', 'md'].forEach(id => {
+    $(id).addEventListener('input', refreshLabels);
+    $(id).addEventListener('change', () => { mechDirty = true; afterChange(); });
+});
+$('init').addEventListener('change', () => { mechDirty = true; afterChange(); });
+$('preset').addEventListener('change', () => {
+    cur = $('preset').value;
+    $('R').value = PRESETS[cur].def.R; $('sigma').value = PRESETS[cur].def.s;
+    $('tilt').disabled = !PRESETS[cur].hasRod;
+    dataChanged(); applyColors(); markStale(); afterChange();
+});
+$('shadowMode').addEventListener('change', () => { updateScene(); drawLinear(); });
+$('chkRays').addEventListener('change', () => { rays.visible = $('chkRays').checked; });
+$('chkLines').addEventListener('change', () => { drawLinear(); if (U) drawScatter($('cUMAP'), U.Y, {}); });
+$('btnUmap').addEventListener('click', () => { if (tab === 'mech') rebuildMech(); else startUMAP(); });
+$('btnNew').addEventListener('click', () => { seed = (seed * 1103515245 + 12345) % 2147483647; dataChanged(); applyColors(); markStale(); afterChange(); });
+addEventListener('resize', () => { if (tab === 'over') { drawLinear(); if (U) drawScatter($('cUMAP'), U.Y, {}); } });
+
+// ====================== старт ======================
+refreshLabels();
+buildData();
+applyColors();
+updateScene();
+resize3d();
+drawLinear();
+startUMAP();
+</script>
+</body>
+</html>
