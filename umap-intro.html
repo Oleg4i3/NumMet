@@ -72,6 +72,13 @@
         .bar { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; margin: 2px 0; }
         .bar i { display: inline-block; height: 9px; background: #3498db; border-radius: 2px; }
         @media (max-width: 900px) { #app, #mechApp { grid-template-columns: 1fr; height: auto; } #view3d, #mechView { height: 60vh; } #right { grid-template-rows: none; } .card { height: 300px; } }
+        #appCtl{background:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-end;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+        #appGrid{display:grid;grid-template-columns:.85fr 1fr 1fr;gap:10px;padding:10px;height:68vh;min-height:460px;box-sizing:border-box}
+        #appGrid .card{min-width:0}
+        .protoRow{display:flex;gap:4px;height:120px;margin-top:6px}
+        .protoRow canvas{flex:1;min-width:0;height:100%;background:#fcfcfe;border:1px solid #eee;border-radius:4px}
+        #appStats{margin:0 10px;padding:8px 14px;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);font-size:.88rem}
+        @media (max-width:900px){#appGrid{grid-template-columns:1fr;height:auto}}
     </style>
 </head>
 <body>
@@ -82,6 +89,7 @@
         <button class="tabbtn active" data-tab="over">① Огляд: тінь · PCA · UMAP</button>
         <button class="tabbtn" data-tab="mech">② Механіка розгортання в 3D</button>
         <button class="tabbtn" data-tab="theory">③ Теорія детально (спектр графа)</button>
+        <button class="tabbtn" data-tab="app">④ Application: рух</button>
     </div>
     <a href="helix-challenge.html">← Челендж: K-means vs HDBSCAN</a>
 </header>
@@ -159,11 +167,13 @@
         <button class="stg" data-s="1">1 · Нитки kNN</button>
         <button class="stg" data-s="2">2 · Спектральна ініціалізація</button>
         <button class="stg" data-s="3">3 · Оптимізація (SGD)</button>
+        <button class="stg" data-s="4">4 · Лінія (1D)</button>
         <span style="width:10px"></span>
         <button id="mPlay">▶ Грати</button>
         <button id="mNext" class="alt">⏭ Далі / 1 епоха</button>
         <button id="mReset" class="alt">↺ Спочатку</button>
         <div class="ctl" style="min-width:170px">Швидкість SGD: <span id="mSpeedV">3</span> епох/с<input type="range" id="mSpeed" min="0.5" max="40" step="0.5" value="3"></div>
+        <div class="ctl" style="min-width:150px">Метод 1D (етап 4): <select id="m1d"><option value="pca">PCA-1 (проєкція)</option><option value="arc">довжина дуги</option></select></div>
         <label class="ctl chk"><input type="checkbox" id="mEdges" checked> нитки</label>
         <label class="ctl chk"><input type="checkbox" id="mForces" checked> сили (епоха)</label>
         <label class="ctl chk"><input type="checkbox" id="mFiedler"> колір = вектор Фідлера $v_2$</label>
@@ -174,6 +184,52 @@
             <div class="hint">ЛКМ — обертати · ПКМ — рухати · коліщатко — зум · точки переїжджають із 3D на «підлогу»</div>
         </div>
         <div id="mechInfo"></div>
+    </div>
+</div>
+
+<!-- ============ ВКЛАДКА 4: APPLICATION ============ -->
+<div id="tab-app" class="tab">
+    <div id="appCtl">
+        <div class="ctl">Дрібний шум σ: <span id="a_sigV">0.000</span><input type="range" id="a_sig" min="0" max="0.05" step="0.002" value="0"></div>
+        <div class="ctl">Різноманітність людей: <span id="a_varV">0.50</span><input type="range" id="a_var" min="0" max="1" step="0.05" value="0.5"></div>
+        <div class="ctl">«Жіночість» ходи: <span id="a_femV">1.00</span><input type="range" id="a_fem" min="0" max="1.5" step="0.05" value="1"></div>
+        <div class="ctl">«Літність» ходи: <span id="a_oldV">1.00</span><input type="range" id="a_old" min="0" max="1.5" step="0.05" value="1"></div>
+        <label class="ctl chk"><input type="checkbox" id="a_db"> DBSCAN* на картах</label>
+        <div class="ctl">ε-множник: <span id="a_epsV">2.5</span><input type="range" id="a_eps" min="1" max="6" step="0.1" value="2.5"></div>
+        <label class="ctl chk"><input type="checkbox" id="a_pca3"> PCA у 3D (обертається)</label>
+        <label class="ctl chk"><input type="checkbox" id="a_sw" checked> стилі ходьби (жіноча, підскоки, шаркає, дідок)</label>
+        <label class="ctl chk"><input type="checkbox" id="a_sr"> стилі бігу (підтюпцем, спринт)</label>
+        <label class="ctl chk"><input type="checkbox" id="a_sk" checked> стилі карате (високий кік, розворот)</label>
+        <label class="ctl chk"><input type="checkbox" id="a_norm" checked> нормалізація (таз, масштаб, поворот)</label>
+        <label class="ctl chk"><input type="checkbox" id="a_lines" checked> траєкторії вікон</label>
+        <div class="ctl">n_neighbors: <span id="a_nnV">15</span><input type="range" id="a_nn" min="5" max="50" step="1" value="15"></div>
+        <div class="ctl">min_dist: <span id="a_mdV">0.10</span><input type="range" id="a_md" min="0" max="0.8" step="0.05" value="0.1"></div>
+        <div class="ctl">Ініціалізація: <select id="a_init"><option value="spectral">спектральна</option><option value="random">випадкова</option></select></div>
+        <button id="a_run">▶ Запустити UMAP</button>
+        <button id="a_new" class="alt">🔄 Нові дані</button>
+    </div>
+    <div id="appGrid">
+        <div class="card">
+            <h4><span>Скелет</span><small id="a_info">наведіть на точку (клік — закріпити)</small></h4>
+            <div class="cv-wrap"><canvas id="cSkel"></canvas><div class="hint" id="a_hint">наведіть курсор на точку</div></div>
+            <div class="protoRow"><canvas id="cP0"></canvas><canvas id="cP1"></canvas><canvas id="cP2"></canvas></div>
+            <div class="cap">Знизу — «еталони» трьох рухів. Вгорі — 3D-модель руху обраної точки в нормалізованому вигляді (ЛКМ — обертати, колесо — зум).</div>
+        </div>
+        <div class="card">
+            <h4><span>② PCA</span><small id="a_pcaInfo"></small></h4>
+            <div class="cv-wrap"><canvas id="cAPCA"></canvas></div>
+        </div>
+        <div class="card">
+            <h4><span>③ UMAP</span><small id="a_status">—</small></h4>
+            <div class="cv-wrap"><canvas id="cAUMAP"></canvas></div>
+        </div>
+    </div>
+    <div id="appStats">—</div>
+    <div class="doc">
+        <h3>🥋 Application: чи розрізнить UMAP ходьбу, біг і карате?</h3>
+        <p><b>Дані.</b> Параметричний скелет із 15 суглобів (таз, шия, голова, плечі, лікті, кисті, стегна, коліна, стопи). Рух задається кутами суглобів як функціями фази: ходьба ≈ 0,9 Гц, біг ≈ 1,4 Гц, карате — цикл «удар рукою ×2, удар ногою ×2» ≈ 0,4 Гц. По 5 «людей» на клас (різні зріст, довжини кінцівок, частота, амплітуда). <b>Одна точка</b> = вікно 20 кадрів (1,3 с) → вектор $15\times3\times20=900$ вимірів. Сусідні точки однієї людини — зсунуті вікна, тому циклічний рух дає <i>петлі</i>.</p>
+        <div class="box blue"><p><b>Що спробувати.</b> (1) Збільшуйте шум σ. (2) Збільшуйте різноманітність: кластери розпадаються на «людей». (3) <b>Вимкніть нормалізацію</b>: у «сирих» координатах є положення, швидкість руху й поворот у кадрі, тож UMAP групує людей, а не дії. (4) Наведіть курсор на точки на межі кластерів і подивіться, який рух за ними стоїть. (5) Порівняйте PCA і UMAP за числом «kNN-чистоти» під картинками. (6) Вмикайте й вимикайте «стилі ходьби / бігу / карате»: колір точки — клас, <b>форма</b> — стиль; на кожен стиль припадає по дві різні людини, тож видно, чи кільця одного стилю лежать поруч.</p></div>
+        <div class="box"><p><b>⚠️ Чесно.</b> Синтетичні кластери завжди кращі за реальні: у моделі лише ті варіації, які ми самі туди заклали. Наступний крок — додати реальні фрагменти (CMU Mocap або MediaPipe із камери) і подивитись, куди вони потраплять на цій карті.</p></div>
     </div>
 </div>
 
@@ -201,10 +257,10 @@
 
         <h4>Крок 5 · Крива подібності в 2D і параметри $a,b$</h4>
         $$ \phi(d)=\frac{1}{1+a\,d^{2b}}. $$
-        <p>Це «м’яка сходинка»: майже 1 при малих $d$ і спадає до 0. Параметри $a,b$ підбираються регресією до кривої $\mathbb 1[d\le\text{min\_dist}]+e^{-(d-\text{min\_dist})}\mathbb 1[d>\text{min\_dist}]$. Менший <code>min_dist</code> — щільніше упаковані точки в кластері.</p>
+        <p>Це «м’яка сходинка»: майже 1 при малих $d$ і спадає до 0. Параметри $a,b$ підбираються регресією до кривої $\mathbb 1[d\le\text{min\_dist}]+e^{-(d-\text{min\_dist})}\mathbb 1[d\gt \text{min\_dist}]$. Менший <code>min_dist</code> — щільніше упаковані точки в кластері.</p>
 
         <h4>Крок 6 · Оптимізація: перехресна ентропія нечітких множин</h4>
-        $$ C=\sum_{i<j}\Big[\,w_{ij}\log\frac{w_{ij}}{\phi_{ij}}+(1-w_{ij})\log\frac{1-w_{ij}}{1-\phi_{ij}}\Big],\qquad \phi_{ij}=\phi(\|y_i-y_j\|). $$
+        $$ C=\sum_{i\lt j}\Big[\,w_{ij}\log\frac{w_{ij}}{\phi_{ij}}+(1-w_{ij})\log\frac{1-w_{ij}}{1-\phi_{ij}}\Big],\qquad \phi_{ij}=\phi(\|y_i-y_j\|). $$
         <p>Перший доданок — <b>притягання</b>: якщо в 3D нитка міцна ($w\approx1$), то в 2D точки мають бути близько ($\phi\to1$). Другий — <b>відштовхування</b>: якщо нитки нема ($w\approx0$), точки мають бути далеко. Градієнти (як у коді сторінки, $d^2=\|y_i-y_j\|^2$):</p>
         $$ \text{притягання: }\ \frac{-2ab\,(d^2)^{\,b-1}}{1+a\,(d^2)^{b}}\,(y_i-y_j),\qquad \text{відштовхування: }\ \frac{2b}{(\varepsilon+d^2)\,(1+a\,(d^2)^{b})}\,(y_i-y_k). $$
         <p>Рахувати відштовхування для всіх $N^2$ пар дорого, тому UMAP застосовує <b>негативне семплування</b>:</p>
@@ -269,6 +325,17 @@
 
         <h3>5. UMAP + HDBSCAN</h3>
         <p>У 3D (див. <a href="helix-challenge.html">челендж</a>) UMAP перед HDBSCAN <b>не потрібен</b>: щільнісний метод сам бачить дві «гори» щільності. Коли вимірів десятки-сотні, проблема «прокляття розмірності» стирає порожнечу між структурами. Тоді: спершу UMAP у 2–10D (зберігаючи сусідство), потім HDBSCAN. Пам’ятайте: у UMAP-просторі відстані й густини вже не «справжні», тому <code>min_cluster_size</code> краще підбирати на самому графіку.</p>
+
+        <h3>6. Чи має сенс зводити розгортку далі до 1D?</h3>
+        <p>Так, якщо структура справді одновимірна (крива з шумом): тоді 1D-координата — це параметр уздовж кривої (<i>pseudotime</i>, <i>seriation</i>). Ні — якщо структура двовимірна (швейцарський рулет: сусіди по листу розлетяться), замкнена (кільце не вкладається у відрізок без розрізу) або складається з кількох компонент (їхній порядок на лінії довільний).</p>
+        <table>
+            <tr><th>Метод 1D</th><th>Коли працює</th><th>Коли ламається</th></tr>
+            <tr><td>PCA-1 на 2D-картинці</td><td>розгортка пряма</td><td>розгортка вигнута («підкова»): кінці та середина накладаються</td></tr>
+            <tr><td>Вектор Фідлера $v_2$ графа</td><td>один довгий ланцюжок</td><td>кілька компонент; кільце (дає косинус, а не монотонну координату)</td></tr>
+            <tr><td>Довжина дуги (геодезична в графі)</td><td>крива довільної форми, кілька компонент окремо</td><td>двовимірні листи; сильний шум, що замикає шорткати між витками</td></tr>
+            <tr><td>Головна крива / Isomap з $d=1$</td><td>те саме, з гладшою кривою</td><td>ті самі обмеження топології</td></tr>
+        </table>
+        <p>Урок «підкови»: kNN-граф прямої та дуги однаковий, тому UMAP не випрямляє дугу (функція втрат не відрізняє їх). Тому 1D-координату беруть із <b>графа</b> (довжина дуги, $v_2$), а не з геометрії вже розгорнутої картинки.</p>
     </div>
 </div>
 
@@ -627,16 +694,18 @@ function fitAB(minDist) {
 }
 
 // Будує граф, спектр та початкову розкладку. Повертає стан S.
-function makeUMAPState() {
-    const k = Math.min(+$('nn').value, n - 1);
-    const md = +$('md').value;
+function makeUMAPState(src) {
+    const k = Math.min(src ? src.k : +$('nn').value, n - 1);
+    const md = src ? src.md : +$('md').value;
+    const initMode = src ? src.init : $('init').value;
     const [a, b] = fitAB(md);
 
     // 1) kNN
     const knnI = new Int32Array(n * k), knnD = new Float32Array(n * k);
     const dist = new Float32Array(n);
     for (let i = 0; i < n; i++) {
-        for (let j = 0; j < n; j++) {
+        if (src) { for (let j = 0; j < n; j++) dist[j] = src.D[i * n + j]; }
+        else for (let j = 0; j < n; j++) {
             const dx = X[i * 3] - X[j * 3], dy = X[i * 3 + 1] - X[j * 3 + 1], dz = X[i * 3 + 2] - X[j * 3 + 2];
             dist[j] = Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
@@ -728,7 +797,7 @@ function makeUMAPState() {
 
     // 5) початкова розкладка
     const Y = new Float32Array(2 * n);
-    if ($('init').value === 'random') {
+    if (initMode === 'random') {
         for (let i = 0; i < 2 * n; i++) Y[i] = (Math.random() * 2 - 1) * 10;
     } else {
         let mean1 = 0, mean2 = 0;
@@ -744,7 +813,7 @@ function makeUMAPState() {
 
     return {
         Y, ei: Int32Array.from(ei), ej: Int32Array.from(ej), ew: Float32Array.from(ew), wmax, a, b,
-        ep: 0, E: 300, comps, edges: ei.length, eig, fiedler, k, initMode: $('init').value
+        ep: 0, E: 300, comps, edges: ei.length, eig, fiedler, k, initMode
     };
 }
 
@@ -854,7 +923,7 @@ function resizeM() {
 new ResizeObserver(resizeM).observe(mHolder);
 
 let M = null, mechDirty = true;
-let stage = 0, mMorph = 0, playing = false, epAcc = 0, tourT = 0, mScale = 1, infoT = 0;
+let stage = 0, mMorph = 0, mMorph1D = 0, playing = false, epAcc = 0, tourT = 0, mScale = 1, infoT = 0;
 const trace = { att: [], rep: [] };
 const P3 = new Float32Array(n * 3);
 
@@ -874,7 +943,7 @@ function rebuildMech() {
     M.initY = Float32Array.from(M.Y);
     let mx = 1e-9; for (let i = 0; i < 2 * n; i++) mx = Math.max(mx, Math.abs(M.Y[i]));
     mScale = 11 / mx;
-    mMorph = 0; playing = false; epAcc = 0; tourT = 0;
+    mMorph = 0; mMorph1D = 0; playing = false; epAcc = 0; tourT = 0; M.one = null;
     if (mEdgesObj) { mScene.remove(mEdgesObj); mEdgesObj.geometry.dispose(); mEdgesObj.material.dispose(); }
     const E = M.edges;
     const g = new THREE.BufferGeometry();
@@ -898,6 +967,11 @@ function rebuildMech() {
 function setStage(s) {
     stage = s; tourT = 0;
     if (s <= 2) { M.Y.set(M.initY); M.ep = 0; epAcc = 0; }
+    if (s === 4) {
+        while (M.ep < M.E) { epoch(M, null); M.ep++; }   // домотуємо SGD до кінця
+        M.one = compute1D();
+        mMorph1D = 0;
+    }
     document.querySelectorAll('.stg').forEach(b => b.classList.toggle('active', +b.dataset.s === s));
     updateMechInfo();
 }
@@ -925,33 +999,178 @@ function updateMechInfo() {
         <p><b>Спектр графа</b> (наближено):</p>${eigBars()}
         <p>Кількість нулів у спектрі = кількість компонент (тут ${M.comps}). Увімкніть <b>«колір = вектор Фідлера»</b>: $v_2$ плавно змінюється вздовж ланцюжка — це «координата вздовж кривої».</p>
         <p style="color:#888">Нитки при цьому розтягуються — це і є «енергія пружин», яку SGD зараз мінімізуватиме.</p>`;
-    } else {
+    } else if (stage === 3) {
         const alpha = 1 - M.ep / M.E;
         h = `<h4>3 · Оптимізація (SGD)</h4>
         <p>Епоха <b>${M.ep}</b> / ${M.E} · крок навчання α = <b>${alpha.toFixed(2)}</b></p>
         <p>Кожну епоху: <span style="color:#27ae60"><b>зелені</b></span> лінії — вибрані нитки, кінці яких <b>притягуються</b> (сильніші нитки обираються частіше); <span style="color:#e74c3c"><b>червоні</b></span> — точка <b>відштовхується</b> від випадкової (негативне семплування). Показано невелику вибірку з ≈${Math.round(M.edges * 0.5)} притягань і ≈5× відштовхувань за епоху.</p>
         <p>Повільніше / швидше — слайдер швидкості. <b>⏭</b> робить рівно одну епоху.</p>
-        ${M.ep >= M.E ? '<p><b>Готово:</b> α дійшло до 0, сітка застигла. Порівняйте з панеллю ③ вкладки «Огляд».</p>' : ''}`;
+        ${M.ep >= M.E ? '<p><b>Готово:</b> α дійшло до 0, сітка застигла. Далі ⏭ (або етап 4) — зведення до лінії.</p>' : ''}`;
+    } else {
+        const O = M.one;
+        const fmt = q => `${q.sw} перемикань (мін. ${PRESETS[cur].nc - 1}), |ρ| = ${q.rho === null ? '—' : q.rho.toFixed(2)}`;
+        h = `<h4>4 · Лінія (1D)</h4>
+        <p>SGD дограно до кінця. Тепер з готової 2D-картинки шукаємо <b>одну координату</b>. Перемикач «Метод 1D» змінює те, що показано в 3D (точки зі «стелі» 2D складаються на лінію).</p>
+        <p><b>PCA-1</b> — проєкція на головну вісь 2D-хмари. Для вигнутої «підкови» вона складає дугу: різні частини лягають на ті самі значення, класи перемішуються.</p>
+        <p><b>Довжина дуги</b> — геодезична відстань уздовж графа від кінця структури (подвійний прохід Дейкстри), окремо для кожної компоненти. Ребра беремо з UMAP-графа (3D-сусіди), а не з 2D-сусідів, тому кінці підкови, що зблизилися на площині, не склеюються. Компоненти викладено одна за одною, а порядок між ними довільний.</p>
+        <p style="font-size:.8rem;color:#555">Перемикань = скільки разів клас міняється між сусідніми точками на лінії (ідеал — число компонент мінус 1). |ρ| = середня абсолютна ранжова кореляція Спірмена між 1D-координатою та істинним параметром уздовж кривої всередині класу (1 = ідеальний порядок). PCA-1: ${O ? fmt(O.pca.q) : ''}. Довжина дуги: ${O ? fmt(O.arc.q) : ''}.</p>
+        <canvas id="c1d" width="600" height="480" style="width:100%;border-radius:4px"></canvas>`;
     }
     $('mechInfo').innerHTML = h;
+    if (stage === 4) draw1D();
     if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([$('mechInfo')]).catch(() => {});
+}
+
+function ranksOf(v) {
+    const idx = Array.from({ length: v.length }, (_, i) => i).sort((p, q) => v[p] - v[q]);
+    const r = new Float64Array(v.length);
+    idx.forEach((id, k) => { r[id] = k; });
+    return r;
+}
+function spearman(a, b) {
+    const ra = ranksOf(a), rb = ranksOf(b), m = a.length;
+    let ma = 0, mb = 0;
+    for (let i = 0; i < m; i++) { ma += ra[i]; mb += rb[i]; }
+    ma /= m; mb /= m;
+    let cv = 0, va = 0, vb = 0;
+    for (let i = 0; i < m; i++) { cv += (ra[i] - ma) * (rb[i] - mb); va += (ra[i] - ma) ** 2; vb += (rb[i] - mb) ** 2; }
+    return cv / Math.sqrt(va * vb || 1);
+}
+function quality1D(c) {
+    const C = PRESETS[cur].nc;
+    const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => c[p] - c[q]);
+    let sw = 0;
+    for (let k = 0; k < n - 1; k++) if (grp[order[k]] !== grp[order[k + 1]]) sw++;
+    const rs = [];
+    for (let t = 0; t < C; t++) {
+        const ids = []; for (let i = 0; i < n; i++) if (grp[i] === t) ids.push(i);
+        if (ids.length < 10) continue;
+        let lo = Infinity, hi = -Infinity;
+        for (const i of ids) { lo = Math.min(lo, tv[i]); hi = Math.max(hi, tv[i]); }
+        if (hi - lo < 1e-6) continue;
+        rs.push(Math.abs(spearman(ids.map(i => c[i]), ids.map(i => tv[i]))));
+    }
+    return { sw, rho: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null };
+}
+
+function compute1D() {
+    const Y = M.Y;
+    // --- PCA-1 ---
+    let mx = 0, my = 0;
+    for (let i = 0; i < n; i++) { mx += Y[2 * i]; my += Y[2 * i + 1]; }
+    mx /= n; my /= n;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { const a = Y[2 * i] - mx, b = Y[2 * i + 1] - my; sxx += a * a; syy += b * b; sxy += a * b; }
+    const th = 0.5 * Math.atan2(2 * sxy, sxx - syy), ct = Math.cos(th), st = Math.sin(th);
+    const pc = new Float32Array(n);
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < n; i++) {
+        pc[i] = (Y[2 * i] - mx) * ct + (Y[2 * i + 1] - my) * st;
+        if (pc[i] < lo) lo = pc[i]; if (pc[i] > hi) hi = pc[i];
+    }
+    for (let i = 0; i < n; i++) pc[i] = (pc[i] - lo) / (hi - lo || 1);
+
+    // --- довжина дуги вздовж UMAP-графа (довжини ребер беремо з 2D) ---
+    const adj = Array.from({ length: n }, () => []);
+    const uf = Array.from({ length: n }, (_, i) => i);
+    const find = x => { while (uf[x] !== x) { uf[x] = uf[uf[x]]; x = uf[x]; } return x; };
+    for (let e = 0; e < M.edges; e++) {
+        const i = M.ei[e], j = M.ej[e];
+        const w = Math.hypot(Y[2 * i] - Y[2 * j], Y[2 * i + 1] - Y[2 * j + 1]);
+        adj[i].push([j, w]); adj[j].push([i, w]);
+        const A = find(i), B = find(j); if (A !== B) uf[A] = B;
+    }
+    const groups = [], rootIdx = new Map();
+    for (let i = 0; i < n; i++) {
+        const r = find(i);
+        if (!rootIdx.has(r)) { rootIdx.set(r, groups.length); groups.push([]); }
+        groups[rootIdx.get(r)].push(i);
+    }
+    const dijk = src => {
+        const d = new Float64Array(n).fill(Infinity), dn = new Uint8Array(n);
+        d[src] = 0;
+        for (;;) {
+            let u = -1, b = Infinity;
+            for (let v = 0; v < n; v++) if (!dn[v] && d[v] < b) { b = d[v]; u = v; }
+            if (u < 0) break;
+            dn[u] = 1;
+            for (const [v, w] of adj[u]) if (d[u] + w < d[v]) d[v] = d[u] + w;
+        }
+        return d;
+    };
+    const G = groups.length, tot = G * 1.2 - 0.2;
+    const ac = new Float32Array(n);
+    groups.forEach((nodes, g) => {
+        const d1 = dijk(nodes[0]);
+        let a = nodes[0];
+        for (const i of nodes) if (d1[i] > d1[a]) a = i;
+        const d2 = dijk(a);
+        let mxd = 1e-9; for (const i of nodes) mxd = Math.max(mxd, d2[i]);
+        for (const i of nodes) ac[i] = (g * 1.2 + d2[i] / mxd) / tot;
+    });
+    return { pca: { c: pc, q: quality1D(pc) }, arc: { c: ac, q: quality1D(ac) }, comps: G };
+}
+
+function hist1D(ctx, W, y0, H, c, title, q, active) {
+    const C = PRESETS[cur].nc, grad = !!PRESETS[cur].grad, B = 48;
+    const cnt = Array.from({ length: B }, () => new Array(C).fill(0));
+    const stv = new Float64Array(B), tot = new Int32Array(B);
+    for (let i = 0; i < n; i++) {
+        const b = Math.min(B - 1, Math.max(0, Math.floor(c[i] * B)));
+        cnt[b][grp[i]]++; stv[b] += tv[i]; tot[b]++;
+    }
+    let mxT = 1; for (let b = 0; b < B; b++) mxT = Math.max(mxT, tot[b]);
+    const top = y0 + 30, hh = H - 62, bw = (W - 20) / B;
+    ctx.fillStyle = active ? '#f0faf3' : '#fafafa'; ctx.fillRect(0, y0, W, H);
+    ctx.strokeStyle = active ? '#27ae60' : '#ddd'; ctx.lineWidth = active ? 3 : 1; ctx.strokeRect(1, y0 + 1, W - 2, H - 2);
+    ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(title, 10, y0 + 22);
+    for (let b = 0; b < B; b++) {
+        let yy = top + hh;
+        for (let t = 0; t < C; t++) {
+            const h = cnt[b][t] / mxT * hh;
+            if (h <= 0) continue;
+            ctx.fillStyle = grad ? `hsl(${270 * (1 - stv[b] / tot[b])},80%,50%)` : CLS_CSS[t];
+            ctx.fillRect(10 + b * bw, yy - h, bw - 1, h);
+            yy -= h;
+        }
+    }
+    ctx.fillStyle = '#555'; ctx.font = '17px sans-serif';
+    ctx.fillText(`перемикань класу: ${q.sw} (мін. ${C - 1}) · |ρ| = ${q.rho === null ? '—' : q.rho.toFixed(2)}`, 10, y0 + H - 10);
+}
+
+function draw1D() {
+    const cv = $('c1d');
+    if (!cv || !M || !M.one) return;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const m = $('m1d').value;
+    hist1D(ctx, 600, 0, 235, M.one.pca.c, 'PCA-1: проєкція 2D на головну вісь', M.one.pca.q, m === 'pca');
+    hist1D(ctx, 600, 245, 235, M.one.arc.c, 'Довжина дуги вздовж графа (по компонентах)', M.one.arc.q, m === 'arc');
 }
 
 function updateMechPositions() {
     const t = mMorph * mMorph * (3 - 2 * mMorph);
     let mx = 1e-9; for (let i = 0; i < 2 * n; i++) mx = Math.max(mx, Math.abs(M.Y[i]));
     mScale += (11 / mx - mScale) * 0.2;
+    const t1 = mMorph1D * mMorph1D * (3 - 2 * mMorph1D);
+    const cc = M.one ? M.one[$('m1d').value].c : null;
     const d = new THREE.Object3D();
     for (let i = 0; i < n; i++) {
         const ex = M.Y[2 * i] * mScale, ez = M.Y[2 * i + 1] * mScale;
-        const px = X[i * 3] * (1 - t) + ex * t, py = X[i * 3 + 1] * (1 - t) + MF * t, pz = X[i * 3 + 2] * (1 - t) + ez * t;
+        let px = X[i * 3] * (1 - t) + ex * t, py = X[i * 3 + 1] * (1 - t) + MF * t, pz = X[i * 3 + 2] * (1 - t) + ez * t;
+        if (cc && t1 > 0) {
+            const jt = Math.sin(i * 12.9898) * 43758.5453;
+            const lx = (cc[i] - 0.5) * 26, lz = ((jt - Math.floor(jt)) - 0.5) * 0.9;
+            px = px * (1 - t1) + lx * t1; pz = pz * (1 - t1) + lz * t1;
+        }
         P3[i * 3] = px; P3[i * 3 + 1] = py; P3[i * 3 + 2] = pz;
         d.position.set(px, py, pz); d.updateMatrix();
         mPoints.setMatrixAt(i, d.matrix);
     }
     mPoints.instanceMatrix.needsUpdate = true;
 
-    mEdgesObj.visible = stage >= 1 && $('mEdges').checked;
+    mEdgesObj.visible = stage >= 1 && stage < 4 && $('mEdges').checked;
     if (mEdgesObj.visible) {
         const pos = mEdgesObj.geometry.attributes.position.array;
         for (let e = 0; e < M.edges; e++) {
@@ -981,26 +1200,383 @@ function mechTick(dt) {
     const target = stage >= 2 ? 1 : 0;
     if (mMorph < target) mMorph = Math.min(target, mMorph + dt / 3);
     else if (mMorph > target) mMorph = Math.max(target, mMorph - dt / 2);
+    const t1target = (stage === 4 && mMorph >= 0.999 && M.one) ? 1 : 0;
+    if (mMorph1D < t1target) mMorph1D = Math.min(t1target, mMorph1D + dt / 2.5);
+    else if (mMorph1D > t1target) mMorph1D = Math.max(t1target, mMorph1D - dt / 1.5);
     if (playing) {
         if (stage < 3) {
             tourT += dt;
             if (tourT > 4) setStage(stage + 1);
-        } else if (mMorph >= 0.999 && M.ep < M.E) {
-            epAcc += dt * (+$('mSpeed').value);
-            let did = false;
-            while (epAcc >= 1 && M.ep < M.E) { epoch(M, trace); M.ep++; epAcc -= 1; did = true; }
-            if (did) updateMechInfo();
-            if (M.ep >= M.E) { playing = false; $('mPlay').textContent = '▶ Грати'; updateMechInfo(); }
+        } else if (stage === 3) {
+            if (mMorph >= 0.999 && M.ep < M.E) {
+                epAcc += dt * (+$('mSpeed').value);
+                let did = false;
+                while (epAcc >= 1 && M.ep < M.E) { epoch(M, trace); M.ep++; epAcc -= 1; did = true; }
+                if (did) updateMechInfo();
+            } else if (M.ep >= M.E) {
+                tourT += dt;
+                if (tourT > 2.5) setStage(4);
+            }
+        } else {
+            playing = false; $('mPlay').textContent = '▶ Грати';
         }
     }
     updateMechPositions();
 }
+
+// ====================== ④ APPLICATION: синтетичний рух ======================
+const AW = 20, ADT = 1 / 15, AJ = 15, AFD = AJ * 3;
+const ACLS = ['Ходьба', 'Біг', 'Карате'], ACOL = ['#3498db', '#e67e22', '#8e44ad'], BASEF = [0.92, 1.38, 0.42];
+const BONES = [[0,1],[1,2],[1,3],[1,4],[3,5],[5,7],[4,6],[6,8],[0,9],[0,10],[9,11],[11,13],[10,12],[12,14]];
+const LEFTB = new Set(['1,3', '3,5', '5,7', '0,9', '9,11', '11,13']);
+const bump = (u, c, w) => { let d = Math.abs(u - c); d = Math.min(d, 1 - d); return Math.exp(-0.5 * (d / w) ** 2); };
+const A = { data: null, D: null, pca: null, U: null, hover: -1, pin: -1, t: 0, seed: 11, pur0: 0, pur1: 0, pur2: null };
+
+const STY = {
+    0: { norm: {}, fem: { ha: .85, sa: .6, tw: 2.2, ab: -.08, hs: .16, hr: .35, pt: .16, lean: .03 }, hop: { ha: 1.15, sa: 1.3, k1: 1.7, k0: .2, e: .6, f: 1.2, lean: .02, bn: 2.5 },
+         shuf: { ha: .45, sa: .3, k1: .15, k0: .05, lean: .12, f: .9 }, old: { ha: .55, sa: .25, k1: .3, k0: .28, lean: .38, hd: .45, f: .85 } },
+    1: { norm: {}, jog: { ha: .75, sa: .6, k1: .7, k0: .2, lean: .12, f: .82 }, sprint: { ha: 1.2, sa: 1.2, k1: 1.2, lean: .3, f: 1.12 } },
+    2: { norm: {}, high: { kick: 1.7, lean: -.35 }, spin: { spin: 1, kick: 1.5, lean: -.25 } }
+};
+const STYN = { norm: 'звичайний', fem: 'жіночий', hop: 'підскоки', shuf: 'шаркає', old: 'дідок', jog: 'підтюпцем', sprint: 'спринт', high: 'високий кік', spin: 'кік із розворотом' };
+const STSEL = ['a_sw', 'a_sr', 'a_sk'];
+
+function angles(c, t, P) {
+    const S = P.S, o = (k, d) => S[k] ?? d, ph = 2 * Math.PI * P.f * t + P.ph0, Am = P.A, a = { tw: 0, ab: o('ab', .03), lean: .05, bounce: 0, lat: 0, hd: o('hd', 0), yaw: 0 };
+    if (c < 2) {
+        const run = c === 1, s = Math.sin(ph), kn = p => Math.max(0, Math.cos(p - 0.3)) ** (run ? 1.5 : 2);
+        const ha = (run ? .7 : .42) * Am * o('ha', 1), sa = (run ? .7 : .35) * Am * o('sa', 1), k0 = o('k0', run ? .35 : .1), k1 = (run ? 1.25 : .6) * o('k1', 1);
+        a.hL = ha * s; a.hR = -ha * s;
+        a.kL = k0 + k1 * Am * kn(ph); a.kR = k0 + k1 * Am * kn(ph + Math.PI);
+        a.sL = -sa * s; a.sR = sa * s;
+        a.eL = (run ? 1.5 : .3 + .4 * Math.max(0, a.sL)) + P.elb + o('e', 0); a.eR = (run ? 1.5 : .3 + .4 * Math.max(0, a.sR)) + P.elb + o('e', 0);
+        const c2 = Math.cos(2 * ph);
+        a.lean = o('lean', run ? .2 : .05) + (run ? .05 : .02) * c2; a.tw = (run ? .25 : .15) * s * o('tw', 1); a.lat = (o('lat', 0) + (run ? .03 : .05)) * s; a.sq = (run ? .05 : .025) * c2;
+        a.hl = o('hs', 0) * Math.cos(ph); a.ptw = -o('hr', 0) * s; a.pr = o('pt', 0) * Math.cos(ph); a.lat -= .5 * a.hl;   // таз: зсув убік, поворот і перекіс; торс компенсує a.bounce = (run ? .05 : .02) * c2 * o('bn', 1);
+    } else {
+        const u = ((P.f * t + P.ph0 / (2 * Math.PI)) % 1 + 1) % 1, sp = o('spin', 0), kk = o('kick', 1.1), kc = sp ? .6 : .54;
+        const pR = bump(u, .14, .07), pL = bump(u, .30, .07), kR = bump(u, kc, .07), kL = bump(u, .78, .07), chR = bump(u, kc - .08, .06), chL = bump(u, .70, .06);
+        a.sR = .45 + 1.1 * pR - .6 * pL; a.sL = .45 + 1.1 * pL - .6 * pR;
+        a.eR = 2 * (1 - pR) + .05 + P.elb; a.eL = 2 * (1 - pL) + .05 + P.elb;
+        a.hR = .25 + kk * Am * kR; a.hL = -.15 + kk * Am * kL;
+        a.kR = Math.max(.05, .5 + 1.2 * Am * chR - .45 * kR); a.kL = Math.max(.05, .5 + 1.2 * Am * chL - .45 * kL);
+        a.ab = .25; a.tw = .5 * (pR - pL); a.lean = o('lean', -.15) * Math.max(kR, kL);
+        if (sp) {   // розворот на 360°; у середині (спиною до цілі) тулуб майже горизонтально вперед, нога вилітає назад
+            const w = bump(u, .6, .06), m = Math.min(1, Math.max(0, (u - .38) / .44));
+            a.yaw = 2 * Math.PI * m * m * (3 - 2 * m); a.lean = 1.35 * w; a.hd = -.9 * w; a.tw = 0;
+            a.hR = .25 - 1.8 * w; a.kR = Math.max(.05, .5 - .45 * w); a.hL = -.15 + .2 * w; a.kL = .5 + .3 * w;
+            a.sR = a.sL = .45 + w; a.eR = a.eL = .4 + 1.6 * (1 - w);
+        }
+    }
+    return a;
+}
+
+// 15 суглобів: 0 таз,1 шия,2 голова,3/4 плече L/R,5/6 лікоть,7/8 кисть,9/10 стегно,11/12 коліно,13/14 стопа. x вперед, y вгору, z вправо. Одиниця = довжина тулуба.
+function skeleton(a, P) {
+    const J = new Float32Array(AFD), L = { to: 1, hd: .3, sw: .36, ua: .6 * P.armK, fa: .54 * P.armK, hw: .2, th: .9 * P.legK, sh: .9 * P.legK };
+    const set = (i, x, y, z) => { J[3 * i] = x; J[3 * i + 1] = y; J[3 * i + 2] = z; };
+    const Lt = L.to * (1 + (a.sq || 0)), nx = Math.sin(a.lean) * Lt, ny = Math.cos(a.lean) * Lt, la = a.lat, ha = a.lean * .5 + a.hd;
+    set(0, 0, 0, 0); set(1, nx, ny, la); set(2, nx + Math.sin(ha) * L.hd, ny + Math.cos(ha) * L.hd, la);
+    for (const sd of [-1, 1]) {
+        const i = sd < 0 ? 0 : 1, s = sd < 0 ? a.sL : a.sR, e = sd < 0 ? a.eL : a.eR, h = sd < 0 ? a.hL : a.hR, k = sd < 0 ? a.kL : a.kR;
+        const sx = nx + sd * L.sw * Math.sin(a.tw), sz = la + sd * L.sw * Math.cos(a.tw);
+        const ex = sx + L.ua * Math.sin(s), ey = ny - L.ua * Math.cos(s), ez = sz + sd * .1;
+        set(3 + i, sx, ny, sz); set(5 + i, ex, ey, ez); set(7 + i, ex + L.fa * Math.sin(s + e), ey - L.fa * Math.cos(s + e), ez);
+        const hx = sd * L.hw * Math.sin(a.ptw || 0), hy = sd * L.hw * Math.sin(a.pr || 0), hz = (a.hl || 0) + sd * L.hw * Math.cos(a.ptw || 0);
+        const kx = hx + L.th * Math.sin(h), ky = hy - L.th * Math.cos(h), kz = hz + sd * Math.sin(a.ab) * L.th;
+        set(9 + i, hx, hy, hz); set(11 + i, kx, ky, kz);
+        set(13 + i, kx + L.sh * Math.sin(h - k), ky - L.sh * Math.cos(h - k), kz + sd * Math.sin(a.ab) * L.sh);
+    }
+    if (a.yaw) { const c = Math.cos(a.yaw), s = Math.sin(a.yaw); for (let j = 0; j < AJ; j++) { const x = J[3 * j], z = J[3 * j + 2]; J[3 * j] = x * c + z * s; J[3 * j + 2] = -x * s + z * c; } }
+    return J;
+}
+
+const DEFW = { ha: 1, sa: 1, k1: 1, tw: 1, k0: .1, lean: .05, ab: .03, lat: 0, hd: 0, e: 0, f: 1, bn: 1, hs: 0, hr: 0, pt: 0 };
+function styleScaled(c, sty) {
+    const S = STY[c][sty]; if (c !== 0 || (sty !== 'fem' && sty !== 'old')) return S;
+    const I = +$(sty === 'fem' ? 'a_fem' : 'a_old').value, o = {};
+    for (const k in S) o[k] = DEFW[k] + (S[k] - DEFW[k]) * I;
+    return o;
+}
+function makePerson(c, rng, g, v, sty) {
+    const cl = (x, lo, hi) => Math.min(hi, Math.max(lo, x)), S = styleScaled(c, sty), f = BASEF[c] * (S.f ?? 1) * (1 + .12 * v * g());
+    return { S, sty, f, A: cl(1 + .15 * v * g(), .6, 1.5), scale: cl(1 + .1 * v * g(), .75, 1.3), legK: 1 + .08 * v * g(), armK: 1 + .08 * v * g(), elb: .15 * v * g(),
+        ph0: rng() * 2 * Math.PI, yaw: rng() * 2 * Math.PI, x0: (rng() - .5) * 6, z0: (rng() - .5) * 6, spd: [1.35 * f / .92, 3.6 * f / 1.38, .05][c] };
+}
+
+function normWindow(raw, nrm, off) {   // таз у нуль, масштаб на довжину тулуба, поворот осі плечей до +z
+    let ts = 0, vx = 0, vz = 0;
+    for (let fr = 0; fr < AW; fr++) {
+        const b = off + fr * AFD;
+        ts += Math.hypot(raw[b + 3] - raw[b], raw[b + 4] - raw[b + 1], raw[b + 5] - raw[b + 2]);
+        vx += raw[b + 12] - raw[b + 9]; vz += raw[b + 14] - raw[b + 11];
+    }
+    ts /= AW; const be = Math.atan2(-vx, vz), cb = Math.cos(be), sb = Math.sin(be);
+    for (let fr = 0; fr < AW; fr++) {
+        const b = off + fr * AFD;
+        for (let j = 0; j < AJ; j++) {
+            const o = b + 3 * j, x = (raw[o] - raw[b]) / ts, y = (raw[o + 1] - raw[b + 1]) / ts, z = (raw[o + 2] - raw[b + 2]) / ts;
+            nrm[o] = x * cb + z * sb; nrm[o + 1] = y; nrm[o + 2] = -x * sb + z * cb;
+        }
+    }
+}
+
+function genApp(seed0, sigma, vari) {
+    const rng = mulberry(seed0), g = () => gaussR(rng), cnt = [167, 167, 166], stride = 2;
+    const LST = [0, 1, 2].map(c => $(STSEL[c]).checked ? Object.keys(STY[c]) : ['norm']), PPc = LST.map(l => l.length > 1 ? 2 * l.length : 5);
+    const raw = new Float32Array(n * AW * AFD), nrm = new Float32Array(n * AW * AFD), cls = new Uint8Array(n), pid = new Int16Array(n), sty = new Array(n), Pp = new Array(n), T0 = new Float32Array(n);
+    let p = 0, pe = 0;
+    for (let c = 0; c < 3; c++) for (let q = 0; q < PPc[c]; q++, pe++) {
+        const m = Math.floor(cnt[c] / PPc[c]) + (q < cnt[c] % PPc[c] ? 1 : 0), P = makePerson(c, rng, g, vari, LST[c][q % LST[c].length]);
+        const ca = Math.cos(P.yaw), sa = Math.sin(P.yaw), k = 0.5 * P.scale;
+        for (let w = 0; w < m; w++, p++) {
+            cls[p] = c; pid[p] = pe; sty[p] = P.sty; Pp[p] = P; T0[p] = w * stride * ADT;
+            const off = p * AW * AFD;
+            for (let fr = 0; fr < AW; fr++) {
+                const t = (w * stride + fr) * ADT, a = angles(c, t, P), J = skeleton(a, P);
+                const px = P.x0 + P.spd * t * ca, pz = P.z0 - P.spd * t * sa, py = 1.7 * k * P.legK + a.bounce;
+                for (let j = 0; j < AJ; j++) {
+                    const x = J[3 * j] * k, y = J[3 * j + 1] * k, z = J[3 * j + 2] * k, o = off + fr * AFD + 3 * j;
+                    raw[o] = px + x * ca + z * sa + 0.5 * sigma * g();
+                    raw[o + 1] = py + y + 0.5 * sigma * g();
+                    raw[o + 2] = pz - x * sa + z * ca + 0.5 * sigma * g();
+                }
+            }
+            normWindow(raw, nrm, off);
+        }
+    }
+    return { raw, nrm, cls, pid, sty, Pp, T0 };
+}
+
+function distMat(F) {
+    const L = AW * AFD, D = new Float32Array(n * n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        let s = 0; const a = i * L, b = j * L;
+        for (let d = 0; d < L; d++) { const x = F[a + d] - F[b + d]; s += x * x; }
+        D[i * n + j] = D[j * n + i] = Math.sqrt(s);
+    }
+    return D;
+}
+
+function pcaFromD(D) {   // класичний MDS: B = -½ J D² J, топ-2 власні вектори
+    const rm = new Float64Array(n), B = new Float64Array(n * n); let tot = 0, tr = 0;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const d = D[i * n + j] ** 2; rm[i] += d / n; tot += d / (n * n); }
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) B[i * n + j] = -0.5 * (D[i * n + j] ** 2 - rm[i] - rm[j] + tot);
+    for (let i = 0; i < n; i++) tr += B[i * n + i];
+    const mv = v => { const o = new Float64Array(n); for (let i = 0; i < n; i++) { let s = 0; const r = i * n; for (let j = 0; j < n; j++) s += B[r + j] * v[j]; o[i] = s; } return o; };
+    const orth = V => { for (let c = 0; c < 3; c++) { for (let p = 0; p < c; p++) { let d = 0; for (let i = 0; i < n; i++) d += V[c][i] * V[p][i]; for (let i = 0; i < n; i++) V[c][i] -= d * V[p][i]; } let l = 0; for (let i = 0; i < n; i++) l += V[c][i] ** 2; l = Math.sqrt(l) || 1; for (let i = 0; i < n; i++) V[c][i] /= l; } return V; };
+    let V = orth([0, 1, 2].map(() => Float64Array.from({ length: n }, () => Math.random() - 0.5)));
+    for (let it = 0; it < 150; it++) V = orth(V.map(mv));
+    const lam = V.map(v => { const o = mv(v); let s = 0; for (let i = 0; i < n; i++) s += o[i] * v[i]; return Math.max(0, s); });
+    const P = new Float32Array(2 * n), P3 = new Float32Array(3 * n);
+    for (let i = 0; i < n; i++) { for (let c = 0; c < 3; c++) P3[3 * i + c] = V[c][i] * Math.sqrt(lam[c]); P[2 * i] = P3[3 * i]; P[2 * i + 1] = P3[3 * i + 1]; }
+    return { P, P3, share: (lam[0] + lam[1]) / tr, share3: (lam[0] + lam[1] + lam[2]) / tr };
+}
+
+function purity(dfn, K = 10) {
+    const d = new Float32Array(n), cls = A.data.cls; let tot = 0;
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) d[j] = j === i ? Infinity : dfn(i, j);
+        const idx = Array.from({ length: n }, (_, j) => j).sort((p, q) => d[p] - d[q]).slice(0, K);
+        tot += idx.filter(j => cls[j] === cls[i]).length / K;
+    }
+    return tot / n;
+}
+
+function appStats() {
+    const dbT = r => r ? `${r.K} кл., шум ${(100 * r.noise).toFixed(0)}%, однорідність ${(100 * r.hom).toFixed(0)}%` : '…';
+    const dbLine = (A.db1 || A.db2) ? `<br><b>DBSCAN*</b> (minPts=5): PCA — ${dbT(A.db1)} · UMAP — ${dbT(A.db2)}` : '';
+    const f = x => x == null ? '…' : (100 * x).toFixed(0) + '%';
+    $('appStats').innerHTML = `<b>kNN-чистота</b> (частка 10 найближчих сусідів того ж класу): вихідний простір (900D) <b>${f(A.pur0)}</b> · PCA 2D <b>${f(A.pur1)}</b> · PCA 3D <b>${f(A.pur13)}</b> · UMAP 2D <b>${f(A.pur2)}</b> &nbsp;|&nbsp; PCA 2D пояснює ${(100 * A.pca.share).toFixed(0)}% дисперсії, 3D — ${(100 * A.pca.share3).toFixed(0)}%` + dbLine;
+}
+
+function runAppUMAP() {
+    A.U = makeUMAPState({ D: A.D, k: +$('a_nn').value, md: +$('a_md').value, init: $('a_init').value });
+    A.pur2 = null; A.db1 = A.db2 = null; A.dbDirty = true; appStats();
+}
+
+function rebuildApp(regen) {
+    $('a_status').textContent = 'обчислюємо…';
+    setTimeout(() => {
+        if (regen || !A.data) A.data = genApp(A.seed, +$('a_sig').value, +$('a_var').value);
+        A.D = distMat($('a_norm').checked ? A.data.nrm : A.data.raw);
+        A.pca = pcaFromD(A.D);
+        A.pur0 = purity((i, j) => A.D[i * n + j]);
+        const P = A.pca.P; A.pur1 = purity((i, j) => Math.hypot(P[2 * i] - P[2 * j], P[2 * i + 1] - P[2 * j + 1]));
+        const Q = A.pca.P3; A.pur13 = purity((i, j) => Math.hypot(Q[3 * i] - Q[3 * j], Q[3 * i + 1] - Q[3 * j + 1], Q[3 * i + 2] - Q[3 * j + 2]));
+        $('a_pcaInfo').textContent = `пояснює ${(100 * A.pca.share).toFixed(0)}% дисперсії`;
+        runAppUMAP();
+    }, 20);
+}
+
+const DBCOL = ['#e74c3c', '#2ecc71', '#f1c40f', '#1abc9c', '#34495e', '#d35400', '#7f8c8d', '#c0392b', '#16a085', '#2980b9'];
+function dbscanStar(C, dim, minPts, epsF) {   // DBSCAN*: кластери — лише зв'язні компоненти ядрових точок, решта — шум
+    const dd = (i, j) => { let q = 0; for (let k = 0; k < dim; k++) { const x = C[i * dim + k] - C[j * dim + k]; q += x * x; } return Math.sqrt(q); };
+    const kd = [], row = new Float32Array(n);
+    for (let i = 0; i < n; i++) { for (let j = 0; j < n; j++) row[j] = j === i ? Infinity : dd(i, j); kd.push(Array.from(row).sort((a, b) => a - b)[minPts - 1]); }
+    kd.sort((a, b) => a - b); const eps = epsF * kd[n >> 1], cnt = new Int16Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (dd(i, j) <= eps) { cnt[i]++; cnt[j]++; }
+    const lab = new Int16Array(n).fill(-1); let K = 0;
+    for (let i = 0; i < n; i++) {
+        if (cnt[i] < minPts || lab[i] >= 0) continue;
+        const st = [i]; lab[i] = K;
+        while (st.length) { const a = st.pop(); for (let j = 0; j < n; j++) if (lab[j] < 0 && cnt[j] >= minPts && dd(a, j) <= eps) { lab[j] = K; st.push(j); } }
+        K++;
+    }
+    let nz = 0, hom = 0; const tab = Array.from({ length: K }, () => [0, 0, 0]);
+    for (let i = 0; i < n; i++) { if (lab[i] < 0) nz++; else tab[lab[i]][A.data.cls[i]]++; }
+    for (const t of tab) hom += Math.max(...t);
+    return { lab, K, noise: nz / n, hom: hom / Math.max(1, n - nz) };
+}
+const SHP = { norm: 0, fem: 1, hop: 2, shuf: 3, old: 4, jog: 1, sprint: 2, high: 1, spin: 2 };
+function drawShape(ctx, x, y, r, k) {
+    ctx.beginPath();
+    if (k === 0) { ctx.arc(x, y, r, 0, 6.2832); }
+    else { const sd = [0, 4, 3, 4, 5][k], rot = [0, Math.PI / 4, -Math.PI / 2, 0, -Math.PI / 2][k], rr = k === 1 ? r * 1.15 : r * 1.3; for (let q = 0; q < sd; q++) { const a = rot + 6.2832 * q / sd; q ? ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)) : ctx.moveTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); } ctx.closePath(); }
+    ctx.fill();
+}
+function drawApp(cv, P, lab) {
+    const dpr = fit(cv), ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!P) { ctx.fillStyle = '#999'; ctx.font = `${13 * dpr}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('…', w / 2, h / 2); return; }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < n; i++) { x0 = Math.min(x0, P[2 * i]); x1 = Math.max(x1, P[2 * i]); y0 = Math.min(y0, P[2 * i + 1]); y1 = Math.max(y1, P[2 * i + 1]); }
+    const pad = 18 * dpr, sc = Math.min((w - 2 * pad) / Math.max(x1 - x0, 1e-6), (h - 2 * pad) / Math.max(y1 - y0, 1e-6));
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const sx = cv._sx || (cv._sx = new Float32Array(n)), sy = cv._sy || (cv._sy = new Float32Array(n));
+    for (let i = 0; i < n; i++) { sx[i] = w / 2 + (P[2 * i] - cx) * sc; sy[i] = h / 2 - (P[2 * i + 1] - cy) * sc; }
+    const { cls, pid } = A.data;
+    if ($('a_lines').checked) {
+        ctx.lineWidth = dpr; ctx.globalAlpha = 0.3;
+        for (let i = 0; i < n - 1; i++) { if (pid[i] !== pid[i + 1]) continue; ctx.strokeStyle = ACOL[cls[i]]; ctx.beginPath(); ctx.moveTo(sx[i], sy[i]); ctx.lineTo(sx[i + 1], sy[i + 1]); ctx.stroke(); }
+    }
+    if (lab) { ctx.globalAlpha = 0.25; for (let i = 0; i < n; i++) if (lab[i] >= 0) { ctx.fillStyle = DBCOL[lab[i] % DBCOL.length]; ctx.beginPath(); ctx.arc(sx[i], sy[i], 7 * dpr, 0, 6.2832); ctx.fill(); } }
+    ctx.globalAlpha = 0.9;
+    for (let i = 0; i < n; i++) { ctx.fillStyle = ACOL[cls[i]]; drawShape(ctx, sx[i], sy[i], 2.7 * dpr, SHP[A.data.sty[i]]); }
+    ctx.globalAlpha = 1; ctx.lineWidth = 2 * dpr; ctx.strokeStyle = '#111';
+    for (const i of [A.hover, A.pin]) if (i >= 0) { ctx.beginPath(); ctx.arc(sx[i], sy[i], 6 * dpr, 0, 6.2832); ctx.stroke(); }
+    ctx.font = `${11 * dpr}px sans-serif`; ctx.textAlign = 'left';
+    ACLS.forEach((nm, c) => { ctx.fillStyle = ACOL[c]; ctx.fillText('● ' + nm, 8 * dpr, (14 + 14 * c) * dpr); });
+    [...new Set(A.data.sty)].filter(k => k !== 'norm').forEach((k, q) => { const yy = h - (10 + 14 * q) * dpr; ctx.fillStyle = '#666'; drawShape(ctx, 12 * dpr, yy - 3 * dpr, 3.2 * dpr, SHP[k]); ctx.fillText(STYN[k], 22 * dpr, yy); });
+}
+
+function drawSkel(ctx, J, cx, cy, sc, view, col, lw) {
+    const X = j => cx + sc * (view === 2 ? J[3 * j] * .82 + J[3 * j + 2] * .57 : J[3 * j + (view ? 2 : 0)]), Y = j => cy - sc * J[3 * j + 1];
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineCap = 'round'; ctx.lineWidth = lw;
+    for (const [a, b] of BONES) { ctx.globalAlpha = LEFTB.has(a + ',' + b) ? 0.45 : 1; ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(X(2), Y(2), sc * 0.17, 0, 6.2832); ctx.fill();
+}
+
+function frameAt(arr, off, tt) {
+    const f = (tt / ADT) % AW, f0 = Math.floor(f), f1 = (f0 + 1) % AW, w = f - f0, o = new Float32Array(AFD);
+    for (let d = 0; d < AFD; d++) o[d] = arr[off + f0 * AFD + d] * (1 - w) + arr[off + f1 * AFD + d] * w;
+    return o;
+}
+
+const sRen = new THREE.WebGLRenderer({ canvas: $('cSkel'), antialias: true });
+sRen.setPixelRatio(Math.min(devicePixelRatio, 2));
+const sScene = new THREE.Scene(); sScene.background = new THREE.Color(0xfcfcfe);
+const sCam = new THREE.PerspectiveCamera(40, 1, 0.1, 100); sCam.position.set(2.4, 0.7, 4.8);
+const sCtl = new OrbitControls(sCam, $('cSkel')); sCtl.target.set(0, -0.4, 0); sCtl.enableDamping = true;
+sScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const sdl = new THREE.DirectionalLight(0xffffff, 0.8); sdl.position.set(3, 6, 4); sScene.add(sdl);
+const sGrid = new THREE.GridHelper(30, 60, 0xbbbbbb, 0xdddddd); sGrid.position.y = -1.95; sScene.add(sGrid);
+const sGrp = new THREE.Group(); sScene.add(sGrp);
+const sMatS = new THREE.MeshPhongMaterial({ shininess: 40 }), sMatP = new THREE.MeshPhongMaterial({ shininess: 40 });
+const sJ = [], sB = [], LJ = new Set([3, 5, 7, 9, 11, 13]), UP = new THREE.Vector3(0, 1, 0), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
+for (let j = 0; j < AJ; j++) { const m = new THREE.Mesh(new THREE.SphereGeometry(j === 2 ? 0.17 : 0.075, 16, 12), LJ.has(j) ? sMatP : sMatS); sJ.push(m); sGrp.add(m); }
+for (const [a, b] of BONES) { const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 10), LEFTB.has(a + ',' + b) ? sMatP : sMatS); m.userData = { a, b, w: (a === 0 && b === 1) ? 0.1 : 0.045 }; sB.push(m); sGrp.add(m); }
+
+function drawSkelPanel() {
+    const cv = $('cSkel'), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv._w !== w || cv._h !== h) { sRen.setSize(w, h, false); sCam.aspect = w / h; sCam.updateProjectionMatrix(); cv._w = w; cv._h = h; }
+    const idx = A.pin >= 0 ? A.pin : A.hover;
+    sGrp.visible = idx >= 0; $('a_hint').style.display = idx >= 0 ? 'none' : 'block';
+    if (idx < 0) { $('a_info').textContent = 'наведіть на точку (клік — закріпити)'; }
+    else {
+        const c = A.data.cls[idx], P = A.data.Pp[idx], tt = A.data.T0[idx] + A.t * 0.8, an = angles(c, tt, P), J = skeleton(an, P), col = new THREE.Color(ACOL[c]);
+        const lift = c === 1 ? 0.2 * Math.max(0, Math.cos(4 * Math.PI * P.f * tt + 2 * P.ph0)) ** 2 : 0;
+        sGrp.position.y = -1.92 - Math.min(J[40], J[43]) + lift;                  // підлога нерухома (y=-1.95); людина піднімається/опускається так, щоб нижча стопа торкалась її, а бігун у польоті відривався
+        sGrid.position.x = -((A.t * 0.8 * P.spd / (0.5 * P.scale)) % 0.5);             // тредміл: підлога їде назад
+        sMatS.color.copy(col); sMatP.color.copy(col).lerp(new THREE.Color(0xffffff), 0.55);
+        for (let j = 0; j < AJ; j++) sJ[j].position.set(J[3 * j], J[3 * j + 1], J[3 * j + 2]);
+        for (const m of sB) {
+            const { a, b, w: bw } = m.userData; v1.set(J[3 * a], J[3 * a + 1], J[3 * a + 2]); v2.set(J[3 * b], J[3 * b + 1], J[3 * b + 2]);
+            const d = v2.clone().sub(v1), len = d.length() || 1e-6;
+            m.position.copy(v1).add(v2).multiplyScalar(0.5); m.scale.set(bw, len, bw); m.quaternion.setFromUnitVectors(UP, d.normalize());
+        }
+        $('a_info').textContent = `#${idx} · ${ACLS[c]} · ${STYN[A.data.sty[idx]]} · людина ${A.data.pid[idx] + 1}${A.pin >= 0 ? ' · 📌' : ''}`;
+    }
+    sCtl.update(); sRen.render(sScene, sCam);
+}
+
+function drawProtos() {
+    for (let c = 0; c < 3; c++) {
+        const cv = $('cP' + c), dpr = fit(cv), ctx = cv.getContext('2d'), w = cv.width, h = cv.height, P = { S: c === 2 ? STY[2].spin : {}, f: BASEF[c], A: 1, scale: 1, legK: 1, armK: 1, elb: 0, ph0: 0 };
+        ctx.clearRect(0, 0, w, h);
+        const sc = Math.min(w / 3.4, h / 3.6); drawSkel(ctx, skeleton(angles(c, A.t, P), P), w / 2, h / 2 - 0.25 * sc, sc, 2, ACOL[c], 2.5 * dpr);
+        ctx.fillStyle = ACOL[c]; ctx.font = `bold ${11 * dpr}px sans-serif`; ctx.textAlign = 'left'; ctx.fillText(c === 2 ? 'Карате' : ACLS[c], 6 * dpr, 14 * dpr);
+    }
+}
+
+function appTick(dt) {
+    A.t += dt;
+    if (!A.data || !A.pca) return;
+    const U = A.U;
+    if (U && U.ep < U.E) {
+        for (let s = 0; s < 3 && U.ep < U.E; s++) { epoch(U, null); U.ep++; }
+        $('a_status').textContent = U.ep < U.E ? `розгортаємо… ${Math.round(100 * U.ep / U.E)}%` : 'готово';
+        if (U.ep >= U.E) { A.pur2 = purity((i, j) => Math.hypot(U.Y[2 * i] - U.Y[2 * j], U.Y[2 * i + 1] - U.Y[2 * j + 1])); appStats(); A.dbDirty = true; }
+    }
+    let PP2 = A.pca.P;
+    if ($('a_pca3').checked) {
+        const Q = A.pca.P3, th = 0.9 * Math.sin(A.t * 0.5), cs = Math.cos(th), sn = Math.sin(th); PP2 = A._p2 || (A._p2 = new Float32Array(2 * n));
+        for (let i = 0; i < n; i++) { PP2[2 * i] = Q[3 * i] * cs + Q[3 * i + 2] * sn; PP2[2 * i + 1] = Q[3 * i + 1]; }
+    }
+    $('a_pcaInfo').textContent = $('a_pca3').checked ? '3 компоненти, обертання' : '2 компоненти';
+    const dbOn = $('a_db').checked;
+    if (dbOn && A.dbDirty && (!U || U.ep >= U.E)) {
+        A.dbDirty = false; const em = +$('a_eps').value, pc3 = $('a_pca3').checked;
+        A.db1 = pc3 ? dbscanStar(A.pca.P3, 3, 5, em) : dbscanStar(A.pca.P, 2, 5, em); A.db2 = U ? dbscanStar(U.Y, 2, 5, em) : null; appStats();
+    }
+    if (!dbOn && (A.db1 || A.db2)) { A.db1 = A.db2 = null; appStats(); }
+    drawApp($('cAPCA'), PP2, dbOn && A.db1 ? A.db1.lab : null); drawApp($('cAUMAP'), U ? U.Y : null, dbOn && A.db2 ? A.db2.lab : null);
+    drawSkelPanel(); drawProtos();
+}
+
+function appNearest(cv, e) {
+    if (!cv._sx) return -1;
+    const r = cv.getBoundingClientRect(), k = cv.width / r.width, mx = (e.clientX - r.left) * k, my = (e.clientY - r.top) * k;
+    let b = -1, bd = (14 * k) ** 2;
+    for (let i = 0; i < n; i++) { const d = (cv._sx[i] - mx) ** 2 + (cv._sy[i] - my) ** 2; if (d < bd) { bd = d; b = i; } }
+    return b;
+}
+['cAPCA', 'cAUMAP'].forEach(id => {
+    const cv = $(id);
+    cv.addEventListener('mousemove', e => { A.hover = appNearest(cv, e); });
+    cv.addEventListener('mouseleave', () => { A.hover = -1; });
+    cv.addEventListener('click', e => { const i = appNearest(cv, e); A.pin = (i < 0 || i === A.pin) ? -1 : i; });
+});
+function appLabels() {
+    $('a_sigV').textContent = (+$('a_sig').value).toFixed(3); $('a_varV').textContent = (+$('a_var').value).toFixed(2);
+    $('a_femV').textContent = (+$('a_fem').value).toFixed(2); $('a_oldV').textContent = (+$('a_old').value).toFixed(2); $('a_nnV').textContent = $('a_nn').value; $('a_mdV').textContent = (+$('a_md').value).toFixed(2);
+}
+['a_sig', 'a_var', 'a_fem', 'a_old', 'a_nn', 'a_md'].forEach(id => $(id).addEventListener('input', appLabels));
+['a_sig', 'a_var', 'a_fem', 'a_old', 'a_sw', 'a_sr', 'a_sk'].forEach(id => $(id).addEventListener('change', () => { A.pin = -1; rebuildApp(true); }));
+$('a_norm').addEventListener('change', () => rebuildApp(false));
+['a_nn', 'a_md', 'a_init'].forEach(id => $(id).addEventListener('change', () => { if (A.D) runAppUMAP(); }));
+$('a_run').addEventListener('click', () => { if (A.D) runAppUMAP(); });
+['a_db', 'a_eps', 'a_pca3'].forEach(id => ['input', 'change'].forEach(ev => $(id).addEventListener(ev, () => { A.dbDirty = true; $('a_epsV').textContent = (+$('a_eps').value).toFixed(1); })));
+$('a_new').addEventListener('click', () => { A.seed = (A.seed * 1103515245 + 12345) % 2147483647; A.pin = -1; rebuildApp(true); });
+function initApp() { appLabels(); if (!A.data) rebuildApp(true); }
 
 // ====================== головний цикл і вкладки ======================
 let tab = 'over', last = performance.now();
 function loop(now) {
     requestAnimationFrame(loop);
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (tab === 'app') appTick(dt);
     if (tab === 'over') { controls.update(); renderer.render(scene, camera); }
     else if (tab === 'mech') { mechTick(dt); mControls.update(); mRenderer.render(mScene, mCam); }
 }
@@ -1010,9 +1586,10 @@ function showTab(name) {
     tab = name;
     document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
-    $('controls').style.display = name === 'theory' ? 'none' : 'flex';
+    $('controls').style.display = (name === 'theory' || name === 'app') ? 'none' : 'flex';
     if (name === 'over') { resize3d(); drawLinear(); if (U) drawScatter($('cUMAP'), U.Y, {}); }
     if (name === 'mech') { resizeM(); if (mechDirty || !M) setTimeout(rebuildMech, 30); }
+    if (name === 'app') initApp();
     if (name === 'theory' && window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise().catch(() => {});
 }
 document.querySelectorAll('.tabbtn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -1022,18 +1599,22 @@ document.querySelectorAll('.stg').forEach(b => b.addEventListener('click', () =>
 $('mPlay').addEventListener('click', () => {
     if (!M) return;
     playing = !playing;
-    if (playing && stage === 3 && M.ep >= M.E) setStage(3 - 1 >= 0 ? 2 : 0);
+    if (playing && (stage === 4 || (stage === 3 && M.ep >= M.E))) setStage(2);
     $('mPlay').textContent = playing ? '⏸ Пауза' : '▶ Грати';
 });
 $('mNext').addEventListener('click', () => {
     if (!M) return;
     playing = false; $('mPlay').textContent = '▶ Грати';
     if (stage < 3) setStage(stage + 1);
-    else if (mMorph >= 0.999 && M.ep < M.E) { epoch(M, trace); M.ep++; updateMechInfo(); }
+    else if (stage === 3) {
+        if (M.ep < M.E) { if (mMorph >= 0.999) { epoch(M, trace); M.ep++; updateMechInfo(); } }
+        else setStage(4);
+    }
 });
-$('mReset').addEventListener('click', () => { if (M) { playing = false; $('mPlay').textContent = '▶ Грати'; mMorph = 0; setStage(0); } });
+$('mReset').addEventListener('click', () => { if (M) { playing = false; $('mPlay').textContent = '▶ Грати'; mMorph = 0; mMorph1D = 0; setStage(0); } });
 $('mSpeed').addEventListener('input', () => { $('mSpeedV').textContent = $('mSpeed').value; });
 $('mFiedler').addEventListener('change', mechColors);
+$('m1d').addEventListener('change', () => { mMorph1D = 0; if (stage === 4) updateMechInfo(); });
 
 // ====================== події керування ======================
 function refreshLabels() {
