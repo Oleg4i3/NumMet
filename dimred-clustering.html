@@ -1,0 +1,613 @@
+<!doctype html><html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Менше вимірів — ті самі кластери?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10); --good:#006300;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#6250d6; --c8:#e34948;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10); --good:#0ca30c;
+    --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10); --good:#0ca30c;
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+  color-scheme:dark;
+}
+
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.6 var(--sans)}
+.wrap{max-width:none;margin:0 auto;padding:22px max(20px,env(safe-area-inset-right,0px)) 56px max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
+h1{font-size:30px;line-height:1.15;font-weight:600;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:17px;font-weight:600;margin:0 0 6px}h3{font-size:14px;font-weight:600;margin:0 0 4px}p{margin:0 0 8px}
+.intro p{color:var(--ink2)}.intro h2{margin-top:6px}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.term{cursor:help;border-bottom:1px dotted var(--muted)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ctl{display:flex;flex-direction:column;gap:6px;min-width:0}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--axis);border-radius:5px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;background:transparent;color:var(--ink2);border:0;padding:6px 11px;cursor:pointer;border-right:1px solid var(--axis)}
+.seg button:last-child{border-right:0}.seg button[aria-checked="true"]{background:var(--ink);color:var(--surface)}
+.seg button:hover:not([aria-checked="true"]){background:var(--grid)}
+button.act{font:inherit;font-size:13px;background:transparent;color:var(--ink);border:1px solid var(--axis);border-radius:5px;padding:5px 10px;cursor:pointer}
+button.act:hover{background:var(--grid)}
+input[type=range]{width:150px;accent-color:var(--ink);margin:0}.val{font:13px var(--mono);min-width:38px}
+.chk{display:flex;gap:6px;align-items:center;color:var(--ink2);font-size:13px;cursor:pointer}.chk input{accent-color:var(--ink);margin:0}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) clamp(340px,29vw,460px);gap:18px;align-items:start}
+@media(max-width:980px){.stage{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--ring);border-radius:6px;min-width:0}
+.cv{position:relative;height:clamp(440px,76vh,880px)}
+.cv canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px}
+.zoom button{width:34px;height:34px;font-size:20px;line-height:1;background:var(--surface);color:var(--ink);border:1px solid var(--axis);border-radius:5px;cursor:pointer}
+.zoom button:hover{background:var(--grid)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;padding:10px 14px 12px;border-top:1px solid var(--grid);font-size:12.5px;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}.box{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}
+.big{font:500 26px/1.1 var(--mono);letter-spacing:-.02em}.cap{font-size:12px;color:var(--ink2);margin-top:2px}
+.verdict{border-top:1px solid var(--grid);padding-top:10px;color:var(--ink2);font-size:14px}
+.note{color:var(--ink2);font-size:13.5px}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px 28px;padding:16px 18px}
+.rgrid>div{min-width:0}.rgrid p{color:var(--ink2);font-size:14px}
+.pad{padding:16px 18px}.vgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;padding:16px 18px}
+@media(max-width:820px){.vgrid{grid-template-columns:1fr}}
+.r{display:grid;grid-template-columns:250px 1fr 48px;gap:10px;align-items:center;font-size:13px;margin:6px 0}
+.t{height:12px;background:var(--grid);border-radius:2px}.t i{display:block;height:100%;background:var(--ink);border-radius:2px}.t i.e{background:var(--c1)}
+pre{margin:6px 0 0;font:12.5px/1.6 var(--mono);color:var(--ink2);overflow-x:auto}
+details>summary{cursor:pointer;padding:12px 18px;font-weight:600}details[open]>summary{border-bottom:1px solid var(--grid)}
+.tw{max-height:420px;overflow:auto;margin-top:10px;border:1px solid var(--grid);border-radius:5px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:4px 8px;border-bottom:1px solid var(--grid);text-align:left}
+th{position:sticky;top:0;background:var(--surface);font-weight:500;color:var(--muted)}
+td input[type=number],.add input[type=number]{width:70px}td input,td select,.add input,.add select{font:inherit;font-size:13px;background:var(--page);color:var(--ink);border:1px solid var(--axis);border-radius:4px;padding:3px 5px}
+.add{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.add input[type=text]{width:220px}
+canvas#ec{width:100%;height:84px;display:block}
+dialog{width:min(1100px,94vw);height:min(86vh,820px);padding:0;border:1px solid var(--axis);border-radius:8px;background:var(--surface);color:var(--ink)}
+dialog[open]{display:flex;flex-direction:column}dialog::backdrop{background:rgba(0,0,0,.45)}
+.hh{display:flex;gap:14px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--grid)}.hh b{flex:1}.hh a{color:var(--ink2);font-size:13px}
+dialog iframe{flex:1;border:0;width:100%;background:#fff}dialog .note{padding:6px 14px}
+#tip{position:fixed;pointer-events:none;opacity:0;background:var(--ink);color:var(--page);padding:7px 10px;border-radius:5px;font-size:12px;z-index:99;max-width:250px}
+#tip b{display:block;font-weight:600}#tip .m{display:block;font:11px var(--mono);opacity:.85}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--axis)}
+.tabs button{font:inherit;font-size:14px;font-weight:500;background:transparent;color:var(--ink2);border:0;border-bottom:2px solid transparent;padding:10px 16px;cursor:pointer;margin-bottom:-1px}
+.tabs button:hover{color:var(--ink)}.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.tabpane{display:flex;flex-direction:column;gap:20px}
+.vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:14px 0}
+code{font:12.5px var(--mono);background:var(--grid);padding:1px 4px;border-radius:3px}
+.steps{display:flex;flex-direction:column;gap:18px;padding:4px 18px 18px}
+.step{border-left:2px solid var(--axis);padding-left:14px;min-width:0}.step p,.sl li{color:var(--ink2);font-size:14px}
+.sl{margin:6px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+tr.ro td{color:var(--ink2)}
+.intro a{color:var(--ink)}
+@media(max-width:600px){.tabs button{padding:10px 10px;font-size:13px}}
+</style></head><body>
+<div class="wrap">
+<nav class="tabs" role="tablist" aria-label="Розділи"><button role="tab" data-tab="sim" aria-selected="true">Симулятор</button><button role="tab" data-tab="hw" aria-selected="false">Індивідуальне завдання</button></nav>
+<div id="tab-sim" class="tabpane">
+<header class="intro"><h1>Менше вимірів — ті самі кластери?</h1>
+<h2>Постановка задачі</h2>
+<p>Маємо $n$ об’єктів (тут — фільми), кожен описаний $d$ числовими ознаками, тобто вектором $x_k\in\mathbb R^{d}$. Кластеризувати просто в $\mathbb R^{d}$ дорого (DBSCAN* рахує $O(n^2)$ відстаней), нестійко через прокляття вимірності й неможливо подивитись очима, коли $d>3$. Тому шукаємо <b>лінійну проєкцію</b> $y_k=W^{\top}(x_k-\bar x)$, де $W\in\mathbb R^{d\times m}$ має ортонормовані стовпці, а $m&lt;d$ — кількість вимірів, які ми лишаємо.</p>
+<p>Навіщо це потрібно на практиці. Зменшення розмірності й кластеризація — повсякденні інструменти машинного навчання та комп’ютерних наук. У рекомендаційних системах (як і в нашому прикладі з фільмами) користувачів і товари описують коротким вектором прихованих ознак, який отримують із SVD чи факторизації матриці оцінок. У пошуку за схожістю (векторні бази даних, ембединги тексту й зображень) вектори стискають, а k-means будує «словники» для індексів на кшталт IVF та product quantization. У попередній обробці даних PCA прибирає надлишкові, сильно корельовані ознаки: модель швидше навчається й менше перенавчається, а шум частково відсівається. Кластеризація потрібна для сегментації клієнтів, групування документів і новин, стиснення кольорів у зображенні, виявлення аномалій і розмітки великих масивів даних без міток. Двовимірна чи тривимірна проєкція нарешті дає змогу побачити дані очима й перевірити, чи знайдені кластери взагалі існують. Саме про цей ланцюжок «стиснути, а потім групувати» й питає експеримент нижче.</p>
+<p>Яка проєкція «хороша»? Є два критерії, які не зобов’язані збігатися. Перший — <b>зберегти дисперсію</b>, тобто втратити якомога менше розкиду даних: $\rho=\operatorname{tr}(W^{\top}CW)/\operatorname{tr}C\to\max$. Другий — <b>зберегти кластери</b>: розбиття в $\mathbb R^{m}$ має збігатися з розбиттям у $\mathbb R^{d}$, тобто $\mathrm{ARI}\to1$. PCA оптимізує перший критерій і нічого не знає про другий. Тут $d=3$, щоб усе було видно.</p>
+<p>Питання експерименту: коли два критерії збігаються, а коли ні, і чому «мости» між кластерами та проєкція, що стискає відстані, ламають і k-means, і DBSCAN*. План: (0) еталонна кластеризація в 3D; (1) викинути вісь; (2) лишити одну вісь або напрям, підібраний самостійно; (3–4) PCA у 2D та 1D. Усі символи розшифровано нижче на кроці 0, терміни — у словнику внизу сторінки та в підказках при наведенні.</p></header>
+<section class="stage">
+<div class="panel"><div class="cv"><canvas id="cv" aria-label="Фільми у вибраному просторі"></canvas><div class="zoom" id="zoom"><button id="zi" title="Наблизити (також коліщатко миші)" aria-label="Наблизити">+</button><button id="zo" title="Віддалити" aria-label="Віддалити">−</button></div></div><div class="legend" id="legend"></div></div>
+<aside class="side"><div class="panel box">
+<div class="ctl"><span class="label term" title="Скільки вимірів лишаємо і як їх вибираємо: викинути вісь «в лоб» чи спроєктувати на головні компоненти (PCA).">Крок</span><div class="seg" data-key="st"><button role="radio" data-v="0">3D-еталон</button><button role="radio" data-v="1">2D: викинути вісь</button><button role="radio" data-v="2">1D: одна вісь</button><button role="radio" data-v="3">2D: PCA</button><button role="radio" data-v="4">1D: PCA</button></div></div>
+<div class="ctl" id="axctl" hidden><span class="label" id="axlab"></span><div class="seg" data-key="ax" id="ax"></div></div>
+<div class="ctl" id="uctl" hidden><span class="label term" title="Напрям u задається двома кутами. Збережена дисперсія вздовж нього дорівнює uᵀCu; максимум — на PC1.">Напрям u: азимут · висота</span><div class="row"><input type="range" id="th" min="-180" max="180" step="1" aria-label="азимут"><input type="range" id="ph" min="-90" max="90" step="1" aria-label="висота"><button class="act" id="topc" title="Встановити u = перша головна компонента">→ PC1</button></div></div>
+<div class="ctl"><span class="label term" title="k-means++ розбиває на задане число k кластерів за відстанню до центрів. DBSCAN* шукає щільні групи без заданого k, а решту називає шумом.">Алгоритм</span><div class="row"><div class="seg" data-key="alg"><button role="radio" data-v="km">k-means++</button><button role="radio" data-v="db">DBSCAN*</button></div><button class="act" data-help="km" title="Довідка про k-means (окремий симулятор k-means-2D3D.html)">? k-means</button><button class="act" data-help="db" title="Довідка про DBSCAN* (окремий симулятор ClasterPlus.html)">? DBSCAN*</button></div></div>
+<div class="ctl" id="kctl"><label class="label term" for="k" title="k — скільки кластерів ми вимагаємо від k-means. Це наша гіпотеза: алгоритм сам її не вгадує.">Кластерів k</label><div class="row"><input type="range" id="k" min="2" max="8" step="1"><span class="val" id="kv"></span></div></div>
+<div class="ctl" id="mctl" hidden><label class="label term" for="mp" title="mpts — мінімальна кількість точок (разом із самою точкою) у щільному околі. Одночасно це мінімальний розмір кластера: менші групи стають шумом. Відстань до (mpts−1)-го сусіда називають core distance.">mpts: мін. сусідів і розмір кластера</label><div class="row"><input type="range" id="mp" min="2" max="8" step="1"><span class="val" id="mv"></span></div></div>
+<div class="ctl" id="ectl" hidden><label class="label term" for="eps" title="ε (епсилон) — поріг відстані. Точки в одному кластері, якщо їх можна з’єднати ланцюжком кроків, кожен з яких (з урахуванням core distance) не довший за ε. Більше ε — менше кластерів і менше шуму.">Поріг ε</label><div class="row"><input type="range" id="eps" min="0.05" max="0.60" step="0.01"><span class="val" id="ev"></span></div><canvas id="ec" aria-label="Число кластерів залежно від ε"></canvas><span class="cap" id="nn"></span><span class="cap">Крива: число кластерів залежно від ε (сіра — у 3D, чорна — у поточному просторі, лінія — поточне ε).</span></div>
+<div class="ctl" id="cbctl"><span class="label term" title="«Кластери 3D» — колір із еталонного розбиття: видно, що саме змішалось після проєкції. «Знайдені тут» — колір із кластеризації в поточному просторі.">Колір точок</span><div class="seg" data-key="cb"><button role="radio" data-v="ref">кластери 3D</button><button role="radio" data-v="here">знайдені тут</button></div></div>
+<div class="row"><label class="chk" title="Радіус точки росте з відстанню між точкою та її проєкцією, тобто з тим, що ми відкинули."><input type="checkbox" id="loss">розмір = втрата</label><label class="chk"><input type="checkbox" id="rot">обертати 3D</label></div>
+</div>
+<div class="panel box"><div><h2 id="ttl"></h2><p class="note" id="nt"></p></div><div class="stats" id="stats"></div><div class="verdict" id="vd"></div></div>
+</aside></section>
+<section class="panel" id="recap"><div class="pad"><h2>Відомості зі статистики: дисперсія, коваріація, кореляція</h2><p class="note">Нас цікавить, як розкидані оцінки фільмів. Усе нижче — про центровані дані, а коваріаційну матрицю позначаємо $C$ (не великою сигмою, щоб не плутати зі знаком суми $\sum$).</p></div>
+<div class="rgrid">
+<div><h3>1. Дані</h3><p>$X$ — матриця $n\times d$: рядок $k$ — фільм, стовпець $i$ — ознака. $x_{ki}$ — оцінка фільму $k$ за ознакою $i$ ($i=1$ комедія, $2$ екшн, $3$ фантастика; від −1 до +1). $n$ — число фільмів, $d=3$ — число ознак.</p></div>
+<div><h3>2. Середнє й центрування</h3><p>$$\bar x_i=\frac1n\sum_{k=1}^{n}x_{ki},\qquad z_{ki}=x_{ki}-\bar x_i$$</p><p>$\bar x_i$ — «центр ваги» ознаки $i$, $z_{ki}$ — відхилення від нього. Матриця таких відхилень — $X_c$. Центрування обов’язкове: без нього «найбільший розкид» вказував би на початок координат, а не на форму хмари.</p></div>
+<div><h3>3. Дисперсія й стандартне відхилення</h3><p>$$\sigma_i^2=\frac1{n-1}\sum_{k=1}^{n}z_{ki}^2,\qquad \sigma_i=\sqrt{\sigma_i^2}$$</p><p>$\sigma_i^2$ (мала сигма в квадраті) — середній квадрат відхилення ознаки $i$ від її середнього, тобто міра розкиду. $\sigma_i$ — стандартне відхилення, в тих самих одиницях, що й оцінка. Ділимо на $n-1$, а не на $n$, щоб оцінка була незміщеною (поправка Бесселя). Малий $\sigma_i$ означає, що ознака майже не розрізняє фільми.</p></div>
+<div><h3>4. Коваріація</h3><p>$$c_{ij}=\frac1{n-1}\sum_{k=1}^{n}z_{ki}\,z_{kj}$$</p><p>Показує, чи ознаки $i$ та $j$ змінюються разом ($c_{ij}>0$: фільми з високою комедійністю частіше мають високий екшн), у протилежний бік ($c_{ij}<0$) чи без лінійного зв’язку ($c_{ij}\approx0$). Для $i=j$ отримуємо дисперсію: $c_{ii}=\sigma_i^2$. Величина залежить від масштабу ознак, тому її важко порівнювати.</p></div>
+<div><h3>5. Кореляція</h3><p>$$r_{ij}=\frac{c_{ij}}{\sigma_i\,\sigma_j}\in[-1,\,1]$$</p><p>Це коваріація без одиниць виміру: $r_{ij}=1$ — ознаки лежать на одній прямій з додатним нахилом, $-1$ — з від’ємним, $0$ — лінійного зв’язку немає. Саме сильні кореляції роблять хмару витягнутою, і саме тому PCA має що стискати. Кореляція між ознаками не те саме, що відокремленість кластерів.</p></div>
+<div><h3>6. Коваріаційна матриця</h3><p>$$C=\frac1{n-1}X_c^{\top}X_c=\begin{pmatrix}c_{11}&c_{12}&c_{13}\\c_{21}&c_{22}&c_{23}\\c_{31}&c_{32}&c_{33}\end{pmatrix}$$</p><p>Розмір $d\times d=3\times3$. Діагональ — дисперсії ($c_{ii}=\sigma_i^2$), поза діагоналлю — коваріації, і $c_{ij}=c_{ji}$ (матриця симетрична, тому її власні вектори ортогональні). Сума діагоналі $\operatorname{tr}C=c_{11}+c_{22}+c_{33}$ — це повна дисперсія. Числа для поточних даних — внизу сторінки.</p></div>
+<div><h3>7. Дисперсія вздовж напряму</h3><p>$$y_k=u^{\top}z_k,\qquad \operatorname{Var}(y)=u^{\top}C\,u,\qquad \lVert u\rVert=1$$</p><p>$u$ — одиничний вектор напряму, $z_k=(z_{k1},z_{k2},z_{k3})^{\top}$, $y_k$ — координата фільму $k$ на цій прямій. Для осі $i$ беремо $u=e_i$ (одиниця на місці $i$) і отримуємо $c_{ii}$. Отже, «викинути вісь» втрачає рівно її дисперсію.</p></div>
+<div><h3>8. Власні числа й головні компоненти</h3><p>$$C\,v_i=\lambda_i\,v_i,\qquad \lambda_1\ge\lambda_2\ge\lambda_3\ge0,\qquad \lambda_1+\lambda_2+\lambda_3=\operatorname{tr}C$$</p><p>$v_i$ — власний вектор: напрям $i$-ї <b>головної компоненти</b> ($\mathrm{PC}_i$, у тексті PC1, PC2, PC3). $\lambda_i$ — власне число: дисперсія вздовж $\mathrm{PC}_i$. PC1 — напрям найбільшого розкиду, $v_1=\arg\max_{\lVert u\rVert=1}u^{\top}Cu$, а PC2 — найбільшого серед напрямів, ортогональних PC1. Нові координати фільму: $y_{ki}=v_i^{\top}z_k$.</p></div>
+<div><h3>9. Зв’язок із SVD</h3><p>$$X_c=U\,\mathrm{diag}(s_1,s_2,s_3)\,V^{\top},\qquad \lambda_i=\frac{s_i^2}{n-1}$$</p><p>$s_i$ — сингулярні числа $X_c$, стовпці $V$ — вектори $v_i$. Тобто PCA — це SVD центрованих даних, а проєкція на перші $m$ компонент — та сама низькорангова апроксимація, яку ви вже знаєте.</p></div>
+<div><h3>10. Збережена частка дисперсії</h3><p>$$\rho=\frac{\lambda_1+\dots+\lambda_m}{\operatorname{tr}C}\quad\text{(PCA)},\qquad \rho_i=\frac{c_{ii}}{\operatorname{tr}C}\quad\text{(лишили вісь }i\text{)}$$</p><p>$\rho$ — «збережена дисперсія» зі статистики праворуч. Завжди $\lambda_1\ge\max_i c_{ii}$, тож PCA не гірша за найкращу вісь за цим критерієм. Але чи збережуться кластери — це інше питання.</p></div>
+</div></section>
+<section class="panel"><div class="vgrid"><div><h2>Дисперсія: що ми втрачаємо</h2>
+<p class="note">Кожен рядок — частка повної дисперсії $\operatorname{tr}C$. Перший рядок — поточна проєкція; далі дисперсії осей $\sigma_i^2=c_{ii}$ та власні числа $\lambda_i$.</p><div id="bars"></div></div>
+<div><h2>Матриця $C$ і кореляції $r_{ij}$ (поточні дані)</h2><pre id="mx"></pre></div></div></section>
+<details class="panel"><summary>Таблиця фільмів і оцінок: змінюйте значення, додавайте свої фільми</summary><div class="pad"><p class="note">Оцінки від −1 до +1 за трьома осями: драма(−) ↔ комедія(+), романтика(−) ↔ екшн(+), реалізм(−) ↔ фантастика(+). Після будь-якої зміни все перераховується. Тип лише міняє форму маркера: ● основний, ◆ міст, ■ викид.</p>
+<div class="tw"><table id="tb"></table></div>
+<div class="add"><input type="text" id="an" placeholder="Назва нового фільму" aria-label="Назва"><input type="number" id="ax1" min="-1" max="1" step="0.05" value="0" title="драма(−) ↔ комедія(+)" aria-label="драма(−) ↔ комедія(+)"><input type="number" id="ax2" min="-1" max="1" step="0.05" value="0" title="романтика(−) ↔ екшн(+)" aria-label="романтика(−) ↔ екшн(+)"><input type="number" id="ax3" min="-1" max="1" step="0.05" value="0" title="реалізм(−) ↔ фантастика(+)" aria-label="реалізм(−) ↔ фантастика(+)"><select id="ak" aria-label="тип"><option value="c">основний</option><option value="b">міст</option><option value="o">викид</option></select><button class="act" id="add">Додати</button><button class="act" id="reset">Повернути початкові</button><span class="note" id="tmsg"></span></div></div></details>
+<details class="panel"><summary>Словник термінів</summary><div class="rgrid">
+<div><h3>Збережена дисперсія ρ</h3><p>Частка повної дисперсії, що лишилась уздовж обраних осей: $\rho=\operatorname{tr}(W^{\top}CW)/\operatorname{tr}C$. Вона говорить про розкид даних, а не про те, чи лишились кластери окремо.</p></div>
+<div><h3>Втрата при проєкції</h3><p>Відстань від точки до її проєкції: $r_k=\lVert z_k-W W^{\top}z_k\rVert$. Саме її показує розмір точки. Великі $r_k$ — фільми, які проєкція «не бачить» (вони далеко від обраних осей).</p></div>
+<div><h3>ARI</h3><p>Скоригований індекс Рандa. Рахує пари фільмів, які обидва розбиття однаково вважають «разом» або «окремо», і віднімає очікування для випадкових розбиттів: $\mathrm{ARI}=\frac{\mathrm{RI}-\mathbb E[\mathrm{RI}]}{\max\mathrm{RI}-\mathbb E[\mathrm{RI}]}$. $1$ — розбиття однакові, $\approx0$ — як випадкові, може бути від’ємним. Тут порівнюємо з розбиттям у 3D; шум вважаємо окремим класом.</p></div>
+<div><h3>Silhouette</h3><p>Для точки $s_k=\frac{b_k-a_k}{\max(a_k,b_k)}$, де $a_k$ — середня відстань до своїх, $b_k$ — до найближчого чужого кластера. Береться середнє по точках: від −1 до 1, більше — чіткіші кластери. Шум не враховується, потрібні щонайменше 2 кластери.</p></div>
+<div><h3>k-means++</h3><p>Задаємо $k$ наперед; алгоритм мінімізує суму квадратів відстаней до центрів. «++» — розумний вибір початкових центрів. Не має поняття шуму, кластери опуклі, схильні до однакового розміру.</p></div>
+<div><h3>DBSCAN*, mpts, ε</h3><p>Core distance $d_{core}(p)$ — відстань до $(mpts-1)$-го сусіда. Взаємна досяжність $d_{mr}(p,q)=\max\{d_{core}(p),\,d_{core}(q),\,d(p,q)\}$. Кластери — компоненти зв’язності графа, де ребра мають $d_{mr}\le\varepsilon$; компоненти менші за $mpts$ — шум. Один плоский зріз, без дерева стабільності, як у повному HDBSCAN.</p></div>
+<div><h3>Чому ε «з’їжджає» на проєкціях</h3><p>Проєкція лише стискає відстані: $\lVert W^{\top}(a-b)\rVert\le\lVert a-b\rVert$. Сусіди стають ближчими, густина росте, і те саме ε починає склеювати кластери (особливо через «мости») та забирати шум. Тому крива вище для 2D та 1D зсунута вліво.</p></div>
+<div><h3>Міст і викид</h3><p>Міст — нейтральний фільм на межі кластерів: з’єднує їх ланцюжком. Викид — фільм далеко від еліпсоїда головних компонент (великий залишок $r_k$). Для PCA це «великий залишок», для DBSCAN* — «низька густина»: це різні поняття.</p></div>
+</div></details>
+<p class="note">Оцінки розставлені вручну суб'єктивно, тож кореляції й PCA ілюструють роботу методів, а не точні факти про фільми.</p>
+</div>
+<div id="tab-hw" class="tabpane" hidden>
+<header class="intro"><h1>Індивідуальне завдання</h1>
+<p>Самостійна робота. Ви збираєте власний невеликий набір фільмів і серіалів і проходите на ньому шлях із симулятора: кластеризація на площині (k-means і діаграма Вороного), кореляції та PCA. PCA — нова тема, тому її розписано покроково, з формулами й поясненнями. Працюєте в Excel. Заготовки формул — у файлі-шпаргалці <a href="pca-shpargalka.xlsx" download>pca-shpargalka.xlsx</a> (файл має лежати поряд із цією сторінкою).</p></header>
+
+<section class="panel"><div class="pad"><h2>0. Ваш варіант</h2>
+<p class="note">Введіть прізвище та ім’я. Від них залежать ваш варіант, кількість кластерів і набір із 20 фільмів, тож не змінюйте їх, поки працюєте. Апострофи, дефіси й пробіли не рахуємо.</p>
+<div class="add"><input type="text" id="hsur" placeholder="Прізвище" autocomplete="off" aria-label="Прізвище"><input type="text" id="hnam" placeholder="Ім’я" autocomplete="off" aria-label="Ім’я"></div>
+<div class="vars" id="hvars"></div>
+<p class="note">№ варіанта = (число літер прізвища) mod 3. Кількість кластерів $k$ = (число літер імені) mod 3 + 2, тобто 2, 3 або 4. Варіант визначає, на яку пару осей проєктуємо в пункті а):</p>
+<div class="tw" style="max-height:none;max-width:520px"><table><thead><tr><th>№ варіанта</th><th>вісь X</th><th>вісь Y</th></tr></thead><tbody><tr><td>0</td><td>драма(−) ↔ комедія(+)</td><td>романтика(−) ↔ екшн(+)</td></tr><tr><td>1</td><td>драма(−) ↔ комедія(+)</td><td>реалізм(−) ↔ фантастика(+)</td></tr><tr><td>2</td><td>романтика(−) ↔ екшн(+)</td><td>реалізм(−) ↔ фантастика(+)</td></tr></tbody></table></div>
+</div></section>
+
+<section class="panel"><div class="pad"><h2>1. Дані</h2>
+<p class="note">Спочатку вам видається 20 фільмів із таблиці симулятора (їх не можна змінювати). Їх підібрано так, щоб на них було видно структуру: ознаки корельовані, хмара витягнута, кластери помітні. Допишіть <b>не менше 10 власних</b> фільмів чи серіалів і виставте бали від −1 до +1 за трьома осями: драма(−) ↔ комедія(+), романтика(−) ↔ екшн(+), реалізм(−) ↔ фантастика(+). Оцінюйте послідовно й по-різному: якщо ваші оцінки хаотичні, вони розмиють кореляції й кластери (у самоперевірці видно, наскільки). Як тільки наберете 10, з’являться кнопки експорту в xlsx і csv.</p>
+<div id="hdata" hidden>
+<div class="row" style="margin:8px 0"><b id="hprog"></b></div>
+<div class="tw" style="max-height:460px"><table id="htb"></table></div>
+<div class="add"><input type="text" id="hn" placeholder="Назва фільму чи серіалу" aria-label="Назва"><input type="number" id="h1" min="-1" max="1" step="0.05" value="0" title="драма(−) ↔ комедія(+)" aria-label="драма(−) ↔ комедія(+)"><input type="number" id="h2" min="-1" max="1" step="0.05" value="0" title="романтика(−) ↔ екшн(+)" aria-label="романтика(−) ↔ екшн(+)"><input type="number" id="h3" min="-1" max="1" step="0.05" value="0" title="реалізм(−) ↔ фантастика(+)" aria-label="реалізм(−) ↔ фантастика(+)"><button class="act" id="hadd">Додати</button><span class="note" id="hmsg"></span></div>
+<div class="add" id="hexp" hidden><button class="act" id="hxlsx">Імпортувати в xlsx</button><button class="act" id="hcsv">Імпортувати в csv</button><span class="note">xlsx — рекомендовано (числа лишаються числами за будь-яких налаштувань Excel). csv: роздільник «;», десяткова кома, кодування UTF-8 — для українського Excel.</span></div>
+</div>
+<p class="note" id="hneed">Спершу введіть прізвище й ім’я — тоді з’явиться ваша вибірка.</p>
+</div></section>
+
+<section class="panel"><div class="pad"><h2>2. Завдання</h2>
+<p class="note">Усі пункти робите на об’єднаному наборі (20 + ваші, не менше 30 фільмів). У звіті — таблиці, діаграми й короткі висновки до кожного пункту.</p></div>
+<div class="steps">
+<div class="step"><h3>а) k-means на проєкції в дві осі</h3>
+<p>Візьміть лише дві колонки, які задає ваш варіант: кожен фільм стає точкою $p_i\in\mathbb R^2$. Розбийте точки на $k$ кластерів, мінімізуючи суму квадратів відстаней до центрів.</p>
+<p>У Excel це може зробити Solver. Змінні — $2k$ клітинок із координатами центрів $\mu_j$. Для кожного фільму порахуйте квадрат відстані до кожного центру. Цільова клітинка — сума мінімальних квадратів відстаней, її мінімізуємо. Початкові центри візьміть різні (наприклад, координати кількох фільмів) і спробуйте 2–3 старти: Solver може застрягти в локальному мінімумі. Перевірка: на оптимумі центр збігається із середнім точок свого кластера. Результат: таблиця центрів, діаграма розсіювання з кольорами кластерів.</p></div>
+<div class="step"><h3>б) Діаграма Вороного</h3>
+<p>Для знайдених $k$ центрів побудуйте діаграму Вороного. Клітинка центру $\mu_i$ — множина точок площини, які ближчі до $\mu_i$, ніж до будь-якого іншого центру. Саме такі клітинки утворює крок «призначити кластер» у k-means. Межа між центрами $i$ і $j$ — серединний перпендикуляр.</p>
+
+<p>Справжні ребра діаграми — лише ті частини цих прямих, де обидва центри є найближчими до точки. Поверх додайте свої фільми й центри. Ще запишіть рівняння межі для кожної пари центрів. Питання до висновку: які фльми  лежать біля меж клітинок і чому?</p></div>
+
+<div class="step"><h3>в) Коваріаційна матриця і коефіцієнти кореляції Пірсона</h3>
+<p>Для <b>всіх трьох</b> ознак (не лише двох вибраних) побудуйте матрицю $C$ розміром $3\times3$ за формулою з розділу «Відомості зі статистики» на першій вкладці й порахуйте коефіцієнт Пірсона для кожної з трьох пар ознак:</p>
+<p>$$c_{ij}=\frac1{n-1}\sum_{k=1}^{n}(x_{ki}-\bar x_i)(x_{kj}-\bar x_j),\qquad r_{ij}=\frac{c_{ij}}{\sqrt{c_{ii}\,c_{jj}}}$$</p>
+<p>У Excel: <code>COVARIANCE.S</code>, <code>CORREL</code>; а як перевірку порахуйте ті самі числа «вручну» через центровані стовпці й <code>SUMPRODUCT</code>. Відповісти: яка пара корельована найсильніше, який знак, і як це пов’язано з формою хмари точок.</p></div>
+<div class="step"><h3>г) Параметри PCA — покроково</h3>
+<p>Результат: <b>власні числа</b> матриці коваріації - $\lambda_i$, головні компоненти (<b>власні вектори</b>) - $v_i$, частки пояснених дисперсій і проєкція фільмів.</p>
+<ol class="sl">
+<li><b>Центруємо (віднімаємо середнє).</b> $z_{ki}=x_{ki}-\bar x_i$. Без центрування «напрям найбільшого розкиду» вказував би на початок координат, а не на форму хмари.</li>
+<li><b>Коваріаційна матриця.</b> $C=\frac1{n-1}Z^{\top}Z$ — симетрична $3\times3$ (вже побудовано в пункті в). Повна дисперсія — слід мптриці (сума діагоналі) $\operatorname{tr}C=c_{11}+c_{22}+c_{33}$.</li>
+<li><b>Характеристичне рівняння.</b> Шукаємо напрями власних векторів $v$, уздовж яких матриця  $C$ лише розтягує будь-який вектор: $Cv=\lambda v$, тобто $(C-\lambda I)v=0$. Ненульовий розв’язок існує, тільки якщо матриця $C-\lambda I$ вироджена, тобто $\det(C-\lambda I)=0$. Для $3\times3$ це кубічне рівняння.</li>
+<li><b>Власні числа.</b> Знайдіть три корені й упорядкуйте: $\lambda_1\ge\lambda_2\ge\lambda_3\ge0$. Вбудованої функції в Excel немає, тож є варіанти: Solver або «Підбір параметра» для $p(\lambda)=0$ з різних стартів (наприклад, 0,05; 0,3; 1), онлайн-калькулятор власних чисел, Python <code>numpy.linalg.eigh</code>. Перевірки: $\lambda_1+\lambda_2+\lambda_3=\operatorname{tr}C$, $\lambda_1\lambda_2\lambda_3=\det C$. Сенс: $\lambda_i$ — дисперсія даних уздовж $i$-ї головної компоненти.</li>
+<li><b>Власні вектори.</b> Для кожного $\lambda_i$ розв’яжіть $(C-\lambda_iI)v=0$. (Матриця вироджена - ранг 2). Знак $v_i$ довільний: $v$ і $-v$ — той самий напрям; домовимось, щоб сума компонент $v_1$ була додатною. У Excel власні вектори теж не рахуються вбудовано, тож <b>знайдіть їх самостійно любим способом</b>. Перевірки: $Cv_i=\lambda_iv_i$ (за означеннм), $\lVert v_i\rVert=1$ (нормування), $v_i^{\top}v_j=0$ для $i\ne j$ (ортогональність).</li>
+<li><b>Частки дисперсії.</b> $\rho_i=\dfrac{\lambda_i}{\operatorname{tr}C}$, накопичена (кумулятивна) $\rho_1+\dots+\rho_m$. Кількість компонент $m$ беремо найменшою, за якої накопичена частка не менша за 75%.</li>
+<li><b>Проєкція.</b> Матриця-оператор переходу у новий базис головних компонент (матриця власних векторів): $W=[v_1\;\dots\;v_m]$, нові координати фільму: $y_k=W^{\top}z_k$. У Excel — <code>MMULT</code>. Перевірка: вибіркова дисперсія стовпця $y_i$ дорівнює $\lambda_i$, а коваріація різних компонент — 0 (компоненти некорельовані).</li>
+<li><b>Втрати дисперсії.</b> $r_k=\lVert z_k-WW^{\top}z_k\rVert$. Назвіть 3 фільми з найбільшою втратою.</li>
+<li><b>Інтерпретація.</b> Подивіться на координати $v_1$ і $v_2$ (навантаження): які ознаки вносять найбільше й з яким знаком? Спробуйте дати компонентам назви. Перевірте: чи збігається розбиття k-means у площині (PC1, PC2) із розбиттям із пункту (а)?</li>
+</ol></div>
+</div></section>
+
+<section class="panel" id="hq"><div class="pad"><h2>3. Контрольні питання</h2>
+<p class="note">Питання індивідуальні: відповідайте за <b>своїми</b> даними й числами з Excel. На кожне — 2–4 речення з конкретними числами та назвами фільмів, додайте до звіту.</p>
+<ol class="sl">
+<li><b>Втрата.</b> Для проєкції на PC1–PC2 порахуйте втрату $r_k$ кожного фільму. Які три фільми втратили найбільше (назвіть їх і числа $r_k$) і чому саме вони? Підказка: подивіться на їхні оцінки відносно напряму $v_3$ і на значення $\lambda_3$; поясніть, чим їхнє поєднання ознак відрізняється від типового у вашій вибірці.</li>
+<li><b>Кореляція.</b> Який коефіцієнт кореляції Пірсона між ознаками «<b class="hqx">X</b>» і «<b class="hqy">Y</b>» у ваших даних? Що означають його знак і величина, як це видно на діаграмі розсіювання й як відбивається на напрямі PC1? Порівняйте з парою, що містить «<b class="hqz">Z</b>»: яка пара корельована сильніше?</li>
+<li><b>Щільність кластера.</b> У вашому k-means (k = <b class="hqk">k</b>, осі «<b class="hqx">X</b>» × «<b class="hqy">Y</b>») який кластер найщільніший? Обґрунтуйте це не на око, а числом: наприклад, середня відстань до центру або $J_j/n_j$ (менше — щільніше); за бажанням додайте silhouette кластера. Яку назву ви дали б цьому кластеру, подивившись, що в нього увійшло? Перелічіть 3–4 фільми. Чому «найщільніший» не означає «найбільший»?</li>
+<li><b>Головна компонента.</b> Що означає напрям $v_1$ у ваших даних? Випишіть його компоненти, вкажіть, які ознаки вносять найбільше й з яким знаком, і поясніть словами, що означає «фільм має великий $y_1$». Яку частку дисперсії пояснює PC1 і чи досить її, щоб описати ваші фільми? Як би ви назвали PC1?</li>
+</ol></div></section>
+<details class="panel" id="hchk"><summary>Самоперевірка (відкривайте після того, як порахували самі)</summary><div class="pad">
+<p class="note">Тут усе перераховано за вашими поточними даними. Для k-means береться найкращий із 40 стартів; ваш Solver може дати інший локальний мінімум, тоді порівнюйте $J$. Знак власних векторів довільний.</p>
+<div class="vgrid" style="padding:0"><div><pre id="hpre"></pre></div><div><canvas id="hvor" width="520" height="520" style="width:100%;max-width:520px;aspect-ratio:1;display:block;border:1px solid var(--grid);border-radius:5px" aria-label="Діаграма Вороного для центрів k-means"></canvas><p class="note" id="hvc" style="margin-top:6px"></p></div></div>
+</div></details>
+</div>
+</div>
+<dialog id="help"><div class="hh"><b id="ht"></b><a id="hl" target="_blank" rel="noopener">відкрити окремо ↗</a><button class="act" id="hx">Закрити</button></div><iframe id="hf" title="Довідка"></iframe><p class="note">Файл довідки має лежати в одній теці з цією сторінкою.</p></dialog>
+<div id="tip" role="tooltip"></div>
+<script>
+// Алгоритмы симулятора: k-means++, ARI, silhouette, PCA 3x3. Без зависимостей.
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function d2(a,b){let s=0;for(let i=0;i<a.length;i++){const d=a[i]-b[i];s+=d*d}return s}
+
+function kmeansOnce(P,k,rng){
+  const n=P.length,dim=P[0].length;
+  // k-means++ инициализация
+  const C=[P[Math.floor(rng()*n)].slice()];
+  const dist=new Array(n).fill(Infinity);
+  while(C.length<k){
+    let tot=0;
+    for(let i=0;i<n;i++){dist[i]=Math.min(dist[i],d2(P[i],C[C.length-1]));tot+=dist[i]}
+    let r=rng()*tot,idx=n-1;
+    for(let i=0;i<n;i++){r-=dist[i];if(r<=0){idx=i;break}}
+    C.push(P[idx].slice());
+  }
+  let lab=new Array(n).fill(-1);
+  for(let it=0;it<100;it++){
+    let changed=false;
+    for(let i=0;i<n;i++){
+      let b=0,bd=Infinity;
+      for(let j=0;j<k;j++){const d=d2(P[i],C[j]);if(d<bd){bd=d;b=j}}
+      if(lab[i]!==b){lab[i]=b;changed=true}
+    }
+    const S=Array.from({length:k},()=>new Array(dim).fill(0)),N=new Array(k).fill(0);
+    for(let i=0;i<n;i++){N[lab[i]]++;for(let d=0;d<dim;d++)S[lab[i]][d]+=P[i][d]}
+    for(let j=0;j<k;j++)if(N[j])for(let d=0;d<dim;d++)C[j][d]=S[j][d]/N[j];
+    if(!changed)break;
+  }
+  let inertia=0;for(let i=0;i<n;i++)inertia+=d2(P[i],C[lab[i]]);
+  return {labels:lab,centers:C,inertia};
+}
+function kmeans(P,k,seed,nInit=10){
+  const rng=mulberry32(seed);let best=null;
+  for(let t=0;t<nInit;t++){const r=kmeansOnce(P,k,rng);if(!best||r.inertia<best.inertia)best=r}
+  return best;
+}
+function comb2(x){return x*(x-1)/2}
+function ari(a,b){
+  const n=a.length,ma=new Map(),mb=new Map(),mab=new Map();
+  for(let i=0;i<n;i++){
+    ma.set(a[i],(ma.get(a[i])||0)+1);mb.set(b[i],(mb.get(b[i])||0)+1);
+    const key=a[i]+'|'+b[i];mab.set(key,(mab.get(key)||0)+1);
+  }
+  let sij=0,sa=0,sb=0;
+  mab.forEach(v=>sij+=comb2(v));ma.forEach(v=>sa+=comb2(v));mb.forEach(v=>sb+=comb2(v));
+  const exp=sa*sb/comb2(n),mx=(sa+sb)/2;
+  return mx===exp?1:(sij-exp)/(mx-exp);
+}
+function silhouette(P,lab){
+  const n=P.length,K=Math.max(...lab)+1;
+  if(K<2)return 0;
+  let tot=0;
+  for(let i=0;i<n;i++){
+    const sum=new Array(K).fill(0),cnt=new Array(K).fill(0);
+    for(let j=0;j<n;j++){if(j===i)continue;sum[lab[j]]+=Math.sqrt(d2(P[i],P[j]));cnt[lab[j]]++}
+    const own=lab[i];
+    if(cnt[own]===0)continue; // одиночный кластер: s=0
+    const a=sum[own]/cnt[own];
+    let b=Infinity;
+    for(let j=0;j<K;j++)if(j!==own&&cnt[j])b=Math.min(b,sum[j]/cnt[j]);
+    tot+=(b-a)/Math.max(a,b);
+  }
+  return tot/n;
+}
+// собственные векторы симметричной 3x3 (Якоби)
+function eig3(A){
+  const a=A.map(r=>r.slice()),V=[[1,0,0],[0,1,0],[0,0,1]];
+  for(let sweep=0;sweep<50;sweep++){
+    let off=Math.abs(a[0][1])+Math.abs(a[0][2])+Math.abs(a[1][2]);
+    if(off<1e-14)break;
+    for(const [p,q] of [[0,1],[0,2],[1,2]]){
+      if(Math.abs(a[p][q])<1e-16)continue;
+      const th=(a[q][q]-a[p][p])/(2*a[p][q]);
+      const t=Math.sign(th||1)/(Math.abs(th)+Math.sqrt(th*th+1));
+      const c=1/Math.sqrt(t*t+1),s=t*c;
+      for(let k=0;k<3;k++){const akp=a[k][p],akq=a[k][q];a[k][p]=c*akp-s*akq;a[k][q]=s*akp+c*akq}
+      for(let k=0;k<3;k++){const apk=a[p][k],aqk=a[q][k];a[p][k]=c*apk-s*aqk;a[q][k]=s*apk+c*aqk}
+      for(let k=0;k<3;k++){const vkp=V[k][p],vkq=V[k][q];V[k][p]=c*vkp-s*vkq;V[k][q]=s*vkp+c*vkq}
+    }
+  }
+  const vals=[a[0][0],a[1][1],a[2][2]];
+  const order=[0,1,2].sort((i,j)=>vals[j]-vals[i]);
+  return {values:order.map(i=>vals[i]),vectors:order.map(i=>[V[0][i],V[1][i],V[2][i]])};
+}
+function pca(X){
+  const n=X.length,mean=[0,0,0];
+  X.forEach(r=>r.forEach((v,i)=>mean[i]+=v/n));
+  const Z=X.map(r=>r.map((v,i)=>v-mean[i]));
+  const C=[[0,0,0],[0,0,0],[0,0,0]];
+  Z.forEach(r=>{for(let i=0;i<3;i++)for(let j=0;j<3;j++)C[i][j]+=r[i]*r[j]/(n-1)});
+  const e=eig3(C),tot=e.values.reduce((a,b)=>a+b,0);
+  // знак PC1: пусть смотрит в сторону (+,+,+)
+  const v1=e.vectors[0];if(v1[0]+v1[1]+v1[2]<0)for(let i=0;i<3;i++)v1[i]*=-1;
+  return {mean,cov:C,values:e.values,ratio:e.values.map(v=>v/tot),axes:e.vectors,
+          scores:Z.map(r=>r[0]*v1[0]+r[1]*v1[1]+r[2]*v1[2])};
+}
+function corr(X,i,j){
+  const n=X.length;let mi=0,mj=0;X.forEach(r=>{mi+=r[i]/n;mj+=r[j]/n});
+  let sxy=0,sxx=0,syy=0;
+  X.forEach(r=>{const a=r[i]-mi,b=r[j]-mj;sxy+=a*b;sxx+=a*a;syy+=b*b});
+  return sxy/Math.sqrt(sxx*syy);
+}
+// растяжение вдоль u=(1,1,1)/√3: компонента вдоль u умножается на s
+function stretchAlong(X,s){
+  const u=1/Math.sqrt(3);
+  return X.map(r=>{const t=(r[0]+r[1]+r[2])*u,d=(s-1)*t;return [r[0]+d*u,r[1]+d*u,r[2]+d*u]});
+}
+// квадрантные метки по знакам: 2 оси -> 0..3 ; 3 оси -> 0..7
+function signLabels(X,idx){return X.map(r=>idx.reduce((acc,ax)=>acc*2+(r[ax]>0?1:0),0))}
+
+
+
+const DATA=[["Вартові Галактики", 0.5, 0.7, 0.8, "c"], ["Люди в чорному", 0.7, 0.5, 0.8, "c"], ["Тор: Раґнарок", 0.8, 0.6, 0.7, "c"], ["Рік і Морті", 0.8, 0.3, 0.9, "c"], ["Назад у майбутнє", 0.5, 0.2, 0.5, "c"], ["Дедпул", 0.8, 0.9, 0.5, "c"], ["П’ятий елемент", 0.4, 0.8, 0.9, "c"], ["Мумія", 0.4, 0.8, 0.7, "c"], ["Мисливці за привидами", 0.7, 0.4, 0.8, "c"], ["Шазам!", 0.7, 0.7, 0.8, "c"], ["Людина-павук: Крізь Всесвіт", 0.4, 0.8, 0.9, "c"], ["Пірати Карибського моря", 0.5, 0.8, 0.6, "c"], ["Доктор Хто", 0.4, 0.5, 0.9, "c"], ["Година пік", 0.7, 0.6, -0.2, "c"], ["Бруклін 9-9", 0.7, 0.2, -0.4, "c"], ["Типу крутих копів", 0.6, 0.6, -0.2, "c"], ["Мачо та ботан", 0.7, 0.4, -0.1, "c"], ["Сам удома", 0.6, 0.2, -0.1, "c"], ["День бабака", 0.6, -0.4, 0.3, "c"], ["Добре місце", 0.6, -0.2, 0.6, "c"], ["Футурама", 0.7, -0.1, 0.8, "c"], ["Великий", 0.5, -0.3, 0.4, "c"], ["Зачарована", 0.5, -0.6, 0.6, "c"], ["Теорія Великого вибуху", 0.7, -0.2, -0.4, "c"], ["Друзі", 0.7, -0.5, -0.6, "c"], ["Як я зустрів вашу маму", 0.6, -0.5, -0.6, "c"], ["Ноттінг-Гілл", 0.3, -0.7, -0.7, "c"], ["Коли Гаррі зустрів Саллі", 0.4, -0.7, -0.7, "c"], ["Гра престолів", -0.4, 0.5, 0.6, "c"], ["Темний лицар", -0.3, 0.7, 0.1, "c"], ["Володар перснів", -0.2, 0.6, 0.8, "c"], ["Дуже дивні справи", -0.1, 0.3, 0.6, "c"], ["Дюна", -0.5, 0.4, 0.6, "c"], ["Пуститися берега", -0.4, 0.4, -0.6, "c"], ["Гладіатор", -0.5, 0.6, -0.3, "c"], ["Врятувати рядового Райана", -0.6, 0.6, -0.7, "c"], ["Сутичка", -0.4, 0.6, -0.5, "c"], ["Хрещений батько", -0.6, 0.2, -0.7, "c"], ["Привид", -0.3, -0.5, 0.4, "c"], ["Вічне сяйво чистого розуму", -0.3, -0.5, 0.3, "c"], ["Вона", -0.5, -0.6, 0.2, "c"], ["Форма води", -0.3, -0.4, 0.6, "c"], ["Сутінки", -0.2, -0.4, 0.7, "c"], ["Титанік", -0.7, -0.5, -0.7, "c"], ["Щоденник пам’яті", -0.8, -0.9, -0.9, "c"], ["Гордість і упередження", -0.3, -0.9, -0.8, "c"], ["Касабланка", -0.7, -0.7, -0.8, "c"], ["Назви мене своїм ім’ям", -0.9, -0.9, -0.9, "c"], ["Ла-Ла Ленд", -0.3, -0.8, -0.5, "c"], ["Горбата гора", -0.9, -0.8, -0.9, "c"], ["До зустрічі з тобою", -0.6, -0.9, -0.8, "c"], ["Віднесені вітром", -0.7, -0.5, -0.8, "c"], ["Реальне кохання", 0.4, -0.9, -0.9, "c"], ["Мости округу Медісон", -0.8, -0.9, -0.9, "c"], ["Почати знову", -0.2, -0.9, -0.9, "c"], ["Розум і почуття", -0.3, -0.9, -0.9, "c"], ["Мандалорець", 0.1, 0.6, 0.7, "b"], ["Шерлок", 0, 0.3, -0.2, "b"], ["Місія нездійсненна", 0.2, 0.9, 0.1, "b"], ["Джуманджі", 0.6, 0.5, 0.1, "b"], ["Інтерстеллар", -0.5, 0, 0.8, "b"], ["Гаррі Поттер", 0, 0.3, 0.8, "b"], ["Офіс", 0.8, -0.1, -0.6, "b"], ["Втеча з Шоушенка", -0.8, 0.1, -0.9, "b"], ["Шоу Трумена", 0.2, -0.1, 0.3, "b"], ["Форест Гамп", 0, -0.4, -0.5, "b"], ["Чорне дзеркало", -0.4, -0.1, 0.5, "b"], ["Петля часу", -0.3, 0.8, 0.9, "o"], ["Ідіократія", 0.9, -0.8, 0.7, "o"], ["Не дивіться вгору", 0.2, -0.7, 0.1, "o"], ["Доктор Стрейнджлав", 0.7, 0.4, -0.9, "o"]];
+function dbscanStar(P,mpts,eps){
+  const n=P.length,D=P.map(a=>P.map(b=>Math.sqrt(d2(a,b))));
+  const core=D.map(r=>[...r].sort((a,b)=>a-b)[Math.min(mpts-1,n-1)]);
+  const par=new Array(n).fill(-1),best=new Array(n).fill(Infinity),vis=new Array(n).fill(false),E=[];
+  best[0]=0;
+  for(let it=0;it<n;it++){
+    let u=-1;for(let v=0;v<n;v++)if(!vis[v]&&(u<0||best[v]<best[u]))u=v;
+    vis[u]=true;if(par[u]>=0)E.push([par[u],u,best[u]]);
+    for(let v=0;v<n;v++)if(!vis[v]){const w=Math.max(core[u],core[v],D[u][v]);if(w<best[v]){best[v]=w;par[v]=u}}
+  }
+  const root=[...Array(n).keys()],find=i=>root[i]===i?i:(root[i]=find(root[i]));
+  E.forEach(([a,b,w])=>{if(w<=eps)root[find(a)]=find(b)});
+  const cnt={};for(let i=0;i<n;i++){const r=find(i);cnt[r]=(cnt[r]||0)+1}
+  return P.map((_,i)=>cnt[find(i)]>=mpts?find(i):-1);
+}
+(function(){'use strict';
+const R=1.15,AXN=['драма(−) ↔ комедія(+)','романтика(−) ↔ екшн(+)','реалізм(−) ↔ фантастика(+)'],AXL=[['драма','комедія'],['романтика','екшн'],['реалізм','фантастика']],KIND={c:'основний',b:'міст',o:'викид'};
+let DB=DATA.map(r=>r.slice());const INIT=DATA.map(r=>r.slice());
+const S={st:0,ax:2,alg:'km',k:6,mp:3,eps:.35,zoom:1,cb:'ref',loss:true,th:45,ph:35,rot:!matchMedia('(prefers-reduced-motion: reduce)').matches};
+const $=id=>document.getElementById(id),fmt=(v,d=2)=>(v<0?'−':'')+Math.abs(v).toFixed(d).replace('.',',');
+let M=null,T=null,hov=-1,yaw=.6,pit=-.42,drag=false,dirty=true,hit=[];
+function tokens(){const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();
+ return{ink:g('--ink'),ink2:g('--ink2'),muted:g('--muted'),grid:g('--grid'),axis:g('--axis'),surface:g('--surface'),mono:g('--mono'),sans:g('--sans'),c:[1,2,3,4,5,6,7,8].map(i=>g('--c'+i))}}
+function norm(P,lab){const ids=[...new Set(lab.filter(l=>l>=0))],m={};
+ ids.forEach(id=>{let s=0,c=0;P.forEach((r,i)=>{if(lab[i]===id){s+=r[0];c++}});m[id]=s/c});
+ ids.sort((a,b)=>m[a]-m[b]);const map={};ids.forEach((id,j)=>map[id]=j);return lab.map(l=>l<0?-1:map[l])}
+function cluster(P){const lab=S.alg==='km'?kmeans(P,Math.min(S.k,P.length),1,10).labels:dbscanStar(P,S.mp,S.eps);return norm(P,lab)}
+function sil(P,lab){const ix=lab.map((l,i)=>l>=0?i:-1).filter(i=>i>=0);if(new Set(ix.map(i=>lab[i])).size<2)return NaN;return silhouette(ix.map(i=>P[i]),ix.map(i=>lab[i]))}
+function uvec(){const t=S.th*Math.PI/180,f=S.ph*Math.PI/180;return[Math.cos(f)*Math.cos(t),Math.cos(f)*Math.sin(t),Math.sin(f)]}
+function basis(p){const e=i=>[0,1,2].map(j=>j===i?1:0),A=p.axes;
+ if(S.st===0)return{B:[e(0),e(1),e(2)],ctr:false};
+ if(S.st===1)return{B:[0,1,2].filter(i=>i!==S.ax).map(e),ctr:false};
+ if(S.st===2)return S.ax<3?{B:[e(S.ax)],ctr:false}:{B:[uvec()],ctr:true};
+ return{B:S.st===3?[A[0],A[1]]:[A[0]],ctr:true}}
+function recompute(){
+ const rows=DB,X=rows.map(r=>[r[1],r[2],r[3]]),p=pca(X),mu=p.mean,Z=X.map(r=>r.map((v,i)=>v-mu[i]));
+ const{B,ctr}=basis(p),P=(ctr?Z:X).map(r=>B.map(b=>r[0]*b[0]+r[1]*b[1]+r[2]*b[2]));
+ const tr=p.cov[0][0]+p.cov[1][1]+p.cov[2][2],q=u=>{let s=0;for(let i=0;i<3;i++)for(let j=0;j<3;j++)s+=u[i]*p.cov[i][j]*u[j];return s};
+ const kept=B.reduce((a,b)=>a+q(b),0);
+ const res=Z.map(z=>{const t=z[0]**2+z[1]**2+z[2]**2,pr=B.reduce((a,b)=>a+(z[0]*b[0]+z[1]*b[1]+z[2]*b[2])**2,0);return Math.sqrt(Math.max(0,t-pr))});
+ const ref=cluster(X),lab=S.st===0?ref:cluster(P);
+ M={rows,X,P,p,tr,kept,res,ref,lab,ari:ari(ref,lab),sil:sil(P,lab),kc:new Set(lab.filter(l=>l>=0)).size,nn:lab.filter(l=>l<0).length};
+ T=tokens();ui();dirty=true}
+function ui(){
+ document.querySelectorAll('.seg').forEach(g=>{if(g.id==='ax')return;g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-checked',String(S[g.dataset.key])===b.dataset.v))});
+ const a=$('axctl');a.hidden=!(S.st===1||S.st===2);
+ if(!a.hidden){$('axlab').textContent=S.st===1?'Викинути вісь':'Залишити вісь';
+  $('ax').innerHTML=AXN.map((n,i)=>`<button role="radio" data-v="${i}" aria-checked="${S.ax===i}">${n}</button>`).join('')+(S.st===2?`<button role="radio" data-v="3" aria-checked="${S.ax===3}">свій напрям</button>`:'')}
+ $('uctl').hidden=!(S.st===2&&S.ax===3);$('th').value=S.th;$('ph').value=S.ph;
+ $('kctl').hidden=S.alg!=='km';$('mctl').hidden=$('ectl').hidden=S.alg!=='db';
+ $('k').value=S.k;$('kv').textContent=S.k;$('mp').value=S.mp;$('mv').textContent=S.mp;$('eps').value=S.eps;$('ev').textContent=fmt(S.eps);
+ $('loss').checked=S.loss;$('rot').checked=S.rot;$('cbctl').hidden=S.st===0;$('recap').hidden=S.st!==0;$('zoom').hidden=S.st!==0;
+ const ttl=['3D-еталон',`2D: викинули «${AXN[S.ax]}»`,S.ax<3?`1D: лишили «${AXN[S.ax]}»`:'1D: свій напрям u','2D: PCA (PC1 і PC2)','1D: PCA (лише PC1)'][S.st];
+ const nt=['Кластеризація в повному просторі. Усі інші кроки порівнюються з нею.','Проєкція на «стіну» куба: координата викинутої осі просто зникає.','Одна координата. Для свого напряму збережена дисперсія дорівнює uᵀΣu: крутіть кути й шукайте максимум.','Проєкція на площину двох перших головних компонент.','Одна координата: позиція вздовж PC1.'][S.st];
+ $('ttl').textContent=ttl;$('nt').textContent=nt;
+ const ret=M.kept/M.tr,st=(v,c,t)=>`<div title="${t}"><div class="big">${v}</div><div class="cap term">${c}</div></div>`;
+ $('stats').innerHTML=st(fmt(ret*100,0)+'%','збережена дисперсія','ρ — частка повної дисперсії, що лишилась уздовж обраних осей: (дисперсія вздовж них)/(c₁₁+c₂₂+c₃₃).')+st(S.st?fmt(M.ari):'1,00','ARI з еталоном 3D','Скоригований індекс Рандa: наскільки розбиття тут збігається з розбиттям у 3D. 1 — ідентичні, ≈0 — як випадкові, може бути від’ємним.')+st(isNaN(M.sil)?'—':fmt(M.sil),'silhouette','Середня чіткість кластерів у цьому просторі, від −1 до 1: ближче до 1 — компактніші й далі один від одного. Шум не враховується, потрібно щонайменше 2 кластери.')+st(M.kc+' · '+M.nn,'кластерів · шум','Скільки кластерів знайдено і скільки точок позначено шумом (у k-means шуму немає).');
+ let v;
+ if(!S.st)v='Це еталон: ARI і silhouette порівнюються з ним.';
+ else if(ret<.5)v=`Втрачено понад половину дисперсії. ARI ${fmt(M.ari)}.`;
+ else if(M.ari<.5)v=`Збережено ${fmt(ret*100,0)}% дисперсії, а кластери розпалися (ARI ${fmt(M.ari)}): дисперсія — це не роздільність кластерів.`;
+ else if(M.ari>=.8)v='Структура кластерів майже вціліла: проєкція викинула те, що кластерам не потрібне.';
+ else v='Частина кластерів злиплася. Увімкніть «кластери 3D» і подивіться, які саме.';
+ if(S.alg==='db'&&S.st)v+=' Проєкція лише стискає відстані: при тому самому ε сусідів побільшало, тож кластери зливаються, а шум зникає.';
+ $('vd').textContent=v;
+ if(S.alg==='db'){$('nn').textContent=`Медіана відстані до найближчого сусіда: у 3D ${fmt(nn1(M.X))}, тут ${fmt(nn1(M.P))}.`;epsPlot()}
+ const ids=[...new Set((S.cb==='ref'?M.ref:M.lab).filter(l=>l>=0))].sort((a,b)=>a-b);
+ $('legend').innerHTML=ids.map(i=>`<span><i style="background:${T.c[i%8]}"></i>${i+1}</span>`).join('')+'<span>○ шум</span><span>● основний</span><span>◆ міст</span><span>■ викид</span>'+(S.loss&&S.st?'<span>розмір ∝ втрата</span>':'');
+ const p=M.p,tr=M.tr,row=(l,x,c)=>`<div class="r"><span>${l}</span><span class="t"><i class="${c||''}" style="width:${Math.min(100,x/tr*100)}%"></i></span><span class="mono">${fmt(x/tr*100,0)}%</span></div>`;
+ $('bars').innerHTML=row('поточна проєкція',M.kept,'e')+AXN.map((n,i)=>row('σ² '+n,p.cov[i][i])).join('')+p.values.map((x,i)=>row('λ'+'₁₂₃'[i]+' (PC'+(i+1)+')',x)).join('');
+ const mat=A=>A.map(r=>r.map(x=>fmt(x,2).padStart(6)).join(' ')).join('\n'),C=p.cov;
+ $('mx').textContent='Σ\n'+mat(C)+'\n\nкореляції\n'+mat(C.map((r,i)=>r.map((x,j)=>x/Math.sqrt(C[i][i]*C[j][j]))))+'\n\nPC1 = ('+p.axes[0].map(x=>fmt(x)).join('; ')+')'}
+const mark=(x,px,py,i,r)=>{const l=S.cb==='ref'?M.ref[i]:M.lab[i],k=M.rows[i][4],h=i===hov;
+ if(S.loss&&S.st)r+=Math.min(9,M.res[i]*9);
+ x.beginPath();
+ if(k==='b'){x.moveTo(px,py-r*1.25);x.lineTo(px+r*1.25,py);x.lineTo(px,py+r*1.25);x.lineTo(px-r*1.25,py);x.closePath()}
+ else if(k==='o')x.rect(px-r,py-r,2*r,2*r);else x.arc(px,py,r,0,7);
+ x.lineWidth=2;if(l>=0){x.fillStyle=T.c[l%8];x.fill();x.strokeStyle=h?T.ink:T.surface}else x.strokeStyle=h?T.ink:T.muted;
+ x.stroke();hit.push({x:px,y:py,i,r:Math.max(r,9)})};
+function fit(){const cv=$('cv'),d=Math.min(devicePixelRatio||1,2),w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return null;
+ if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d)}
+ const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,w,h);return{x,w,h}}
+function proj(v){const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pit),sp=Math.sin(pit),X=v[0],Y=v[2],Z=v[1],x1=cy*X+sy*Z,z1=-sy*X+cy*Z;return[x1,cp*Y-sp*z1,sp*Y+cp*z1]}
+function draw3D({x,w,h}){const sc=Math.min(w,h)*.2*S.zoom,S2=v=>{const q=proj(v),k=1+q[2]*.05;return[w/2+q[0]*sc*k,h/2-q[1]*sc*k,q[2]]};
+ const ln=(a,b,c,lw,d)=>{const A=S2(a),B=S2(b);x.beginPath();x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);x.strokeStyle=c;x.lineWidth=lw;x.setLineDash(d||[]);x.stroke();x.setLineDash([])};
+ for(const a of[-R,R])for(const b of[-R,R]){ln([-R,a,b],[R,a,b],T.axis,1);ln([a,-R,b],[a,R,b],T.axis,1);ln([a,b,-R],[a,b,R],T.axis,1)}
+ ln([-R,0,0],[R,0,0],T.muted,1.2);ln([0,-R,0],[0,R,0],T.muted,1.2);ln([0,0,-R],[0,0,R],T.muted,1.2);
+ const v=M.p.axes[0],m=M.p.mean;ln(m.map((q,i)=>q-v[i]*1.9),m.map((q,i)=>q+v[i]*1.9),T.ink,1.5,[5,4]);
+ x.fillStyle=T.ink2;x.font='12px '+T.sans;x.textAlign='center';
+ [[[1.3,0,0],AXL[0][1]],[[-1.3,0,0],AXL[0][0]],[[0,1.3,0],AXL[1][1]],[[0,-1.3,0],AXL[1][0]],[[0,0,1.3],AXL[2][1]],[[0,0,-1.3],AXL[2][0]]].forEach(([p,t])=>{const q=S2(p);x.fillText(t,q[0],q[1])});
+ M.P.map((r,i)=>({q:S2(r),i})).sort((a,b)=>a.q[2]-b.q[2]).forEach(({q,i})=>mark(x,q[0],q[1],i,Math.max(2.5,4.5*S.zoom*(1+q[2]*.06))))}
+function axisLabel(x,t,cx,y){x.fillStyle=T.ink2;x.font='12px '+T.sans;x.textAlign='center';x.fillText(t,cx,y)}
+function draw2D({x,w,h}){const pd={l:40,r:14,t:14,b:38},iw=w-pd.l-pd.r,ih=h-pd.t-pd.b,
+ ext=S.st===1?R:Math.max(1.2,Math.max(...M.P.flat().map(Math.abs))*1.1),sx=v=>pd.l+(v+ext)/(2*ext)*iw,sy=v=>pd.t+ih-(v+ext)/(2*ext)*ih;
+ x.font='11px '+T.mono;
+ for(const g of[-1,-.5,0,.5,1]){x.strokeStyle=g?T.grid:T.axis;x.lineWidth=g?1:1.5;x.beginPath();x.moveTo(sx(g),pd.t);x.lineTo(sx(g),pd.t+ih);x.moveTo(pd.l,sy(g));x.lineTo(pd.l+iw,sy(g));x.stroke()}
+ const rem=[0,1,2].filter(i=>i!==S.ax),hl=S.st===1?`← ${AXL[rem[0]][0]} · ${AXL[rem[0]][1]} →`:'PC1',vl=S.st===1?`← ${AXL[rem[1]][0]} · ${AXL[rem[1]][1]} →`:'PC2';
+ axisLabel(x,hl,pd.l+iw/2,h-8);x.save();x.translate(12,pd.t+ih/2);x.rotate(-Math.PI/2);axisLabel(x,vl,0,0);x.restore();
+ M.P.forEach((r,i)=>mark(x,sx(r[0]),sy(r[1]),i,5))}
+function draw1D({x,w,h}){const pd={l:20,r:20,t:16,b:44},z=M.P.map(r=>r[0]),ext=Math.max(1.2,Math.max(...z.map(Math.abs))*1.1),
+ sx=v=>pd.l+(v+ext)/(2*ext)*(w-pd.l-pd.r),ay=h-pd.b;x.font='11px '+T.mono;x.textAlign='center';
+ for(let g=-Math.floor(ext*2)/2;g<=ext;g+=.5){x.strokeStyle=g?T.grid:T.axis;x.lineWidth=g?1:1.5;x.beginPath();x.moveTo(sx(g),pd.t);x.lineTo(sx(g),ay);x.stroke();x.fillStyle=T.muted;x.fillText(g?fmt(g,1):'0',sx(g),ay+14)}
+ x.strokeStyle=T.axis;x.beginPath();x.moveTo(pd.l,ay);x.lineTo(w-pd.r,ay);x.stroke();
+ const u=uvec(),lb=S.st===4?'PC1':S.ax<3?`← ${AXL[S.ax][0]} · ${AXL[S.ax][1]} →`:`u = (${u.map(c=>fmt(c)).join('; ')})`;axisLabel(x,lb,w/2,h-8);
+ const pl=[];z.map((v,i)=>i).sort((a,b)=>z[a]-z[b]).forEach(i=>{const px=sx(z[i]);let py=0;
+  for(let k=0;k<80;k++){py=pd.t+(ay-pd.t)/2+(k%2?1:-1)*Math.ceil(k/2)*12;if(!pl.some(q=>Math.abs(q[0]-px)<12&&Math.abs(q[1]-py)<12))break}
+  pl.push([px,py]);mark(x,px,py,i,5)})}
+function nn1(P){const v=P.map((a,i)=>Math.min(...P.map((b,j)=>i===j?9:Math.sqrt(d2(a,b))))).sort((a,b)=>a-b);return v[v.length>>1]}
+function epsPlot(){const c=$('ec'),d=Math.min(devicePixelRatio||1,2),w=c.clientWidth,h=c.clientHeight;if(!w)return;c.width=w*d;c.height=h*d;const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);
+ const g=[];for(let e=.05;e<=.6001;e+=.025)g.push(e);
+ const cnt=P=>g.map(e=>new Set(dbscanStar(P,S.mp,e).filter(l=>l>=0)).size),a=cnt(M.X),b=S.st?cnt(M.P):a,mx=Math.max(4,...a,...b),px=e=>4+(e-.05)/.55*(w-8),py=v=>h-14-v/mx*(h-22);
+ const ln=(arr,col,dash)=>{x.beginPath();arr.forEach((v,i)=>{i?x.lineTo(px(g[i]),py(v)):x.moveTo(px(g[i]),py(v))});x.strokeStyle=col;x.lineWidth=1.6;x.setLineDash(dash||[]);x.stroke();x.setLineDash([])};
+ ln(a,T.muted,[4,3]);ln(b,T.ink);x.strokeStyle=T.c[0];x.lineWidth=1;x.beginPath();x.moveTo(px(S.eps),2);x.lineTo(px(S.eps),h-14);x.stroke();
+ x.fillStyle=T.muted;x.font='10px '+T.mono;x.fillText('0,05',2,h-3);x.fillText('0,6',w-18,h-3);x.fillText('макс. '+mx,2,10)}
+function draw(){const f=fit();if(!f||!M)return;hit=[];(S.st===0?draw3D:M.P[0].length===2?draw2D:draw1D)(f)}
+function tip(e,i){const r=M.rows[i],X=M.X[i],t=$('tip');
+ t.innerHTML=`<b>${r[0]}</b><span class="m">${AXN.map((n,k)=>n+': '+fmt(X[k])).join('</span><span class="m">')}</span><span class="m">${KIND[r[4]]} · кластер 3D: ${M.ref[i]<0?'шум':M.ref[i]+1}</span><span class="m">втрата при проєкції: ${fmt(M.res[i])}</span>`;
+ t.style.opacity=1;const w=t.offsetWidth,h=t.offsetHeight;let px=e.clientX+14,py=e.clientY+14;
+ if(px+w>innerWidth-8)px=e.clientX-w-14;if(py+h>innerHeight-8)py=e.clientY-h-14;t.style.left=Math.max(8,px)+'px';t.style.top=Math.max(8,py)+'px'}
+const cv=$('cv');let lx=0,ly=0;
+cv.style.cursor='default';
+cv.addEventListener('pointerdown',e=>{if(S.st)return;drag=true;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+cv.addEventListener('pointerup',()=>{drag=false;cv.style.cursor='default'});
+cv.addEventListener('pointermove',e=>{
+ if(drag){yaw+=(e.clientX-lx)*.008;pit=Math.max(-1.5,Math.min(1.5,pit+(e.clientY-ly)*.008));lx=e.clientX;ly=e.clientY;dirty=true;return}
+ const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;let best=null,bd=1e9;
+ hit.forEach(p=>{const d=(p.x-mx)**2+(p.y-my)**2;if(d<=(p.r+3)**2&&d<bd){bd=d;best=p}});
+ const n=best?best.i:-1;if(n!==hov){hov=n;dirty=true}if(best)tip(e,n);else $('tip').style.opacity=0});
+cv.addEventListener('pointerleave',()=>{hov=-1;$('tip').style.opacity=0;dirty=true});
+document.addEventListener('click',e=>{const b=e.target.closest('.seg button');if(!b)return;const g=b.parentElement,key=g.dataset.key,v=b.dataset.v;
+ S[key]=['st','ax'].includes(key)?+v:v;if(key==='st'&&S.st===1&&S.ax>2)S.ax=2;recompute()});
+const sl=(id,key,f)=>$(id).addEventListener('input',e=>{S[key]=+e.target.value;recompute()});
+sl('k','k');sl('mp','mp');sl('eps','eps');sl('th','th');sl('ph','ph');
+$('topc').addEventListener('click',()=>{const v=M.p.axes[0];S.th=Math.round(Math.atan2(v[1],v[0])*180/Math.PI);S.ph=Math.round(Math.asin(v[2])*180/Math.PI);recompute()});
+$('loss').addEventListener('change',e=>{S.loss=e.target.checked;ui();dirty=true});
+$('rot').addEventListener('change',e=>{S.rot=e.target.checked});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{T=tokens();dirty=true});
+new ResizeObserver(()=>{dirty=true}).observe(cv);
+(function loop(){if(!S.st&&S.rot&&!drag&&hov<0){yaw+=.0025;dirty=true}if(dirty){dirty=false;draw()}requestAnimationFrame(loop)})();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function table(){$('tb').innerHTML='<thead><tr><th>Фільм</th>'+AXN.map(n=>'<th>'+n+'</th>').join('')+'<th>тип</th><th></th></tr></thead><tbody>'+DB.map((r,i)=>`<tr><td>${esc(r[0])}</td>${[1,2,3].map(j=>`<td><input type="number" min="-1" max="1" step="0.05" value="${r[j]}" data-i="${i}" data-j="${j}" aria-label="${esc(r[0])}"></td>`).join('')}<td><select data-i="${i}" data-t="1">${['c','b','o'].map(k=>`<option value="${k}"${r[4]===k?' selected':''}>${KIND[k]}</option>`).join('')}</select></td><td><button class="act" data-del="${i}" title="Видалити фільм">×</button></td></tr>`).join('')+'</tbody>'}
+$('tb').addEventListener('input',e=>{const t=e.target;if(t.dataset.j===undefined)return;let v=parseFloat(t.value);if(isNaN(v))return;DB[+t.dataset.i][+t.dataset.j]=Math.max(-1,Math.min(1,v));recompute()});
+$('tb').addEventListener('change',e=>{const t=e.target;if(t.dataset.t){DB[+t.dataset.i][4]=t.value;recompute()}});
+$('tb').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;if(DB.length<=8){$('tmsg').textContent='Потрібно щонайменше 8 фільмів.';return}$('tmsg').textContent='';DB.splice(+b.dataset.del,1);table();recompute()});
+$('add').addEventListener('click',()=>{const n=$('an').value.trim();if(!n){$('tmsg').textContent='Введіть назву.';return}$('tmsg').textContent='';DB.push([n,...['ax1','ax2','ax3'].map(i=>Math.max(-1,Math.min(1,parseFloat($(i).value)||0))),$('ak').value]);$('an').value='';table();recompute()});
+$('reset').addEventListener('click',()=>{DB=INIT.map(r=>r.slice());table();recompute()});
+const HELP={km:['k-means: довідка','k-means-2D3D.html'],db:['DBSCAN*: довідка','ClasterPlus.html']};
+document.querySelectorAll('[data-help]').forEach(b=>b.addEventListener('click',()=>{const[t,u]=HELP[b.dataset.help];$('ht').textContent=t;$('hf').src=u;$('hl').href=u;$('help').showModal()}));
+$('hx').addEventListener('click',()=>{$('help').close();$('hf').src='about:blank'});
+const zm=f=>{S.zoom=Math.max(.5,Math.min(3,S.zoom*f));dirty=true};
+$('zi').addEventListener('click',()=>zm(1.15));$('zo').addEventListener('click',()=>zm(1/1.15));
+cv.addEventListener('wheel',e=>{if(S.st)return;e.preventDefault();zm(e.deltaY<0?1.08:1/1.08)},{passive:false});
+addEventListener('load',()=>{if(!window.renderMathInElement)return;const s=document.createElement('span');s.className='katex';document.body.appendChild(s);const ok=getComputedStyle(s).fontFamily.includes('KaTeX');s.remove();
+ renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],output:ok?'htmlAndMathml':'mathml',throwOnError:false})});
+table();recompute();
+})();
+// ---------- Індивідуальне завдання ----------
+(function(){'use strict';
+const $=id=>document.getElementById(id),fmt=(v,d=2)=>(v<0?'−':'')+Math.abs(v).toFixed(d).replace('.',',');
+const AXN=['драма(−) ↔ комедія(+)','романтика(−) ↔ екшн(+)','реалізм(−) ↔ фантастика(+)'],PAIRS=[[0,1],[0,2],[1,2]],LS='dimred-hw-v1',NSAMP=20,NOWN=10;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let H={sur:'',nam:'',own:[]};
+try{const s=JSON.parse(localStorage.getItem(LS));if(s&&typeof s.sur==='string'&&typeof s.nam==='string'&&Array.isArray(s.own))H={sur:s.sur,nam:s.nam,own:s.own.filter(r=>Array.isArray(r)&&r.length===4)}}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(H))}catch(e){}};
+const letters=s=>(String(s).match(/\p{L}/gu)||[]).length;
+const clamp=v=>Math.max(-1,Math.min(1,v));
+function hash(s){let h=2166136261;for(const ch of s){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function info(){const ls=letters(H.sur),ln=letters(H.nam);if(!ls||!ln)return null;const v=ls%3;return{ls,ln,v,ax:PAIRS[v],k:ln%3+2}}
+// ---- підбір двадцятки: swap-пошук за критеріями ----
+const PRS=PAIRS;
+function metrics(rows,full){
+ const X=rows.map(r=>[r[1],r[2],r[3]]),p=pca(X),tot=p.values[0]+p.values[1]+p.values[2];
+ const m={p1:p.values[0]/tot,rat:p.values[1]/Math.max(p.values[2],1e-9),mr:Math.min(...[[0,1],[0,2],[1,2]].map(([a,b])=>Math.abs(corr(X,a,b)))),sil:null};
+ if(full){m.sil=[];PRS.forEach(([a,b])=>{const P=X.map(r=>[r[a],r[b]]);for(let k=2;k<=4;k++){const km=kmeans(P,k,11,10);m.sil.push(new Set(km.labels).size===k?silhouette(P,km.labels):-1)}})}
+ return m}
+const penA=m=>Math.max(0,.65-m.p1)+Math.max(0,m.p1-.88)+.2*Math.max(0,2-m.rat)+Math.max(0,.5-m.mr);
+const penS=m=>m.sil.reduce((a,x)=>a+Math.max(0,.5-x),0);
+const okAll=m=>penA(m)===0&&(!m.sil||penS(m)===0);
+const CACHE=new Map();
+function pick(key){
+ if(CACHE.has(key))return CACHE.get(key);
+ const rng=mulberry32(hash(key)),N=DATA.length;
+ const cost=S=>{const rows=S.map(i=>DATA[i]),m=metrics(rows,false),a=penA(m);if(a>0)return 1+a;return penS(metrics(rows,true))};
+ let best=null,bc=1e9;
+ for(let rs=0;rs<8&&bc>0;rs++){
+  const all=[...Array(N).keys()];for(let i=N-1;i>0;i--){const j=Math.floor(rng()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
+  let S=all.slice(0,NSAMP),cur=cost(S);
+  for(let it=0;it<1500&&cur>0;it++){const i=Math.floor(rng()*NSAMP);let j;do{j=Math.floor(rng()*N)}while(S.includes(j));const T=S.slice();T[i]=j;const c=cost(T);if(c<=cur){S=T;cur=c}}
+  if(cur<bc){bc=cur;best=S}
+ }
+ const r={rows:best.slice().sort((a,b)=>a-b).map(i=>DATA[i].slice(0,4)),ok:bc===0};CACHE.set(key,r);return r}
+function sample(){const I=info();if(!I)return null;return pick((H.sur+'|'+H.nam).trim().toLowerCase()).rows}
+const ownOk=()=>H.own.filter(r=>String(r[0]).trim());
+const allRows=()=>{const s=sample();return s?[...s,...ownOk().map(r=>[String(r[0]).trim(),r[1],r[2],r[3]])]:null};
+
+function qfill(){const I=info(),t=I?[AXN[I.ax[0]],AXN[I.ax[1]],AXN[3-I.ax[0]-I.ax[1]],I.k]:['X','Y','Z','k'];
+ ['hqx','hqy','hqz','hqk'].forEach((c,i)=>document.querySelectorAll('.'+c).forEach(e=>e.textContent=t[i]))}
+function vars(){qfill();const I=info(),st=(v,c)=>`<div><div class="big">${v}</div><div class="cap">${c}</div></div>`;
+ $('hvars').innerHTML=I?st(I.v,'№ варіанта (літер у прізвищі: '+I.ls+')')+st(AXN[I.ax[0]]+' × '+AXN[I.ax[1]],'осі проєкції в пункті а)')+st(I.k,'кластерів k (літер в імені: '+I.ln+')'):'<span class="note">Введіть прізвище та ім’я — тут з’являться варіант, осі й k.</span>'}
+function table(){const s=sample();
+ $('hdata').hidden=!s;$('hneed').hidden=!!s;if(!s)return;
+ $('htb').innerHTML='<thead><tr><th>Фільм</th>'+AXN.map(n=>'<th>'+n+'</th>').join('')+'<th></th></tr></thead><tbody>'
+  +s.map(r=>`<tr class="ro"><td>${esc(r[0])}</td><td class="mono">${fmt(r[1])}</td><td class="mono">${fmt(r[2])}</td><td class="mono">${fmt(r[3])}</td><td>з таблиці</td></tr>`).join('')
+  +H.own.map((r,i)=>`<tr><td><input type="text" value="${esc(r[0])}" data-i="${i}" data-j="0" aria-label="Назва" style="width:210px"></td>${[1,2,3].map(j=>`<td><input type="number" min="-1" max="1" step="0.05" value="${r[j]}" data-i="${i}" data-j="${j}" aria-label="${AXN[j-1]}"></td>`).join('')}<td><button class="act" data-del="${i}" title="Видалити">×</button></td></tr>`).join('')+'</tbody>';
+ status()}
+function status(){const n=ownOk().length,ok=n>=NOWN;
+ $('hprog').textContent=`Власних фільмів: ${n} із ${NOWN}`+(ok?' — можна експортувати.':'');
+ $('hexp').hidden=!ok;check()}
+function msg(t){$('hmsg').textContent=t||''}
+
+$('hsur').value=H.sur;$('hnam').value=H.nam;
+let dbt=0;['hsur','hnam'].forEach(id=>$(id).addEventListener('input',e=>{H[id==='hsur'?'sur':'nam']=e.target.value;save();vars();clearTimeout(dbt);dbt=setTimeout(table,350)}));
+$('htb').addEventListener('input',e=>{const t=e.target,i=+t.dataset.i,j=+t.dataset.j;if(t.dataset.i===undefined||!H.own[i])return;
+ if(j===0)H.own[i][0]=t.value;else{const v=parseFloat(String(t.value).replace(',','.'));if(isNaN(v))return;H.own[i][j]=clamp(v)}save();status()});
+$('htb').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;H.own.splice(+b.dataset.del,1);save();table()});
+$('hadd').addEventListener('click',()=>{const n=$('hn').value.trim();if(!n){msg('Введіть назву.');return}
+ const s=sample()||[],dup=[...s.map(r=>r[0]),...H.own.map(r=>r[0])].some(x=>String(x).trim().toLowerCase()===n.toLowerCase());
+ if(dup){msg('Такий фільм уже є в списку — додайте інший.');return}
+ H.own.push([n,...['h1','h2','h3'].map(i=>clamp(parseFloat(String($(i).value).replace(',','.'))||0))]);
+ $('hn').value='';['h1','h2','h3'].forEach(i=>$(i).value=0);msg('');save();table();$('hn').focus()});
+
+function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function aoa(){const s=sample().length;return[['Фільм',...AXN,'джерело'],...allRows().map((r,i)=>[...r,i<s?'таблиця':'власний'])]}
+$('hxlsx').addEventListener('click',()=>{
+ if(!window.XLSX){msg('Бібліотеку xlsx не завантажено (потрібен інтернет). Скористайтесь csv.');return}
+ const I=info(),A=aoa(),ws=XLSX.utils.aoa_to_sheet(A);ws['!cols']=[{wch:36},{wch:10},{wch:10},{wch:12},{wch:10}];
+ const wi=XLSX.utils.aoa_to_sheet([['Прізвище',H.sur],['Ім’я',H.nam],['Літер у прізвищі',I.ls],['№ варіанта',I.v],['Вісь X',AXN[I.ax[0]]],['Вісь Y',AXN[I.ax[1]]],['Літер в імені',I.ln],['k (кластерів)',I.k],['n (фільмів)',A.length-1]]);wi['!cols']=[{wch:18},{wch:18}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Дані');XLSX.utils.book_append_sheet(wb,wi,'Варіант');
+ XLSX.writeFile(wb,'individual-task.xlsx');msg('')});
+$('hcsv').addEventListener('click',()=>{
+ const q=v=>typeof v==='number'?String(v).replace('.',','):/[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+ download('individual-task.csv',new Blob(['﻿'+aoa().map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));msg('')});
+
+// ---- самоперевірка ----
+const tok=()=>{const cs=getComputedStyle(document.documentElement),g=n=>cs.getPropertyValue(n).trim();return{ink:g('--ink'),ink2:g('--ink2'),grid:g('--grid'),axis:g('--axis'),surface:g('--surface'),c:[1,2,3,4].map(i=>g('--c'+i))}};
+let VOR=null;
+function check(){const d=$('hchk');if(!d||!d.open)return;
+ const rows=allRows(),I=info();
+ if(!rows||rows.length<8){$('hpre').textContent='Немає даних.';VOR=null;drawVor();return}
+ const X=rows.map(r=>[r[1],r[2],r[3]]),n=X.length,p=pca(X),C=p.cov,tr=C[0][0]+C[1][1]+C[2][2];
+ const mat=A=>A.map(r=>r.map(x=>fmt(x,4).padStart(9)).join(' ')).join('\n');
+ const R=C.map((r,i)=>r.map((x,j)=>x/Math.sqrt(C[i][i]*C[j][j])));
+ const v=p.axes.map(a=>{const s=a[0]+a[1]+a[2]<0?-1:1;return a.map(x=>x*s)});
+ let cum=0;
+ const P=X.map(r=>[r[I.ax[0]],r[I.ax[1]]]),km=kmeans(P,I.k,7,40),ord=km.centers.map((_,i)=>i).sort((a,b)=>km.centers[a][0]-km.centers[b][0]),pos=[];ord.forEach((o,i)=>pos[o]=i);
+ const cen=ord.map(o=>km.centers[o]),lab=km.labels.map(l=>pos[l]),sz=cen.map((_,j)=>lab.filter(l=>l===j).length);
+ const cl=(t,m)=>{const f=(ok,x)=>(ok?'✓ ':'✗ ')+x,sm=m.sil?Math.min(...m.sil):null;return `${t}\n  PC1: ${fmt(m.p1*100,1)}% (65–88%) ${m.p1>=.65&&m.p1<=.88?'✓':'✗'}\n  λ₂/λ₃: ${fmt(m.rat)} (≥2) ${m.rat>=2?'✓':'✗'}\n  min|r|: ${fmt(m.mr)} (≥0,5) ${m.mr>=.5?'✓':'✗'}\n  silhouette (3 пари × k=2…4): мін. ${fmt(sm)} (≥0,5) ${sm>=.5?'✓':'✗'}`};
+ const s20=sample(),crit=cl('Критерії підбору — 20 фільмів із таблиці',metrics(s20,true))+'\n'+cl(`Ті самі показники — усі ${n} фільмів (з вашими)`,metrics(rows,true))+'\n\n';
+ $('hpre').textContent=crit+
+  `n = ${n}\nсередні (осі 1; 2; 3): ${p.mean.map(x=>fmt(x,4)).join('; ')}\n\nC (коваріаційна)\n${mat(C)}\n\nr (кореляції Пірсона)\n${mat(R)}\n   r12 = ${fmt(R[0][1],4)}   r13 = ${fmt(R[0][2],4)}   r23 = ${fmt(R[1][2],4)}\n\ntr C = ${fmt(tr,4)}\nλ = ${p.values.map(x=>fmt(x,4)).join(' ; ')}\nΣλ = ${fmt(p.values.reduce((a,b)=>a+b,0),4)}\nρ = ${p.ratio.map(x=>fmt(x*100,1)+'%').join(' ; ')}\nнакопичено = ${p.ratio.map(x=>(cum+=x,fmt(cum*100,1)+'%')).join(' ; ')}\n\nвласні вектори (рядки; знак: сума компонент PC1 > 0)\n${mat(v)}\n\nk-means: осі ${AXN[I.ax[0]]} × ${AXN[I.ax[1]]}, k = ${I.k}\nJ = ${fmt(km.inertia,4)}\nцентри (x; y), розмір кластера:\n${cen.map((c,j)=>`  ${j+1}: ${fmt(c[0],4)}; ${fmt(c[1],4)}   (${sz[j]})`).join('\n')}\n\nщільність (середня відстань до центру; менше — щільніше):\n${cen.map((c,j)=>{let t=0,m=0;P.forEach((q,i)=>{if(lab[i]===j){t+=Math.hypot(q[0]-c[0],q[1]-c[1]);m++}});return `  ${j+1}: ${fmt(t/m,4)}`}).join('\n')}\n\nвтрата при проєкції на PC1–PC2, топ-3:\n${X.map((r,i)=>[rows[i][0],Math.abs((r[0]-p.mean[0])*v[2][0]+(r[1]-p.mean[1])*v[2][1]+(r[2]-p.mean[2])*v[2][2])]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(a=>`  ${a[0]}: ${fmt(a[1],4)}`).join('\n')}`;
+ VOR={P,cen,lab,I};drawVor()}
+function drawVor(){const cv=$('hvor'),x=cv.getContext('2d'),W=cv.width,Hh=cv.height;x.clearRect(0,0,W,Hh);if(!VOR||!$('hchk').open)return;
+ const T=tok(),{P,cen,lab,I}=VOR,E=1.1,pd=8,sx=v=>pd+(v+E)/(2*E)*(W-2*pd),sy=v=>Hh-pd-(v+E)/(2*E)*(Hh-2*pd),ix=px=>(px-pd)/(W-2*pd)*2*E-E,iy=py=>-((py-pd)/(Hh-2*pd)*2*E-E);
+ const st=4;x.globalAlpha=.22;
+ for(let py=0;py<Hh;py+=st)for(let px=0;px<W;px+=st){const a=ix(px+st/2),b=iy(py+st/2);let bj=0,bd=1e9;cen.forEach((c,j)=>{const d=(a-c[0])**2+(b-c[1])**2;if(d<bd){bd=d;bj=j}});x.fillStyle=T.c[bj%4];x.fillRect(px,py,st,st)}
+ x.globalAlpha=1;
+ for(const g of[-1,-.5,0,.5,1]){x.strokeStyle=g?T.grid:T.axis;x.lineWidth=g?1:1.5;x.beginPath();x.moveTo(sx(g),pd);x.lineTo(sx(g),Hh-pd);x.moveTo(pd,sy(g));x.lineTo(W-pd,sy(g));x.stroke()}
+ P.forEach((r,i)=>{x.beginPath();x.arc(sx(r[0]),sy(r[1]),4.5,0,7);x.fillStyle=T.c[lab[i]%4];x.fill();x.lineWidth=1.5;x.strokeStyle=T.surface;x.stroke()});
+ cen.forEach((c,j)=>{const X=sx(c[0]),Y=sy(c[1]);x.strokeStyle=T.ink;x.lineWidth=2.5;x.beginPath();x.moveTo(X-8,Y);x.lineTo(X+8,Y);x.moveTo(X,Y-8);x.lineTo(X,Y+8);x.stroke();x.fillStyle=T.ink;x.font='600 13px '+getComputedStyle(document.body).fontFamily;x.fillText('μ'+(j+1),X+10,Y-8)});
+ x.fillStyle=T.ink2;x.font='12px '+getComputedStyle(document.body).fontFamily;x.textAlign='center';x.fillText(AXN[I.ax[0]]+' →',W/2,Hh-pd-4);x.save();x.translate(14,Hh/2);x.rotate(-Math.PI/2);x.fillText(AXN[I.ax[1]]+' →',0,0);x.restore();x.textAlign='start';
+ $('hvc').textContent='Кольорові області — клітинки Вороного, хрестики — центри k-means.'}
+$('hchk').addEventListener('toggle',check);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawVor);
+
+// ---- вкладки ----
+function tab(w){document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===w)));
+ $('tab-sim').hidden=w!=='sim';$('tab-hw').hidden=w!=='hw';try{history.replaceState(null,'',w==='hw'?'#hw':location.pathname+location.search)}catch(e){}
+ if(w==='sim')dispatchEvent(new Event('resize'));window.scrollTo(0,0)}
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab)));
+if(location.hash==='#hw')tab('hw');
+vars();table();
+})();
+</script></body></html>
