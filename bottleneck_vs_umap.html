@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Боттлнек чи UMAP: розпізнавання та відкриття</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1b2433;--mut:#566074;--bd:#d3d8e0;--card:#fff;--um:#0f7b6c;--nn:#3d4fb5;--ok:#1e7f4f;--no:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#13161c;--fg:#e4e7ee;--mut:#9aa3b5;--bd:#2b323f;--card:#1a1e26;--um:#4fd1b8;--nn:#8e9cff;--ok:#5fd29a;--no:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 Charter,"Iowan Old Style",Georgia,serif}
+main{max-width:980px;margin:auto;padding:28px 16px 64px}
+h1{font-size:1.7rem;line-height:1.25;margin:.1em 0 .3em}h2{font-size:1.3rem;margin:2.2em 0 .5em;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+p{margin:.5em 0}.mut{color:var(--mut);font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:14px 16px;margin:12px 0}
+.ui{font:14px/1.4 system-ui,sans-serif}
+.row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:8px 0}
+.grp{border-left:3px solid var(--g);padding-left:10px;flex:1 1 300px}.grp b{color:var(--g)}
+label{display:inline-flex;gap:6px;align-items:center;margin:2px 10px 2px 0;white-space:nowrap}input[type=range]{width:110px}
+button{font:600 14px system-ui,sans-serif;padding:7px 14px;border:1px solid var(--g);background:var(--card);color:var(--g);border-radius:3px;cursor:pointer}
+button:hover{background:var(--g);color:var(--bg)}button:disabled{opacity:.45;cursor:wait}button:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--nn);outline-offset:2px}
+.plots{display:grid;grid-template-columns:1fr 1fr;gap:12px}.plots div{min-width:0}canvas{width:100%;aspect-ratio:1;border:1px solid var(--bd);background:var(--card);border-radius:3px}
+.cap{font:13px system-ui,sans-serif;color:var(--mut);margin:2px 0}.val{font:700 1.15rem system-ui,sans-serif}
+.pass{color:var(--ok)}.fail{color:var(--no)}
+table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left}
+details{background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:8px 16px;margin:12px 0}summary{cursor:pointer;font-weight:700}
+canvas.lc{aspect-ratio:auto;width:130px;height:34px;vertical-align:middle;margin-left:10px;display:inline-block}canvas.sk{aspect-ratio:auto;height:320px;width:100%;cursor:grab;touch-action:none}.why p{margin:.45em 0}
+a{color:var(--nn)}@media(max-width:640px){.plots{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>Боттлнек чи UMAP: розпізнавання та відкриття</h1>
+<p class="mut">Навчальна лабораторна з нейромереж і машинного навчання. Дані — скелетна хода людини (ті ж генератор і стилі, що в симуляторі <a href="umap-intro.html">umap-intro.html</a>). Усе рахується у вашому браузері.</p>
+
+<h2>Постановка</h2>
+<p>Рух людини — послідовність із 20 кадрів × 15 суглобів × 3 координати, тобто точка у 900-вимірному просторі. Метою є стиснення цих 900 чисел до двох. Порівнюються два підходи:</p>
+<p><b style="color:var(--nn)">Мережа з боттлнеком:</b> вхід → [приховані шари] → <b>2 нейрони</b> (сигмоїди) → вихід. Як вихід беруть клас із софтмаксом (навчання з міткою) або реконструкцію входу (автоенкодер, без міток). Координати — активації двох нейронів боттлнека.</p>
+<p><b style="color:var(--um)">UMAP:</b> без міток, будує граф найближчих сусідів і розкладає його у 2D. Детальніше про нього — <a href="umap-intro.html">umap-intro.html</a>.</p>
+<p><b>Завдання.</b> Для кожної з двох задач запустіть обидва методи, підберіть параметри й визначте, який метод доречніший і чому. Перемога — подолати поріг якості. Висновок зʼявиться у підсумковій таблиці, коли будуть результати обох методів в обох задачах.</p>
+
+<details><summary>Теоретичні відомості</summary>
+<p><b>Циклічний рух як замкнена крива.</b> Крок повторюється з періодом T, тому вікна, зняті в різні моменти циклу, лежать на замкненій кривій (кільці) у 900D. Положення на кільці — це <i>фаза кроку</i> φ ∈ [0, 2π). Різні стилі ходи дають різні кільця. Така структура виникає сама з фізики руху, її ніхто не малював.</p>
+<p><b>Боттлнек-класифікатор.</b> Мінімізує крос-ентропію між софтмаксом і міткою. Двох нейронів вистачає, щоб розділити класи, тому мережа зберігає лише те, що потрібно для мітки, а решту (зокрема фазу) відкидає. Вона також уміє ігнорувати перешкоди, які не впливають на мітку, якщо мітки достатньо.</p>
+<p><b>Автоенкодер.</b> Мінімізує помилку реконструкції (MSE) без міток. Код із двох чисел мусить містити все, що потрібно для відновлення входу, зокрема положення на циклі.</p>
+<p><b>UMAP.</b> Для кожної точки знаходить k найближчих сусідів, задає нечіткі ваги ребер, а далі градієнтно підбирає 2D-координати: сусіди притягуються, випадкові пари відштовхуються. Параметри: <code>n_neighbors</code> (масштаб «локальності») та <code>min_dist</code> (щільність упаковки). Відстані — евклідові у вихідному просторі, тож домінують координати з найбільшою дисперсією. Декодера немає. У цьому симуляторі UMAP «бачить» усі точки одразу (трансдуктивно), мережа — лише навчальну вибірку.</p>
+<p><b>Нормалізація.</b> Таз переноситься в нуль, масштаб ділиться на довжину тулуба, вісь плечей повертається до +z. Без неї кожна людина має свій напрямок руху й позицію в кадрі. Це перешкоди, які для евклідової відстані суттєвіші за різницю між рухами. Мережа з міткою може навчитися їх ігнорувати (наприклад, спираючись на висоти суглобів, які не залежать від повороту).</p>
+<p><b>Метрики.</b> Задача 1: середня кутова помилка фази (kNN, k = 10, нові люди); випадкове вгадування дає ≈90°. Задача 2: точність kNN у 2D на нових людях. Оцінка робиться за людьми (не за вікнами), бо вікна однієї людини майже однакові.</p>
+<p><b>Обмеження.</b> Дані змодельовані, а не виміряні. Результат залежить від вибірки та випадкової ініціалізації: повторіть запуск і порівняйте. Двовимірні вкладення спотворюють відстані, а отже, висновки про дистанції між групами робити не можна. Джерела: McInnes et al., UMAP (2018); Sainburg et al., Parametric UMAP (2021); Chari &amp; Pachter, The specious art of single-cell genomics (2023).</p>
+</details>
+
+<h2>Задача 1. Відкриття: фаза кроку</h2>
+<div class="card"><p><b>Дано:</b> вікна ходьби п’яти стилів (звичайний, «жіночий», підскоки, шаркання, «літній»), нормалізовані. <b>Питання:</b> чи кодують дві координати, <i>у якій точці кроку</i> перебуває людина? Кільце кожного стилю має бути впорядковане за фазою (колір на графіку). <b>Поріг:</b> помилка фази ≤ <span id="th1"></span>°. <span class="mut">Мітку «тип ходи» мережа бачить, фази — ні.</span></p></div>
+<div id="t1"></div>
+<div class="card why"><p><b>Чому автоенкодер відновлює фазу, а навчання з міткою — ні.</b> Кількість нейронів у боттлнеку однакова, різниться функція втрат, яка вирішує, <i>що саме</i> вони запам’ятають.</p>
+<p><b>З міткою.</b> Мітка — це стиль ходи. Вікно звичайної ходи має одну й ту саму мітку на будь-якій фазі кроку, тож для крос-ентропії фаза не відрізняється від шуму: найкращий розв’язок — стягнути все кільце стилю в одну пляму. Виходить п’ять плям, у кожній змішані всі кольори фази, і помилка велика: у цьому коді 60–65° зі штрафом на насичення сигмоїд і 66–82° без нього (три seed), порогу 30° не досягти. Мережа не помиляється, вона виконує те, про що її просили.</p>
+<p><b>Без мітки (автоенкодер).</b> Щоб відновити 900 чисел, потрібно знати не лише стиль, а й те, у якій точці циклу перебуває людина: різні фази дають різні пози. Усередині одного стилю вся мінливість вікон — це рух по кільцю, тобто одна змінна, яку двох нейронів достатньо закодувати. Тому кільця зберігаються, а кольори на графіку впорядковуються.</p>
+<p><b>Спробуйте:</b> запустіть обидва режими з однаковими шарами й нейронами та порівняйте графіки. Автоенкодер не гарантує результату (залежить від архітектури) і зазвичай поступається UMAP, який напряму зберігає сусідство точок. У моїх попередніх пробах помилка фази була приблизно: UMAP 12–13°, автоенкодер 18–23°, класифікатор 86–93° (два прогони, Python, не цей код).</p></div>
+
+<h2>Задача 2. Розпізнавання: тип руху за невідомої камери</h2>
+<div class="card"><p><b>Дано:</b> вікна ходьби, бігу, карате й танців у сирих координатах: у кожної людини свій напрямок руху та позиція в кадрі. <b>Питання:</b> чи можна у 2D відокремити чотири види руху на <i>нових людях</i>? Увімкніть нормалізацію й порівняйте. <b>Поріг:</b> точність ≥ <span id="th2"></span>%.</p></div>
+<div id="t2"></div>
+
+<h2>Підсумок</h2>
+<div class="card ui"><table id="sb"></table><p id="verdict" style="font:16px Charter,Georgia,serif"></p></div>
+
+<script>
+const TH={1:30,2:85},$=s=>document.querySelector(s);$('#th1').textContent=TH[1];$('#th2').textContent=TH[2];
+// ---------- генератор (спрощений порт із umap-intro) ----------
+const R=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},
+G=r=>{let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(6.28319*r())},
+BF=[.92,1.38,.42,.8],WS={norm:{},fem:{ha:.85,sa:.6,tw:2.2,ab:-.08,hs:.15,hr:.35,pt:.16,lean:.03},hop:{ha:1.15,sa:1.3,k1:1.7,k0:.2,e:.6,f:1.2,lean:.02},shuf:{ha:.45,sa:.3,k1:.15,k0:.05,lean:.12,f:.9},old:{ha:.55,sa:.25,k1:.3,k0:.28,lean:.38,hd:.45,f:.85}},
+bump=(u,c,w)=>{let d=Math.abs(u-c);d=Math.min(d,1-d);return Math.exp(-.5*(d/w)**2)};
+function ang(c,t,P){const S=P.S,o=(k,d)=>S[k]??d,ph=6.28319*P.f*t+P.ph0,A=P.A,a={tw:0,ab:o('ab',.03),lean:.05,lat:0,hd:o('hd',0),sq:0,hl:0,ptw:0,pr:0,aL:0,aR:0,by:0};
+if(c<2){const r=c==1,s=Math.sin(ph),kn=p=>Math.max(0,Math.cos(p-.3))**(r?1.5:2),ha=(r?.7:.42)*A*o('ha',1),sa=(r?.7:.35)*A*o('sa',1),k0=o('k0',r?.35:.1),k1=(r?1.25:.6)*o('k1',1);
+a.hL=ha*s;a.hR=-ha*s;a.kL=k0+k1*A*kn(ph);a.kR=k0+k1*A*kn(ph+Math.PI);a.sL=-sa*s;a.sR=sa*s;
+a.eL=(r?1.5:.3+.4*Math.max(0,a.sL))+P.el+o('e',0);a.eR=(r?1.5:.3+.4*Math.max(0,a.sR))+P.el+o('e',0);
+const c2=Math.cos(2*ph);a.lean=o('lean',r?.2:.05)+(r?.05:.02)*c2;a.tw=(r?.25:.15)*s*o('tw',1);a.lat=(o('lat',0)+(r?.03:.05))*s;a.sq=(r?.05:.025)*c2;
+a.hl=o('hs',0)*Math.cos(ph);a.by=r?-.06*Math.cos(2*ph):0;a.ptw=-o('hr',0)*s;a.pr=o('pt',0)*Math.cos(ph);a.lat-=.33*a.hl}
+else if(c==2){const u=((P.f*t+P.ph0/6.28319)%1+1)%1,kc=.54,pR=bump(u,.14,.07),pL=bump(u,.3,.07),kR=bump(u,kc,.07),kL=bump(u,.78,.07),cR=bump(u,kc-.08,.06),cL=bump(u,.7,.06);
+a.sR=.45+1.1*pR-.6*pL;a.sL=.45+1.1*pL-.6*pR;a.eR=2*(1-pR)+.05+P.el;a.eL=2*(1-pL)+.05+P.el;a.hR=.25+1.1*A*kR;a.hL=-.15+1.1*A*kL;
+a.kR=Math.max(.05,.5+1.2*A*cR-.45*kR);a.kL=Math.max(.05,.5+1.2*A*cL-.45*kL);a.ab=.25;a.tw=.5*(pR-pL);a.lean=-.15*Math.max(kR,kL)}
+else{const s=Math.sin(ph),c=Math.cos(ph),b=.5-.5*Math.cos(2*ph),k=.25+.55*b;a.hl=.14*s;a.lat=-.33*a.hl;a.by=-.1*b;const uL=Math.max(0,s)**2,uR=Math.max(0,-s)**2;a.kL=k+.9*uL;a.kR=k+.9*uR;a.hL=.5*k+.7*uL;a.hR=.5*k+.7*uR;a.ab=.22;
+a.sL=2.3+.15*c;a.sR=2.3-.15*c;a.aL=Math.max(.1,.55+.4*A*s);a.aR=Math.max(.1,.55-.4*A*s);a.eL=.35+.2*c+P.el;a.eR=.35-.2*c+P.el;a.tw=.3*c;a.lean=.05;a.hd=.1*Math.cos(2*ph)}
+return a}
+function skel(a,P){const J=new Float64Array(45),ua=.6*P.ak,fa=.54*P.ak,th=.9*P.lk,set=(i,x,y,z)=>{J[3*i]=x;J[3*i+1]=y;J[3*i+2]=z},
+nx=Math.sin(a.lean)*(1+a.sq),ny=Math.cos(a.lean)*(1+a.sq),la=a.lat,ha=a.lean*.5+a.hd;
+set(0,0,0,a.hl);set(1,nx,ny,la);set(2,nx+Math.sin(ha)*.3,ny+Math.cos(ha)*.3,la);
+for(const sd of[-1,1]){const i=sd<0?0:1,s=sd<0?a.sL:a.sR,e=sd<0?a.eL:a.eR,h=sd<0?a.hL:a.hR,k=sd<0?a.kL:a.kR,al=sd<0?a.aL:a.aR,ca=Math.cos(al),sn=Math.sin(al),
+sx=nx+sd*.36*Math.sin(a.tw),sz=la+sd*.36*Math.cos(a.tw),ex=sx+ua*Math.sin(s)*ca,ey=ny-ua*Math.cos(s)*ca,ez=sz+sd*(.1+ua*sn);
+set(3+i,sx,ny,sz);set(5+i,ex,ey,ez);set(7+i,ex+fa*Math.sin(s+e)*ca,ey-fa*Math.cos(s+e)*ca,ez+sd*fa*sn);
+const hx=sd*.2*Math.sin(a.ptw),hy=sd*.2*Math.sin(a.pr),hz=a.hl+sd*.2*Math.cos(a.ptw),kx=hx+th*Math.sin(h),ky=hy-th*Math.cos(h),kz=hz+sd*Math.sin(a.ab)*th;
+set(9+i,hx,hy,hz);set(11+i,kx,ky,kz);set(13+i,kx+th*Math.sin(h-k),ky-th*Math.cos(h-k),kz+sd*Math.sin(a.ab)*th)}if(a.by)for(let q=0;q<15;q++)J[3*q+1]+=a.by;return J}
+function person(c,r,sty){const g=()=>G(r),v=.5,S=c==0?WS[sty]:{},f=BF[c]*(S.f??1)*(1+.12*v*g()),cl=x=>Math.min(1.5,Math.max(.6,x));
+return{S,f,A:cl(1+.15*v*g()),sc:cl(1+.1*v*g()),lk:1+.08*v*g(),ak:1+.08*v*g(),el:.15*v*g(),ph0:r()*6.28319,yaw:r()*6.28319,x0:(r()-.5)*6,z0:(r()-.5)*6,spd:[1.35*f/.92,3.6*f/1.38,.05,.05][c]}}
+function win(c,P,w){const W=new Float64Array(900),ca=Math.cos(P.yaw),sa=Math.sin(P.yaw),k=.5*P.sc;
+for(let fr=0;fr<20;fr++){const t=(w*2+fr)/15,J=skel(ang(c,t,P),P),px=P.x0+P.spd*t*ca,pz=P.z0-P.spd*t*sa,py=1.7*k*P.lk;
+for(let j=0;j<15;j++){const x=J[3*j]*k,y=J[3*j+1]*k,z=J[3*j+2]*k,o=fr*45+3*j;W[o]=px+x*ca+z*sa;W[o+1]=py+y;W[o+2]=pz-x*sa+z*ca}}return W}
+function nrm(W){let ts=0,vx=0,vz=0;for(let f=0;f<20;f++){const b=f*45;ts+=Math.hypot(W[b+3]-W[b],W[b+4]-W[b+1],W[b+5]-W[b+2]);vx+=W[b+12]-W[b+9];vz+=W[b+14]-W[b+11]}
+ts/=20;const be=Math.atan2(-vx,vz),cb=Math.cos(be),sb=Math.sin(be),O=new Float64Array(900);
+for(let f=0;f<20;f++){const b=f*45;for(let j=0;j<15;j++){const x=(W[b+3*j]-W[b])/ts,y=(W[b+3*j+1]-W[b+1])/ts,z=(W[b+3*j+2]-W[b+2])/ts,o=b+3*j;O[o]=x*cb+z*sb;O[o+1]=y;O[o+2]=-x*sb+z*cb}}return O}
+function build(task,nm,seed){const r=R(seed),rows=[],y=[],pid=[],phi=[];let pe=0;
+const grp=task==1?Object.keys(WS).map((s,i)=>[0,s,i,8,10]):[0,1,2,3].map(c=>[c,'norm',c,30,8]);
+for(const[c,s,lab,np,nw]of grp)for(let q=0;q<np;q++,pe++){const P=person(c,r,s);for(let w=0;w<nw;w++){let W=win(c,P,w);if(nm||task==1)W=nrm(W);rows.push(W);y.push(lab);pid.push(pe);phi.push((6.28319*P.f*(w*2/15)+P.ph0)%6.28319)}}
+const n=rows.length,X=new Float64Array(n*900);rows.forEach((W,i)=>X.set(W,i*900));return{X,y,pid,phi,n,K:Math.max(...y)+1,tr:pid.map(p=>p%5!=0)}}
+// ---------- UMAP (компактна реалізація) ----------
+const tick=()=>new Promise(r=>setTimeout(r,0));
+function dist(X,n){const D=new Float32Array(n*n);for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){let s=0;for(let d=0,a=i*900,b=j*900;d<900;d++){const x=X[a+d]-X[b+d];s+=x*x}D[i*n+j]=D[j*n+i]=Math.sqrt(s)}return D}
+function pca2(X,n){const mu=new Float64Array(900);for(let i=0;i<n;i++)for(let d=0;d<900;d++)mu[d]+=X[i*900+d]/n;const vs=[];
+for(let c=0;c<2;c++){let v=Float64Array.from({length:900},(_,i)=>Math.sin(i*1.7+c*3.1)+.1);
+for(let it=0;it<25;it++){const p=new Float64Array(n),u=new Float64Array(900);for(let i=0;i<n;i++){let s=0;for(let d=0;d<900;d++)s+=(X[i*900+d]-mu[d])*v[d];p[i]=s}
+for(let i=0;i<n;i++)for(let d=0;d<900;d++)u[d]+=(X[i*900+d]-mu[d])*p[i];
+for(const w of vs){let s=0;for(let d=0;d<900;d++)s+=u[d]*w[d];for(let d=0;d<900;d++)u[d]-=s*w[d]}
+let nr=0;for(let d=0;d<900;d++)nr+=u[d]*u[d];nr=Math.sqrt(nr)||1;for(let d=0;d<900;d++)v[d]=u[d]/nr}vs.push(v)}
+const Z=Array.from({length:n},(_,i)=>vs.map(v=>{let s=0;for(let d=0;d<900;d++)s+=(X[i*900+d]-mu[d])*v[d];return s}));
+const m=Math.max(...Z.flat().map(Math.abs))||1;return Z.map(z=>z.map(q=>q/m*10))}
+async function umap(X,n,k,md,ep,seed,prog){const r=R(seed),D=dist(X,n),W=new Map();
+for(let i=0;i<n;i++){const idx=[...Array(n).keys()].filter(j=>j!=i).sort((a,b)=>D[i*n+a]-D[i*n+b]).slice(0,k),ds=idx.map(j=>D[i*n+j]),rho=ds[0];
+let lo=1e-6,hi=1e4,sg=1;for(let it=0;it<40;it++){sg=(lo+hi)/2;let s=0;for(const d of ds)s+=Math.exp(-Math.max(0,d-rho)/sg);s>Math.log2(k)?hi=sg:lo=sg}
+idx.forEach((j,q)=>W.set(i*n+j,Math.exp(-Math.max(0,ds[q]-rho)/sg)))}
+const E=[];for(const[key,a]of W){const i=Math.floor(key/n),j=key%n,b=W.get(j*n+i)||0;if(i<j||!b)E.push([i,j,a+b-a*b])}
+let A=1.5,B=.9,best=1e9;for(let a=.3;a<=3;a+=.1)for(let b=.5;b<=1.3;b+=.05){let e=0;for(let q=1;q<=30;q++){const d=q*.1,t=d<=md?1:Math.exp(-(d-md)),m=1/(1+a*d**(2*b));e+=(t-m)**2}if(e<best){best=e;A=a;B=b}}
+const hist=[],Y=pca2(X,n),cl=g=>Math.max(-4,Math.min(4,g));
+for(let e=0;e<ep;e++){const al=1-e/ep;for(const[i,j,w]of E){if(r()>w)continue;let dx=Y[i][0]-Y[j][0],dy=Y[i][1]-Y[j][1],d2=dx*dx+dy*dy;
+if(d2>0){const gc=-2*A*B*d2**(B-1)/(1+A*d2**B);for(const q of[0,1]){const g=cl(gc*(q?dy:dx));Y[i][q]+=al*g;Y[j][q]-=al*g}}
+for(let s=0;s<5;s++){const m=(r()*n)|0;if(m==i)continue;dx=Y[i][0]-Y[m][0];dy=Y[i][1]-Y[m][1];d2=dx*dx+dy*dy;const gc=2*B/((.001+d2)*(1+A*d2**B));for(const q of[0,1])Y[i][q]+=al*cl(gc*(q?dy:dx))}}
+if(e%10==9){let L=0;for(const[i,j,w]of E){let dx=Y[i][0]-Y[j][0],dy=Y[i][1]-Y[j][1],q=1/(1+A*(dx*dx+dy*dy+1e-9)**B);L-=w*Math.log(Math.max(q,1e-9));const m=(r()*n)|0;dx=Y[i][0]-Y[m][0];dy=Y[i][1]-Y[m][1];q=1/(1+A*(dx*dx+dy*dy+1e-9)**B);L-=Math.log(Math.max(1-q,1e-9))}hist.push(L/E.length);prog(e/ep,hist);await tick()}}return Y}
+// ---------- мережа з боттлнеком ----------
+function mk(dims,acts,r){return dims.slice(1).map((o,l)=>{const i=dims[l],s=Math.sqrt(2/(i+o)),z=n=>new Float64Array(n);return{i,o,act:acts[l],W:Float64Array.from({length:i*o},()=>G(r)*s),b:z(o),mW:z(i*o),vW:z(i*o),mb:z(o),vb:z(o)}})}
+function fwd(N,x){const H=[x];for(const L of N){const h=H[H.length-1],y=new Float64Array(L.o);for(let o=0;o<L.o;o++){let s=L.b[o];for(let i=0;i<L.i;i++)s+=h[i]*L.W[i*L.o+o];y[o]=L.act=='t'?Math.tanh(s):L.act=='s'?1/(1+Math.exp(-s)):s}H.push(y)}return H}
+function step(N,B,loss,lv,t,lr){let tot=0;const g=N.map(L=>({W:new Float64Array(L.i*L.o),b:new Float64Array(L.o)}));
+for(const[x,tg]of B){const H=fwd(N,x);tot+=lv(H[H.length-1],tg);let d=loss(H[H.length-1],tg);for(let l=N.length-1;l>=0;l--){const L=N[l],h=H[l],y=H[l+1];
+if(L.act=='t')for(let o=0;o<L.o;o++)d[o]*=1-y[o]*y[o];else if(L.act=='s'){for(let o=0;o<L.o;o++)d[o]*=y[o]*(1-y[o]);if(L.reg)for(let o=0;o<L.o;o++)d[o]+=L.reg*Math.log(Math.max(y[o],1e-9)/Math.max(1-y[o],1e-9))}
+const nd=new Float64Array(L.i);for(let i=0;i<L.i;i++){let s=0;for(let o=0;o<L.o;o++){s+=d[o]*L.W[i*L.o+o];g[l].W[i*L.o+o]+=h[i]*d[o]}nd[i]=s}for(let o=0;o<L.o;o++)g[l].b[o]+=d[o];d=nd}}
+const c1=1-.9**t,c2=1-.999**t,m=B.length,up=(p,mm,vv,gg)=>{for(let q=0;q<p.length;q++){const x=gg[q]/m;mm[q]=.9*mm[q]+.1*x;vv[q]=.999*vv[q]+.001*x*x;p[q]-=lr*(mm[q]/c1)/(Math.sqrt(vv[q]/c2)+1e-8)}};
+N.forEach((L,l)=>{up(L.W,L.mW,L.vW,g[l].W);up(L.b,L.mb,L.vb,g[l].b)});return tot/m}
+const ce=(z,k)=>{const m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b);return e.map((v,i)=>v/s-(i==k?1:0))},mse=(z,t)=>z.map((v,i)=>v-t[i]),ceV=(z,k)=>{const m=Math.max(...z);return m+Math.log(z.reduce((a,v)=>a+Math.exp(v-m),0))-z[k]},mseV=(z,t)=>z.reduce((a,v,i)=>a+.5*(v-t[i])**2,0),REG=.05;
+function initNN(D,mode,Ly,h,seed,reg){const r=R(seed),n=D.n,tri=[...Array(n).keys()].filter(i=>D.tr[i]);
+const mu=new Float64Array(900);for(const i of tri)for(let d=0;d<900;d++)mu[d]+=D.X[i*900+d]/tri.length;
+let sd=0;for(const i of tri)for(let d=0;d<900;d++)sd+=(D.X[i*900+d]-mu[d])**2;sd=Math.sqrt(sd/tri.length/900)||1;
+const Xs=Array.from({length:n},(_,i)=>{const x=new Float64Array(900);for(let d=0;d<900;d++)x[d]=(D.X[i*900+d]-mu[d])/sd;return x}),H=Array(Ly).fill(h),
+dims=mode=='ae'?[900,...H,2,...H,900]:[900,...H,2,D.K],acts=mode=='ae'?[...H.map(()=>'t'),'s',...H.map(()=>'t'),'l']:[...H.map(()=>'t'),'s','l'],N=mk(dims,acts,r);
+if(mode=='cls'&&reg)N[Ly].reg=reg;return{D,mode,Ly,Xs,tri,N,r,t:0,hist:[]}}
+async function runNN(S,ep,prog){const{D,mode,Xs,tri,N,r}=S;
+for(let e=0;e<ep;e++){const o=tri.slice().sort(()=>r()-.5);let ls=0,nb=0;for(let b=0;b<o.length;b+=32){const B=o.slice(b,b+32).map(i=>[Xs[i],mode=='ae'?Xs[i]:D.y[i]]);ls+=step(N,B,mode=='ae'?mse:ce,mode=='ae'?mseV:ceV,++S.t,.003);nb++}S.hist.push(ls/nb);
+if(e%3==2){prog(e/ep,S.hist);await tick()}}prog(1,S.hist)}
+const embedNN=S=>S.Xs.map(x=>Array.from(fwd(S.N,x)[S.Ly+1]));
+async function trainNN(D,mode,Ly,h,ep,seed,prog,reg){const S=initNN(D,mode,Ly,h,seed,reg);await runNN(S,ep,prog);return embedNN(S)}
+// ---------- оцінка та графіки ----------
+function knn(Z,D,task){let tot=0,m=0;const tr=[];D.tr.forEach((q,i)=>q&&tr.push(i));
+for(let i=0;i<D.n;i++){if(D.tr[i])continue;m++;const d=tr.map(j=>[(Z[i][0]-Z[j][0])**2+(Z[i][1]-Z[j][1])**2,j]).sort((a,b)=>a[0]-b[0]).slice(0,10);
+if(task==1){let c=0,s=0;for(const[,j]of d){c+=Math.cos(D.phi[j]);s+=Math.sin(D.phi[j])}const df=Math.atan2(s,c)-D.phi[i];tot+=Math.abs(Math.atan2(Math.sin(df),Math.cos(df)))}
+else{const v={};for(const[,j]of d)v[D.y[j]]=(v[D.y[j]]||0)+1;tot+=+(+Object.keys(v).sort((a,b)=>v[b]-v[a])[0]==D.y[i])}}
+return task==1?tot/m*57.2958:tot/m*100}
+const CC=['#2f7fd1','#e07a1f','#8e44ad','#2a9d5c','#c0392b'];
+function plot(cv,Z,D,task,fx){const c=cv.getContext('2d'),w=cv.width=cv.clientWidth*2,h=cv.height=w;c.clearRect(0,0,w,h);
+const xs=Z.map(z=>z[0]),ys=Z.map(z=>z[1]),x0=fx?0:Math.min(...xs),x1=fx?1:Math.max(...xs),y0=fx?0:Math.min(...ys),y1=fx?1:Math.max(...ys),p=18,sx=v=>p+(v-x0)/((x1-x0)||1)*(w-2*p),sy=v=>h-p-(v-y0)/((y1-y0)||1)*(h-2*p);
+if(fx){c.strokeStyle='rgba(138,147,165,.5)';c.lineWidth=1.5;c.setLineDash([6,6]);c.strokeRect(p,p,w-2*p,h-2*p);c.beginPath();c.moveTo(w/2,p);c.lineTo(w/2,h-p);c.moveTo(p,h/2);c.lineTo(w-p,h/2);c.stroke();c.setLineDash([])}
+Z.forEach((z,i)=>{const col=task==1?`hsl(${D.phi[i]*57.2958},75%,50%)`:CC[D.y[i]];c.beginPath();c.arc(sx(z[0]),sy(z[1]),D.tr[i]?4:5,0,6.2832);
+if(D.tr[i]){c.fillStyle=col;c.globalAlpha=.7;c.fill()}else{c.strokeStyle=col;c.lineWidth=2;c.globalAlpha=1;c.stroke()}});c.globalAlpha=1}
+function lc(cv,a,col){const w=cv.width=cv.clientWidth*2,h=cv.height=cv.clientHeight*2,c=cv.getContext('2d');c.clearRect(0,0,w,h);if(!a||a.length<1)return;
+const f=a.every(v=>v>0)?Math.log10:(v=>v),y=a.map(f),lo=Math.min(...y),hi=Math.max(...y),n=a.length,sx=i=>6+(n>1?i/(n-1):1)*(w-12),sy=v=>h-6-(v-lo)/((hi-lo)||1)*(h-12);
+c.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue(col);c.lineWidth=2.5;c.lineJoin='round';c.beginPath();y.forEach((v,i)=>i?c.lineTo(sx(i),sy(v)):c.moveTo(sx(i),sy(v)));c.stroke();
+c.fillStyle=getComputedStyle(document.body).color;c.font='20px system-ui,sans-serif';c.textAlign='right';c.fillText(a[n-1].toPrecision(2),w-6,22)}
+// ---------- інтерфейс ----------
+const best={1:{},2:{}},cache={},LAB={umap:'UMAP',cls:'Боттлнек-класифікатор',ae:'Автоенкодер',nn:'Боттлнек-класифікатор'};
+function getD(task,nm){const k=task+'_'+nm;return cache[k]||(cache[k]=build(task,nm,7))}
+function ui(task){const g=$('#t'+task),T1=task==1;
+g.innerHTML=`<div class="card ui"><div class="cap"><b>3D-модель руху.</b> Перетягуйте мишею, щоб обертати ракурс. Білі кружечки — опорні точки (суглоби). ${T1?'Колір скелета й φ — фаза кроку; такими ж кольорами пофарбовано точки на графіках нижче.':'Кольори збігаються з графіками нижче. У сирих даних кожна людина ще й має власний напрямок та позицію в кадрі.'}</div><div class="row"><button style="--g:var(--fg)" data-v="side">Збоку</button><button style="--g:var(--fg)" data-v="front">Спереду</button><button style="--g:var(--fg)" data-v="top">Зверху</button><button style="--g:var(--fg)" class="pp">Пауза</button><label>швидкість <input type="range" id="sp${task}" min=".05" max="1" step=".05" value=".25"><output>0.25</output></label><label><input type="checkbox" class="jl"> підписи суглобів</label></div><canvas class="sk" id="sk${task}"></canvas></div><div class="card ui"><div class="row">
+<div class="grp" style="--g:var(--um)"><b>UMAP</b><br><label>n_neighbors <input type="range" id="k${task}" min="5" max="50" value="15"><output>15</output></label><label>min_dist <input type="range" id="md${task}" min="0" max=".9" step=".05" value=".1"><output>0.1</output></label><label>епох <input type="range" id="eu${task}" min="100" max="500" step="50" value="200"><output>200</output></label><br><button style="--g:var(--um)" id="bu${task}">Запустити UMAP</button><canvas class="lc" id="lu${task}" title="втрата UMAP (крос-ентропія по ребрах), лог-шкала"></canvas></div>
+<div class="grp" style="--g:var(--nn)"><b>Мережа з боттлнеком</b><br>${T1?`<label>режим <select id="m${task}"><option value="cls">класифікатор (мітка = тип ходи)</option><option value="ae">автоенкодер (без міток)</option></select></label>`:''}<label>прихованих шарів <input type="range" id="l${task}" min="0" max="3" value="${T1?1:0}"><output>${T1?1:0}</output></label><label>нейронів <input type="range" id="h${task}" min="4" max="64" step="4" value="16"><output>16</output></label><label>епох <input type="range" id="e${task}" min="20" max="300" step="10" value="100"><output>100</output></label><br><label title="Малий штраф на розмір пре-активації нейронів боттлнека (лише для класифікатора): не дає сигмоїдам прилипати до кутів"><input type="checkbox" id="rg${task}" checked> штраф на насичення</label><br><button style="--g:var(--nn)" id="bn${task}">Навчити мережу</button><button style="--g:var(--nn)" id="bc${task}" hidden title="Продовжити навчання тієї самої мережі ще на стільки епох, скільки стоїть на повзунку">Довчити мережу</button><canvas class="lc" id="ln${task}" title="втрата на навчальній вибірці за епохами, лог-шкала"></canvas></div></div>
+${T1?'':`<label><input type="checkbox" id="nm${task}"> нормалізація (таз, масштаб, поворот)</label>`}
+<p class="mut" id="st${task}">Шарів 0 = як у класифікаторі: вхід → 2 сигмоїди → софтмакс.${T1?'':' У задачі 2 до втрати додано малий штраф на «насичення» сигмоїд, щоб класи не злипалися в кутах квадрата.'}</p></div>
+<div class="plots ui"><div><div class="cap" style="color:var(--um)"><b>UMAP</b> <span id="ru${task}"></span></div><canvas id="cu${task}"></canvas></div><div><div class="cap" style="color:var(--nn)"><b>Боттлнек</b> <span id="rn${task}"></span></div><canvas id="cn${task}"></canvas></div></div>
+<p class="cap">${T1?'Колір — фаза кроку (колове колесо).':'Колір — тип руху: синій — ходьба, помаранчевий — біг, фіолетовий — карате, зелений — танці.'} ${T1?'':'Осі боттлнека фіксовані [0, 1]: кожен клас займає свій «кут» навколо центра (пунктирний хрест); чотирьом рухам якраз вистачає чотирьох напрямків. '}Заповнені точки — люди з навчальної вибірки, порожні — нові люди (за ними рахується метрика).</p>`;
+g.querySelectorAll('input[type=range]').forEach(i=>i.oninput=()=>i.nextElementSibling.value=i.value);
+const TSk={S:null},inval=()=>{TSk.S=null;$('#bc'+task).hidden=true},v=id=>+$('#'+id+task).value,nmv=()=>T1?1:+$('#nm'+task).checked,st=t=>$('#st'+task).textContent=t,dis=b=>g.querySelectorAll('button').forEach(x=>x.disabled=b);
+function done(key,val,out,Z,cv,fx){const ok=T1?val<=TH[1]:val>=TH[2];$('#'+out+task).innerHTML=`<span class="val ${ok?'pass':'fail'}">${val.toFixed(T1?1:0)}${T1?'°':'%'}</span> ${ok?'поріг подолано':'поріг не подолано'}`;
+const b=best[task];if(b[key]==null||(T1?val<b[key]:val>b[key]))b[key]=val;plot($('#'+cv+task),Z,getD(task,nmv()),task,fx);summary()}
+$('#bu'+task).onclick=async()=>{dis(1);const D=getD(task,nmv());st('UMAP: відстані та граф сусідів…');await tick();
+const Z=await umap(D.X,D.n,v('k'),v('md'),v('eu'),3,(p,h)=>{st('UMAP: оптимізація '+Math.round(p*100)+'%');lc($('#lu'+task),h,'--um')});st('Готово.');done('umap',knn(Z,D,task),'ru',Z,'cu');dis(0)};
+const trainRun=async(fresh)=>{dis(1);const D=getD(task,nmv()),mode=T1?$('#m1').value:'cls',ep=v('e');
+if(fresh)TSk.S=initNN(D,mode,v('l'),v('h'),5,$('#rg'+task).checked?REG:0);const S=TSk.S,e0=S.hist.length;
+await runNN(S,ep,(p,h)=>{st((fresh?'Навчання мережі ':'Довчання мережі ')+Math.round(p*100)+'% (епоха '+(e0+Math.round(p*ep))+')');lc($('#ln'+task),h,'--nn')});
+st('Готово. Усього епох: '+S.hist.length+'. Змініть повзунок «епох» і натисніть «Довчити мережу», щоб продовжити.');done(T1?mode:'nn',knn(embedNN(S),D,task),'rn',embedNN(S),'cn',mode=='cls');dis(0);$('#bc'+task).hidden=false};
+$('#bn'+task).onclick=()=>trainRun(true);$('#bc'+task).onclick=()=>trainRun(false);
+['l','h','m','nm','rg'].forEach(k=>{const el=$('#'+k+task);if(el)['input','change'].forEach(ev=>el.addEventListener(ev,inval))})}
+function summary(){const rows=[[1,'umap','UMAP'],[1,'cls','Боттлнек-класифікатор'],[1,'ae','Автоенкодер'],[2,'umap','UMAP'],[2,'nn','Боттлнек-класифікатор']];
+$('#sb').innerHTML='<tr><th>Задача</th><th>Метод</th><th>Найкращий результат</th><th>Поріг</th></tr>'+rows.map(([t,k,n])=>{const v=best[t][k],ok=v!=null&&(t==1?v<=TH[1]:v>=TH[2]);
+return`<tr><td>${t==1?'1. Фаза кроку':'2. Тип руху'}</td><td>${n}</td><td>${v==null?'—':v.toFixed(t==1?1:0)+(t==1?'°':'%')}</td><td class="${v==null?'':ok?'pass':'fail'}">${v==null?'':ok?'подолано':'ні'}</td></tr>`}).join('');
+const b1=best[1],b2=best[2],nn1=Math.min(b1.cls??1e9,b1.ae??1e9);
+if(b1.umap==null||nn1==1e9||b2.umap==null||b2.nn==null){$('#verdict').textContent='Висновок зʼявиться, коли ви запустите обидва методи в обох задачах.';return}
+const w1=b1.umap<nn1?'UMAP':'мережа з боттлнеком',w2=b2.nn>b2.umap?'мережа з боттлнеком':'UMAP';
+$('#verdict').innerHTML=`<b>Задача 1</b> (фаза кроку): краще — <b>${w1}</b> (${Math.min(b1.umap,nn1).toFixed(1)}° проти ${Math.max(b1.umap,nn1).toFixed(1)}°). <b>Задача 2</b> (тип руху, сирі координати): краще — <b>${w2}</b> (${Math.max(b2.nn,b2.umap).toFixed(0)}% проти ${Math.min(b2.nn,b2.umap).toFixed(0)}%). Сформулюйте, яка властивість задачі визначає переможця: чи метод вимагає мітки, і чи є в даних перешкоди, до яких мітка байдужа.`}
+// ---------- 3D-сцена зі скелетами ----------
+let SPD=.25,T=0,last=0,PLAY=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SN={norm:'звичайний',fem:'«жіночий»',hop:'підскоки',shuf:'шаркання',old:'літній'},
+JN=['таз','шия','голова','плече Л','плече П','лікоть Л','лікоть П','кисть Л','кисть П','стегно Л','стегно П','коліно Л','коліно П','стопа Л','стопа П'],
+MD={1:Object.keys(WS).map(s=>[0,s,SN[s]]),2:[[0,'norm','ходьба'],[1,'norm','біг'],[2,'norm','карате'],[3,'norm','танці']]},
+BONES=[[0,1],[1,2],[1,3],[1,4],[3,5],[5,7],[4,6],[6,8],[0,9],[0,10],[9,11],[11,13],[10,12],[12,14]],
+VW={1:{yaw:.5,pit:.25},2:{yaw:.5,pit:.25}},JL={1:0,2:0},MP={};
+for(const t of[1,2])MP[t]=MD[t].map(([c,s])=>{const P=person(c,R(11),s);Object.assign(P,{ph0:0,sc:1,A:1,lk:1,ak:1,el:0});return P});
+function proj(p,V,k,w,h){const c=Math.cos(V.yaw),s=Math.sin(V.yaw),cp=Math.cos(V.pit),sp=Math.sin(V.pit),rx=p[0]*c-p[2]*s,d=p[0]*s+p[2]*c,y=p[1]+.25;return[w/2+k*rx,h/2-k*(y*cp+d*sp),d]}
+function anim(ts){if(!last)last=ts;if(PLAY)T+=(ts-last)/1000*SPD;last=ts;
+for(const task of[1,2]){const cv=$('#sk'+task);if(!cv)continue;const w=cv.width=cv.clientWidth*2,h=cv.height=cv.clientHeight*2,c=cv.getContext('2d'),n=MD[task].length,V=VW[task],S=2.3,
+k=Math.min(w/((n-1)*S*.71+3),h/4.4),fg=getComputedStyle(document.body).color,it=[],E=(n-1)*S*.36+1.8;
+c.clearRect(0,0,w,h);c.font='20px system-ui,sans-serif';c.textAlign='center';c.lineCap='round';
+c.strokeStyle='rgba(138,147,165,.35)';c.lineWidth=1.5;
+for(let g=-4;g<=4;g++){const q=g/4*E;for(const[a,b]of[[[-E,-1.8,q],[E,-1.8,q]],[[q,-1.8,-E],[q,-1.8,E]]]){const A=proj(a,V,k,w,h),B=proj(b,V,k,w,h);c.beginPath();c.moveTo(A[0],A[1]);c.lineTo(B[0],B[1]);c.stroke()}}
+MD[task].forEach(([cl,s,lab],m)=>{const P=MP[task][m],J=skel(ang(cl,T,P),P),phi=((6.28319*P.f*T+P.ph0)%6.28319+6.28319)%6.28319,col=task==1?`hsl(${phi*57.2958},75%,50%)`:CC[cl],o=(m-(n-1)/2)*S*.7071,pt=[];
+for(let j=0;j<15;j++)pt.push(proj([J[3*j]+o,J[3*j+1],J[3*j+2]+o],V,k,w,h));
+for(const[a,b]of BONES)it.push({d:(pt[a][2]+pt[b][2])/2,A:pt[a],B:pt[b],col});
+for(let j=0;j<15;j++)it.push({d:pt[j][2]-.05,j,P:pt[j],col,m});
+const L=proj([o,-2.05,o],V,k,w,h);it.push({d:9,txt:task==1?`${lab}  φ=${Math.round(phi*57.2958)}°`:lab,x:L[0],y:L[1],col,dot:task==1})});
+it.sort((a,b)=>b.d-a.d);
+for(const q of it){if(q.txt){c.fillStyle=fg;c.fillText(q.txt,q.x,q.y+8);if(q.dot){c.fillStyle=q.col;c.beginPath();c.arc(q.x-c.measureText(q.txt).width/2-14,q.y+2,7,0,6.2832);c.fill()}}
+else if(q.A){c.strokeStyle=q.col;c.lineWidth=7;c.beginPath();c.moveTo(q.A[0],q.A[1]);c.lineTo(q.B[0],q.B[1]);c.stroke()}
+else{const hd=q.j==2,r=hd?.14*k:q.j==0?12:9;c.beginPath();c.arc(q.P[0],q.P[1],r,0,6.2832);c.fillStyle=hd?q.col:'#fff';c.fill();c.strokeStyle=q.col;c.lineWidth=4;c.stroke();
+if(JL[task]&&q.m==0){c.fillStyle=fg;c.fillText(JN[q.j],q.P[0]+(q.j%2?-1:1)*(r+36),q.P[1]-6)}}}}}
+function anim_(ts){anim(ts);requestAnimationFrame(anim_)}
+ui(1);ui(2);summary();
+for(const task of[1,2]){const g=$('#t'+task),cv=$('#sk'+task);let dr=null;
+cv.onpointerdown=e=>{dr=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'};cv.onpointerup=()=>{dr=null;cv.style.cursor='grab'};
+cv.onpointermove=e=>{if(!dr)return;const V=VW[task];V.yaw-=(e.clientX-dr[0])*.01;V.pit=Math.max(-1.5,Math.min(1.5,V.pit+(e.clientY-dr[1])*.01));dr=[e.clientX,e.clientY]};
+g.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>Object.assign(VW[task],{side:{yaw:0,pit:0},front:{yaw:1.5708,pit:0},top:{yaw:.5,pit:1.45}}[b.dataset.v]));
+g.querySelector('.jl').onchange=e=>JL[task]=e.target.checked;
+g.querySelector('.pp').onclick=()=>{PLAY=!PLAY;document.querySelectorAll('.pp').forEach(x=>x.textContent=PLAY?'Пауза':'Пуск')};
+g.querySelector('[id^=sp]').addEventListener('input',e=>{SPD=+e.target.value;document.querySelectorAll('[id^=sp]').forEach(j=>{j.value=SPD;j.nextElementSibling.value=SPD})});
+if(!PLAY){g.querySelector('.pp').textContent='Пуск';g.querySelector('.cap').append(' Анімацію вимкнено налаштуваннями системи (зменшення руху) — натисніть «Пуск».')}}
+requestAnimationFrame(anim_);
+</script></main></body></html>
