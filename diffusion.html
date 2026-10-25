@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Дифузійна модель у браузері: навчальний симулятор</title>
+<style>
+:root{--bg:#f3f5f7;--fg:#14202b;--mut:#5b6b7a;--card:#fff;--line:#cfd8e0;--ac:#1f5f8b;--ok:#1b8a4b;--bad:#c0392b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10171d;--fg:#e4ebf1;--mut:#92a3b3;--card:#18222b;--line:#2c3a46;--ac:#6fb4e3;--ok:#4cc784;--bad:#ef7b6e}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 Georgia,"Times New Roman",serif}
+main{max-width:940px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.05rem;margin:0 0 6px}summary{cursor:pointer;font-weight:bold}
+p,li{color:var(--mut)}p{margin:0 0 10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button,select,input[type=number]{font:inherit;padding:6px 12px;border:1px solid var(--ac);background:var(--card);color:var(--fg);border-radius:4px;cursor:pointer}
+button.p{background:var(--ac);color:var(--bg)}button:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:14px;overflow-x:auto}
+.row{display:flex;flex-wrap:wrap;gap:16px}canvas{max-width:100%;image-rendering:pixelated}
+#dc{touch-action:none;border:1px solid var(--line);cursor:crosshair;image-rendering:auto}
+#st,#msg{font-variant-numeric:tabular-nums;color:var(--mut)}#v{color:var(--fg)}
+.arch rect{fill:var(--card);stroke:var(--ac);stroke-width:1.2}.arch text{fill:var(--fg);font:12px sans-serif}.arch .sm{font-size:11px;fill:var(--mut)}
+.arch .ln,.arch .sk{stroke:var(--mut);stroke-width:1.5;fill:none}.arch .sk{stroke-dasharray:5 4}.arch marker path{fill:var(--mut);stroke:none}
+mjx-container{color:var(--fg)}details h3{font-size:1rem;margin:16px 0 4px}details ul{margin:0 0 10px;padding-left:22px}
+</style>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</head><body><main>
+<h1>Дифузійна модель у браузері</h1>
+<p>Навчальний симулятор: справжня DDPM на CPU, без GPU і фреймворків. Мережа вчиться на зображеннях 24×24, а генерація йде з чистого шуму.</p>
+
+<details class="card" open><summary>1. Постановка задачі й архітектура</summary>
+<p><b>Задача.</b> Є вибірка зображень із невідомого розподілу p<sub>data</sub>. Треба навчити модель, яка з шуму породжує нові зображення з того самого розподілу.</p>
+<p><b>Експеримент.</b> Гіпотеза H₀: мережа «малює середнє арифметичне» вибірки. Гіпотеза H₁: мережа вивчила структуру. На зірках з довільним масштабом і кутом різниця перевіряється автоматично: для кожної картинки шукаємо найкращу зірку й найкращий еліпс (IoU). Зірка визнається, якщо IoU зі зіркою ≥ 0.75 і вона пасує щонайменше на 0.08 краще за еліпс. На власному датасеті оцінка лише візуальна.</p>
+<p><b>Другий бенчмарк: спіралі.</b> Спіралі (1.25–2 витка, обидві закрутки, різні фаза, крок витків і еліптичність) показовіші візуально: «усереднення» двох дзеркальних спіралей дало б концентричні кільця, а мережа має обрати одну закрутку. Автоматичного критерію «спіральності» поки немає: оцінка візуальна плюс перевірка на копіювання (найближчий навчальний зразок).</p>
+<p><b>Процес.</b> Прямий: поступово додаємо гаусів шум за 50 кроків. Зворотний: мережа за x<sub>t</sub> і номером кроку t передбачає чисту картинку x₀, з неї обчислюємо апостеріорне середнє й робимо крок назад (див. теорію).</p>
+<svg class="arch" viewBox="0 0 760 252" width="100%" role="img" aria-label="Схема U-Net"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs><text x="30" y="13">вхід: картинка x<tspan dy="3" font-size="9">t</tspan><tspan dy="-3"> і 4 канали з номером кроку t</tspan></text><line class="ln" x1="115" y1="19" x2="115" y2="34" marker-end="url(#ar)"/><rect x="30" y="34" width="170" height="44" rx="4"/><text x="115.0" y="53" text-anchor="middle">згортка 3×3</text><text class="sm" x="115.0" y="69" text-anchor="middle">24×24 · 5→8 каналів</text><rect x="390" y="34" width="170" height="44" rx="4"/><text x="475.0" y="53" text-anchor="middle">згортка 3×3</text><text class="sm" x="475.0" y="69" text-anchor="middle">24×24 · 12→8</text><rect x="600" y="34" width="110" height="44" rx="4"/><text x="655.0" y="53" text-anchor="middle">згортка 3×3</text><text class="sm" x="655.0" y="69" text-anchor="middle">24×24 · 8→1</text><rect x="30" y="110" width="170" height="44" rx="4"/><text x="115.0" y="129" text-anchor="middle">згортка 3×3</text><text class="sm" x="115.0" y="145" text-anchor="middle">12×12 · 8→12</text><rect x="390" y="110" width="170" height="44" rx="4"/><text x="475.0" y="129" text-anchor="middle">згортка 3×3</text><text class="sm" x="475.0" y="145" text-anchor="middle">12×12 · 16→12</text><rect x="30" y="186" width="170" height="44" rx="4"/><text x="115.0" y="205" text-anchor="middle">згортка 3×3</text><text class="sm" x="115.0" y="221" text-anchor="middle">6×6 · 12→16</text><rect x="390" y="186" width="170" height="44" rx="4"/><text x="475.0" y="205" text-anchor="middle">згортка 3×3, d=2</text><text class="sm" x="475.0" y="221" text-anchor="middle">6×6 · 16→16</text><line class="ln" x1="115" y1="78" x2="115" y2="108" marker-end="url(#ar)"/><text class="sm" x="124" y="98">↓ усереднення 2×2</text><line class="ln" x1="115" y1="154" x2="115" y2="184" marker-end="url(#ar)"/><text class="sm" x="124" y="174">↓ усереднення 2×2</text><line class="ln" x1="200" y1="208" x2="388" y2="208" marker-end="url(#ar)"/><text class="sm" x="295" y="202" text-anchor="middle">дно «U»</text><line class="ln" x1="475" y1="186" x2="475" y2="156" marker-end="url(#ar)"/><text class="sm" x="484" y="174">↑ повтор 2×2</text><line class="ln" x1="475" y1="110" x2="475" y2="80" marker-end="url(#ar)"/><text class="sm" x="484" y="98">↑ повтор 2×2</text><line class="sk" x1="200" y1="56" x2="388" y2="56" marker-end="url(#ar)"/><text class="sm" x="295" y="50" text-anchor="middle">skip: додавання</text><line class="sk" x1="200" y1="132" x2="388" y2="132" marker-end="url(#ar)"/><text class="sm" x="295" y="126" text-anchor="middle">skip: додавання</text><line class="ln" x1="560" y1="56" x2="598" y2="56" marker-end="url(#ar)"/><line class="ln" x1="710" y1="56" x2="738" y2="56" marker-end="url(#ar)"/><text x="742" y="60">x̂₀</text></svg>
+<p>Усі згортки 3×3 з ReLU (остання лінійна), ≈ 8 тис. параметрів. Розширення d=2 на дні збільшує рецептивне поле. Backprop і Adam написані вручну на JavaScript.</p></details>
+
+<div class="card"><div class="bar">
+<select id="mode" aria-label="Датасет"><option value="sr">Зірки: масштаб + поворот</option><option value="full">Зірки: зсув + масштаб + поворот (з обрізанням)</option><option value="fixed">Зірки: контроль (завжди однакова)</option><option value="spiral">Спіралі (обидві закрутки, 1.25–2 витка)</option><option value="custom">Свій датасет (малюю сам)</option></select>
+<button id="go" class="p">Навчати</button><button id="gen">Згенерувати зараз</button><button id="rst">Скинути мережу</button>
+<label>малювати кожні <select id="every"><option>100</option><option selected>300</option><option>1000</option></select> кроків</label><label>прикладів <select id="ns"><option>50</option><option>200</option><option selected>2000</option></select></label></div>
+<div class="bar"><button id="sv">Зберегти в браузер</button><button id="ld">Завантажити з браузера</button><button id="ex">Експорт у файл</button><button id="im">Імпорт із файлу</button><input id="fi" type="file" accept=".json" hidden><span id="msg"></span></div>
+<span id="st"></span></div>
+
+<div class="card" id="cust" hidden><h2>Свій датасет</h2>
+<p>Намалюйте білим на чорному один об’єкт (смайлик, кіт, хвиля), натисніть «Додати». Бажано 15–30 різних малюнків (для смайликів краще 60–120 (2–4 × «+30») і 8000+ кроків: повний поворот мережа майже не вчить). Навчання на такій вибірці майже напевно запам’ятовує її; аугментація (відбиття + зсув) трохи допомагає.</p>
+<div class="row"><div><canvas id="dc" width="192" height="192"></canvas>
+<div class="bar"><label>товщина <input id="br" type="range" min="5" max="26" value="14"></label></div>
+<div class="bar"><button id="ad" class="p">Додати</button><button id="cl">Очистити полотно</button></div></div>
+<div><canvas id="cc"></canvas><div class="bar"><button id="un">Видалити останній</button><button id="ca">Очистити датасет</button><label><input id="aug" type="checkbox" checked> аугментація</label></div><div class="bar">Додати 30 випадкових: <button data-k="smile">смайликів</button><button data-k="cat">котів</button><button data-k="wave">хвиль</button><button data-k="spiral">спіралей</button></div></div></div></div>
+
+<div class="card"><h2 id="ht">Навчальна вибірка</h2><p id="cut"></p><canvas id="cd"></canvas></div>
+<div class="card"><div class="row">
+<div><h2>Арифметичне середнє вибірки</h2><canvas id="cm"></canvas></div>
+<div><h2>Поточна генерація (розшумлення вживу)</h2><div class="bar"><button id="gen2" class="p">Згенерувати</button></div><canvas id="cg"></canvas></div><div><h2>Найближчий навчальний зразок</h2><p>ρ — кореляція з ним. Зелена рамка: не копія (ρ &lt; 0.99).</p><canvas id="cn"></canvas></div></div>
+<p id="v">Натисніть «Навчати».</p>
+<p>Тренування і генерація чергуються в одному потоці: зображення розшумлюється крок за кроком між кроками навчання, на знімку ваг, зробленому на початку генерації. Так інтерфейс не замерзає.</p></div>
+
+<details class="card"><summary>2. Теорія: як це працює, з нуля</summary>
+<p>Нижче ідеї пояснені простими словами, з формулами й числовими прикладами. Формули можна читати як «стислий запис» того, що вже сказано словами. Якщо щось незрозуміло, спершу дивіться на приклад із числами.</p>
+
+<h3>2.1. Що таке картинка для комп’ютера</h3>
+<p>Наша картинка має 24×24 = 576 клітинок (пікселів). У кожній клітинці одне число: −1 — чорний, +1 — білий, 0 — сірий. Тож усю картинку можна записати як список із 576 чисел. Цей список називають вектором і пишуть \(x\). Одна картинка — це одна «точка» в просторі з 576 вимірів. Уявити його неможливо, але рахувати можна так само, як рахуємо на площині.</p>
+
+<h3>2.2. Ідея в одному абзаці</h3>
+<p>Зіпсувати картинку легко: достатньо додати випадкове «сніжіння», як на старому телевізорі. Відновити важко. Тож зробимо так: візьмемо багато справжніх картинок, будемо їх псувати снігом різного ступеня і вчитимемо мережу <b>відновлювати</b>. Коли вона навчиться, дамо їй суцільний сніг і попросимо «відновити». Вона не знає, що там було, тому <b>домалює</b> щось правдоподібне. Так і народжується нова картинка. Це і є дифузійна модель.</p>
+
+<h3>2.3. Сніг (шум) і формула його додавання</h3>
+<p>Випадкове число «з гаусового розподілу» \(\mathcal N(0,1)\) — це число, яке найчастіше близьке до нуля (у 68% випадків між −1 і +1) і лише рідко далеке. Додаємо таке число окремо до кожної з 576 клітинок. Позначимо цей набір випадкових чисел \(\varepsilon\).</p>
+<p>Зашумлену картинку на кроці \(t\) (усього \(T=50\) кроків) беремо як суміш чистої картинки \(x_0\) і шуму \(\varepsilon\):
+\[x_t=\sqrt{\bar\alpha_t}\;x_0+\sqrt{1-\bar\alpha_t}\;\varepsilon .\]
+Перший доданок — те, що лишилось від картинки, другий — доданий сніг. Число \(\bar\alpha_t\) («альфа-бар») лежить між 0 і 1 і означає <b>частку картинки</b>: біля 1 картинка майже ціла, біля 0 майже самий сніг.</p>
+<p><b>Чому тут квадратні корені.</b> Бо «частка» стосується не висоти значень, а їхньої <i>потужності</i>, тобто дисперсії: міри того, наскільки сильно значення «гуляють» навколо середнього. Якщо помножити випадкову величину на число \(c\), її потужність множиться на \(c^2\), а не на \(c\). А для незалежних величин (картинка і шум не залежать одна від одної) потужності просто додаються. Ми хочемо, щоб потужність картинки в суміші становила частку \(\bar\alpha_t\), а потужність снігу — решту \(1-\bar\alpha_t\). Для цього множники мусять бути коренями цих часток:
+\[\operatorname{Var}(x_t)=\big(\sqrt{\bar\alpha_t}\big)^2\operatorname{Var}(x_0)+\big(\sqrt{1-\bar\alpha_t}\big)^2\operatorname{Var}(\varepsilon)=\bar\alpha_t\operatorname{Var}(x_0)+(1-\bar\alpha_t)\cdot1 .\]
+Якщо потужність картинки близька до потужності шуму (порядку 1), то й потужність суміші лишається порядку 1: загальна «яскравість» не вибухає й не згасає, змінюється лише склад суміші. (Наші картинки не ідеально такі, тож це наближення.)</p>
+<p>Є й геометричний погляд. Квадрати двох множників дають у сумі 1: \((\sqrt{\bar\alpha_t})^2+(\sqrt{1-\bar\alpha_t})^2=1\), як у теоремі Піфагора. Тому їх можна записати як косинус і синус одного кута \(\varphi_t\):
+\[\sqrt{\bar\alpha_t}=\cos\varphi_t,\qquad \sqrt{1-\bar\alpha_t}=\sin\varphi_t .\]
+Кут \(0^\circ\) — чиста картинка, кут \(90^\circ\) — чистий шум, а додавання шуму — це плавний поворот від першого до другого.</p>
+
+<h3>2.4. Косинусний розклад шуму</h3>
+<p>Лишилось домовитись, як змінювати кут \(\varphi_t\) від кроку до кроку, тобто як швидко «засмічувати» картинку. Ми повертаємо його рівномірно від \(0^\circ\) до \(90^\circ\). Формула, яка виглядає страшно, — це лише запис цього правила:
+\[\bar\alpha_t=\cos^2\varphi_t,\qquad \varphi_t=\frac{t/T+s}{1+s}\cdot\frac{\pi}{2}.\]
+Розберемо по шматках:</p>
+<ul><li>\(t/T\) — яку частку шляху пройдено: 0 на початку, 1 наприкінці;</li>
+<li>\(s=0.008\) — мале зміщення, щоб на самому початку шум не додавався надто крихітними порціями; це технічна дрібниця;</li>
+<li>\(\dfrac{t/T+s}{1+s}\) — те саме «від 0 до 1», трохи підправлене, щоб кінцеве значення лишилось рівно 1;</li>
+<li>\(\cdot\,\tfrac{\pi}{2}\) — переводить «від 0 до 1» у кут від 0 до \(\pi/2\) радіан, тобто від \(0^\circ\) до \(90^\circ\);</li>
+<li>\(\cos^2\) — косинус дає частку <i>амплітуди</i> картинки (див. вище), а \(\bar\alpha_t\) — частку <i>потужності</i>, тому береться квадрат.</li></ul>
+<p>Наслідок: на початку \(\bar\alpha\approx1\), посередині \(\approx0.5\) (порівну картинки й снігу), наприкінці \(0\). У коді ми ще ділимо на значення при \(t=0\), щоб початок був рівно 1.</p>
+<p>Навіщо саме косинус, а не пряма лінія? Це практичний вибір, а не закон природи. Якщо шум наростає надто швидко, остання частина кроків майже нічого не змінює (картинка вже «померла»), а перші кроки надто різкі. Косинусний розклад розподіляє руйнування рівномірніше. Для інших задач можна взяти інші розклади.</p>
+
+<h3>2.5. Чого вчиться мережа</h3>
+<p>Вхід мережі: зашумлена картинка \(x_t\) і номер кроку \(t\) (щоб вона знала, наскільки сильно зіпсовано). Вихід: її здогад про чисту картинку, \(\hat x_0\). Помилка — середній квадрат різниці по всіх пікселях:
+\[\mathcal L=\frac1{576}\sum_{i=1}^{576}\big(\hat x_{0,i}-x_{0,i}\big)^2 .\]
+Тобто промах кожного пікселя підносимо до квадрата (щоб знак не мав значення, а великі промахи каралися сильніше) і усереднюємо.</p>
+<p>Як вона вчиться. У мережі близько 8 тисяч чисел-«ручок» (ваг). Спочатку вони випадкові, і мережа вгадує погано. На кожному кроці навчання беремо кілька картинок, кожну псуємо на випадковому рівні \(t\), просимо відновити, рахуємо помилку і трохи повертаємо кожну ручку в той бік, де помилка зменшується. Це градієнтний спуск, у нас його варіант Adam. Повторюємо тисячі разів, як настроювання радіо, тільки ручок вісім тисяч.</p>
+
+<h3>2.6. Як з шуму виходить картинка</h3>
+<p>Починаємо з чистого снігу \(x_T\). На кожному кроці \(t\) від 50 до 1 мережа дає здогад \(\hat x_0\). Але ми не стрибаємо одразу до здогаду (на сильному шумі він розмитий). Ми робимо маленький крок: беремо зважену суміш здогаду й поточної картинки і <b>додаємо трохи свіжого шуму</b> \(z\):
+\[x_{t-1}=\underbrace{c_1\,\hat x_0+c_2\,x_t}_{\tilde\mu_t}+\sqrt{\tilde\beta_t}\;z,\qquad c_1=\frac{\sqrt{\bar\alpha_{t-1}}\,\beta_t}{1-\bar\alpha_t},\ \ c_2=\frac{\sqrt{\alpha_t}\,(1-\bar\alpha_{t-1})}{1-\bar\alpha_t},\ \ \tilde\beta_t=\beta_t\frac{1-\bar\alpha_{t-1}}{1-\bar\alpha_t}.\]
+Тут \(\alpha_t\) і \(\beta_t=1-\alpha_t\) — це «скільки шуму додається на одному кроці» (\(\bar\alpha_t\) — добуток усіх \(\alpha\) до кроку \(t\)). Ці коефіцієнти не вигадані: вони випливають із формули пункту 2.3, якби \(\hat x_0\) було точним. Здогад ще й обрізаємо до діапазону \([-1,1]\), бо пікселі не бувають чорнішими за чорний.</p>
+<p><b>Навіщо додавати шум, якщо ми його прибираємо?</b> Без нього всі запуски зійшлися б в одну й ту саму розмиту картинку. Свіжий шум змушує мережу «вирішити», яку саме зірку малювати: з таким кутом чи з таким, більшу чи меншу. Так з одного класу картинок виходить багато різних.</p>
+
+<h3>2.7. Чому спочатку виходить «середнє»</h3>
+<p>Найкращий здогад, який може дати мережа, — це середнє по всіх чистих картинках, які могли породити цей сніг, з вагою за правдоподібністю. У математиці це умовне сподівання:
+\[\hat x_0^{\text{ідеал}}=\mathbb E\,[\,x_0\mid x_t\,].\]
+<b>Приклад з одним пікселем.</b> Припустимо, у вибірці піксель завжди або \(-1\), або \(+1\), порівну. Нехай \(\bar\alpha_t=0.25\), і ми побачили \(x_t=0.05\). Обидва варіанти майже однаково можливі (шанс «+1» близько 52%), тож найкраща відповідь \(\approx 0.03\): тобто майже 0, сірий — «середнє». Якщо ж побачили \(x_t=1\), то «+1» значно ймовірніше (≈ 79%), і найкраща відповідь \(\approx +0.58\). Мережа не знає правди, вона обирає відповідь із найменшою очікуваною помилкою, а це середнє.</p>
+<p>Висновок для нашого експерименту: на початку генерації, коли шуму багато, мережа <b>мусить</b> видавати розмите «середнє», це не вада. Структура (промені, контур) з’являється пізніше, коли шуму вже мало і майже ясно, яка саме це зірка. Тому тезу «мережа малює лише середнє» перевіряємо не за проміжними кадрами, а за <b>кінцевою</b> картинкою.</p>
+
+<h3>2.8. Чому згортки допомагають</h3>
+<p>Фільтр 3×3 — це маленька «лупа» з дев’яти чисел-ваг. Вона ковзає по всій картинці, і в кожній позиції рахує зважену суму дев’яти сусідніх пікселів:
+\[(K*x)_{i,j}=\sum_{a=-1}^{1}\sum_{b=-1}^{1}K_{a,b}\;x_{i+a,\;j+b}.\]
+<b>Приклад.</b> Фільтр із вагами \(\tfrac19\) у всіх дев’яти клітинках просто усереднює околицю (розмиває). Фільтр з вагами \(-1\) зліва і \(+1\) справа реагує на межу «темне → світле». Мережа сама підбирає ваги, щоб фільтри реагували на корисні мотиви, наприклад на кінчик променя.</p>
+<p>Важливо: <b>ті самі дев’ять чисел застосовуються в усіх позиціях</b>. Якщо мережа навчилась упізнавати кінчик променя в одному місці, вона впізнає його всюди. Це зсувна еквіваріантність: якщо зсунути картинку, відповідь зсунеться так само. Звичайна мережа без згорток (MLP) мусила б вчити кожне місце окремо, і їй не вистачає прикладів. Поворотів згортка «не знає» ні так, ні інакше, їх мережа вчить із даних.</p>
+<p>Один шар бачить лише 3×3 пікселі. Два шари поспіль бачать 5×5, три — 7×7 і так далі: ділянка, яку бачить один піксель виходу, називається <b>рецептивним полем</b>. Щоб мережа охопила цілу зірку, ми:</p>
+<ul><li>зменшуємо картинку (усереднюємо по 2×2): з 24×24 до 12×12 і до 6×6, де кожна клітинка охоплює вже 4×4 вихідні пікселі («відійти від картини, щоб побачити цілу»);</li>
+<li>використовуємо «розширену» згортку з кроком 2 (вона бере клітинки через одну);</li>
+<li>додаємо skip-зв’язки: дрібні деталі з початку несемо навпростець до кінця, щоб не загубити при зменшенні.</li></ul>
+<p>Така схема називається U-Net, бо на малюнку нагадує букву U.</p>
+
+<h3>2.9. Як ми перевіряємо, що вийшла зірка</h3>
+<p>Беремо готову картинку, перетворюємо її на чорно-біле: піксель \(>0\) — біле. Потім шукаємо найкращу зірку (центр, розмір, кут) і найкращий еліпс. Міра збігу — IoU («перетин поділений на об’єднання»): скільки пікселів спільні для двох форм, поділено на скільки пікселів зайнято хоч в одній:
+\[\mathrm{IoU}(A,B)=\frac{|A\cap B|}{|A\cup B|}.\]
+<b>Приклад.</b> Картинка має 100 білих пікселів, шаблон зірки теж 100, спільних 80. Тоді об’єднання \(100+100-80=120\) і \(\mathrm{IoU}=80/120\approx0.67\). Ідеальний збіг дає 1, відсутність збігу дає 0.</p>
+<p>Чому ще й еліпс? Бо будь-яка пляма в центрі трохи збігається із зіркою. Тож зірка має пасувати <b>помітно краще</b> за еліпс (різниця IoU ≥ 0.08) і мати IoU ≥ 0.75, лише тоді ми кажемо «це зірка».</p>
+
+<h3>2.10. Запам’ятовування замість творчості</h3>
+<p>Хороша генеративна модель має створювати <i>нові</i> зразки з того самого розподілу. Погана просто відтворює навчальні. Це аналог «перенавчання»; у дифузійних моделей це зазвичай називають <b>запам’ятовуванням</b> (memorization). Воно особливо ймовірне, коли навчальних прикладів мало (десятки), а мережа велика відносно вибірки.</p>
+<p>Перевірка в нашому симуляторі: для кожної згенерованої картинки шукаємо найближчий навчальний зразок за кореляцією Пірсона:
+\[\rho(x,y)=\frac{\sum_i (x_i-\bar x)(y_i-\bar y)}{\sqrt{\sum_i (x_i-\bar x)^2}\;\sqrt{\sum_i (y_i-\bar y)^2}}\in[-1,1].\]
+\(\rho=1\) — картинки ідентичні з точністю до яскравості й контрасту, біля 0 — не пов’язані. Саме число без контексту мало що каже, бо навіть нові картинки одного типу схожі між собою (чорний фон збігається!). Тому є «шкала»: для кількох навчальних зразків ми рахуємо \(\rho\) з найближчим <i>іншим</i> навчальним зразком. Якщо у згенерованих \(\rho\) приблизно така сама, мережа створює нове того ж типу. Якщо майже 1 (від 0.99), вона копіює.</p>
+<p>Обмеження: кореляція не помічає копій, зсунутих чи віддзеркалених, а «нова» картинка може виявитися сумішшю кількох навчальних. Тому дивіться і очима.</p>
+
+<h3>2.11. Що цей експеримент доводить, а що ні</h3>
+<ul><li>Доводить: на цій задачі мала мережа вчиться відтворювати п’ятипроменеву форму, а не лише «середнє»; звичайна мережа без згорток (MLP) у наших спробах із цим не впоралась (але вона була й менша, і працювала з іншою роздільністю, тож це не суворе порівняння).</li>
+<li>Не доводить: що вона «розуміє» зірку так, як людина. «Розуміння» тут означає лише, що вона породжує зірки з різним масштабом і кутом, яких не було в вибірці в такій комбінації.</li>
+<li>Для спіралей автоматичного критерію «спіральності» немає: їх оцінюємо очима й перевіряємо лише на копіювання.</li><li>Усі результати отримані на одному прогоні й малій вибірці. Для сильніших висновків потрібно кілька запусків із різним випадковим зерном.</li></ul>
+
+<h3>2.12. Словничок</h3>
+<ul><li><b>Піксель</b> — клітинка картинки з одним числом.</li><li><b>Вектор</b> — список чисел.</li><li><b>Шум</b> — випадкові числа, які додаються до пікселів.</li><li><b>Вага</b> — число, яке мережа підбирає під час навчання.</li><li><b>Втрата (loss)</b> — міра помилки: що менше, то краще.</li><li><b>Крок навчання</b> — одне оновлення ваг на невеликій порції картинок.</li><li><b>Дифузія</b> — поступове додавання шуму; <b>зворотна дифузія</b> — поступове його прибирання мережею.</li></ul>
+</details>
+
+<script>
+const N=24,D=N*N,T=50,B=8,NS=2000,PI=Math.PI,CIN=5,TH=0.75,RI=0.3;
+const LS=[[5,8,1],[8,12,1],[12,16,1],[16,16,2],[16,12,1],[12,8,1],[8,1,1]];
+const gauss=()=>Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*PI*Math.random());
+const U=(a,b)=>a+(b-a)*Math.random();
+// ---- розклад шуму (косинусний)
+const ab=[],al=[];
+(()=>{const f=s=>Math.cos((s+.008)/1.008*PI/2)**2;for(let t=0;t<T;t++)ab.push(Math.max(f((t+1)/T)/f(0),1e-4));
+for(let t=0;t<T;t++)al.push(Math.max(ab[t]/(t?ab[t-1]:1),.001))})();
+// ---- геометрія: п’ятипроменева зірка (зовнішній радіус R, внутрішній RI·R) та еліпс
+const TAB=[];(()=>{const P0=[1,0],P1=[RI*Math.cos(PI/5),RI*Math.sin(PI/5)],d=[P1[0]-P0[0],P1[1]-P0[1]],n=[d[1],-d[0]],c=n[0]*P0[0]+n[1]*P0[1];
+for(let i=0;i<72;i++){let u=(i+.5)*PI/180;if(u>PI/5)u=2*PI/5-u;TAB.push(c/(n[0]*Math.cos(u)+n[1]*Math.sin(u)))}})();
+function ins(sh,p,dx,dy){if(sh){const c=Math.cos(p[4]),s=Math.sin(p[4]),u=(dx*c+dy*s)/p[2],v=(dy*c-dx*s)/p[3];return u*u+v*v<1}
+let u=((Math.atan2(dy,dx)-p[3])*180/PI)%72;if(u<0)u+=72;return Math.sqrt(dx*dx+dy*dy)<p[2]*TAB[u|0]}
+function render(cx,cy,R,th){const p=[cx,cy,R,th],x=new Float32Array(D);
+for(let y=0;y<N;y++)for(let i=0;i<N;i++){let c=0;for(let sy=0;sy<3;sy++)for(let sx=0;sx<3;sx++)c+=ins(0,p,i+(sx+.5)/3-cx,y+(sy+.5)/3-cy)?1:0;x[y*N+i]=2*c/9-1}return x}
+// ---- датасет
+let DS=[],cutFrac=0;
+function renderSpiral(){const k=U(1.25,2),sg=Math.random()<.5?1:-1,e=U(.85,1),psi=U(0,PI),th0=U(0,2*PI),rm=U(8,11),g=U(.8,1.25),w=U(.8,1.3),x=new Float32Array(D).fill(-1),cp=Math.cos(psi),sp=Math.sin(psi),M=Math.ceil(2*PI*k*rm*4);
+for(let m=0;m<=M;m++){const u=.04+.96*m/M,a=th0+sg*2*PI*k*u,r=rm*Math.pow(u,g),qx=r*Math.cos(a)*e,qy=r*Math.sin(a),px=qx*cp-qy*sp+N/2,py=qx*sp+qy*cp+N/2;
+for(let y=Math.max(0,Math.floor(py-w-1));y<=Math.min(N-1,Math.ceil(py+w+1));y++)for(let i=Math.max(0,Math.floor(px-w-1));i<=Math.min(N-1,Math.ceil(px+w+1));i++){const c=2*Math.max(0,Math.min(1,w+.5-Math.sqrt((i+.5-px)*(i+.5-px)+(y+.5-py)*(y+.5-py))))-1;if(c>x[y*N+i])x[y*N+i]=c}}return x}
+function makeDS(mode,n){n=n||NS;DS=[];let cut=0;
+for(let q=0;q<n;q++){if(mode=='spiral'){DS.push(renderSpiral());continue}
+const cx=mode=='full'?U(6,18):12,cy=mode=='full'?U(6,18):12,R=mode=='fixed'?9:U(5,mode=='full'?10:11),th=mode=='fixed'?-PI/2:U(0,2*PI);
+let out=false;for(let k=0;k<10;k+=2){const x=cx+R*Math.cos(th+k*PI/5),y=cy+R*Math.sin(th+k*PI/5);if(x<0||x>N||y<0||y>N)out=true}cut+=out;DS.push(render(cx,cy,R,th))}
+cutFrac=cut/n}
+// ---- перевірка запам’ятовування: найближчий навчальний зразок за кореляцією Пірсона
+function zs(v){let m=0;for(let i=0;i<D;i++)m+=v[i];m/=D;let s=0;const o=new Float32Array(D);for(let i=0;i<D;i++){o[i]=v[i]-m;s+=o[i]*o[i]}s=Math.sqrt(s)||1;for(let i=0;i<D;i++)o[i]/=s;return o}
+const dot=(a,b)=>{let c=0;for(let i=0;i<D;i++)c+=a[i]*b[i];return c};
+function nnStats(xs){const Z=DS.map(zs),res=xs.map(x=>{const a=zs(x);let b=-2,j=0;for(let n=0;n<Z.length;n++){const c=dot(a,Z[n]);if(c>b){b=c;j=n}}return{c:b,j}});
+let base=0;const K=Math.min(12,Z.length);if(Z.length>1){for(let n=0;n<K;n++){let b=-2;for(let m=0;m<Z.length;m++)if(m!=n){const c=dot(Z[n],Z[m]);if(c>b)b=c}base+=b/K}}return{res,base}}
+// ---- тест «зірка проти еліпса»
+const CS=[],CE=[];
+for(let cx=-4;cx<=28;cx+=4)for(let cy=-4;cy<=28;cy+=4){for(const R of[4,6,8,10,12])for(let k=0;k<8;k++)CS.push([cx,cy,R,k*9*PI/180]);
+for(const a of[3,5,7,9,11])for(const b of[3,5,7,9,11])if(b<=a)for(let k=0;k<3;k++)CE.push([cx,cy,a,b,k*PI/3])}
+let mcx=NaN,mcy=NaN;const AN=new Float32Array(D),RD=new Float32Array(D);
+function iou2(m,p,sh){let I=0,Un=0,A=0,c,sn;
+if(sh){c=Math.cos(p[4]);sn=Math.sin(p[4])}else if(p[0]!=mcx||p[1]!=mcy){mcx=p[0];mcy=p[1];for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=x+.5-mcx,dy=y+.5-mcy;AN[y*N+x]=Math.atan2(dy,dx);RD[y*N+x]=Math.hypot(dx,dy)}}
+for(let y=0;y<N;y++)for(let x=0;x<N;x++){const j=y*N+x;let s;
+if(sh){const dx=x+.5-p[0],dy=y+.5-p[1],u=(dx*c+dy*sn)/p[2],v=(dy*c-dx*sn)/p[3];s=u*u+v*v<1}
+else{let u=((AN[j]-p[3])*180/PI)%72;if(u<0)u+=72;s=RD[j]<p[2]*TAB[u|0]}
+const q=m[j];if(s){A++;if(q)I++}if(s||q)Un++}
+return A<.5*(sh?PI*p[2]*p[3]:5*RI*Math.sin(PI/5)*p[2]*p[2])?0:Un?I/Un:0}
+function fit2(m,sh){let b=0,p;for(const c of sh?CE:CS){const v=iou2(m,c,sh);if(v>b){b=v;p=c}}if(!p)return 0;
+for(let i=0;i<150;i++){const q=p.map((v,j)=>v+(j<2?1.5*gauss():sh&&j==4?.15*gauss():j==3&&!sh?.1*gauss():.9*gauss()));if(q[2]<2||(sh&&q[3]<2))continue;const v=iou2(m,q,sh);if(v>b){b=v;p=q}}return b}
+function test(x){const m=x.map(v=>v>0?1:0);let n=0;for(const v of m)n+=v;if(n<5)return{s:0,e:0,ok:false};const s=fit2(m,0),e=fit2(m,1);return{s,e,ok:s>=TH&&s-e>=.08}}
+// ---- U-Net: згортки 3×3, пониження/підвищення роздільності, адитивні skip-зв’язки; backprop вручну
+function cf(L,a,n,relu,skip){const{ci,co,d,W,b}=L,DD=n*n,y=new Float32Array(co*DD);
+for(let o=0;o<co;o++){const yo=o*DD;y.fill(b[o],yo,yo+DD);if(skip)for(let j=0;j<DD;j++)y[yo+j]+=skip[yo+j];
+for(let i=0;i<ci;i++){const ai=i*DD,wb=(o*ci+i)*9;
+for(let ky=0;ky<3;ky++){const dy=(ky-1)*d,y0=Math.max(0,-dy),y1=Math.min(n,n-dy);
+for(let kx=0;kx<3;kx++){const w=W[wb+ky*3+kx],dx=(kx-1)*d,x0=Math.max(0,-dx),x1=Math.min(n,n-dx);
+for(let yy=y0;yy<y1;yy++){const ro=yo+yy*n,ri=ai+(yy+dy)*n+dx;for(let xx=x0;xx<x1;xx++)y[ro+xx]+=w*a[ri+xx]}}}}
+if(relu)for(let j=yo;j<yo+DD;j++)if(y[j]<0)y[j]=0}
+return y}
+function cb(L,a,g,n){const{ci,co,d,W,gW,gb}=L,DD=n*n,ga=new Float32Array(ci*DD);
+for(let o=0;o<co;o++){const go=o*DD;let s=0;for(let j=0;j<DD;j++)s+=g[go+j];gb[o]+=s;
+for(let i=0;i<ci;i++){const ai=i*DD,wb=(o*ci+i)*9;
+for(let ky=0;ky<3;ky++){const dy=(ky-1)*d,y0=Math.max(0,-dy),y1=Math.min(n,n-dy);
+for(let kx=0;kx<3;kx++){const w=W[wb+ky*3+kx],dx=(kx-1)*d,x0=Math.max(0,-dx),x1=Math.min(n,n-dx);let sum=0;
+for(let yy=y0;yy<y1;yy++){const ro=go+yy*n,ri=ai+(yy+dy)*n+dx;for(let xx=x0;xx<x1;xx++){const gv=g[ro+xx];sum+=gv*a[ri+xx];ga[ri+xx]+=w*gv}}
+gW[wb+ky*3+kx]+=sum}}}}
+return ga}
+function down(a,c,n,s){const m=n>>1,o=new Float32Array(c*m*m);for(let h=0;h<c;h++)for(let y=0;y<m;y++)for(let x=0;x<m;x++){const i=h*n*n+2*y*n+2*x;o[h*m*m+y*m+x]=s*(a[i]+a[i+1]+a[i+n]+a[i+n+1])}return o}
+function rep(g,c,m,s){const n=2*m,o=new Float32Array(c*n*n);for(let h=0;h<c;h++)for(let y=0;y<n;y++)for(let x=0;x<n;x++)o[h*n*n+y*n+x]=s*g[h*m*m+(y>>1)*m+(x>>1)];return o}
+const mk=(g,a)=>{for(let j=0;j<g.length;j++)if(a[j]<=0)g[j]=0;return g};
+let P=[],step=0,lossEMA=0,adamK=0;
+function init(){P=[];const z=n=>new Float32Array(n);
+LS.forEach(([ci,co,d],l)=>{const s=Math.sqrt(2/(ci*9))*(l==6?.3:1),n=co*ci*9;
+P.push({ci,co,d,W:new Float32Array(n).map(()=>gauss()*s),b:z(co),gW:z(n),gb:z(co),mW:z(n),vW:z(n),mb:z(co),vb:z(co)})});
+step=0;adamK=0;lossEMA=0}
+function inp(x,t){const v=new Float32Array(CIN*D),tt=t/T;v.set(x);
+[tt,Math.sin(PI*tt),Math.cos(PI*tt),Math.sin(2*PI*tt)].forEach((c,k)=>v.fill(c,(k+1)*D,(k+2)*D));return v}
+function fwd(v){const S={v};S.e1=cf(P[0],v,N,1);S.p1=down(S.e1,8,N,.25);S.e2=cf(P[1],S.p1,N/2,1);S.p2=down(S.e2,12,N/2,.25);
+S.m1=cf(P[2],S.p2,N/4,1);S.m2=cf(P[3],S.m1,N/4,1);S.u2=rep(S.m2,16,N/4,1);S.d2=cf(P[4],S.u2,N/2,1,S.e2);
+S.u1=rep(S.d2,12,N/2,1);S.d1=cf(P[5],S.u1,N,1,S.e1);S.o=cf(P[6],S.d1,N,0);return S}
+function bwd(S,go){const h=N/2,q=N/4;let g=mk(cb(P[6],S.d1,go,N),S.d1);const z1=g;
+g=mk(down(cb(P[5],S.u1,z1,N),12,N,1),S.d2);const z2=g;
+g=mk(down(cb(P[4],S.u2,z2,h),16,h,1),S.m2);g=mk(cb(P[3],S.m1,g,q),S.m1);g=cb(P[2],S.p2,g,q);
+let ge=rep(g,12,q,.25);for(let j=0;j<ge.length;j++)ge[j]+=z2[j];mk(ge,S.e2);
+g=cb(P[1],S.p1,ge,h);ge=rep(g,8,h,.25);for(let j=0;j<ge.length;j++)ge[j]+=z1[j];mk(ge,S.e1);cb(P[0],S.v,ge,N)}
+function trainStep(){for(const p of P){p.gW.fill(0);p.gb.fill(0)}let L=0;
+for(let n=0;n<B;n++){const x0=pick(),t=Math.random()*T|0,sa=Math.sqrt(ab[t]),sb=Math.sqrt(1-ab[t]),xt=new Float32Array(D);
+for(let i=0;i<D;i++)xt[i]=sa*x0[i]+sb*gauss();
+const A=fwd(inp(xt,t)),o=A.o,g=new Float32Array(D);for(let i=0;i<D;i++){const d=o[i]-x0[i];L+=d*d;g[i]=2*d/(D*B)}bwd(A,g)}
+adamK++;const c1=1-.9**adamK,c2=1-.999**adamK,lr=2e-3;
+for(const p of P)for(const[w,g,m,v]of[['W','gW','mW','vW'],['b','gb','mb','vb']]){const W=p[w],G=p[g],M=p[m],V=p[v];
+for(let j=0;j<W.length;j++){M[j]=.9*M[j]+.1*G[j];V[j]=.999*V[j]+.001*G[j]*G[j];W[j]-=lr*(M[j]/c1)/(Math.sqrt(V[j]/c2)+1e-8)}}
+step++;L/=B*D;lossEMA=lossEMA?.98*lossEMA+.02*L:L}
+// ---- зворотний процес DDPM (мережа передбачає x₀, апостеріорне середнє)
+function stepX(x,t){const o=fwd(inp(x,t)).o,a=al[t],b=1-a,p=t?ab[t-1]:1,k0=Math.sqrt(p)*b/(1-ab[t]),k1=Math.sqrt(a)*(1-p)/(1-ab[t]),s=Math.sqrt(b*(1-p)/(1-ab[t]));
+for(let i=0;i<D;i++){const x0=Math.max(-1,Math.min(1,o[i]));x[i]=k0*x0+k1*x[i]+(t?s*gauss():0)}}
+function sample(){const x=new Float32Array(D).map(gauss);for(let t=T-1;t>=0;t--)stepX(x,t);return x}
+// ---- аугментація (для малого власного датасету): відбиття + зсув ±2 px
+let AUG=false;
+function pick(){const x=DS[Math.random()*DS.length|0];if(!AUG)return x;const fl=Math.random()<.5,sx=Math.round(U(-2,2)),sy=Math.round(U(-2,2)),o=new Float32Array(D).fill(-1);
+for(let y=0;y<N;y++)for(let i=0;i<N;i++){const yy=y-sy,xx=(fl?N-1-i:i)-sx;if(yy>=0&&yy<N&&xx>=0&&xx<N)o[y*N+i]=x[yy*N+xx]}return o}
+// ---- знімок ваг для генерації та збереження/завантаження моделі
+function snap(){return P.map(p=>({ci:p.ci,co:p.co,d:p.d,W:p.W.slice(),b:p.b.slice()}))}
+function withP(Q,f){const O=P;P=Q;try{return f()}finally{P=O}}
+const f2b=a=>{let s='';const u=new Uint8Array(a.buffer,a.byteOffset,a.byteLength);for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
+const b2f=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
+function exportModel(mode,custom){return JSON.stringify({v:1,N,LS,step,adamK,mode,P:P.map(p=>({W:f2b(p.W),b:f2b(p.b),mW:f2b(p.mW),vW:f2b(p.vW),mb:f2b(p.mb),vb:f2b(p.vb)})),custom:custom.map(f2b)})}
+function importModel(s){const o=JSON.parse(s);if(o.v!=1||o.N!=N||JSON.stringify(o.LS)!=JSON.stringify(LS))throw new Error('несумісна архітектура');init();o.P.forEach((q,l)=>{for(const k in q)P[l][k].set(b2f(q[k]))});step=o.step;adamK=o.adamK;return o}
+
+const $=id=>document.getElementById(id);
+const tmp=document.createElement('canvas');tmp.width=tmp.height=N;const tx=tmp.getContext('2d');
+function draw(cv,imgs,cols,sc,marks,norm){const rows=Math.max(1,Math.ceil(imgs.length/cols)),w=N*sc+3;cv.width=cols*w;cv.height=rows*w;const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
+imgs.forEach((x,n)=>{let lo=-1,hi=1;if(norm){lo=Math.min(...x);hi=Math.max(...x)}const id=tx.createImageData(N,N);
+for(let i=0;i<D;i++){const g=Math.max(0,Math.min(255,255*(x[i]-lo)/(hi-lo||1)));id.data.set([g,g,g,255],4*i)}
+tx.putImageData(id,0,0);const X=(n%cols)*w,Y=Math.floor(n/cols)*w;c.drawImage(tmp,X,Y,N*sc,N*sc);
+if(marks&&marks[n]){const r=marks[n];c.strokeStyle=r.ok?'#2ecc71':'#e74c3c';c.lineWidth=2;c.strokeRect(X+1,Y+1,N*sc-2,N*sc-2);c.fillStyle='#ff0';c.font='11px sans-serif';c.fillText(r.txt,X+4,Y+N*sc-5)}})}
+const tick=()=>new Promise(r=>setTimeout(r));
+const mode=()=>$('mode').value,msg=t=>{$('msg').textContent=t};
+let custom=[],ref=0,meanScore={ok:false},run=false,gen=null,nextGen=0;
+// ---- датасет
+const visual=()=>mode()=='custom'||mode()=='spiral';
+function buildData(){const m=mode();$('cust').hidden=m!='custom';$('ns').parentElement.hidden=m=='custom';AUG=m=='custom'&&$('aug').checked;
+if(m=='custom'){DS=custom;$('cut').textContent='Власних малюнків: '+custom.length+(custom.length<3?' (потрібно щонайменше 3).':'.')}
+else{makeDS(m,+$('ns').value);$('cut').textContent=(m=='spiral'?'Спіралі: обидві закрутки, 1.25–2 витка, різні фаза, крок і еліптичність.':'Зірок, що не вміщуються на канвас повністю: '+(100*cutFrac).toFixed(0)+'%.')+' Прикладів: '+DS.length+'.'}
+draw($('cd'),DS.slice(0,32),8,4,null);if(m=='custom')draw($('cc'),custom,10,3,null);meanImg();
+ref=0;meanScore={ok:false};if(!visual()){ref=DS.slice(0,12).map(test).filter(r=>r.ok).length;meanScore=test(meanOf())}}
+function meanOf(){const m=new Float32Array(D);for(const x of DS)for(let i=0;i<D;i++)m[i]+=x[i]/DS.length;return m}
+function meanImg(){if(DS.length)draw($('cm'),[meanOf()],1,8,null,true);else $('cm').width=1}
+function reset(){run=false;gen=null;$('go').textContent='Навчати';buildData();init();nextGen=+$('every').value;$('st').textContent='';$('cg').width=1;$('v').textContent='Натисніть «Навчати».'}
+// ---- генерація вживу
+function startGen(){if(gen||(mode()=='custom'&&custom.length<3))return;gen={Q:snap(),xs:Array.from({length:8},()=>new Float32Array(D).map(gauss)),t:T-1,tr:step}}
+function genTick(){if(!gen)return;withP(gen.Q,()=>gen.xs.forEach(x=>stepX(x,gen.t)));gen.t--;draw($('cg'),gen.xs,4,6,null);
+if(gen.t<0){const xs=gen.xs,s=gen.tr;gen=null;finish(xs,s)}}
+async function finish(xs,s){let sc=null;if(!visual()){sc=[];for(const x of xs){sc.push(test(x));await tick()}}
+const nr=nnStats(xs),avg=nr.res.reduce((a,r)=>a+r.c,0)/xs.length;
+if(sc)draw($('cg'),xs,4,6,sc.map(r=>({ok:r.ok,txt:r.s.toFixed(2)+' / '+r.e.toFixed(2)})));
+draw($('cn'),nr.res.map(r=>DS[r.j]),4,6,nr.res.map(r=>({ok:r.c<.99,txt:'ρ='+r.c.toFixed(3)})));
+let h='Знімок на кроці '+s+'. ';
+if(sc){const ok=sc.filter(r=>r.ok).length;h+='Зірка знайдена <b style="color:var('+(ok>=4?'--ok':'--bad')+')">'+ok+' з 8</b>. Калібрування: справжні зірки проходять той самий тест '+ref+' з 12, арифметичне середнє '+(meanScore.ok?'проходить':'не проходить')+'.'}
+else h+=mode()=='spiral'?'Для спіралей автоматичного критерію немає: оцінюйте очима (є закрутка? одна хіральність? чи кільця/«галактики»?).':'Оцінка лише візуальна: чи схожі картинки на ваші, але не копії? Чи є розмита «середня» пляма?';
+h+='<br>Копіювання: середня ρ до найближчого навчального зразка '+avg.toFixed(3)+'; для самих навчальних зразків (кожен проти решти) ≈ '+nr.base.toFixed(3)+'. Якщо перше помітно більше за друге і близьке до 1, мережа запам’ятовує.';
+$('v').innerHTML=h}
+function loop(){if(!run)return;const t0=performance.now();while(performance.now()-t0<50)trainStep();
+if(!gen&&step>=nextGen){startGen();nextGen=step+ +$('every').value}genTick();
+$('st').textContent='крок '+step+', втрата '+lossEMA.toFixed(4)+(gen?', генерація t='+gen.t:'');setTimeout(loop,0)}
+async function pump(){while(gen&&!run){genTick();await tick()}}
+$('go').onclick=()=>{if(mode()=='custom'&&custom.length<3){msg('Спочатку додайте щонайменше 3 малюнки.');return}run=!run;$('go').textContent=run?'Пауза':'Навчати';if(run)loop();else pump()};
+$('gen').onclick=$('gen2').onclick=()=>{startGen();if(!run)pump()};
+$('rst').onclick=reset;$('mode').onchange=$('ns').onchange=reset;$('aug').onchange=()=>{AUG=mode()=='custom'&&$('aug').checked};
+// ---- збереження / завантаження
+const KEY='diffstar_model_v1';
+function load(s){const o=JSON.parse(s);run=false;gen=null;$('go').textContent='Навчати';$('mode').value=o.mode;custom=(o.custom||[]).map(b2f);buildData();importModel(s);nextGen=step+ +$('every').value;
+$('st').textContent='крок '+step;msg('Модель завантажено (крок '+step+').');$('v').textContent='Натисніть «Згенерувати зараз» або «Навчати».'}
+$('sv').onclick=()=>{try{localStorage.setItem(KEY,exportModel(mode(),custom));msg('Збережено в браузері (крок '+step+').')}catch(e){msg('Не вдалося зберегти: '+e.message)}};
+$('ld').onclick=()=>{try{const s=localStorage.getItem(KEY);if(!s)return msg('У браузері немає збереженої моделі.');load(s)}catch(e){msg('Помилка: '+e.message)}};
+$('ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([exportModel(mode(),custom)],{type:'application/json'}));a.download='diffusion_model_step'+step+'.json';a.click();msg('Файл експортовано (якщо сторінка відкрита локально; у вбудованому перегляді завантаження можуть бути заблоковані).')};
+$('im').onclick=()=>$('fi').click();
+$('fi').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{load(r.result)}catch(x){msg('Помилка імпорту: '+x.message)}};r.readAsText(f);e.target.value=''};
+// ---- полотно для власного датасету
+const dc=$('dc'),dx=dc.getContext('2d',{willReadFrequently:true});let pen=false,lx=0,ly=0;
+function clr(){dx.fillStyle='#000';dx.fillRect(0,0,192,192)}clr();
+const pos=e=>{const r=dc.getBoundingClientRect();return[(e.clientX-r.left)*192/r.width,(e.clientY-r.top)*192/r.height]};
+dc.onpointerdown=e=>{pen=true;dc.setPointerCapture(e.pointerId);[lx,ly]=pos(e);seg(lx,ly)};
+dc.onpointermove=e=>{if(!pen)return;const[x,y]=pos(e);seg(x,y)};dc.onpointerup=dc.onpointercancel=()=>{pen=false};
+function seg(x,y){dx.strokeStyle='#fff';dx.lineCap=dx.lineJoin='round';dx.lineWidth=+$('br').value;dx.beginPath();dx.moveTo(lx,ly);dx.lineTo(x+.01,y);dx.stroke();lx=x;ly=y}
+$('cl').onclick=clr;
+function addCanvas(){const d=dx.getImageData(0,0,192,192).data,k=192/N,o=new Float32Array(D);let s=0;
+for(let y=0;y<N;y++)for(let x=0;x<N;x++){let a=0;for(let j=0;j<k;j++)for(let i=0;i<k;i++)a+=d[4*((y*k+j)*192+x*k+i)];o[y*N+x]=2*a/(k*k*255)-1;s+=o[y*N+x]>0}
+if(s<8)return false;custom.push(o);return true}
+function refreshCustom(){draw($('cc'),custom,10,3,null);$('cut').textContent='Власних малюнків: '+custom.length+'.';if(mode()=='custom'){draw($('cd'),DS.slice(0,32),8,4,null);meanImg()}}
+$('ad').onclick=()=>{if(!addCanvas()){msg('Полотно майже порожнє.');return}clr();msg('');refreshCustom()};
+$('un').onclick=()=>{custom.pop();refreshCustom()};$('ca').onclick=()=>{custom.length=0;refreshCustom()};
+// ---- автомалювання (випадкові варіації)
+const rnd=(a,b)=>a+(b-a)*Math.random();
+function setPen(w){dx.strokeStyle=dx.fillStyle='#fff';dx.lineWidth=w;dx.lineCap=dx.lineJoin='round'}
+const SH={
+smile(){setPen(rnd(10,14));const r=rnd(50,74),sd=Math.min(16,88-r);dx.translate(rnd(-sd,sd),rnd(-sd,sd));
+const ps=rnd(0,PI);dx.rotate(ps);dx.scale(rnd(.75,1),1);dx.rotate(-ps);
+dx.beginPath();dx.arc(0,0,r,0,7);dx.stroke();
+const sp=rnd(.3,.4),ey=rnd(-.3,-.2),er=rnd(7,9);
+for(const s of[-1,1]){dx.beginPath();dx.arc(s*r*sp,ey*r,er,0,7);dx.fill()}
+const c=rnd(.45,.85);dx.beginPath();dx.arc(0,r*rnd(0,.1),r*.55,PI*(.5-c/2),PI*(.5+c/2));dx.stroke()},
+cat(){setPen(rnd(8,11));const rx=rnd(50,66),ry=rnd(44,58);dx.beginPath();dx.ellipse(0,10,rx,ry,0,0,7);dx.stroke();
+for(const s of[-1,1]){dx.beginPath();dx.moveTo(s*rx*.9,10-ry*.35);dx.lineTo(s*rx*.75,10-ry*1.3);dx.lineTo(s*rx*.2,10-ry*.9);dx.stroke();dx.beginPath();dx.arc(s*rx*.4,10-ry*.1,rnd(6,8),0,7);dx.fill()}
+dx.beginPath();dx.moveTo(-8,10+ry*.2);dx.lineTo(8,10+ry*.2);dx.lineTo(0,10+ry*.2+rnd(10,14));dx.closePath();dx.fill()},
+wave(){setPen(rnd(12,17));const A=rnd(14,36),f=rnd(1,3),ph=rnd(0,7),n=Math.random()<.4?2:1,gap=rnd(40,60);
+for(let k=0;k<n;k++){dx.beginPath();for(let x=-85;x<=85;x+=3){const y=A*Math.sin(f*PI*x/85+ph)+(k-(n-1)/2)*gap;x==-85?dx.moveTo(x,y):dx.lineTo(x,y)}dx.stroke()}},
+spiral(){setPen(rnd(6,9));const k=rnd(1.25,2),s=Math.random()<.5?1:-1,e=rnd(.85,1),th0=rnd(0,7),rm=rnd(62,84),g=rnd(.8,1.25);dx.rotate(rnd(0,PI));dx.scale(e,1);dx.beginPath();
+for(let m=0;m<=240;m++){const t=.04+.96*m/240,a=th0+s*2*PI*k*t,r=rm*t**g;m?dx.lineTo(r*Math.cos(a),r*Math.sin(a)):dx.moveTo(r*Math.cos(a),r*Math.sin(a))}dx.stroke()}};
+const KN={smile:'смайликів',cat:'котів',wave:'хвиль',spiral:'спіралей'};
+async function autoDraw(k,n){msg('Малюю '+n+'…');let c=0;
+for(let i=0;i<n;i++){clr();dx.save();const sh=k=='smile'?0:8;dx.translate(96+rnd(-sh,sh),96+rnd(-sh,sh));if(k!='spiral')dx.rotate(rnd(-1,1)*(k=='wave'?.4:k=='smile'?.65:.25));SH[k]();dx.restore();if(addCanvas())c++;if(i%3==2)await tick()}
+clr();refreshCustom();msg('Додано '+c+' '+KN[k]+'. Усього малюнків: '+custom.length+'.')}
+document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>autoDraw(b.dataset.k,30));
+reset();
+</script></main></body></html>
