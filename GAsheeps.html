@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Генетичний алгоритм: вівці, пагорби й потоп</title>
+<style>
+:root{--bg:#f4f7fb;--panel:rgba(255,255,255,.93);--ink:#1d2733;--mut:#5b6b7c;--line:#cfd8e3;--acc:#2f6fb5}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+canvas#c{position:fixed;inset:0;display:block;touch-action:none}
+#hud{position:fixed;left:12px;top:calc(12px + env(safe-area-inset-top,0px));width:300px;max-width:calc(100vw - 24px);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+#hud h1{font-size:15px;margin:0 0 8px;font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+#hud{max-height:calc(100vh - 24px - env(safe-area-inset-top,0px));overflow:auto}
+#hud>summary{cursor:pointer;font-weight:600;user-select:none}#hud[open]>summary{margin-bottom:8px}
+.sp{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}.sp summary{cursor:pointer;font-weight:600;user-select:none}
+.sbody{max-height:42vh;overflow:auto;padding:4px 4px 0 0;font-size:13px}.sp .row{grid-template-columns:1fr 100px 38px;gap:6px;margin:5px 0}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:5px;padding:5px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}button.pri:hover:not(:disabled){color:#fff;filter:brightness(1.1)}
+#phase{min-height:40px;color:var(--mut);font-style:italic;margin:4px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:13px}td{padding:2px 0}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+#chart{width:100%;height:86px;border:1px solid var(--line);border-radius:4px;background:#fff;margin-top:6px}
+.leg{font-size:12px;color:var(--mut);margin-top:4px}.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+#hint{position:fixed;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--mut);background:var(--panel);padding:4px 8px;border-radius:5px}
+.ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:none;align-items:center;justify-content:center;z-index:10;padding:12px}
+.ov.on{display:flex}
+.md{background:#fff;border-radius:8px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:20px 24px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.md h2{margin:0 0 12px;font-size:18px}
+.row{display:grid;grid-template-columns:1fr 150px 50px;gap:8px;align-items:center;margin:7px 0}
+.row output{text-align:right;font-variant-numeric:tabular-nums}
+select{font:inherit;padding:4px;max-width:100%}
+#theory{font-family:Georgia,"Times New Roman",serif;font-size:15px;line-height:1.55}
+#theory h3{font-size:16px;margin:16px 0 4px}#theory p{margin:6px 0}
+#theory .f{margin:6px 0 6px 18px;font-style:italic}
+#theory ol{padding-left:20px;margin:4px 0}
+#theory mjx-container[display="true"]{margin:.6em 0!important;overflow-x:auto;overflow-y:hidden}
+</style>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'},options:{enableMenu:false}};</script>
+</head><body>
+<canvas id="c"></canvas>
+<details id="hud"><summary>Панель керування</summary>
+<h1>ГА-симулятор: «Вівці проти потопу»</h1>
+<div class="btns">
+<button class="pri" id="bStep">Наступна доба</button><button id="bAuto">Авто</button><button id="bReset">Скинути</button>
+<button id="bSet">Налаштування</button><button id="bTh">Теорія</button></div>
+<div id="phase">Вівці мирно пасуться. Хтось із них ще не знає, що це ненадовго.</div>
+<table>
+<tr><td>Покоління</td><td id="sGen">0</td></tr>
+<tr><td>Середня висота</td><td id="sMean">–</td></tr>
+<tr><td>Найвища вівця / вершина</td><td id="sBest">–</td></tr>
+<tr><td>Частка стада на вершині</td><td id="sShare">–</td></tr></table>
+<canvas id="chart" width="560" height="172"></canvas>
+<div class="leg"><i style="background:#2f6fb5"></i>середня висота / h<sub>max</sub> &nbsp; <i style="background:#2e8b57"></i>частка на вершині</div>
+<div class="leg">Біла вівця — звичайна; чорна — мутант (іде в довільному напрямку). Синя/помаранчева лінія — перший/другий батько нащадка.</div>
+<div class="leg">Обертання: тягнути мишею · масштаб: коліщатко.</div>
+</details>
+
+<details id="mSet" class="sp"><summary>Налаштування</summary><div class="sbody"><div id="cfg"></div>
+<div class="row"><span>Оператор кросоверу</span><select id="cx" style="grid-column:2/4">
+<option value="arith">Арифметичний (проміжна точка)</option><option value="uniform">Рівномірний (координати від різних батьків)</option>
+<option value="onept">Одноточковий (x від A, z від B)</option><option value="blx">BLX-α (розширений інтервал)</option><option value="none">Без кросоверу (клонування)</option></select></div>
+<div class="row"><span>Елітизм: виживші лишаються в стаді</span><input type="checkbox" id="elit" checked style="justify-self:start"></div>
+<div class="row"><span>Ландшафт: плавний хребет (майже пласка долина-гребінь)</span><input type="checkbox" id="ridge" style="justify-self:start"></div>
+<div class="row"><span>Ландшафт: дві однакові вершини</span><input type="checkbox" id="twin" style="justify-self:start"></div>
+<p style="color:#5b6b7c;font-size:12px">Параметри застосовуються одразу, крім розміру стада, кількості пагорбів, зерна та чекбоксів ландшафту (хребет, дві вершини) — їх підхопить кнопка нижче.</p>
+<div class="btns"><button class="pri" id="bApply">Застосувати й перезапустити</button><button id="bClose1">Згорнути</button></div></div></details>
+
+<details id="mTh" class="sp"><summary>Теоретичний блок</summary><div class="sbody" style="max-height:55vh"><div id="theory"></div>
+<div class="btns" style="margin-top:12px"><button id="bClose2">Згорнути</button></div></div></details>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ===== CORE =====
+const S={N:40,surv:50,cx:'arith',alpha:0.25,pm:15,step:8,elit:true,target:90,radius:1.5,hills:7,seed:7,speed:1,inb:0,ridge:false,twin:false,swim:10};
+const R=Math.random,BND=26;
+const clamp=v=>Math.max(-BND,Math.min(BND,v));
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let hills=[],peaks=[],peak={x:0,z:0,h:1};
+function hv(q,x,z){const dx=x-q.x,dz=z-q.z,c=Math.cos(q.r||0),sn=Math.sin(q.r||0),u=dx*c+dz*sn,v=-dx*sn+dz*c,t=q.t||q.s;return q.h*Math.exp(-Math.pow(u*u/(2*q.s*q.s)+v*v/(2*t*t),q.p||1))}
+function H(x,z){let h=0;for(const q of hills)h+=hv(q,x,z);return h}
+function climb(p){let b={x:p.x,z:p.z,h:H(p.x,p.z)},st=.5;for(let i=0;i<90;i++){let n=b;for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){const x=b.x+dx*st,z=b.z+dz*st,h=H(x,z);if(h>n.h)n={x,z,h}}if(n===b)st/=2;else b=n}return b}
+function genLand(){const r=rng(S.seed*9973+1),U=(a,b)=>a+(b-a)*r();hills=[];const ridge=S.ridge,mains=[];
+ const mk=(x,z)=>ridge?{x,z,h:1.6,s:4.5}:{x,z,h:9,s:5};let A,B=null;
+ if(S.twin){if(ridge){const c={x:U(-5,5),z:U(-5,5)},a=r()*6.283;A=mk(c.x+Math.cos(a)*16,c.z+Math.sin(a)*16);B=mk(c.x-Math.cos(a)*16,c.z-Math.sin(a)*16)}
+  else{A=mk(U(-20,20),U(-20,20));let t=0;do{B=mk(U(-22,22),U(-22,22))}while(Math.hypot(A.x-B.x,A.z-B.z)<24&&t++<500)}}
+ else{A=mk(U(-16,16),U(-16,16));if(ridge){let ang=Math.atan2(-A.z,-A.x);if(Math.hypot(A.x,A.z)<6)ang=r()*6.283;B={x:clamp(A.x+Math.cos(ang)*34),z:clamp(A.z+Math.sin(ang)*34),end:true}}}
+ hills.push(A);mains.push(A);if(B&&!B.end){hills.push(B);mains.push(B)}
+ const ds=q=>{const dx=B.x-A.x,dz=B.z-A.z,u=Math.max(0,Math.min(1,((q.x-A.x)*dx+(q.z-A.z)*dz)/(dx*dx+dz*dz)));return Math.hypot(q.x-A.x-dx*u,q.z-A.z-dz*u)};
+ const hmax=ridge?4.5:7,hmin=ridge?2:3;let n=0,t=0;
+ while(n<S.hills&&t++<2500){const k=r(),c={x:U(-25,25),z:U(-25,25),h:U(hmin,hmax)};
+  if(k<.4)c.s=U(3,4.8);else if(k<.7){c.s=U(2.2,3.2);c.t=U(5,8);c.r=r()*3.1416}else if(k<.9){c.s=U(3.5,4.5);c.p=2}else{c.s=U(1.6,2.2);c.h=U(hmin+1,hmax)}
+  if(hills.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>(mains.includes(q)?14:9))&&(!ridge||ds(c)>10)){hills.push(c);n++}}
+ if(ridge){const L=Math.hypot(B.x-A.x,B.z-A.z),m=Math.max(8,Math.round(L/1.5)),d=L/m,sg=3.5,kk=d/(sg*2.5066),nx=-(B.z-A.z)/L,nz=(B.x-A.x)/L,cv=r()<.5?4:-4;
+  for(let i=0;i<=m;i++){const u=i/m,w=S.twin?Math.min(u,1-u)*2:u,crest=3+2.2*(1-w),b=Math.sin(u*Math.PI)*cv;hills.push({x:A.x+(B.x-A.x)*u+nx*b,z:A.z+(B.z-A.z)*u+nz*b,h:crest*kk,s:sg})}
+  const ext=(P,ux,uz)=>{for(let j=1;j<=4;j++)hills.push({x:P.x+ux*j*d,z:P.z+uz*j*d,h:5.2*kk*(1-j/5),s:sg})};
+  ext(A,(A.x-B.x)/L,(A.z-B.z)/L);if(S.twin)ext(B,(B.x-A.x)/L,(B.z-A.z)/L)}
+ let g={h:-1};const find=()=>{const c=mains.map(climb);g={h:-1};for(let x=-30;x<=30;x+=.5)for(let z=-30;z<=30;z+=.5){const h=H(x,z);if(h>g.h)g={x,z,h}}c.push(climb(g));return c};
+ let cand=find();
+ if(S.twin&&mains.length===2){for(let i=0;i<3;i++){mains[1].h+=cand[0].h-cand[1].h;cand=find()}}
+ const gm=Math.max(...cand.map(c=>c.h));peaks=[];for(const c of cand.sort((a,b)=>b.h-a.h))if(c.h>gm-.12&&peaks.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>3))peaks.push(c);
+ peak=peaks[0]}
+function cross(a,b){const m=S.cx;
+ if(m==='none')return[a.x,a.z];
+ if(m==='arith'){const l=R();return[l*a.x+(1-l)*b.x,l*a.z+(1-l)*b.z]}
+ if(m==='uniform')return[R()<.5?a.x:b.x,R()<.5?a.z:b.z];
+ if(m==='onept')return R()<.5?[a.x,b.z]:[b.x,a.z];
+ const f=(p,q)=>{const lo=Math.min(p,q),d=Math.abs(p-q);return lo-S.alpha*d+R()*(1+2*S.alpha)*d};return[f(a.x,b.x),f(a.z,b.z)]}
+function pickSurvivors(arr){const s=arr.slice().sort((a,b)=>b.h-a.h);const k=Math.min(s.length,Math.max(2,Math.round(arr.length*S.surv/100)));
+ const top=s.slice(0,k),below=s.slice(k),swim=[],dead=[];
+ for(const q of below)(R()<S.swim/100?swim:dead).push(q);
+ const level=below.length?(top[k-1].h+below[0].h)/2:top[k-1].h-.1;return{surv:top.concat(swim),dead,swim,level}}
+function makeKid(surv){const a=surv[(R()*surv.length)|0];let b=surv[(R()*surv.length)|0];
+ if(surv.length>1)while(b===a)b=surv[(R()*surv.length)|0];
+ if(S.inb>0&&surv.length>2&&R()<S.inb/100){let bd=1e18;for(const q of surv)if(q!==a){const d=(q.x-a.x)**2+(q.z-a.z)**2;if(d<bd){bd=d;b=q}}}
+ let[x,z]=cross(a,b);x=clamp(x);z=clamp(z);const mut=R()<S.pm/100;let tx=x,tz=z;
+ if(mut){const th=R()*6.2832,d=.1*Math.pow(S.step/.1,R());tx=clamp(x+Math.cos(th)*d);tz=clamp(z+Math.sin(th)*d)}
+ return{x,z,tx,tz,mut,a,b}}
+const shareOf=p=>p.filter(s=>peaks.some(q=>Math.hypot(s.x-q.x,s.z-q.z)<S.radius)).length/p.length;
+// ===== END CORE =====
+
+// ---------- сцена ----------
+const cv=document.getElementById('c');
+const rd=new THREE.WebGLRenderer({canvas:cv,antialias:true});rd.shadowMap.enabled=true;
+const sc=new THREE.Scene();sc.fog=new THREE.Fog(0xcfe9ff,70,170);
+const cam=new THREE.PerspectiveCamera(50,1,.1,400);
+const hemi=new THREE.HemisphereLight(0xffffff,0x6a8f5a,.8);sc.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff2d0,.9);sun.position.set(30,50,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:140});sc.add(sun);
+const moon=new THREE.Mesh(new THREE.SphereGeometry(4,16,12),new THREE.MeshBasicMaterial({color:0xfff6d8,transparent:true,opacity:0}));moon.position.set(-60,55,-80);sc.add(moon);
+const dayC=new THREE.Color(0xcfe9ff),nightC=new THREE.Color(0x1d2b4d);
+function setNight(v){const c=dayC.clone().lerp(nightC,v);sc.background=c;sc.fog.color.copy(c);hemi.intensity=.8-.5*v;sun.intensity=.9-.72*v;moon.material.opacity=v}
+setNight(0);
+let az=.8,el=.62,dist=66;const tgt=new THREE.Vector3(0,2,0);
+function camUpd(){cam.position.set(tgt.x+dist*Math.cos(el)*Math.sin(az),tgt.y+dist*Math.sin(el),tgt.z+dist*Math.cos(el)*Math.cos(az));cam.lookAt(tgt)}
+let drag=null;
+cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(!drag)return;az-=(e.clientX-drag[0])*.006;el=Math.max(.12,Math.min(1.45,el+(e.clientY-drag[1])*.005));drag=[e.clientX,e.clientY];camUpd()});
+cv.addEventListener('pointerup',()=>drag=null);
+cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(20,Math.min(130,dist*(1+Math.sign(e.deltaY)*.08)));camUpd()},{passive:false});
+function resize(){rd.setSize(innerWidth,innerHeight);rd.setPixelRatio(Math.min(2,devicePixelRatio));cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();camUpd();
+
+let land=null,stream=null,valve=null,spoutY=12,outY=10;
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x93c97e}));ground.position.y=-.06;ground.receiveShadow=true;sc.add(ground);
+// ---------- вода з крана ----------
+let wFloor=0;
+const mkTex=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);return new THREE.CanvasTexture(c)};
+const flowTex=mkTex(32,128,(x,w,h)=>{x.fillStyle='rgba(70,165,235,.55)';x.fillRect(0,0,w,h);
+ for(let i=0;i<30;i++){const px=Math.random()*w,py=Math.random()*h,l=10+Math.random()*40,wd=1+Math.random()*2.5;x.fillStyle=`rgba(255,255,255,${.35+Math.random()*.4})`;
+  for(const dx of[0,-w])for(const dy of[0,-h])x.fillRect(px+dx,py+dy,wd,l)}});
+flowTex.wrapS=flowTex.wrapT=THREE.RepeatWrapping;
+const dotTex=mkTex(32,32,(x)=>{const g=x.createRadialGradient(16,16,0,16,16,16);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.5,'rgba(190,225,255,.9)');g.addColorStop(1,'rgba(150,200,255,0)');x.fillStyle=g;x.fillRect(0,0,32,32)});
+const streamMat=new THREE.MeshBasicMaterial({map:flowTex,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false});
+const ND=60,NS=40,fx=new THREE.Group(),dv=new Float32Array(ND*3),sv=new Float32Array(NS*3),sAlive=new Uint8Array(NS);let sNext=0,fxOn=false;
+const mkPts=(n,size)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));
+ const o=new THREE.Points(g,new THREE.PointsMaterial({map:dotTex,size,transparent:true,depthWrite:false,color:0xcfe9ff,sizeAttenuation:true}));o.frustumCulled=false;fx.add(o);return o};
+const drops=mkPts(ND,.32),splash=mkPts(NS,.24);
+const rings=[0,1,2].map(()=>{const r=new THREE.Mesh(new THREE.RingGeometry(.45,.6,28).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xe6f4ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));fx.add(r);return r});
+fx.visible=false;sc.add(fx);
+function respawn(i){const a=drops.geometry.attributes.position.array;a[i*3]=-27+(Math.random()-.5)*.3;a[i*3+1]=outY-Math.random()*.4;a[i*3+2]=(Math.random()-.5)*.3;
+ dv[i*3]=(Math.random()-.5)*.5;dv[i*3+1]=-3-Math.random()*5;dv[i*3+2]=(Math.random()-.5)*.5}
+function fxUpdate(dt){
+ const on=!!(stream&&stream.visible);fx.visible=on;if(!on){fxOn=false;return}
+ const dp=drops.geometry.attributes.position.array,sp=splash.geometry.attributes.position.array;
+ if(!fxOn){fxOn=true;for(let i=0;i<ND;i++){respawn(i);dp[i*3+1]=wFloor+Math.random()*(outY-wFloor)}sAlive.fill(0);for(let j=0;j<NS;j++)sp[j*3+1]=-999}
+ stream.scale.x=stream.scale.z=1+.06*Math.sin(T*22);
+ const rp=Math.max(.5,(outY-wFloor)/2.2);flowTex.repeat.set(2,rp);flowTex.offset.y=T*3.5-rp;
+ for(let i=0;i<ND;i++){dv[i*3+1]-=16*dt;dp[i*3]+=dv[i*3]*dt;dp[i*3+1]+=dv[i*3+1]*dt;dp[i*3+2]+=dv[i*3+2]*dt;
+  if(dp[i*3+1]<wFloor){if(Math.random()<.6){const j=sNext++%NS;sAlive[j]=1;sp[j*3]=dp[i*3];sp[j*3+1]=wFloor;sp[j*3+2]=dp[i*3+2];sv[j*3]=(Math.random()-.5)*3;sv[j*3+1]=2+Math.random()*3;sv[j*3+2]=(Math.random()-.5)*3}respawn(i)}}
+ for(let j=0;j<NS;j++){if(!sAlive[j])continue;sv[j*3+1]-=14*dt;sp[j*3]+=sv[j*3]*dt;sp[j*3+1]+=sv[j*3+1]*dt;sp[j*3+2]+=sv[j*3+2]*dt;if(sp[j*3+1]<wFloor){sAlive[j]=0;sp[j*3+1]=-999}}
+ drops.geometry.attributes.position.needsUpdate=true;splash.geometry.attributes.position.needsUpdate=true;
+ rings.forEach((r,i)=>{const q=(T*1.1+i/3)%1;r.position.set(-27,wFloor+.06,0);r.scale.setScalar(.5+q*2.6);r.material.opacity=.55*(1-q)})}
+
+function buildLand(){if(land){sc.remove(land);land.traverse(o=>{o.geometry&&o.geometry.dispose&&o.geometry.dispose()})}
+ land=new THREE.Group();const g=new THREE.PlaneGeometry(60,60,110,110);g.rotateX(-Math.PI/2);
+ const p=g.attributes.position,col=new Float32Array(p.count*3),c1=new THREE.Color(0x9bd66f),c2=new THREE.Color(0x3d8c3a),c=new THREE.Color();
+ for(let i=0;i<p.count;i++){const y=H(p.getX(i),p.getZ(i));p.setY(i,y);c.copy(c1).lerp(c2,Math.min(1,y/7));col.set([c.r,c.g,c.b],i*3)}
+ g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
+ const t=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));t.receiveShadow=true;land.add(t);
+ for(const q of peaks){const fl=new THREE.Group(),pole=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,3,6),new THREE.MeshLambertMaterial({color:0x6b4b2a}));pole.position.y=1.5;fl.add(pole);
+  const cl=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.7),new THREE.MeshBasicMaterial({color:0xd03030,side:THREE.DoubleSide}));cl.position.set(.55,2.6,0);fl.add(cl);fl.position.set(q.x,q.h,q.z);land.add(fl)}
+ spoutY=Math.max(11,peak.h+3.5);
+ const mat=new THREE.MeshLambertMaterial({color:0x8d98a4}),red=new THREE.MeshLambertMaterial({color:0xc0392b});
+ const pr=.45,Rb=1.2;
+ const cyl=(h,x,y,rz)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(pr,pr,h,16),mat);m.position.set(x,y,0);if(rz)m.rotation.z=rz;return m};
+ const elbow=(x,y,rz)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(Rb,pr,16,24,Math.PI/2),mat);m.position.set(x,y,0);m.rotation.z=rz;return m};
+ const post=cyl(spoutY-Rb,-34.5,(spoutY-Rb)/2),el1=elbow(-34.5+Rb,spoutY-Rb,Math.PI/2),arm=cyl(7.5-2*Rb,-30.75,spoutY,Math.PI/2),el2=elbow(-27-Rb,spoutY-Rb,0);
+ const nz=new THREE.Mesh(new THREE.CylinderGeometry(pr,.34,.9,16),mat);nz.position.set(-27,spoutY-Rb-.45,0);outY=spoutY-Rb-.9;
+ const flange=new THREE.Mesh(new THREE.CylinderGeometry(.85,.95,.3,20),mat);flange.position.set(-34.5,.15,0);
+ valve=new THREE.Group();const wh=new THREE.Mesh(new THREE.TorusGeometry(.7,.12,8,20),red);wh.rotation.y=Math.PI/2;valve.add(wh);
+ const bar=new THREE.Mesh(new THREE.BoxGeometry(.12,1.4,.12),red);valve.add(bar);const bar2=bar.clone();bar2.rotation.x=Math.PI/2;valve.add(bar2);const stem=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.9,8),red);stem.rotation.z=Math.PI/2;stem.position.x=.45;valve.add(stem);valve.position.set(-35.4,2.6,0);
+ stream=new THREE.Mesh(new THREE.CylinderGeometry(.26,.17,1,14,1,true),streamMat);stream.position.set(-27,spoutY/2,0);stream.visible=false;
+ land.add(post,el1,arm,el2,nz,flange,valve,stream);sc.add(land)}
+
+// ---------- вівця ----------
+const gS=new THREE.SphereGeometry(1,12,10),gC=new THREE.CylinderGeometry(.06,.06,.42,6);
+const WHITE=new THREE.Color(0xffffff),BLACK=new THREE.Color(0x141414),SKIN=new THREE.Color(0x3a3a3a),SKINM=new THREE.Color(0x7a6a6a);
+function makeSheep(){const g=new THREE.Group(),wool=new THREE.MeshLambertMaterial({color:0xffffff}),skin=new THREE.MeshLambertMaterial({color:0x3a3a3a}),eye=new THREE.MeshBasicMaterial({color:0xffffff});
+ const add=(m,x,y,z,sx,sy,sz,sh,par)=>{const o=new THREE.Mesh(gS,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=!!sh;(par||g).add(o);return o};
+ add(wool,0,.78,0,.33,.46,.62,1);
+ for(let i=0;i<10;i++){const a=i/10*6.283;add(wool,Math.cos(a)*.27,.78+(i%2)*.12,Math.sin(a)*.5,.19,.2,.2)}
+ add(wool,0,1.1,.05,.24,.18,.45);
+ const head=new THREE.Group();head.position.set(0,.92,.7);g.add(head);
+ add(skin,0,0,.1,.16,.2,.25,1,head);add(skin,-.17,.1,0,.09,.05,.14,0,head);add(skin,.17,.1,0,.09,.05,.14,0,head);
+ add(eye,-.07,.06,.28,.04,.04,.04,0,head);add(eye,.07,.06,.28,.04,.04,.04,0,head);
+ for(const[x,z]of[[-.14,.3],[.14,.3],[-.14,-.3],[.14,-.3]]){const l=new THREE.Mesh(gC,skin);l.position.set(x,.21,z);g.add(l)}
+ g.scale.setScalar(1.15);g.userData={wool,skin,head,ph:R()*6.28};return g}
+function setMut(s,m){s.mut=m;s.g.userData.wool.color.copy(m?BLACK:WHITE);s.g.userData.skin.color.copy(m?SKINM:SKIN)}
+function place(s){s.g.position.set(s.x,H(s.x,s.z),s.z)}
+function spawn(x,z){const s={g:makeSheep(),x,z,h:H(x,z),mut:false};s.g.rotation.y=R()*6.28;place(s);sc.add(s.g);return s}
+
+// ---------- Оператор відбору ----------
+const reaper=(()=>{const g=new THREE.Group(),V=(x,y,z)=>new THREE.Vector3(x,y,z),
+ cloth=new THREE.MeshLambertMaterial({color:0x14141c,side:THREE.DoubleSide}),
+ glow=new THREE.MeshBasicMaterial({color:0xd2ffe6}),void_=new THREE.MeshBasicMaterial({color:0x020204}),eyeM=new THREE.MeshBasicMaterial({color:0x6dffcf}),
+ bone=new THREE.MeshLambertMaterial({color:0xdcd8c8}),steel=new THREE.MeshLambertMaterial({color:0xc4d0dc,side:THREE.DoubleSide,emissive:0x1a2430}),wood=new THREE.MeshLambertMaterial({color:0x5a3d22});
+ const sph=(m,x,y,z,sx,sy,sz,par)=>{const o=new THREE.Mesh(gS,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);(par||g).add(o);return o};
+ const limb=(a,b,r1,r2,m)=>{const d=V().subVectors(b,a),o=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,d.length(),10),m);o.position.copy(a).add(b).multiplyScalar(.5);o.quaternion.setFromUnitVectors(V(0,1,0),d.normalize());g.add(o);return o};
+ // ряса
+ const robe=new THREE.Mesh(new THREE.LatheGeometry([[.95,0],[.9,.25],[.7,.9],[.52,1.5],[.55,1.85],[.42,2.05],[.3,2.15]].map(p=>new THREE.Vector2(p[0],p[1])),24),cloth);robe.castShadow=true;g.add(robe);
+ sph(cloth,0,1.95,0,.6,.22,.42);
+ // каптур (відкритий спереду) + темна порожнеча всередині
+ const hood=new THREE.Mesh(new THREE.SphereGeometry(1,24,16,Math.PI/2+.75,Math.PI*2-1.5),cloth);hood.scale.set(.42,.5,.46);hood.position.set(0,2.42,-.02);hood.castShadow=true;g.add(hood);
+ const tip=new THREE.Mesh(new THREE.ConeGeometry(.17,.55,10),cloth);tip.position.set(0,2.85,-.2);tip.rotation.x=-.6;g.add(tip);
+ sph(void_,0,2.4,-.05,.33,.42,.3);
+ // череп, що світиться
+ sph(glow,0,2.44,.1,.2,.21,.2);sph(glow,0,2.27,.17,.12,.1,.12);
+ for(const x of[-.075,.075]){sph(void_,x,2.46,.27,.06,.07,.04);sph(eyeM,x,2.46,.3,.022,.022,.02)}
+ sph(void_,0,2.38,.3,.02,.035,.02);
+ for(let i=-2;i<=2;i++){const t=new THREE.Mesh(new THREE.BoxGeometry(.012,.07,.01),void_);t.position.set(i*.03,2.27,.285);g.add(t)}
+ const cvs=document.createElement('canvas');cvs.width=cvs.height=64;const c2=cvs.getContext('2d'),gr=c2.createRadialGradient(32,32,0,32,32,32);
+ gr.addColorStop(0,'rgba(150,255,210,.9)');gr.addColorStop(.35,'rgba(90,230,180,.35)');gr.addColorStop(1,'rgba(90,230,180,0)');c2.fillStyle=gr;c2.fillRect(0,0,64,64);
+ const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cvs),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));halo.scale.set(1.6,1.6,1);halo.position.set(0,2.4,.42);g.add(halo);
+ // руки
+ limb(V(.5,1.95,.05),V(.72,1.6,.38),.16,.1,cloth);limb(V(-.5,1.95,.05),V(-.5,1.4,.5),.16,.1,cloth);sph(bone,-.5,1.34,.55,.09,.09,.09);
+ // коса: древко + дугоподібне гостре лезо
+ const sy=new THREE.Group();
+ const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.045,.05,3.6,8),wood);shaft.position.y=1.8;sy.add(shaft);
+ sph(bone,0,1.6,0,.1,.1,.1,sy);
+ const fer=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.25,8),steel);fer.position.y=3.5;sy.add(fer);
+ const sh=new THREE.Shape();sh.moveTo(-.15,.1);sh.quadraticCurveTo(.85,.75,1.8,-.6);sh.quadraticCurveTo(.9,.2,0,-.22);sh.lineTo(-.15,.1);
+ const bg=new THREE.ExtrudeGeometry(sh,{depth:.05,bevelEnabled:false,curveSegments:24});bg.translate(0,0,-.025);bg.rotateY(-Math.PI/2);
+ const bladeG=new THREE.Group();bladeG.position.y=3.5;bladeG.scale.setScalar(.9);bladeG.add(new THREE.Mesh(bg,steel));
+ const edge=new THREE.Line(new THREE.BufferGeometry().setFromPoints(new THREE.QuadraticBezierCurve(new THREE.Vector2(1.8,-.6),new THREE.Vector2(.9,.2),new THREE.Vector2(0,-.22)).getPoints(24).map(p=>V(0,p.y,p.x))),new THREE.LineBasicMaterial({color:0xffffff}));
+ bladeG.add(edge);sy.add(bladeG);
+ sy.position.set(.72,0,.38);sy.rotation.z=-.12;g.add(sy);g.userData={sy,halo};g.scale.setScalar(1.5);g.visible=false;sc.add(g);return g})();
+const plane=new THREE.Mesh(new THREE.BoxGeometry(60.4,1,60.4),new THREE.MeshLambertMaterial({color:0x2f86d6,transparent:true,opacity:.55,depthWrite:false}));plane.visible=false;sc.add(plane);
+function setWater(y){plane.scale.y=y+5;plane.position.y=(y-5)/2;wFloor=Math.max(y,H(-27,0)+.03);if(stream){stream.scale.y=Math.max(.01,outY-wFloor);stream.position.y=(outY+wFloor)/2}}
+
+// ---------- анімації ----------
+const anims=[];
+function tween(d,fn){return new Promise(res=>anims.push({t:0,d:Math.max(.01,d/S.speed),fn,res}))}
+const wait=d=>tween(d,()=>{});
+let sheep=[],gen=0,hist=[],busy=false,autoOn=false,clock=new THREE.Clock(),T=0;
+function frame(){requestAnimationFrame(frame);const dt=Math.min(.05,clock.getDelta());T+=dt;
+ for(let i=anims.length-1;i>=0;i--){const a=anims[i];a.t+=dt;const k=Math.min(1,a.t/a.d);a.fn(k);if(k>=1){anims.splice(i,1);a.res()}}
+ for(const s of sheep){if(!s.walk&&!s.dying)s.g.userData.head.rotation.x=.35+Math.sin(T*2+s.g.userData.ph)*.3}
+ if(reaper.visible){reaper.userData.sy.rotation.z=-.12+Math.sin(T*3)*.05;reaper.userData.halo.material.opacity=.75+.25*Math.sin(T*4)}
+ fxUpdate(dt);
+ rd.render(sc,cam)}
+function walkTo(o,x0,z0,x1,z1,d){const a=Math.atan2(x1-x0,z1-z0);o.rotation.y=a;return tween(d,k=>{const x=x0+(x1-x0)*k,z=z0+(z1-z0)*k;o.position.set(x,H(x,z)+Math.abs(Math.sin(k*d*5))*.1,z)})}
+const say=t=>document.getElementById('phase').textContent=t;
+
+// ---------- доба ----------
+async function night(){
+ say('Настає ніч. Оператор відбору у костюмі смерті йде до краника.');
+ tween(1.4,k=>setNight(k));
+ for(const s of sheep)s.walk=false;
+ const{surv,dead,swim,level}=pickSurvivors(sheep);
+ reaper.visible=true;await walkTo(reaper,-58,0,-38.4,0,3);
+ say(`Оператор відкриває краник: вода піднімається до h = ${level.toFixed(2)}. Втопиться: ${dead.length}, виживе: ${surv.length}`+(swim.length?` (з них допливуть: ${swim.length})`:'')+'.');
+ plane.visible=true;const lo=-.5;setWater(lo);stream.visible=true;
+ const kill=s=>{s.dying=1;tween(1.2,k=>{s.g.rotation.z=k*.8;s.g.position.y=H(s.x,s.z)-1.3*k+Math.sin(k*25)*.06*(1-k)})};
+ const float=y=>{for(const s of swim){if(s.h<y){s.g.position.y=y-.35+Math.sin(T*6+s.g.userData.ph)*.08;s.g.rotation.z=Math.sin(T*4+s.g.userData.ph)*.12}else{s.g.position.y=H(s.x,s.z);s.g.rotation.z=0}}};
+ tween(3,k=>valve.rotation.x=k*Math.PI*6);
+ await tween(3,k=>{const y=lo+(level-lo)*k;setWater(y);float(y);for(const s of dead)if(!s.dying&&s.h<y)kill(s)});
+ for(const s of dead)if(!s.dying)kill(s);
+ stream.visible=false;await tween(.8,k=>valve.rotation.x=Math.PI*6-k*Math.PI*2);
+ await wait(1.2);
+ const out=walkTo(reaper,-38.4,0,-58,0,2.6);
+ await tween(1.8,k=>{const y=level+(-.6-level)*k;setWater(y);float(y)});await out;reaper.visible=false;
+ for(const s of swim){s.g.position.y=H(s.x,s.z);s.g.rotation.z=0}
+ for(const s of dead)sc.remove(s.g);plane.visible=false;sheep=surv}
+async function day(){
+ say('Настає ранок. Вижилі дають нащадків, а дехто з молодняка вирішує, що знає краще.');
+ tween(1.4,k=>setNight(1-k));
+ const surv=sheep,old=S.elit?[]:surv.slice(),keep=S.elit?surv:[];
+ const n=Math.max(0,S.N-keep.length),kids=[];
+ for(const s of surv)setMut(s,false);
+ for(let i=0;i<n;i++){const kd=makeKid(surv),s=spawn(kd.x,kd.z);s.g.scale.setScalar(.01);s.kd=kd;if(kd.mut)setMut(s,true);kids.push(s)}
+ const links=[];
+ for(const s of kids){const kd=s.kd;const mk=(p,col)=>{const ax=p.x,az=p.z,ay=H(ax,az)+1.6,bx=s.x,bz=s.z,by=H(bx,bz)+1,pts=[];for(let i=0;i<=16;i++){const t=i/16;pts.push(new THREE.Vector3(ax+(bx-ax)*t,ay+(by-ay)*t+Math.sin(t*Math.PI)*2.4,az+(bz-az)*t))}
+  const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0}));sc.add(l);links.push(l)};
+  mk(kd.a,0x1f5fbf);if(S.cx!=='none'&&kd.b!==kd.a)mk(kd.b,0xe08a1a)}
+ const grow=tween(2.4,k=>{for(const s of kids)s.g.scale.setScalar(1.15*k+.01)});
+ await wait(1.4);
+ if(kids.length)say('Нащадки зростають. Лінії з’єднують кожного з батьками: синя — перший батько, помаранчева — другий.');
+ await tween(.5,k=>{for(const l of links)l.material.opacity=.95*k});
+ await wait(.7);
+ await tween(1,k=>{for(const l of links)l.material.opacity=.95*(1-k);for(const s of old)s.g.scale.setScalar(Math.max(.01,1.15*(1-k)))});
+ await grow;
+ for(const l of links){sc.remove(l);l.geometry.dispose();l.material.dispose()}
+ for(const s of old)sc.remove(s.g);
+ sheep=keep.concat(kids);
+ const mv=kids.filter(s=>s.kd.mut);
+ if(mv.length){say(`Мутантів: ${mv.length}. Вони пішли куди очі бачать (тобто навмання).`);
+  for(const s of mv){s.walk=true;s.g.userData.head.rotation.x=0;s.g.rotation.y=Math.atan2(s.kd.tx-s.x,s.kd.tz-s.z)}
+  const x0=mv.map(s=>s.x),z0=mv.map(s=>s.z);
+  await tween(2.6,k=>mv.forEach((s,i)=>{s.g.position.set(x0[i]+(s.kd.tx-x0[i])*k,H(x0[i]+(s.kd.tx-x0[i])*k,z0[i]+(s.kd.tz-z0[i])*k)+Math.abs(Math.sin(k*18))*.1,z0[i]+(s.kd.tz-z0[i])*k)}));
+  for(const s of mv){s.x=s.kd.tx;s.z=s.kd.tz;s.walk=false}}
+ for(const s of sheep){s.h=H(s.x,s.z);delete s.kd}
+ await wait(.5)}
+
+// ---------- статистика ----------
+function stats(){const m=sheep.reduce((a,s)=>a+s.h,0)/sheep.length,b=Math.max(...sheep.map(s=>s.h)),sh=shareOf(sheep);
+ hist.push({m:m/peak.h,s:sh,b});
+ sGen.textContent=gen;sMean.textContent=m.toFixed(2);sBest.textContent=`${b.toFixed(2)} / ${peak.h.toFixed(2)}`;sShare.textContent=(sh*100).toFixed(0)+' %';drawChart();return sh}
+function drawChart(){const c=chart,x=c.getContext('2d'),w=c.width,h=c.height;x.clearRect(0,0,w,h);x.strokeStyle='#e1e7ee';x.lineWidth=1;
+ for(let i=0;i<=4;i++){const y=8+(h-16)*i/4;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}
+ const N=Math.max(10,hist.length-1);const ln=(key,col)=>{x.strokeStyle=col;x.lineWidth=2.5;x.beginPath();hist.forEach((p,i)=>{const X=6+(w-12)*i/N,Y=h-8-(h-16)*Math.max(0,Math.min(1,p[key]));i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke()};
+ ln('m','#2f6fb5');ln('s','#2e8b57')}
+
+// ---------- керування ----------
+const ui={step:bStep,auto:bAuto,reset:bReset,apply:bApply};
+function setBusy(b){busy=b;bStep.disabled=b||autoOn;bReset.disabled=b;bApply.disabled=b;bAuto.textContent=autoOn?'Пауза':'Авто'}
+async function cycle(){setBusy(true);await night();await day();gen++;const sh=stats();
+ const stag=hist.length>5&&hist[hist.length-1].b-hist[hist.length-6].b<.002;
+ if(sh*100>=S.target&&stag){autoOn=false;say(`Стадо зібралося на вершині за ${gen} пок. Вода відступила, а прапорець на вершині так і не намок.`)}
+ else if(gen>=200){autoOn=false;say('200 поколінь: ліміт. Схоже, стадо застрягло на локальному оптимумі.')}
+ setBusy(false)}
+async function runAuto(){while(autoOn)await cycle();setBusy(false)}
+bStep.onclick=()=>{if(!busy)cycle()};
+bAuto.onclick=()=>{if(autoOn){autoOn=false;bAuto.textContent='Авто';return}autoOn=true;bAuto.textContent='Пауза';bStep.disabled=true;if(!busy)runAuto()};
+function reset(newLand){for(const s of sheep)sc.remove(s.g);sheep=[];if(newLand){genLand();buildLand()}
+ for(let i=0;i<S.N;i++)sheep.push(spawn((R()*2-1)*BND,(R()*2-1)*BND));
+ gen=0;hist=[];stats();hist=[hist[0]];drawChart();say('Вівці мирно пасуться. Хтось із них ще не знає, що це ненадовго.');setBusy(false)}
+bReset.onclick=()=>reset(false);
+bApply.onclick=()=>{autoOn=false;reset(true)};
+bSet.onclick=()=>{mSet.open=!mSet.open};bTh.onclick=()=>{mTh.open=!mTh.open};
+bClose1.onclick=()=>{mSet.open=false};bClose2.onclick=()=>{mTh.open=false};
+hud.appendChild(mSet);
+hud.appendChild(mTh);mTh.ontoggle=()=>{hud.style.width=mTh.open?'min(720px,calc(100vw - 24px))':''};
+
+const CFG=[['N','Розмір стада, N',10,120,1],['surv','Частка виживших (усічення), %',20,90,5],['swim','Ймовірність врятуватися (плавають), %',0,50,1],['pm','Імовірність мутації, %',0,60,1],['step','Макс. крок мутанта, од.',1,25,1],['alpha','Параметр α (BLX-α)',0,.6,.05],['target','Цільова частка на вершині, %',50,100,5],['radius','Радіус «вершини», од.',.5,8,.5],['inb','Інбридинг (близькі батьки), %',0,100,5],['hills','Кількість менших пагорбів',1,12,1],['seed','Зерно ландшафту',1,99,1],['speed','Швидкість анімації',.5,4,.5]];
+cfg.innerHTML=CFG.map(([k,l,a,b,s])=>`<div class="row"><label for="i_${k}">${l}</label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${S[k]}"><output id="o_${k}">${S[k]}</output></div>`).join('');
+for(const[k]of CFG)document.getElementById('i_'+k).oninput=e=>{S[k]=+e.target.value;document.getElementById('o_'+k).textContent=S[k]};
+cx.onchange=e=>S.cx=e.target.value;elit.onchange=e=>S.elit=e.target.checked;ridge.onchange=e=>S.ridge=e.target.checked;twin.onchange=e=>S.twin=e.target.checked;
+
+theory.innerHTML=String.raw`
+<h3>1. Постановка задачі</h3><p>Генетичний алгоритм (ГА) — стохастичний метод глобальної оптимізації, що моделює добір у популяції (Holland, 1975; Goldberg, 1989). Максимізується функція висоти ландшафту \(h(x,z)\) на квадраті \([-B,B]^2\) — багатоекстремальна функція з кількома локальними максимумами різної форми (круглі, витягнуті, плоскоголові, гострі):</p>
+\[ \mathbf g^{*}=\arg\max_{(x,z)\in[-B,B]^2} h(x,z). \]
+<p>Опція «хребет» замінює найвищу вершину довгим плавним гребенем: його висота зростає лише на \(\approx2{,}2\) на \(\approx34\) од. довжини (нахил \(\approx0{,}06\)), а вершина — невеликий горбок на його кінці. Це пологе «долина-гребінь», де простий градієнтний підйом майже не відчуває напрямку. Опція «дві однакові вершини» створює два глобальні максимуми однакової висоти, і збіжність рахується до будь-якого з них.</p>
+<h3>2. Подання особин і пристосованість</h3><p>Генотип — вектор дійсних генів (дійсне кодування):</p>
+\[ \mathbf g=(x,z)\in[-B,B]^2,\qquad B=26,\qquad f(\mathbf g)=h(x,z). \]
+<p>Популяція має сталий розмір \(N\); початкові особини розподілені рівномірно в квадраті.</p>
+<h3>3. Селекція усіченням (потоп) і ймовірність врятуватися</h3><p>Нехай \(f_{(1)}\ge f_{(2)}\ge\dots\ge f_{(N)}\) — впорядковані пристосованості, \(\tau\) — частка виживших, \(k=\max(2,\lceil\tau N\rceil)\). Рівень води:</p>
+\[ c=\tfrac12\big(f_{(k)}+f_{(k+1)}\big). \]
+<p>За замовчуванням застосовується <i>усічена селекція</i>: особина з \(f\ge c\) виживає, нижче — тоне; чим менше \(\tau\), тим більший селекційний тиск. Вівці, однак, трохи вміють плавати: особина нижче рівня води рятується з імовірністю \(p_s\):</p>
+\[ P(\text{виживе}\mid f)=\begin{cases}1, & f\ge c,\\[2pt] p_s, & f\lt c.\end{cases} \]
+<p>При \(p_s=0\) маємо чисту усічену селекцію. При \(p_s>0\) очікувана кількість вижилих \(k+p_s\,(N-k)\), тиск слабшає, а слабкі особини зберігають шанс передати гени, тож різноманітність (diversity) утримується довше. Втрата — повільніша збіжність. Інтенсивність добору можна виміряти як \(I=(\bar f_{\mathrm{sel}}-\bar f)/s_f\), де \(s_f\) — вибіркове стандартне відхилення пристосованості. Батьки обираються серед усіх вижилих рівноймовірно.</p>
+<h3>4. Оператори кросоверу</h3><p>Нехай батьки \(\mathbf g_A=(x_A,z_A)\) і \(\mathbf g_B=(x_B,z_B)\).</p>
+<p><b>Арифметичний:</b></p>
+\[ \mathbf g'=\lambda\,\mathbf g_A+(1-\lambda)\,\mathbf g_B,\qquad \lambda\sim U(0,1). \]
+<p>Нащадок лежить на відрізку \(AB\), тому без мутації популяція не виходить за опуклу оболонку початкових виживших і стискається: \(\|\mathbf g'-\mathbf g_A\|=(1-\lambda)\,\|\mathbf g_B-\mathbf g_A\|\).</p>
+<p><b>Рівномірний:</b> кожен ген береться від випадкового батька. Для двох генів можливі лише точки \((x_A,z_A)\), \((x_B,z_B)\), \((x_A,z_B)\), \((x_B,z_A)\); нових значень координат не з’являється.</p>
+<p><b>Одноточковий:</b> при двох генах єдина точка розрізу дає \((x_A,z_B)\) або \((x_B,z_A)\).</p>
+<p><b>BLX-α</b> (Eshelman, Schaffer, 1993): для кожного гена \(i\)</p>
+\[ g'_i\sim U\big[\min_i-\alpha d_i,\ \max_i+\alpha d_i\big],\qquad d_i=|g_{A,i}-g_{B,i}|. \]
+<p>Довжина інтервалу \((1+2\alpha)\,d_i\) — при \(\alpha>0\) нащадки можуть виходити за межі інтервалу батьків, що компенсує стиснення популяції.</p>
+<p><b>Без кросоверу:</b> \(\mathbf g'=\mathbf g_A\); новизну вносить лише мутація.</p>
+<h3>5. Інбридинг</h3><p>З імовірністю \(p_{\mathrm{inb}}\) другий батько не випадковий, а найближчий до першого за генотипом серед виживших:</p>
+\[ \mathbf g_B=\arg\min_{\mathbf g_q\ne\mathbf g_A}\ \|\mathbf g_q-\mathbf g_A\|_2 . \]
+<p>З імовірністю \(1-p_{\mathrm{inb}}\) вибір випадковий (панміксія). Для арифметичного кросоверу розкид нащадків пропорційний \(\|\mathbf g_B-\mathbf g_A\|\), тому інбридинг зменшує крок пошуку й прискорює втрату різноманітності, яку можна виміряти як</p>
+\[ D=\frac1N\sum_{i=1}^{N}\|\mathbf g_i-\bar{\mathbf g}\|_2 . \]
+<p>Наслідок: стадо швидше «стягується» до найближчого пагорба, зокрема й локального.</p>
+<h3>6. Мутація</h3><p>З імовірністю \(p_m\) нащадок мутує: його гени зміщуються у випадковому напрямку,</p>
+\[ (x',z')=(x,z)+\delta\,(\cos\theta,\ \sin\theta),\qquad \theta\sim U(0,2\pi),\quad \delta=0{,}1\,(\delta_{\max}/0{,}1)^{u},\quad u\sim U(0,1). \]
+<p>Крок логарифмічно-рівномірний: переважають дрібні зсуви (точне доведення біля вершини), але трапляються й великі стрибки. Мутація забезпечує <i>дослідження</i> простору (exploration), тоді як селекція й кросовер здійснюють <i>експлуатацію</i> (exploitation). Без мутації ГА не може створити гени, яких немає в популяції; з мутацією кожна точка області досяжна з ненульовою ймовірністю.</p>
+<h3>7. Елітизм</h3><p>Якщо ввімкнено, виживші переходять у наступне покоління без змін, тож найкраща знайдена висота не зменшується:</p>
+\[ \max_i f_i^{(t+1)}\ \ge\ \max_i f_i^{(t)} . \]
+<h3>8. Критерій збіжності та передчасна збіжність</h3><p>Покоління \(t\) вважається збіжним, якщо частка особин у крузі радіуса \(r\) навколо найближчого глобального максимуму не менша за поріг \(\theta\), і водночас найкраща висота майже не зростала останні 5 поколінь (стагнація):</p>
+\[ \rho_t=\frac1N\,\big|\{\,i:\ \|\mathbf g_i-\mathbf g^{*}\|<r\,\}\big|\ \ge\ \theta,\qquad \max_i f_i^{(t)}-\max_i f_i^{(t-5)}<\varepsilon=0{,}002 . \]
+<p>Якщо стадо концентрується на меншому пагорбі, виникає <i>передчасна збіжність</i>: селекційний тиск великий, різноманітність втрачена, а мутації замало, щоб подолати долину між пагорбами. Протидії: збільшити \(N\) і \(\tau\), підвищити \(p_m\) та \(\delta_{\max}\), застосувати BLX-α, зменшити \(p_{\mathrm{inb}}\).</p>
+<h3>9. Відповідність метафори</h3><p>Вівця — особина; координати — геном; висота — пристосованість; оператор відбору з краником — механізм відбору; рівень води — поріг відбору; вівця, що допливла, — особина, яка пережила відбір попри \(f\lt c\); чорна вівця — мутант; ніч — селекція; ранок — репродукція; лінії між вівцями — походження нащадка.</p>
+<h3>10. Що варто перевірити експериментально</h3><ol>
+<li>Арифметичний кросовер, \(p_m=0\): чи завжди стадо збігається і чи обов’язково на найвищому пагорбі?</li>
+<li>Рівномірний кросовер при \(\tau=20\%\) і \(\tau=70\%\): як змінюється швидкість збіжності?</li>
+<li>Інбридинг \(p_{\mathrm{inb}}=0\) проти \(80\%\) на кількох зернах ландшафту: у скількох випадках стадо потрапляє на локальний максимум?</li>
+<li>Ландшафт із хребтом: чи рухається стадо вздовж гребеня до вершини, і який оператор кросоверу краще утримується на вузькій смузі?</li>
+<li>Ймовірність врятуватися \(p_s=0\) проти \(p_s=20\%\): як змінюється різноманітність і швидкість збіжності?</li></ol>
+<h3>Література</h3><p>Holland J. H. Adaptation in Natural and Artificial Systems, 1975. Goldberg D. E. Genetic Algorithms in Search, Optimization and Machine Learning, 1989. Eshelman L. J., Schaffer J. D. Real-coded genetic algorithms and interval-schemata, 1993.</p>`;
+genLand();buildLand();reset(false);frame();
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script></body></html>
