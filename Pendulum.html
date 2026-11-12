@@ -165,9 +165,9 @@ function gd(){if(sel<0||!st){$('gi').textContent=D[lang].pick;return}
   if(!ok)break;path.push(u.slice())}
  paths[sel]=path.map(([p,q])=>[LO[a]+p*rg[0],LO[b]+q*rg[1]]);last4=toV(u);ov(sel);
  $('gi').textContent=D[lang].it+' '+n+' · S: '+s0.toFixed(3)+' → '+s.toFixed(3)+' · RMSE '+Math.sqrt(s/pts.length).toFixed(4)+' · '+NT[a]+' = '+last4[a].toFixed(3)+', '+NT[b]+' = '+last4[b].toFixed(3);$('ap').style.display=''}
-async function save(fn,data){try{await dl.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')alert('Save: '+(e.code||e))}}
+async function save(fn,data){try{if(dl){await dl.save({filename:fn,data});return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=fn;document.body.appendChild(a);a.click();a.remove()}catch(e){if(e&&e.code!='declined')alert('Save: '+(e.code||e))}}
 const base=()=>'pendulum_'+($('seed').value||'data').replace(/[^\w\u0400-\u04ff-]/g,'_');
-$('xl').onclick=()=>{const d=D[lang],ws=XLSX.utils.aoa_to_sheet([[d.tcol,d.ycol],...pts]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');ws['!cols']=[{wch:10},{wch:10}];
+$('xl').onclick=()=>{if(!window.XLSX){alert(lang=='uk'?'Бібліотека SheetJS не завантажилась (потрібен інтернет). Скористайтесь CSV.':'SheetJS failed to load (internet needed). Use CSV.');return}const d=D[lang],ws=XLSX.utils.aoa_to_sheet([[d.tcol,d.ycol],...pts]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');ws['!cols']=[{wch:10},{wch:10}];
  save(base()+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}))};
 $('cs').onclick=()=>{const d=D[lang];save(base()+'.csv','\uFEFF'+[d.tcol+','+d.ycol,...pts.map(p=>p[0]+','+p[1])].join('\n')+'\n')};
 $('gen').onclick=gen;$('seed').onchange=gen;
@@ -177,6 +177,5 @@ $('ls').onclick=()=>{if(!shown){$('mg').innerHTML=PR.map(([a,b],n)=>`<div><canva
 $('gd').onclick=gd;
 $('ap').onclick=()=>{if(!last4)return;const [a,b]=PR[sel];[a,b].forEach(i=>$('s'+K[i]).value=last4[i]);upd();maps();$('ap').style.display='none'};
 build();gen();setLang('uk');requestAnimationFrame(frame);
-if(window.claude&&claude.use)claude.use('downloads').then(m=>{dl=m;if(!m){$('xl').style.display=$('cs').style.display='none'}}).catch(()=>{});
-else{$('xl').style.display=$('cs').style.display='none'}
+if(window.claude&&claude.use)claude.use('downloads').then(m=>{dl=m}).catch(()=>{});
 </script></body></html>
