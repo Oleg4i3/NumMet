@@ -1,0 +1,701 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Симулятор відпалу</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: одна колонка — полотно з рельєфом, рядок показників, панель керування, графік, згорнутий спойлер теорії.
+   Ідея кольору: розжарений метал (ember) проти холодної сталі (steel). */
+:root{
+  --bg:#eceff2; --surface:#ffffff; --ink:#18222d; --muted:#5b6876; --line:#d5dbe1;
+  --ember:#d9480f; --steel:#2b6a99; --ground:#aebccb; --ground2:#8b9db0; --groundtext:#26384a;
+  --ok:#2f7d4f; --warn:#a15c07; --tint-info:#e4ebf2; --tint-prompt:#fbe9df; --tint-ok:#e1f1e7; --tint-warn:#f7ecd6;
+  --font-display:"Space Grotesk",system-ui,sans-serif; --font-body:"Inter",system-ui,sans-serif; --font-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --surface:#182029; --ink:#e6ecf2; --muted:#93a1b0; --line:#2a3541;
+  --ember:#ff7a3d; --steel:#6fb0e0; --ground:#33465a; --ground2:#243342; --groundtext:#b9c8d8;
+  --ok:#5fc08a; --warn:#e2a44a; --tint-info:#202b37; --tint-prompt:#3a2a22; --tint-ok:#1d3226; --tint-warn:#37301d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#182029; --ink:#e6ecf2; --muted:#93a1b0; --line:#2a3541;
+  --ember:#ff7a3d; --steel:#6fb0e0; --ground:#33465a; --ground2:#243342; --groundtext:#b9c8d8;
+  --ok:#5fc08a; --warn:#e2a44a; --tint-info:#202b37; --tint-prompt:#3a2a22; --tint-ok:#1d3226; --tint-warn:#37301d; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;margin:0;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--font-display);font-size:clamp(26px,4.6vw,38px);line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.lead{color:var(--muted);margin:6px 0 0;max-width:68ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.stage{padding:10px 10px 0;overflow:hidden}
+canvas{display:block;width:100%;touch-action:pan-y;cursor:grab;border-radius:6px}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 4px 10px}
+.notice{margin:0 -10px;padding:12px 16px;min-height:74px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line)}
+.notice[data-kind="info"]{background:var(--tint-info)}
+.notice[data-kind="prompt"]{background:var(--tint-prompt)}
+.notice[data-kind="ok"]{background:var(--tint-ok)}
+.notice[data-kind="warn"]{background:var(--tint-warn)}
+.notice .txt{flex:1 1 300px;min-width:0}
+.notice b{font-weight:600}
+.notice small{display:block;color:var(--muted);margin-top:3px;font-size:12.5px;line-height:1.45}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:10px 14px;min-width:0}
+.stat dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.stat dd{margin:2px 0 0;font-family:var(--font-mono);font-size:19px;font-variant-numeric:tabular-nums;font-weight:500}
+.controls{padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px 28px}
+.group{display:flex;flex-direction:column;gap:12px;min-width:0}
+.group h2{font-family:var(--font-display);font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:9px 8px;font:inherit;font-weight:500;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--steel);border-color:var(--steel);color:#fff}
+.btn.hot{background:var(--ember);border-color:var(--ember);color:#fff}
+:root:not([data-theme="light"]) .btn.primary,:root:not([data-theme="light"]) .btn.hot{color:#0b1015}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.sl label{font-size:13.5px}
+.sl output{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sl input{grid-column:1/-1;width:100%;accent-color:var(--steel);margin:4px 0 0}
+select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.formula{font-family:var(--font-mono);font-size:13px;color:var(--ember);margin:0}
+.dim{opacity:.45}
+.chk{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13.5px;line-height:1.4}
+.chk input{margin-top:3px;width:18px;height:18px;accent-color:var(--steel);flex:none}
+.chk small{color:var(--muted);font-size:12.5px}
+.seedrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seedrow label{font-size:13.5px}
+.seedrow input{width:92px;font:inherit;font-family:var(--font-mono);padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.chartcard{padding:14px 14px 10px}
+.chartcard h2{font-family:var(--font-display);font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
+#chart{cursor:default}
+details.theory{padding:0}
+details.theory>summary{cursor:pointer;padding:14px 16px;font-family:var(--font-display);font-weight:600;font-size:17px;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.theory>summary::after{content:"показати";font-family:var(--font-body);font-weight:400;font-size:13px;color:var(--muted)}
+details.theory[open]>summary::after{content:"сховати"}
+details.theory>summary::-webkit-details-marker{display:none}
+.theory-body{padding:0 16px 18px;display:grid;gap:4px;max-width:78ch}
+.theory-body h3{font-family:var(--font-display);font-size:16px;margin:16px 0 0}
+.theory-body p,.theory-body ul{margin:4px 0}
+.theory-body ul{padding-left:20px}
+.theory-body code,.theory-body pre{font-family:var(--font-mono);font-size:13px}
+.theory-body pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;margin:6px 0}
+.eq{font-family:var(--font-mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:inline-block;margin:4px 0;max-width:100%;overflow-x:auto}
+.aside{border-left:3px solid var(--ember);padding:2px 0 2px 12px;margin:8px 0}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Симулятор відпалу</h1>
+    <p class="lead">Висота рельєфу — це значення функції, яку мінімізуємо. Кульки котяться вниз під дією гравітації й застрягають у локальних ямах. Відпал з температурою допомагає знайти найглибшу.</p>
+  </header>
+
+  <section class="card stage" aria-label="Рельєф і кульки">
+    <canvas id="scene" aria-label="Рельєф з багатьма мінімумами та кульки, що котяться по ньому"></canvas>
+    <p class="hint">Клікніть по рельєфу, щоб скинути ще кульку. Кульку можна перетягнути й відпустити.</p>
+    <div class="notice" id="notice" data-kind="info" role="status" aria-live="polite">
+      <div class="txt" id="noticeTxt"></div>
+      <button class="btn hot" id="noticeBtn" hidden>Потрясти землю</button>
+    </div>
+  </section>
+
+  <dl class="stats">
+    <div class="stat"><dt>Температура T</dt><dd id="sT">0.00</dd></div>
+    <div class="stat"><dt>Час, с</dt><dd id="sTime">0.0</dd></div>
+    <div class="stat"><dt>Сер. висота E</dt><dd id="sE">0.00</dd></div>
+    <div class="stat"><dt>У глобальному мінімумі</dt><dd id="sG">0 / 0</dd></div>
+  </dl>
+
+  <section class="card controls" aria-label="Керування">
+    <div class="group">
+      <h2>Режим і дії</h2>
+      <div class="seg" role="group" aria-label="Режим">
+        <button id="modeManual" aria-pressed="true">Вручну</button>
+        <button id="modeAnneal" aria-pressed="false">Відпал</button>
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="btnRun">Пауза</button>
+        <button class="btn" id="btnReset">Скинути</button>
+        <button class="btn hot" id="btnShake">Потрясти землю</button>
+      </div>
+      <div class="sl">
+        <label for="nBalls">Кількість кульок</label><output id="nBallsO">4</output>
+        <input type="range" id="nBalls" min="1" max="10" step="1" value="4">
+      </div>
+      <div class="sl">
+        <label for="speed">Швидкість анімації</label><output id="speedO">1.0×</output>
+        <input type="range" id="speed" min="0.25" max="6" step="0.25" value="1">
+      </div>
+    </div>
+
+    <div class="group" id="annGroup">
+      <h2>Закон температури</h2>
+      <select id="law" aria-label="Закон охолодження">
+        <option value="exp">Експоненційний</option>
+        <option value="lin">Лінійний</option>
+        <option value="inv">Обернено пропорційний (1/t)</option>
+        <option value="log">Логарифмічний</option>
+      </select>
+      <p class="formula" id="formula"></p>
+      <div class="sl">
+        <label for="T0">Початкова температура T₀</label><output id="T0O">1.50</output>
+        <input type="range" id="T0" min="0.1" max="3" step="0.05" value="1.5">
+      </div>
+      <div class="sl">
+        <label for="rate">Швидкість охолодження k</label><output id="rateO">0.06</output>
+        <input type="range" id="rate" min="0.01" max="0.4" step="0.01" value="0.06">
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Генератор рельєфу</h2>
+      <select id="ttype" aria-label="Тип рельєфу">
+        <option value="waves">Хвилі</option>
+        <option value="wells">Випадкові ями</option>
+        <option value="rastrigin">Растригін (регулярні ями)</option>
+        <option value="noise">Шорсткий (фрактальний шум)</option>
+        <option value="trap">Пастка (широка неглибока яма й вузька глибока)</option>
+      </select>
+      <div class="sl">
+        <label for="cplx">Складність (кількість ям)</label><output id="cplxO">5</output>
+        <input type="range" id="cplx" min="1" max="10" step="1" value="5">
+      </div>
+      <div class="seedrow">
+        <label for="seedIn">Seed</label>
+        <input type="number" id="seedIn" min="0" max="99999" step="1" value="5">
+        <button class="btn" id="btnTerrain">Випадковий рельєф</button>
+      </div>
+      <p class="hint" style="margin:0" id="terrInfo"></p>
+    </div>
+
+    <div class="group">
+      <h2>Струс землі</h2>
+      <div class="sl">
+        <label for="shakeS">Сила струсу</label><output id="shakeSO">1.0×</output>
+        <input type="range" id="shakeS" min="0.5" max="3" step="0.1" value="1">
+      </div>
+      <div class="sl">
+        <label for="shakeD">Тривалість струсу</label><output id="shakeDO">12 с</output>
+        <input type="range" id="shakeD" min="2" max="40" step="1" value="12">
+      </div>
+      <label class="chk" for="shakeDecay"><input type="checkbox" id="shakeDecay" checked><span><b>Амплітуда плавно спадає</b><br><small>Земля трясеться хаотично (кілька частот, підстрибує, ще й дрібно дрижить, тому кожна кулька отримує свої випадкові поштовхи), а сила струсу лінійно слабшає до нуля. Це і є відпал: амплітуда відіграє роль температури. Без спадання струс обривається різко, це загартування.</small></span></label>
+      <label class="chk" for="labFrame"><input type="checkbox" id="labFrame" checked><span><b>Статична система відліку</b><br><small>Увімкнено: ми спостерігаємо збоку, земля справді рухається, а кулька відстає через інерцію. Вимкнено: ми «сидимо» на землі, рельєф нерухомий, а на кульку діє інерційна сила (стрілка зверху).</small></span></label>
+      <p class="hint" style="margin:0">Це навчальний трюк. У справжньому відпалі рельєф не рухається, а випадкові поштовхи отримують самі кульки, а їхня інтенсивність задає температура.</p>
+    </div>
+  </section>
+
+  <section class="card chartcard" aria-label="Графік">
+    <h2>Температура та середня висота кульок</h2>
+    <canvas id="chart" aria-label="Графік температури й середньої висоти кульок у часі"></canvas>
+    <div class="legend">
+      <span><i style="border-color:var(--ember)"></i>температура T (ліва вісь)</span>
+      <span><i style="border-color:var(--steel)"></i>середня висота E (права вісь)</span>
+      <span><i style="border-color:var(--ok);border-top-style:dashed"></i>глобальний мінімум</span>
+    </div>
+  </section>
+
+  <details class="card theory">
+    <summary>Спойлер: теорія відпалу</summary>
+    <div class="theory-body">
+      <h3>Навіщо це потрібно</h3>
+      <p>Ми шукаємо мінімум функції E(x), яка має багато локальних мінімумів. Жадібний спуск («котись униз») зупиняється в першій ямі. Саме це ви бачите в ручному режимі: кулька знає лише локальний нахил і не може вийти з ями, бо для цього треба спочатку піднятися.</p>
+
+      <h3>Аналогія з металом</h3>
+      <p>Коваль нагріває метал, тоді атоми вільно переміщуються. Якщо охолоджувати повільно, атоми встигають зайняти позиції з мінімальною енергією, і кристал виходить без дефектів. Якщо охолодити різко (загартування), метал фіксується в хаотичному стані з вищою енергією. Відпал в оптимізації повторює цю ідею: температура T задає, наскільки охоче система погоджується на гірші стани.</p>
+
+      <h3>Критерій Метрополіса</h3>
+      <p>Алгоритм пропонує випадковий крок x → x′ і рахує ΔE = E(x′) − E(x).</p>
+      <ul>
+        <li>Якщо ΔE ≤ 0, крок приймається завжди.</li>
+        <li>Якщо ΔE &gt; 0, крок приймається з імовірністю:</li>
+      </ul>
+      <span class="eq">P = exp(−ΔE / T)</span>
+      <p>Приклад для підйому ΔE = 0.5: при T = 1 ймовірність ≈ 61%, при T = 0.2 лише ≈ 8%. Висока температура дозволяє перелазити через гребені, низька перетворює пошук на звичайний спуск.</p>
+
+      <h3>Закони охолодження</h3>
+      <ul>
+        <li><b>Експоненційний</b> T = T₀·e<sup>−kt</sup>. Найпоширеніший на практиці, добрий компроміс.</li>
+        <li><b>Лінійний</b> T = T₀·(1 − kt/2). Падає до нуля за скінченний час.</li>
+        <li><b>1/t</b> T = T₀ / (1 + 5kt). Швидко охолоджується на початку й довго «повзе» наприкінці.</li>
+        <li><b>Логарифмічний</b> T = T₀ / (1 + 10k·ln(1 + t)). Дуже повільний. Саме для закону виду T ∝ 1/ln(t) Геман і Геман довели збіжність до глобального мінімуму з ймовірністю 1, але чекати довелося б нескінченно довго.</li>
+      </ul>
+
+      <h3>Що в симуляторі не так, як в алгоритмі</h3>
+      <div class="aside">
+        <p>Кнопка «Потрясти землю» вигадана для наочності. У справжньому відпалі рельєф стоїть на місці, а «трясуться» самі кульки: до швидкості кожної додається випадковий шум, величина якого залежить від T. Так працює режим «Відпал» тут: це рівняння Ланжевена, де кулька відчуває і гравітацію, і тертя, і тепловий шум. Рівноважний розподіл при цьому має вигляд exp(−E/T), як і в критерії Метрополіса.</p>
+      </div>
+      <p>Про системи відліку: чекбокс «Статична система відліку» перемикає лише спосіб показу. Фізика однакова. У нерухомій (лабораторній) системі земля зміщується на o(t), а кулька через інерцію відстає. В системі землі рельєф стоїть, зате на кульку діє фіктивна інерційна сила −m·o″(t). Саме вона в цьому режимі здається «хаотичною поведінкою кульки на нерухомому рельєфі».</p>
+      <p>Кульки мають різний розмір, напівпрозорі й стикаються одна з одною, тому в одній ямі вони стоять поруч, а під кожною ямою показано, скільки кульок у ній. Кілька кульок схожі на кілька запусків алгоритму (репліки): зручно порівнювати, скільки з них у кінці опинилось у найглибшій ямі.</p>
+
+      <h3>Чому струс землі з плавним спаданням теж працює як відпал</h3>
+      <p>У реальному експерименті стіл, що трясеться, посилає кулькам випадкові поштовхи різної частоти, зокрема й вертикальні. Амплітуда струсу відіграє роль температури: якщо її повільно зменшувати, кульки встигають перебирати ями й найчастіше осідають у найглибших. Різкий обрив струсу дає загартування, і кульки залишаються де попало. Тому в симуляторі дві поведінки: плавне спадання (відпал) і різкий обрив. Короткий струс однієї частоти, як у першій версії, цього не дає: він лише зсуває кульки в сусідні ями.</p>
+
+      <h3>Генератор рельєфів</h3>
+      <ul>
+        <li><b>Хвилі.</b> Сума синусоїд з параболою, ями різної глибини.</li>
+        <li><b>Випадкові ями.</b> Гаусові провали різної ширини й глибини, одна з них вузька й найглибша.</li>
+        <li><b>Растригін.</b> Регулярні однакові ями з поступово зростаючим «дном». Класичний тест оптимізаторів.</li>
+        <li><b>Шорсткий.</b> Фрактальний шум із кількох октав.</li>
+        <li><b>Пастка.</b> Широка неглибока яма, до якої скочується більшість кульок, і вузька глибока яма, яку майже неможливо знайти спуском.</li>
+      </ul>
+      <p>Той самий seed дає той самий рельєф, тож цікавий випадок можна повторити.</p>
+
+      <h3>Як підбирати параметри</h3>
+      <ul>
+        <li><b>T₀ занадто мала.</b> Кульки не можуть перелізти гребені, відпал нічим не відрізняється від спуску.</li>
+        <li><b>T₀ занадто велика.</b> Частину часу кульки просто блукають, не «відчуваючи» рельєфу.</li>
+        <li><b>Охолодження занадто швидке.</b> Це загартування: кульки «замерзають» у випадкових ямах.</li>
+        <li><b>Охолодження занадто повільне.</b> Результат кращий, але обчислень потрібно набагато більше.</li>
+      </ul>
+      <p>Спробуйте T₀ = 1.5 і k = 0.4, а потім k = 0.02, і порівняйте, скільки кульок опинилось у глобальному мінімумі.</p>
+
+      <h3>Псевдокод</h3>
+<pre>x = початковий_стан
+T = T0
+поки T &gt; T_мін:
+    x' = випадковий_сусід(x)
+    dE = E(x') - E(x)
+    якщо dE &lt;= 0 або random() &lt; exp(-dE / T):
+        x = x'
+    T = охолодити(T)   # наприклад, T *= 0.995
+повернути найкращий_знайдений_x</pre>
+
+      <h3>Де застосовують</h3>
+      <p>Розміщення елементів на мікросхемах, розклади й маршрутизація (задача комівояжера), підбір параметрів моделей, розбиття графів, упаковка. Скрізь, де простір розв’язків дискретний або складний, а градієнта немає чи він вводить в оману.</p>
+    </div>
+  </details>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const W0 = 10, RANGE = 2.4, G = 9.8, GAM = 1.2, DT = 1 / 240, R = 0.17, ROLL = 0.714, N = 2001, HX = W0 / (N - 1);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- рельєф ---------- */
+  let F = new Float64Array(N), S = new Float64Array(N), maxX = [], basins = [], gB = 0, seed = 5;
+  function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  const TYPES = {
+    waves: 'Хвилі',
+    wells: 'Випадкові ями',
+    rastrigin: 'Растригін (регулярні ями)',
+    noise: 'Шорсткий (фрактальний шум)',
+    trap: 'Пастка (широка неглибока яма й вузька глибока)'
+  };
+  const smooth = u => u * u * (3 - 2 * u);
+  function makeRaw(type, cplx, r) {
+    const gauss = (x, c, w) => Math.exp(-0.5 * ((x - c) / w) ** 2);
+    if (type === 'wells') {
+      const n = Math.round(2 + cplx * 0.8), ws = [];
+      for (let i = 0; i < n; i++) ws.push({ c: 0.5 + r() * 9, w: 0.22 + r() * 0.4, d: 0.35 + r() * 0.8 });
+      ws.push({ c: 0.8 + r() * 8.4, w: 0.2 + r() * 0.12, d: 1.4 + r() * 0.3 });
+      const p = r() * 6.28, tilt = (r() - 0.5) * 0.1;
+      return x => 0.3 * Math.sin(0.7 * x + p) + tilt * x + 0.02 * (x - 5) ** 2 - ws.reduce((a, q) => a + q.d * gauss(x, q.c, q.w), 0);
+    }
+    if (type === 'rastrigin') {
+      const c = 2.5 + r() * 5, fr = 0.45 + cplx * 0.12, p = r() * 6.28;
+      return x => 0.1 * (x - c) ** 2 + 0.5 * (1 - Math.cos(2 * Math.PI * fr * (x - c))) + 0.07 * Math.sin(3.7 * x + p);
+    }
+    if (type === 'noise') {
+      const oct = [];
+      for (let o = 0; o < 4; o++) { const k = Math.round((2 + cplx * 0.6) * 2 ** o); oct.push({ k, v: Array.from({ length: k + 2 }, () => r()) }); }
+      return x => oct.reduce((a, q, o) => { const u = x / W0 * q.k, i = Math.floor(u), t = smooth(u - i); return a + 0.55 ** o * (q.v[i] * (1 - t) + q.v[i + 1] * t); }, 0);
+    }
+    if (type === 'trap') {
+      const c1 = 1.5 + r() * 2.5, c2 = c1 + 3 + r() * 3, wide = { d: 0.9, w: 1.5 }, narrow = { d: 1.6, w: 0.18 + r() * 0.08 };
+      const extra = [];
+      for (let i = 0; i < Math.round(cplx * 0.6); i++) extra.push({ c: r() * 10, w: 0.25 + r() * 0.2, d: 0.2 + r() * 0.3 });
+      const p = r() * 6.28, sw = 0.8 + cplx * 0.25;
+      return x => 0.5 - wide.d * gauss(x, c1, wide.w) - narrow.d * gauss(x, c2, narrow.w) - extra.reduce((a, q) => a + q.d * gauss(x, q.c, q.w), 0) + 0.08 * Math.sin(sw * x + p);
+    }
+    const m = 0.55 + cplx * 0.09, p = [0, 1, 2, 3].map(() => r() * 6.283), c = 2 + r() * 6, bw = 0.03 + r() * 0.05;
+    return x => 0.55 * Math.sin(1.9 * m * x + p[0]) + 0.42 * Math.sin(3.4 * m * x + p[1]) + 0.3 * Math.sin(5.9 * m * x + p[2]) + 0.14 * Math.sin(9.1 * m * x + p[3]) + bw * (x - c) * (x - c);
+  }
+
+  function buildTerrain(type, cplx, sd) {
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const r = rng(sd * 7919 + attempt * 131 + 1);
+      const raw = makeRaw(type, cplx, r);
+      const rawV = new Float64Array(N); let mn = 1e9, mx = -1e9;
+      for (let i = 0; i < N; i++) { const v = raw(i * HX); rawV[i] = v; if (v < mn) mn = v; if (v > mx) mx = v; }
+      const sc = RANGE / (mx - mn);
+      for (let i = 0; i < N; i++) F[i] = (rawV[i] - mn) * sc;
+      for (let i = 0; i < N; i++) { const a = F[Math.max(0, i - 1)], b = F[Math.min(N - 1, i + 1)]; S[i] = (b - a) / ((Math.min(N - 1, i + 1) - Math.max(0, i - 1)) * HX); }
+      maxX = [];
+      for (let i = 1; i < N; i++) if (S[i - 1] > 0 && S[i] <= 0) maxX.push(i);
+      const bounds = [0, ...maxX, N - 1];
+      basins = [];
+      for (let b = 0; b < bounds.length - 1; b++) {
+        let bi = bounds[b];
+        for (let i = bounds[b]; i <= bounds[b + 1]; i++) if (F[i] < F[bi]) bi = i;
+        const lh = b > 0 ? F[bounds[b]] : Infinity, rh = b < bounds.length - 2 ? F[bounds[b + 1]] : Infinity;
+        basins.push({ i: bi, x: bi * HX, f: F[bi], barrier: Math.min(lh, rh) - F[bi] });
+      }
+      let g = 0; basins.forEach((b, k) => { if (b.f < basins[g].f) g = k; });
+      gB = g;
+      const others = basins.filter((_, k) => k !== g);
+      const second = others.length ? Math.min(...others.map(b => b.f)) : 9;
+      const ok = basins.length >= 3 && basins.length <= 16 && basins.every(b => b.barrier >= 0.08) && second - basins[g].f >= 0.12 && basins[g].barrier >= 0.15;
+      if (ok) return;
+    }
+  }
+  const f = x => { x = x < 0 ? 0 : x > W0 ? W0 : x; const u = x / HX, i = Math.min(N - 2, u | 0), a = u - i; return F[i] * (1 - a) + F[i + 1] * a; };
+  const sl = x => { x = x < 0 ? 0 : x > W0 ? W0 : x; const u = x / HX, i = Math.min(N - 2, u | 0), a = u - i; return S[i] * (1 - a) + S[i + 1] * a; };
+  const basinOf = x => { let k = 0; for (const m of maxX) if (m * HX < x) k++; return k; };
+
+  /* ---------- стан ---------- */
+  let mode = 'manual', started = false, running = true, frozen = false, t = 0;
+  let balls = [], shake = { t: 0, tau: 0, env: 0, o: 0, oy: 0, fs: 0 }, history = [], lastSample = -1, frozenRest = 0;
+  const P = { n: 4, speed: 1, T0: 1.5, k: 0.06, law: 'exp', strength: 1, lab: true, dur: 12, decay: true, type: 'waves', cplx: 5 };
+  // Земля трясеться хаотично: кілька несумірних частот зі випадковими фазами (горизонтально і вертикально).
+  // Амплітуда множиться на огинаючу: плавний вхід, далі лінійне спадання до нуля (відпал) або різкий обрив (загартування).
+  const HF = [0.9, 1.5, 2.3, 3.4, 5.0, 7.2], VF = [2.6, 4.1, 6.0];
+  let hPh = HF.map(() => 0), vPh = VF.map(() => 0);
+  const envAt = tau => {
+    if (tau <= 0 || tau >= P.dur) return 0;
+    const ramp = Math.min(1, tau / 0.3);
+    return ramp * (P.decay ? 1 - tau / P.dur : Math.min(1, (P.dur - tau) / 0.4));
+  };
+  const oAt = tau => { const e = envAt(tau); if (!e) return 0; return e * HF.reduce((a, f, i) => { const w = 2 * Math.PI * f; return a + 5 * P.strength / (w * w) * Math.sin(w * tau + hPh[i]); }, 0); };
+  const oyAt = tau => { const e = envAt(tau); if (!e) return 0; return e * VF.reduce((a, f, i) => { const w = 2 * Math.PI * f; return a + 3 * P.strength / (w * w) * Math.sin(w * tau + vPh[i]); }, 0); };
+  const randn = () => { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.2832 * Math.random()); };
+  let ballSeq = 0, ready = false;
+  const mkBall = x => { const k = ballSeq++; return { x, v: 0, dh: 0.5 + Math.random() * 0.5, dv: 0, rest: 0, rot: 0, drag: false, r: 0.12 + Math.random() * 0.12, hue: (k * 137.5 + 20) % 360 }; };
+  function resetBalls() {
+    balls = [];
+    for (let i = 0; i < P.n; i++) balls.push(mkBall(0.6 + (i + Math.random() * 0.8) * (8.8 / P.n)));
+    t = 0; history = []; lastSample = -1; started = false; frozen = false; frozenRest = 0; shake.t = 0; shake.env = 0;
+    running = true; syncRun();
+  }
+  function Tlaw(tt) {
+    const { T0, k, law } = P;
+    if (law === 'exp') return T0 * Math.exp(-k * tt);
+    if (law === 'lin') return T0 * Math.max(0, 1 - k * tt / 2);
+    if (law === 'inv') return T0 / (1 + 5 * k * tt);
+    return T0 / (1 + 10 * k * Math.log(1 + tt));
+  }
+  const TMAX_T = 240;
+  function tempNow() {
+    if (mode !== 'ann' || !started || frozen) return 0;
+    const T = Tlaw(t);
+    if (T < 0.01 || t >= TMAX_T) { frozen = true; return 0; }
+    return T;
+  }
+  function horizon() {
+    if (mode !== 'ann') return Math.max(20, t * 1.2);
+    for (let tt = 0; tt < TMAX_T; tt += 0.5) if (Tlaw(tt) < 0.01) return Math.max(10, tt);
+    return TMAX_T;
+  }
+
+  /* ---------- фізика ---------- */
+  function step() {
+    const Tn = tempNow();
+    let fs = 0, ay = 0;
+    if (shake.t > 0) {
+      shake.tau += DT; shake.t -= DT;
+      // інерційна сила в системі землі = −(прискорення землі)
+      shake.o = oAt(shake.tau); shake.oy = oyAt(shake.tau);
+      fs = -(oAt(shake.tau + DT) - 2 * shake.o + oAt(shake.tau - DT)) / (DT * DT);
+      ay = (oyAt(shake.tau + DT) - 2 * shake.oy + oyAt(shake.tau - DT)) / (DT * DT);
+      shake.env = envAt(shake.tau);
+    } else { shake.env = 0; shake.o = 0; shake.oy = 0; }
+    shake.fs = fs;
+    const geff = Math.max(0.15 * G, G + ay);
+    // стіл не лише гойдається, а й дрижить дрібно: у кожної кульки свої випадкові поштовхи, що слабшають разом зі струсом
+    const Tshake = 1.2 * P.strength * shake.env;
+    const sigma = Math.sqrt(2 * GAM * G * ROLL * (Tn + Tshake) * DT);
+    for (const b of balls) {
+      if (b.drag) continue;
+      if (b.dh > 0 || b.dv !== 0) {
+        b.dv -= G * DT; b.dh += b.dv * DT; b.rest = 0;
+        if (b.dh <= 0) { b.dh = 0; b.dv = Math.abs(b.dv) < 1.2 ? 0 : -b.dv * 0.35; }
+        continue;
+      }
+      const s = sl(b.x);
+      // v — швидкість вздовж схилу (по дузі), тож на крутих стінках кулька прискорюється так само, як у реальності
+      const cs = 1 / Math.sqrt(1 + s * s);
+      b.v += (-geff * ROLL * s * cs + fs * cs) * DT;
+      b.v -= GAM * b.v * DT;
+      if (Tn + Tshake > 0) b.v += sigma * randn();
+      b.x += b.v * cs * DT; b.rot += b.v / b.r * DT;
+      if (b.x < 0.12) { b.x = 0.12; b.v = Math.abs(b.v) * 0.5; }
+      if (b.x > W0 - 0.12) { b.x = W0 - 0.12; b.v = -Math.abs(b.v) * 0.5; }
+      b.rest = Math.abs(b.v) < 0.12 ? b.rest + DT : 0;
+    }
+    collide();
+    if (mode === 'manual' || (started && !frozen)) t += DT;
+    if (t - lastSample >= 0.1) { lastSample = t; history.push([t, meanE()]); if (history.length > 4000) history.shift(); }
+    if (frozen) frozenRest = balls.every(b => b.rest > 0.8) ? frozenRest + DT : 0;
+  }
+  // зіткнення кульок вздовж осі x: кульки мають розмір і не проходять одна крізь одну
+  function collide() {
+    const g = balls.filter(b => !b.drag && b.dh === 0 && b.dv === 0).sort((a, b) => a.x - b.x);
+    const cy = q => f(q.x) + q.r / Math.sqrt(1 + sl(q.x) ** 2);
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i < g.length - 1; i++) {
+      const a = g[i], b = g[i + 1], rr = (a.r + b.r) * 0.98, dy = cy(b) - cy(a);
+      // потрібна горизонтальна відстань між центрами, щоб кола не перетиналися (на крутій стінці вона мала: кулька лягає зверху)
+      const need = rr > Math.abs(dy) ? Math.sqrt(rr * rr - dy * dy) : 0, d = b.x - a.x;
+      if (d >= need) continue;
+      const ma = a.r * a.r, mb = b.r * b.r, ov = need - d;
+      a.x -= ov * mb / (ma + mb); b.x += ov * ma / (ma + mb);
+      const ca = 1 / Math.sqrt(1 + sl(a.x) ** 2), cb = 1 / Math.sqrt(1 + sl(b.x) ** 2);
+      const va = a.v * ca, vb = b.v * cb, rel = va - vb;
+      if (rel > 0) { const tot = ma * va + mb * vb, e = 0.4; a.v = (tot - mb * e * rel) / (ma + mb) / ca; b.v = (tot + ma * e * rel) / (ma + mb) / cb; }
+      for (const q of [a, b]) q.x = Math.min(W0 - 0.12, Math.max(0.12, q.x));
+    }
+  }
+  const meanE = () => balls.length ? balls.reduce((a, b) => a + f(b.x), 0) / balls.length : 0;
+  const inGlobal = b => basinOf(b.x) === gB;
+
+  /* ---------- відмальовування ---------- */
+  const css = getComputedStyle(document.documentElement);
+  const col = n => css.getPropertyValue(n).trim();
+  const hex2 = h => { h = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); };
+  const mix = (a, b, k) => { const A = hex2(a), B = hex2(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; };
+
+  const cv = $('scene'), cx = cv.getContext('2d'), ch = $('chart'), cc = ch.getContext('2d');
+  let cw = 0, chh = 0, sc = 1, dpr = 1, bottomPad = 0;
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    cw = cv.parentElement.clientWidth - 20; sc = cw / W0; bottomPad = 0.62 * sc;
+    chh = Math.round(sc * (RANGE + 0.62 + 1.3));
+    cv.style.height = chh + 'px'; cv.width = cw * dpr; cv.height = chh * dpr;
+    const w2 = ch.parentElement.clientWidth - 28, h2 = Math.max(150, Math.min(220, w2 * 0.28));
+    ch.style.width = w2 + 'px'; ch.style.height = h2 + 'px'; ch.width = w2 * dpr; ch.height = h2 * dpr;
+  }
+  const Y = fv => chh - bottomPad - fv * sc;
+
+  function drawScene() {
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx.clearRect(0, 0, cw, chh);
+    const ink = col('--ink'), muted = col('--muted'), line = col('--line');
+    cx.font = '10px ' + col('--font-mono'); cx.textBaseline = 'middle';
+    for (let h = 0.5; h <= 2.5; h += 0.5) {
+      const y = Y(h); cx.strokeStyle = line; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(0, y); cx.lineTo(cw, y); cx.stroke();
+      cx.fillStyle = muted; cx.fillText(h.toFixed(1), 4, y - 7);
+    }
+    cx.fillStyle = muted; cx.fillText('E', 4, 10);
+    cx.save();
+    // статична система відліку: рухається все, що прив'язане до землі (рельєф і кульки)
+    if (P.lab) cx.translate(shake.o * sc, -shake.oy * sc);
+    const ext = 4 * sc;
+    const g = cx.createLinearGradient(0, Y(RANGE), 0, chh);
+    g.addColorStop(0, col('--ground')); g.addColorStop(1, col('--ground2'));
+    cx.fillStyle = g; cx.beginPath(); cx.moveTo(-ext, chh + 10); cx.lineTo(-ext, Y(F[0]));
+    for (let i = 0; i < N; i += 4) cx.lineTo(i * HX * sc, Y(F[i]));
+    cx.lineTo(cw + ext, Y(F[N - 1])); cx.lineTo(cw + ext, chh + 10); cx.closePath(); cx.fill();
+    cx.strokeStyle = ink; cx.lineWidth = 2; cx.lineJoin = 'round'; cx.beginPath();
+    cx.moveTo(-ext, Y(F[0]));
+    for (let i = 0; i < N; i += 4) cx.lineTo(i * HX * sc, Y(F[i]));
+    cx.lineTo(cw + ext, Y(F[N - 1]));
+    cx.stroke();
+    // мітки мінімумів
+    cx.textAlign = 'center'; cx.fillStyle = col('--groundtext');
+    basins.forEach((b, k) => {
+      const px = b.x * sc, py = Y(b.f);
+      if (k === gB) {
+        cx.setLineDash([5, 4]); cx.strokeStyle = col('--ok'); cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(0, py); cx.lineTo(cw, py); cx.stroke(); cx.setLineDash([]);
+        cx.fillStyle = col('--ok'); cx.beginPath(); cx.arc(px, py + 6, 3, 0, 7); cx.fill();
+      } else if (sc > 40 && basins.length <= 11) {
+        cx.fillStyle = col('--groundtext'); cx.fillText('+' + (b.f - basins[gB].f).toFixed(2), px, py + 14);
+      }
+    });
+    // лічильник кульок у кожній ямі
+    const cnt = basins.map(() => 0); balls.forEach(b => cnt[basinOf(b.x)]++);
+    cx.font = '600 12px ' + col('--font-mono');
+    basins.forEach((b, k) => { if (cnt[k]) { cx.fillStyle = k === gB ? col('--ok') : col('--groundtext'); cx.fillText('×' + cnt[k], b.x * sc, chh - 9); } });
+    cx.font = '10px ' + col('--font-mono');
+    cx.textAlign = 'right'; cx.fillStyle = col('--ok');
+    cx.fillText('глобальний мінімум', cw - 6, Y(basins[gB].f) - 8);
+    cx.textAlign = 'left';
+    // кульки
+    const Tn = mode === 'ann' && started && !frozen ? Tlaw(t) : 0;
+    const heat = Math.min(1, Math.max(Tn / 2, shake.env * 0.8));
+    const ember = col('--ember');
+    for (const b of balls) {
+      const s = sl(b.x), n = Math.sqrt(1 + s * s), r = b.r * sc;
+      const px = (b.x - b.r * s / n) * sc, py = Y(f(b.x) + b.r / n + b.dh);
+      cx.fillStyle = `hsla(${b.hue},78%,54%,0.58)`; cx.beginPath(); cx.arc(px, py, r, 0, 7); cx.fill();
+      cx.strokeStyle = heat > 0.05 ? mix(ink, ember, heat) : `hsla(${b.hue},70%,32%,0.95)`; cx.lineWidth = 1.5 + heat * 1.5; cx.stroke();
+      cx.strokeStyle = 'rgba(255,255,255,.9)'; cx.lineWidth = 2; cx.beginPath();
+      cx.moveTo(px + Math.cos(b.rot) * r * 0.25, py + Math.sin(b.rot) * r * 0.25); cx.lineTo(px + Math.cos(b.rot) * r * 0.8, py + Math.sin(b.rot) * r * 0.8); cx.stroke();
+      if (b.drag) { cx.strokeStyle = ink; cx.lineWidth = 1; cx.beginPath(); cx.arc(px, py, r + 4, 0, 7); cx.stroke(); }
+    }
+    cx.restore();
+    // нерухома шкала лабораторної системи (щоб рух землі було видно) або стрілка інерційної сили
+    cx.strokeStyle = muted; cx.lineWidth = 1;
+    for (let i = 0; i <= W0; i++) { const px = i * sc; cx.beginPath(); cx.moveTo(px, 0); cx.lineTo(px, i % 5 ? 5 : 9); cx.stroke(); }
+    cx.fillStyle = muted; cx.textAlign = 'right'; cx.textBaseline = 'middle';
+    cx.fillText(P.lab ? 'нерухома система відліку: земля рухається' : 'система землі: на кульки діє інерційна сила', cw - 6, 20);
+    if (!P.lab && shake.env > 0) {
+      const len = Math.max(-cw * 0.4, Math.min(cw * 0.4, shake.fs * 0.9)), x0 = cw / 2, y0 = 38;
+      cx.strokeStyle = col('--ember'); cx.fillStyle = col('--ember'); cx.lineWidth = 3;
+      cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x0 + len, y0); cx.stroke();
+      const d = len >= 0 ? 1 : -1; cx.beginPath(); cx.moveTo(x0 + len + d * 8, y0); cx.lineTo(x0 + len, y0 - 5); cx.lineTo(x0 + len, y0 + 5); cx.closePath(); cx.fill();
+    }
+    cx.textAlign = 'left';
+  }
+
+  function drawChart() {
+    const w = ch.width / dpr, h = ch.height / dpr;
+    cc.setTransform(dpr, 0, 0, dpr, 0, 0); cc.clearRect(0, 0, w, h);
+    const L = 38, Rr = 38, Tp = 10, B = 22, pw = w - L - Rr, ph = h - Tp - B;
+    const H = horizon(), Tm = Math.max(P.T0, 0.1);
+    const X = tt => L + tt / H * pw, YT = v => Tp + ph - v / Tm * ph, YE = v => Tp + ph - v / RANGE * ph;
+    cc.font = '10px ' + col('--font-mono'); cc.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const y = Tp + ph * i / 4; cc.strokeStyle = col('--line'); cc.lineWidth = 1; cc.beginPath(); cc.moveTo(L, y); cc.lineTo(L + pw, y); cc.stroke();
+      cc.fillStyle = col('--ember'); cc.textAlign = 'right'; cc.fillText((Tm * (1 - i / 4)).toFixed(2), L - 5, y);
+      cc.fillStyle = col('--steel'); cc.textAlign = 'left'; cc.fillText((RANGE * (1 - i / 4)).toFixed(1), L + pw + 5, y);
+    }
+    cc.fillStyle = col('--muted'); cc.textAlign = 'center'; cc.textBaseline = 'top';
+    for (let i = 0; i <= 4; i++) cc.fillText(Math.round(H * i / 4) + ' с', L + pw * i / 4, h - B + 6);
+    // глобальний мінімум
+    cc.setLineDash([5, 4]); cc.strokeStyle = col('--ok'); cc.lineWidth = 1.5; cc.beginPath(); cc.moveTo(L, YE(basins[gB].f)); cc.lineTo(L + pw, YE(basins[gB].f)); cc.stroke(); cc.setLineDash([]);
+    // T
+    if (mode === 'ann') {
+      cc.strokeStyle = col('--ember'); cc.lineWidth = 2;
+      cc.globalAlpha = 0.35; cc.setLineDash([4, 4]); cc.beginPath();
+      for (let i = 0; i <= 120; i++) { const tt = H * i / 120, px = X(tt), py = YT(Tlaw(tt)); i ? cc.lineTo(px, py) : cc.moveTo(px, py); }
+      cc.stroke(); cc.setLineDash([]); cc.globalAlpha = 1;
+      if (started) {
+        cc.beginPath(); const te = Math.min(t, H);
+        for (let i = 0; i <= 120; i++) { const tt = te * i / 120, px = X(tt), py = YT(Tlaw(tt)); i ? cc.lineTo(px, py) : cc.moveTo(px, py); }
+        cc.stroke();
+      }
+    }
+    // E
+    cc.strokeStyle = col('--steel'); cc.lineWidth = 2; cc.beginPath();
+    history.forEach(([tt, e], i) => { const px = X(Math.min(tt, H)), py = YE(e); i ? cc.lineTo(px, py) : cc.moveTo(px, py); });
+    cc.stroke();
+  }
+
+  /* ---------- повідомлення та показники ---------- */
+  const fm = (v, d = 2) => v.toFixed(d);
+  function updateUI() {
+    const Tn = mode === 'ann' && started && !frozen ? Tlaw(t) : 0;
+    $('sT').textContent = fm(Tn); $('sT').style.color = Tn > 0.02 ? 'var(--ember)' : '';
+    $('sTime').textContent = fm(t, 1); $('sE').textContent = fm(meanE());
+    const ng = balls.filter(inGlobal).length; $('sG').textContent = ng + ' / ' + balls.length;
+
+    const el = $('notice'), txt = $('noticeTxt'), btn = $('noticeBtn');
+    let kind = 'info', html = '', showBtn = false;
+    const stuck = balls.filter(b => b.rest > 1 && !inGlobal(b));
+    const settled = balls.length && balls.every(b => b.dh === 0 && b.rest > 0.8);
+    const gf = basins[gB].f;
+    if (shake.t > 0) {
+      html = (P.lab
+        ? '<b>Земля трясеться.</b> Рельєф рухається, а кульки через інерцію відстають і з’їжджають по схилах. '
+        : '<b>Земля трясеться.</b> Ми дивимося з системи землі: рельєф «стоїть», а на кульки діє інерційна сила (оранжева стрілка). ')
+        + (P.decay ? 'Амплітуда плавно спадає, як температура при відпалі.' : 'Струс обірветься різко, як загартування.');
+    } else if (mode === 'manual') {
+      if (stuck.length) {
+        const worst = Math.max(...stuck.map(b => f(b.x) - gf));
+        kind = 'prompt'; showBtn = true;
+        html = `<b>${stuck.length === 1 ? 'Кулька застрягла' : 'Застрягло кульок: ' + stuck.length}</b> у локальному мінімумі, на ${fm(worst)} вище за глобальний. Одна гравітація її звідти не витягне.<small>Примітка: так ми трясемо землю лише для наочності. У реальному алгоритмі відпалу трясуться самі кульки (випадкові кроки при температурі T), а не рельєф.</small>`;
+      } else if (settled && balls.every(inGlobal)) {
+        kind = 'ok'; html = '<b>Усі кульки в глобальному мінімумі.</b> Скиньте їх знову або змініть рельєф, щоб повторити.';
+      } else if (settled) {
+        kind = 'ok'; html = 'Кульки зупинилися.';
+      } else html = 'Кульки котяться вниз під дією гравітації й тертя. У режимі «Відпал» вони отримають власні випадкові поштовхи.';
+    } else {
+      if (!started) html = 'Кульки скотилися в найближчі ями. Налаштуйте T₀, закон і швидкість охолодження та натисніть «Запустити відпал».';
+      else if (!frozen) html = `<b>T = ${fm(Tn)}.</b> Кульки самі отримують випадкові поштовхи (тепловий шум): при високій T вони легко перелітають гребені, коли T падає, поступово осідають у ямах.`;
+      else if (frozenRest > 0.5) {
+        kind = ng === balls.length ? 'ok' : 'warn';
+        html = `<b>Охолоджено.</b> У глобальному мінімумі: ${ng} з ${balls.length}. ${ng === balls.length ? 'Охолодження було достатньо повільним.' : 'Спробуйте менше k, більше T₀ або повільніший закон.'}`;
+      } else html = '<b>Охолоджено.</b> Кульки осідають…';
+    }
+    if (txt.dataset.h !== html) { txt.innerHTML = html; txt.dataset.h = html; }
+    el.dataset.kind = kind; btn.hidden = !showBtn;
+  }
+
+  function syncRun() {
+    const b = $('btnRun');
+    if (mode === 'ann' && !started) b.textContent = 'Запустити відпал';
+    else b.textContent = running ? 'Пауза' : 'Продовжити';
+  }
+  function syncLaw() {
+    $('formula').textContent = { exp: 'T(t) = T₀ · exp(−k·t)', lin: 'T(t) = T₀ · (1 − k·t / 2)', inv: 'T(t) = T₀ / (1 + 5k·t)', log: 'T(t) = T₀ / (1 + 10k·ln(1 + t))' }[P.law];
+  }
+  function setMode(m) {
+    mode = m;
+    $('modeManual').setAttribute('aria-pressed', m === 'manual'); $('modeAnneal').setAttribute('aria-pressed', m === 'ann');
+    $('annGroup').classList.toggle('dim', m !== 'ann');
+    ['law', 'T0', 'rate'].forEach(i => $(i).disabled = m !== 'ann');
+    resetBalls();
+  }
+  function doShake() { hPh = HF.map(() => Math.random() * 6.283); vPh = VF.map(() => Math.random() * 6.283); shake.t = P.dur; shake.tau = 0; running = true; syncRun(); }
+
+  /* ---------- керування ---------- */
+  $('modeManual').onclick = () => setMode('manual');
+  $('modeAnneal').onclick = () => setMode('ann');
+  $('btnRun').onclick = () => {
+    if (mode === 'ann' && !started) { started = true; frozen = false; t = 0; history = []; lastSample = -1; running = true; }
+    else running = !running;
+    syncRun();
+  };
+  $('btnReset').onclick = resetBalls;
+  $('btnShake').onclick = doShake; $('noticeBtn').onclick = doShake;
+  function regen() { buildTerrain(P.type, P.cplx, seed); $('seedIn').value = seed; $('terrInfo').textContent = `Ям: ${basins.length}. Глобальний мінімум на x = ${basins[gB].x.toFixed(1)}, ширина кожної ями різна.`; resetBalls(); }
+  $('btnTerrain').onclick = () => { seed = Math.floor(Math.random() * 99999); regen(); };
+  $('seedIn').addEventListener('change', e => { seed = Math.max(0, Math.min(99999, Math.floor(+e.target.value) || 0)); regen(); });
+  $('ttype').addEventListener('change', e => { P.type = e.target.value; regen(); });
+  const bind = (id, key, fmt, cb) => {
+    const el = $(id); const upd = () => { P[key] = el.type === 'range' ? +el.value : el.value; $(id + 'O') && ($(id + 'O').textContent = fmt(P[key])); cb && cb(); };
+    el.addEventListener('input', upd); upd();
+  };
+  bind('nBalls', 'n', v => v, resetBalls);
+  bind('speed', 'speed', v => v.toFixed(1) + '×');
+  bind('T0', 'T0', v => v.toFixed(2));
+  bind('rate', 'k', v => v.toFixed(2));
+  bind('shakeS', 'strength', v => v.toFixed(1) + '×');
+  bind('shakeD', 'dur', v => v + ' с');
+  bind('cplx', 'cplx', v => v, () => { if (typeof regen === 'function' && ready) regen(); });
+  $('shakeDecay').addEventListener('change', e => { P.decay = e.target.checked; });
+  $('labFrame').addEventListener('change', e => { P.lab = e.target.checked; });
+  $('law').addEventListener('change', e => { P.law = e.target.value; syncLaw(); });
+
+  // перетягування / скидання кульки
+  let dragB = null;
+  const world = e => { const r = cv.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width * cw, py = (e.clientY - r.top) / r.height * chh; return { x: px / sc - (P.lab ? shake.o : 0), y: (chh - bottomPad - py) / sc - (P.lab ? shake.oy : 0) }; };
+  cv.addEventListener('pointerdown', e => {
+    const w = world(e); let best = null, bd = 0.5;
+    for (const b of balls) { const d = Math.hypot(b.x - w.x, f(b.x) + b.r + b.dh - w.y); if (d < Math.max(bd, 0) && d < Math.max(0.5, b.r + 0.2) && d < bd) { bd = d; best = b; } }
+    if (best) { dragB = best; best.drag = true; best.v = 0; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; }
+    else {
+      const nb = mkBall(Math.min(W0 - 0.3, Math.max(0.3, w.x))); nb.dh = Math.max(0.3, w.y - f(nb.x) - nb.r);
+      if (balls.length < 10) { balls.push(nb); P.n = balls.length; $('nBalls').value = P.n; $('nBallsO').textContent = P.n; } else balls[0] = nb;
+    }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!dragB) return; const w = world(e);
+    dragB.x = Math.min(W0 - 0.15, Math.max(0.15, w.x)); dragB.dh = Math.max(0.05, w.y - f(dragB.x) - dragB.r); dragB.dv = 0; dragB.v = 0;
+  });
+  const endDrag = () => { if (dragB) { dragB.drag = false; dragB = null; cv.style.cursor = ''; } };
+  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+  /* ---------- цикл ---------- */
+  let acc = 0, prev = performance.now(), uiT = 0;
+  function frame(now) {
+    const dtr = Math.max(0, Math.min(0.05, (now - prev) / 1000)); prev = now;
+    if (running) { acc += dtr * P.speed; let n = Math.max(0, Math.min(500, Math.floor(acc / DT))); acc -= n * DT; while (n--) step(); }
+    drawScene();
+    uiT += dtr; if (uiT > 0.1) { uiT = 0; updateUI(); drawChart(); }
+    requestAnimationFrame(frame);
+  }
+
+  syncLaw(); resize(); ready = true; regen(); setMode('manual');
+  new ResizeObserver(() => { resize(); drawChart(); }).observe(cv.parentElement);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
