@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pendulum fit · Градієнт vs ГА</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#6b6b66;--ln:#d9d8d0;--card:#fff;--acc:#1a6fd4;--pt:#d4381a;--ok:#1d8a4a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#e8e8e3;--mut:#9a9a93;--ln:#3a3b3e;--card:#202225;--acc:#5aa2f5;--pt:#ff7a5c;--ok:#4cc982}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#e8e8e3;--mut:#9a9a93;--ln:#3a3b3e;--card:#202225;--acc:#5aa2f5;--pt:#ff7a5c;--ok:#4cc982}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:.2em 0}h2{font-size:1.05rem;margin:1.2em 0 .3em}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+canvas{width:100%;height:auto;background:var(--card);border:1px solid var(--ln);border-radius:8px;display:block}
+button,input[type=text]{font:inherit;padding:6px 12px;border:1px solid var(--ln);border-radius:6px;background:var(--card);color:var(--fg)}
+button{cursor:pointer}button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+.sl{display:grid;grid-template-columns:90px 1fr 64px;gap:8px;align-items:center}
+.sl input{width:100%}.sl output{text-align:right;font-variant-numeric:tabular-nums}
+.box{background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:10px 14px;margin:10px 0}
+.mut{color:var(--mut);font-size:.9rem}b#rm{font-size:1.2rem;color:var(--ok)}summary{cursor:pointer;font-weight:600}
+code{background:var(--card);border:1px solid var(--ln);padding:1px 5px;border-radius:4px}
+mjx-container[display=true]{overflow-x:auto;overflow-y:hidden}
+</style>
+<script>window.MathJax={tex:{inlineMath:[['$','$']],displayMath:[['$$','$$']]},svg:{fontCache:'global'}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head><body><main>
+<div class="row" style="justify-content:space-between"><h1 data-i="title"></h1>
+<span><button onclick="setLang('uk')">UA</button> <button onclick="setLang('en')">EN</button></span></div>
+<div data-i="story"></div>
+<div class="row"><span data-i="seedl"></span><input type="text" id="seed" value="student-1" size="14"><button class="p" id="gen" data-i="gen"></button></div>
+<div class="grid"><canvas id="pc" width="600" height="480"></canvas><canvas id="gc" width="960" height="600"></canvas></div>
+<div class="box"><div id="sl"></div>
+<div class="row"><span data-i="rmse"></span> <b id="rm"></b> <span class="mut" id="np"></span>
+<button id="pl" data-i="replay"></button><button id="mu" title="sound">🔊</button><button class="p" id="xl" data-i="xlsx"></button><button id="cs" data-i="csv"></button></div></div>
+<div data-i="tasks"></div>
+<details class="box"><summary data-i="spS"></summary><div data-i="spB"></div></details>
+<h2 data-i="chk"></h2>
+<p data-i="lt"></p>
+<div class="row"><button class="p" id="ls" data-i="land"></button><button id="gd" data-i="run" style="display:none"></button><button id="ap" data-i="apply" style="display:none"></button></div>
+<p class="mut" id="gi"></p>
+<div id="mg" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px"></div>
+</main>
+<script>
+const D={uk:{
+title:'Маятник, що згасає: градієнт чи генетичний алгоритм?',
+story:'<p>Камера фотографує маятник, що згасає, у <b>нерівні</b> моменти часу $t_i$. З кожного знімка виміряно кут відхилення $\\theta_i$ (рад, із шумом). Модель: $$\\theta(t)=A\\,e^{-\\gamma t}\\cos(\\omega t+\\varphi)$$ Параметри $\\mathbf p=(A,\\gamma,\\omega,\\varphi)$ невідомі. Маятник гойдається один раз; камера знімає його в нерівні моменти часу, і кожен знімок додає точку на графік.</p>',
+seedl:'Ваш номер/прізвище (seed):',gen:'Згенерувати дані',rmse:'RMSE ручного підгону, рад:',pause:'⏸ Пауза',replay:'↻ Повторити зйомку',xlsx:'⬇ Excel (.xlsx)',csv:'⬇ CSV',
+n:'точок: ',tcol:'t, с',ycol:'θ, рад',
+tasks:`<h2>Завдання</h2><ol>
+<li><b>Вручну.</b> Повзунками підберіть $A,\\gamma,\\omega,\\varphi$, щоб крива пройшла крізь точки. Запишіть найменший RMSE та кількість спроб.</li>
+<li><b>Чому це важко.</b> Пошук 4-вимірний; мінімізуємо $$S(\\mathbf p)=\\sum_{i=1}^{N}\\big(\\theta_i-\\theta(t_i;\\mathbf p)\\big)^2\\to\\min.$$ Ландшафт $S$ має багато локальних мінімумів, переважно за $\\omega$ та $\\varphi$ (за $A,\\gamma$ він значно «спокійніший»). Обмеження: $A>0,\\ \\omega>0,\\ \\varphi\\in[-\\pi,\\pi]$, інакше розв’язки дублюються: $(A,\\varphi)\\sim(-A,\\varphi+\\pi)$.</li>
+<li><b>Градієнт.</b> Експортуйте дані в Excel. У комірках задайте модель <code>=A*EXP(-g*t)*COS(w*t+phi)</code>, $S$ як суму квадратів і запустіть Solver, метод <i>GRG Nonlinear</i>, стартуючи з вашого ручного підгону. Потім стартуйте з поганої точки (напр. $\\omega$ вдвічі більше) і порівняйте.</li>
+<li><b>ГА.</b> Те саме, але <i>Evolutionary</i> (або власний ГА). Межі змінних обов’язкові. Запустіть 5 разів: чи стабільний результат? Скільки обчислень $S$?</li>
+<li><b>Питання.</b> Чому RMSE найкращого підгону ≈ $\\sigma\\sqrt{(N-4)/N}$, а не 0? Що буде, якщо RMSE вийде <i>менший</i> за шум?</li></ol>`,
+chk:'Ландшафти та градієнтний пошук',land:'Показати ландшафти (усі 6 пар)',run:'▶ Градієнт зі стартової точки',apply:'Застосувати до повзунків',pick:'Спочатку клікніть по одній із карт, щоб обрати пару параметрів і старт.',it:'ітерацій',spS:'Спойлер: що таке S, RMSE, σ і чому квадрат, а не модуль',
+spB:`<p><b>Нев’язка</b> у точці $i$: $r_i=\\theta_i-\\theta(t_i;\\mathbf p)$.</p>
+<p><b>$S$</b> (сума квадратів відхилень, SSE): $$S(\\mathbf p)=\\sum_{i=1}^{N} r_i^2.$$ Мінімізація $S$ за $\\mathbf p$ — це нелінійний метод найменших квадратів (НМК).</p>
+<p><b>RMSE</b> — той самий $S$ у фізичних одиницях: $$\\mathrm{RMSE}=\\sqrt{S/N}.$$ Ділення на $N$ усереднює, корінь повертає радіани: це «типове відхилення моделі від точки». Мінімуми $S$ і RMSE збігаються, тож оптимізуємо $S$, а порівнюємо за RMSE.</p>
+<p><b>Звідки шум і що таке $\\sigma$.</b> Реальний вимір неідеальний: камера трохи тремтить (похибка зчитування кута), а вітерець підгойдує маятник. У симуляторі до кожного кута додано гаусів шум зі стандартним відхиленням $\\sigma=3\\%$ від початкової амплітуди. Різниця між цими двома джерелами важлива: тремтіння камери дає <i>незалежні</i> похибки в кожній точці (і майже гаусові за центральною граничною теоремою, бо це сума багатьох дрібних впливів). Поштовх вітерцю збурює саму траєкторію й тягнеться в наступні точки, тобто дає <i>корельовані</i> похибки. У симуляторі вітру немає, але в реальності він порушує припущення, за яких НМК оптимальний.</p>
+<p><b>Чому найкращий підгін має RMSE ≈ $\\sigma\\sqrt{(N-4)/N}$, а не $\\sigma$ і не 0.</b> Вектор даних живе в $N$-вимірному просторі. Модель із $p=4$ параметрами може зсувати підігнану криву лише в $p$ напрямках (поблизу розв’язку — у дотичному просторі моделі). НМК — ортогональна проекція даних на цей підпростір, а нев’язка лишається в ортогональному доповненні розмірності $N-p$. Шум ізотропний (незалежні однакові компоненти), тож кожен із цих $N-p$ напрямків несе дисперсію $\\sigma^2$: $$\\mathbb E[S_{\\min}]\\approx\\sigma^2(N-p),\\qquad \\mathrm{RMSE}_{\\min}\\approx\\sigma\\sqrt{\\frac{N-p}{N}}.$$ Підгін «з’їдає» $p$ степенів свободи шуму, тому RMSE менший за $\\sigma$. Якщо ваш RMSE помітно нижчий — це перенавчання (при $N=p$ крива проходить рівно через усі точки, $S=0$). Для нелінійної моделі формула наближена: вона працює там, де модель майже лінійна. Орієнтир для зупинки: оцініть $A$ з графіка й порівняйте свій RMSE з $0{,}03\\,A\\sqrt{(N-4)/N}$.</p>
+<p><b>Чому квадрат, а не модуль $|r_i|$?</b></p><ol>
+<li><b>Гладкість.</b> Градієнт $r^2$ існує всюди й прямує до нуля в мінімумі, тож крок градієнтного спуску сам зменшується. Для $|r|$ похідної в нулі немає, а поруч її модуль завжди дорівнює 1: градієнт не слабшає біля мінімуму, тому зі сталим кроком ми коливаємося навколо нього з амплітудою порядку кроку, а критерій $\\|\\nabla S\\|\\to 0$ не працює. У $\\sum|r_i|$ зламів ще більше: це цілі «хребти» $r_i(\\mathbf p)=0$ у просторі параметрів. Зауваження: надто великий крок «перестрибує» і для гладкої функції (для параболи з кривиною $L$ метод розбігається при кроці $>2/L$). Гладкість гарантує лише, що достатньо малий крок (його знаходить backtracking) збігається.</li>
+<li><b>Градієнт пропорційний помилці.</b> Похідна $\\rho'(r)=2r$ лінійна за $r$, і це єдина функція з такою властивістю (лінійна похідна ⇔ парабола). Звідси $$\\nabla S=-2\\,J^{\\top}\\mathbf r,\\qquad J_{ik}=\\partial\\theta(t_i)/\\partial p_k:$$ сама помилка вказує, де мінімум. Для моделі, лінійної за параметрами, $S$ — точна квадратична форма: метод Ньютона потрапляє в мінімум за один крок, метод спряжених градієнтів — не більш ніж за $n$ кроків ($n$ — число параметрів), а нормальні рівняння $J^{\\top}J\\,\\mathbf p=J^{\\top}\\vec\\theta$ розв’язуються напряму. Наша модель нелінійна за $\\gamma,\\omega,\\varphi$ (лінійна лише за $A$), тож $S(\\mathbf p)$ квадратична лише локально. На цьому тримаються методи Гаусса–Ньютона та Левенберга–Марквардта, які лінеаризують модель, тому й важливий добрий старт.</li>
+<li><b>Статистика.</b> Якщо похибки незалежні й гаусові з однаковою $\\sigma$ (тремтіння камери), метод найбільшої правдоподібності дає саме $\\min\\sum r_i^2$ (щільність $\\propto e^{-r^2/2\\sigma^2}$). Теорема Гаусса–Маркова йде далі: для лінійної моделі й некорельованих похибок з однаковою дисперсією НМК має найменшу дисперсію серед лінійних незміщених оцінок, навіть без гаусовості. Модулю відповідає лапласівський шум, а корельований шум (вітерець) потребує інших методів.</li>
+<li><b>Фізичний.</b> Уявіть, що кожна точка з’єднана з кривою пружинкою. За законом Гука сила $\\propto r$, енергія $\\propto r^2$, а положення рівноваги системи пружин — це мінімум $S$. Це той самий пункт 2: «сила» — це градієнт. (Йдеться про енергію пружинок; хоча для малих кутів і енергія самого маятника $\\propto\\theta^2$.)</li>
+<li><b>Геометричний.</b> Незалежні похибки некорельовані, тобто ортогональні як випадкові величини (скалярний добуток — коваріація): їхні знаки однаково ймовірно збігаються чи протилежні, тож «в середньому вони під прямим кутом». Тому дисперсії додаються за теоремою Піфагора, $\\sigma_\\Sigma^2=\\sum\\sigma_i^2$, і похибка суми росте як $\\sqrt N$, а не як $N$. У просторі даних НМК — ортогональна проекція: нев’язка перпендикулярна моделі ($J^{\\top}\\mathbf r=0$) і $\\|\\vec\\theta\\|^2=\\|\\hat{\\vec\\theta}\\|^2+\\|\\mathbf r\\|^2$. Це не лише краса: звідси і нормальні рівняння, і підрахунок $N-p$ вище.</li></ol>
+<p><b>Ціна квадрата:</b> чутливість до викидів, бо внесок росте як $r^2$ і один поганий знімок сильно тягне криву. Квадрат дає «середнє», модуль — «медіану» (робастнішу); компроміс — функція Хьюбера. <i>Питання:</i> чи зникнуть локальні мінімуми на карті $(\\omega,\\varphi)$, якщо замінити квадрат модулем? (Ні: їх породжує осцилюючий косинус, а не вибір норми.)</p>`,
+lt:'Кожна карта — зріз ландшафту $S(\\mathbf p)$ за двома параметрами; інші два зафіксовані на значеннях повзунків (світлі зони — малі $S$, шкала логарифмічна). Білий кружок — поточні повзунки. <b>Клікніть по карті</b>, щоб обрати пару і стартову точку, та запустіть градієнтний спуск із підбором кроку: червона лінія — траєкторія, квадрат — де зупинився. Пробуйте різні старти та різні пари.'},
+en:{
+title:'Damped pendulum: gradient vs genetic algorithm',
+story:'<p>A camera photographs a damped pendulum at <b>irregular</b> times $t_i$. Each photo gives a measured deflection angle $\\theta_i$ (rad, noisy). Model: $$\\theta(t)=A\\,e^{-\\gamma t}\\cos(\\omega t+\\varphi)$$ The parameters $\\mathbf p=(A,\\gamma,\\omega,\\varphi)$ are unknown. The pendulum swings once; the camera shoots it at irregular times and each photo adds a point to the graph.</p>',
+seedl:'Your ID/surname (seed):',gen:'Generate data',rmse:'Manual-fit RMSE, rad:',pause:'⏸ Pause',replay:'↻ Replay shoot',xlsx:'⬇ Excel (.xlsx)',csv:'⬇ CSV',
+n:'points: ',tcol:'t, s',ycol:'θ, rad',
+tasks:`<h2>Tasks</h2><ol>
+<li><b>By hand.</b> Use the sliders to tune $A,\\gamma,\\omega,\\varphi$ so the curve passes through the points. Record your lowest RMSE and number of attempts.</li>
+<li><b>Why it is hard.</b> The search is 4-dimensional; we minimise $$S(\\mathbf p)=\\sum_{i=1}^{N}\\big(\\theta_i-\\theta(t_i;\\mathbf p)\\big)^2\\to\\min.$$ $S$ has many local minima, mostly along $\\omega$ and $\\varphi$ (along $A,\\gamma$ it is much calmer). Constraints: $A>0,\\ \\omega>0,\\ \\varphi\\in[-\\pi,\\pi]$, otherwise solutions duplicate: $(A,\\varphi)\\sim(-A,\\varphi+\\pi)$.</li>
+<li><b>Gradient.</b> Export to Excel. Put the model <code>=A*EXP(-g*t)*COS(w*t+phi)</code> in cells, $S$ as a sum of squares, and run Solver with <i>GRG Nonlinear</i>, starting from your manual fit. Then start from a bad point (e.g. $\\omega$ twice too large) and compare.</li>
+<li><b>GA.</b> Same, but <i>Evolutionary</i> (or your own GA). Variable bounds are mandatory. Run 5 times: is the result stable? How many evaluations of $S$?</li>
+<li><b>Question.</b> Why is the best-fit RMSE ≈ $\\sigma\\sqrt{(N-4)/N}$ rather than 0? What if your RMSE comes out <i>below</i> the noise?</li></ol>`,
+chk:'Landscapes and gradient search',land:'Show landscapes (all 6 pairs)',run:'▶ Gradient from start point',apply:'Apply to sliders',pick:'First click one of the maps to choose a parameter pair and a start.',it:'iterations',spS:'Spoiler: what S, RMSE and σ are, and why squares rather than absolute values',
+spB:`<p><b>Residual</b> at point $i$: $r_i=\\theta_i-\\theta(t_i;\\mathbf p)$.</p>
+<p><b>$S$</b> (sum of squared errors, SSE): $$S(\\mathbf p)=\\sum_{i=1}^{N} r_i^2.$$ Minimising $S$ over $\\mathbf p$ is nonlinear least squares.</p>
+<p><b>RMSE</b> is the same $S$ in physical units: $$\\mathrm{RMSE}=\\sqrt{S/N}.$$ Dividing by $N$ averages, and the root returns radians: the “typical deviation of the model from a point”. $S$ and RMSE share the same minimiser, so we optimise $S$ and compare fits by RMSE.</p>
+<p><b>Where the noise comes from and what $\\sigma$ is.</b> A real measurement is imperfect: the camera shakes a little (angle reading error) and a breeze nudges the pendulum. In the simulator every angle gets Gaussian noise with standard deviation $\\sigma=3\\%$ of the initial amplitude. The two sources differ in an important way: camera shake gives <i>independent</i> errors at each point (and nearly Gaussian ones by the central limit theorem, being a sum of many small effects). A gust perturbs the trajectory itself and carries over to later points, giving <i>correlated</i> errors. The simulator has no wind, but in reality it breaks the assumptions under which least squares is optimal.</p>
+<p><b>Why the best fit has RMSE ≈ $\\sigma\\sqrt{(N-4)/N}$, not $\\sigma$ and not 0.</b> The data vector lives in $N$-dimensional space. A model with $p=4$ parameters can move the fitted curve only along $p$ directions (near the solution, the model’s tangent space). Least squares is the orthogonal projection of the data onto that subspace, and the residual stays in the orthogonal complement of dimension $N-p$. The noise is isotropic (independent identical components), so each of those $N-p$ directions carries variance $\\sigma^2$: $$\\mathbb E[S_{\\min}]\\approx\\sigma^2(N-p),\\qquad \\mathrm{RMSE}_{\\min}\\approx\\sigma\\sqrt{\\frac{N-p}{N}}.$$ The fit “eats” $p$ degrees of freedom of the noise, so RMSE is below $\\sigma$. If your RMSE is noticeably lower, that is overfitting (at $N=p$ the curve passes exactly through all points, $S=0$). For a nonlinear model the formula is approximate: it holds where the model is nearly linear. A stopping guide: estimate $A$ from the graph and compare your RMSE with $0.03\\,A\\sqrt{(N-4)/N}$.</p>
+<p><b>Why squares rather than $|r_i|$?</b></p><ol>
+<li><b>Smoothness.</b> The gradient of $r^2$ exists everywhere and tends to zero at the minimum, so the gradient-descent step shrinks by itself. For $|r|$ the derivative does not exist at zero, and nearby its magnitude is always 1: the gradient does not weaken near the minimum, so with a fixed step we oscillate around it with amplitude of the order of the step, and the criterion $\\|\\nabla S\\|\\to 0$ fails. $\\sum|r_i|$ has many more kinks: whole “ridges” $r_i(\\mathbf p)=0$ in parameter space. Caveat: too large a step also overshoots on a smooth function (for a parabola of curvature $L$ the method diverges at step $>2/L$). Smoothness only guarantees that a small enough step (found by backtracking) converges.</li>
+<li><b>Gradient proportional to the error.</b> The derivative $\\rho'(r)=2r$ is linear in $r$, and this is unique to the parabola (linear derivative ⇔ parabola). Hence $$\\nabla S=-2\\,J^{\\top}\\mathbf r,\\qquad J_{ik}=\\partial\\theta(t_i)/\\partial p_k:$$ the error itself points to the minimum. For a model linear in its parameters, $S$ is an exact quadratic form: Newton’s method lands on the minimum in one step, conjugate gradients in at most $n$ steps ($n$ = number of parameters), and the normal equations $J^{\\top}J\\,\\mathbf p=J^{\\top}\\vec\\theta$ can be solved directly. Our model is nonlinear in $\\gamma,\\omega,\\varphi$ (linear only in $A$), so $S(\\mathbf p)$ is quadratic only locally. Gauss–Newton and Levenberg–Marquardt rely on this by linearising the model, which is why a good starting point matters.</li>
+<li><b>Statistics.</b> If errors are independent Gaussian with equal $\\sigma$ (camera shake), maximum likelihood gives exactly $\\min\\sum r_i^2$ (density $\\propto e^{-r^2/2\\sigma^2}$). The Gauss–Markov theorem goes further: for a linear model and uncorrelated errors of equal variance, least squares has the smallest variance among linear unbiased estimators, even without Gaussianity. The absolute value corresponds to Laplace noise, and correlated noise (the breeze) needs other methods.</li>
+<li><b>Physical.</b> Imagine each point attached to the curve by a spring. By Hooke’s law the force is $\\propto r$, the energy is $\\propto r^2$, and the equilibrium of the springs is the minimum of $S$. This is point 2 again: the “force” is the gradient. (This is the springs’ energy; though for small angles the pendulum’s own energy is also $\\propto\\theta^2$.)</li>
+<li><b>Geometric.</b> Independent errors are uncorrelated, i.e. orthogonal as random variables (the inner product is the covariance): their signs agree or differ with equal probability, so “on average they are at right angles”. Hence variances add by the Pythagorean theorem, $\\sigma_\\Sigma^2=\\sum\\sigma_i^2$, and the error of a sum grows as $\\sqrt N$, not $N$. In data space least squares is an orthogonal projection: the residual is perpendicular to the model ($J^{\\top}\\mathbf r=0$) and $\\|\\vec\\theta\\|^2=\\|\\hat{\\vec\\theta}\\|^2+\\|\\mathbf r\\|^2$. This is more than beauty: it gives the normal equations and the $N-p$ count above.</li></ol>
+<p><b>The price of squaring:</b> sensitivity to outliers, since the contribution grows as $r^2$ and one bad photo pulls the curve hard. Squares give a “mean”, absolute values a “median” (more robust); Huber loss is a compromise. <i>Question:</i> would the local minima on the $(\\omega,\\varphi)$ map disappear if the square were replaced by the absolute value? (No: they come from the oscillating cosine, not from the choice of norm.)</p>`,
+lt:'Each map is a slice of the landscape $S(\\mathbf p)$ in two parameters; the other two are fixed at the slider values (bright = small $S$, log scale). The white ring is your current sliders. <b>Click a map</b> to choose the pair and start point, then run gradient descent with step-size backtracking: the red line is the path, the square is where it stopped. Try different starts and different pairs.'}};
+let lang='uk',T,pts=[],sig=0,shown=false,tm=0,run=true,tau=0,shot=new Set(),au=null,mute=false,last=performance.now(),dl=null;
+const $=i=>document.getElementById(i),PI=Math.PI,F=(t,p)=>p.A*Math.exp(-p.g*t)*Math.cos(p.w*t+p.f);
+const hash=s=>{let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return h>>>0};
+const mul=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const SL=[['A','$A$',0,2,.01,1],['g','$\\gamma$',0,1,.005,.2],['w','$\\omega$',.5,8,.01,3],['f','$\\varphi$',-PI,PI,.01,0]];
+const P=()=>({A:+$('sA').value,g:+$('sg').value,w:+$('sw').value,f:+$('sf').value});
+function build(){$('sl').innerHTML=SL.map(([k,l,a,b,s,v])=>`<div class="sl"><span>${l}</span><input type="range" id="s${k}" min="${a}" max="${b}" step="${s}" value="${v}"><output id="o${k}"></output></div>`).join('');
+ $('sl').oninput=()=>{upd();if(shown){clearTimeout(tm);tm=setTimeout(maps,120)}}}
+function upd(){const p=P();SL.forEach(([k])=>$('o'+k).textContent=(+p[k]).toFixed(3));
+ const s=pts.reduce((a,[t,y])=>a+(y-F(t,p))**2,0);$('rm').textContent=Math.sqrt(s/pts.length).toFixed(4)}
+function gen(){const r=mul(hash($('seed').value||'x')),A=.6+r()*.8;
+ T={A,g:.1+r()*.25,w:1.5+r()*4,f:(r()*2-1)*PI};const N=7+Math.floor(r()*3);let s=0,ts=[];
+ for(let i=0;i<N;i++){s+=.3+r();ts.push(s)}const t0=ts[0],sp=s-t0;
+ sig=.03*A;pts=ts.map(x=>{const t=.2+(x-t0)/sp*7.6,n=Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*PI*r());return[+t.toFixed(3),+(F(t,T)+sig*n).toFixed(4)]});
+ $('np').textContent=D[lang].n+N;restart();upd();if(shown){sel=-1;st=null;$('gi').textContent='';maps()}}
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawP(){const x=$('pc').getContext('2d'),Lh=250,px=300,py=50,mu=col('--mut'),pt=col('--pt'),fg=col('--fg'),W=600,H=480;
+ x.clearRect(0,0,W,H);const pos=th=>[px+Lh*Math.sin(th),py+Lh*Math.cos(th)],b=pos(F(tau,T));
+ pts.forEach(([t,y])=>{if(tau>=t){const q=pos(y);x.fillStyle=pt;x.globalAlpha=.45;x.beginPath();x.arc(...q,5,0,7);x.fill();x.globalAlpha=1}});
+ x.strokeStyle=fg;x.lineWidth=3;x.beginPath();x.moveTo(px,py);x.lineTo(...b);x.stroke();x.fillStyle=fg;x.beginPath();x.arc(...b,18,0,7);x.fill();x.beginPath();x.arc(px,py,6,0,7);x.fill();
+ let d=9;pts.forEach(([t])=>{const e=tau-t;if(e>=0&&e<d)d=e});const fl=d<.25?1-d/.25:0;
+ const cx=300,cy=400,rr=(a,b,w,h,r)=>{x.beginPath();(x.roundRect||x.rect).call(x,a,b,w,h,r)};
+ x.fillStyle='#3b3f46';rr(cx-75,cy-10,150,80,12);x.fill();rr(cx-24,cy-24,48,18,4);x.fill();x.fillStyle='#c9ccd2';rr(cx-75,cy+8,150,8,0);x.fill();
+ x.fillStyle='#111';x.beginPath();x.arc(cx,cy+38,30,0,7);x.fill();x.strokeStyle='#9aa0a8';x.lineWidth=4;x.stroke();
+ x.fillStyle=fl>.5?'#000':'#1d3b5c';x.beginPath();x.arc(cx,cy+38,22-12*fl,0,7);x.fill();x.fillStyle='rgba(255,255,255,.5)';x.beginPath();x.arc(cx-8,cy+30,4,0,7);x.fill();
+ x.fillStyle=fl?'#fff6c0':'#777';rr(cx+40,cy-2,24,10,2);x.fill();x.fillStyle='#d33';x.beginPath();x.arc(cx-55,cy+2,4,0,7);x.fill();
+ if(fl){x.fillStyle='rgba(255,246,192,'+.5*fl+')';x.beginPath();x.arc(cx+52,cy+3,40*fl+8,0,7);x.fill();x.fillStyle='rgba(255,255,255,'+.3*fl+')';x.fillRect(0,0,W,H)}
+ x.fillStyle=mu;x.font='18px sans-serif';x.fillText('t = '+tau.toFixed(2),12,28)}
+function drawG(){const x=$('gc').getContext('2d'),W=960,H=600,l=60,r=20,tp=20,bt=44,mu=col('--mut'),ln=col('--ln'),ac=col('--acc'),pt=col('--pt'),fg=col('--fg');
+ const X=t=>l+t/8*(W-l-r),Y=y=>tp+(1.6-y)/3.2*(H-tp-bt);x.clearRect(0,0,W,H);x.font='20px sans-serif';x.fillStyle=mu;x.strokeStyle=ln;x.lineWidth=1;
+ for(let t=0;t<=8;t++){x.beginPath();x.moveTo(X(t),tp);x.lineTo(X(t),H-bt);x.stroke();x.fillText(t,X(t)-5,H-18)}
+ for(let y=-1.5;y<=1.5;y+=.5){x.beginPath();x.moveTo(l,Y(y));x.lineTo(W-r,Y(y));x.stroke();x.fillText(y.toFixed(1),8,Y(y)+6)}
+ x.strokeStyle=mu;x.beginPath();x.moveTo(l,Y(0));x.lineTo(W-r,Y(0));x.stroke();
+ const curve=(p,c,d)=>{x.strokeStyle=c;x.lineWidth=3;x.setLineDash(d);x.beginPath();for(let i=0;i<=400;i++){const t=i/50;i?x.lineTo(X(t),Y(F(t,p))):x.moveTo(X(t),Y(F(t,p)))}x.stroke();x.setLineDash([])};
+ curve(P(),ac,[]);
+ if(run){x.strokeStyle=fg;x.lineWidth=1;x.beginPath();x.moveTo(X(tau),tp);x.lineTo(X(tau),H-bt);x.stroke()}
+ x.fillStyle=pt;pts.forEach(([t,y])=>{if(tau>=t){x.beginPath();x.arc(X(t),Y(y),8,0,7);x.fill()}})}
+function restart(){tau=0;run=true;shot.clear()}
+function initAu(){if(!au){try{au=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(au&&au.state=='suspended')au.resume()}
+document.addEventListener('pointerdown',initAu);document.addEventListener('keydown',initAu);
+function burst(t0,dur,f,g){const n=Math.floor(au.sampleRate*dur),buf=au.createBuffer(1,n,au.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
+ const s=au.createBufferSource(),fl=au.createBiquadFilter(),gn=au.createGain();s.buffer=buf;fl.type='bandpass';fl.frequency.value=f;fl.Q.value=1.2;gn.gain.value=g;s.connect(fl);fl.connect(gn);gn.connect(au.destination);s.start(t0)}
+function shutter(){if(mute||!au||au.state!='running')return;const t=au.currentTime;burst(t,.035,3500,1.2);burst(t+.07,.05,1400,1)}
+function frame(n){if(run){tau+=Math.min((n-last)/1000,.1);if(tau>=8){tau=8;run=false}pts.forEach(([t],i)=>{if(tau>=t&&!shot.has(i)){shot.add(i);shutter()}})}last=n;drawP();drawG();requestAnimationFrame(frame)}
+function setLang(l){lang=l;document.documentElement.lang=l=='uk'?'uk':'en';document.querySelectorAll('[data-i]').forEach(e=>e.innerHTML=D[l][e.dataset.i]);
+ $('np').textContent=D[l].n+pts.length;
+ window.MathJax&&MathJax.typesetPromise&&MathJax.typesetPromise().catch(()=>{})}
+const PR=[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]],K=['A','g','w','f'],LO=[0,0,.5,-PI],HI=[2,1,8,PI],NM=['A','\\gamma','\\omega','\\varphi'],NT=['A','γ','ω','φ'],GW=240,GH=180;
+let sel=-1,st=null,paths={},bases=[],last4=null;
+const S4=v=>pts.reduce((a,[t,y])=>a+(y-F(t,{A:v[0],g:v[1],w:v[2],f:v[3]}))**2,0);
+const cur=()=>{const p=P();return K.map(k=>p[k])};
+function maps(){const c0=cur();paths={};
+ PR.forEach(([a,b],n)=>{const x=$('m'+n).getContext('2d'),im=x.createImageData(GW,GH),v=[];let lo=1e9,hi=-1e9;
+  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const u=c0.slice();u[a]=LO[a]+i/(GW-1)*(HI[a]-LO[a]);u[b]=HI[b]-j/(GH-1)*(HI[b]-LO[b]);const q=Math.log10(S4(u)+1e-4);v.push(q);lo=Math.min(lo,q);hi=Math.max(hi,q)}
+  v.forEach((q,k)=>{const u=1-(q-lo)/(hi-lo);im.data.set([30+225*u,40+190*u*u,90+20*u,255],4*k)});
+  bases[n]=im;ov(n)})}
+function ov(n){const [a,b]=PR[n],x=$('m'+n).getContext('2d'),X=v=>(v-LO[a])/(HI[a]-LO[a])*(GW-1),Y=v=>(HI[b]-v)/(HI[b]-LO[b])*(GH-1),c0=cur();
+ x.putImageData(bases[n],0,0);const ring=(p,q,cl,r)=>{x.strokeStyle='#000';x.lineWidth=4;x.beginPath();x.arc(X(p),Y(q),r,0,7);x.stroke();x.strokeStyle=cl;x.lineWidth=2;x.stroke()};
+ ring(c0[a],c0[b],'#fff',5);const pa=paths[n];
+ if(pa){x.strokeStyle='#f33';x.lineWidth=2;x.beginPath();pa.forEach(([p,q],i)=>i?x.lineTo(X(p),Y(q)):x.moveTo(X(p),Y(q)));x.stroke();const e=pa[pa.length-1];x.fillStyle='#f33';x.fillRect(X(e[0])-4,Y(e[1])-4,8,8)}
+ if(sel==n&&st)ring(st[0],st[1],'#f33',6)}
+function pick(n,e){const [a,b]=PR[n],r=e.currentTarget.getBoundingClientRect(),fx=(e.clientX-r.left)/r.width,fy=(e.clientY-r.top)/r.height;
+ sel=n;st=[LO[a]+fx*(HI[a]-LO[a]),HI[b]-fy*(HI[b]-LO[b])];paths={};last4=null;$('ap').style.display='none';
+ $('gi').textContent=NT[a]+' = '+st[0].toFixed(3)+', '+NT[b]+' = '+st[1].toFixed(3);PR.forEach((_,i)=>ov(i))}
+function gd(){if(sel<0||!st){$('gi').textContent=D[lang].pick;return}
+ const [a,b]=PR[sel],c0=cur(),rg=[HI[a]-LO[a],HI[b]-LO[b]],cl=z=>Math.min(1,Math.max(0,z)),toV=u=>{const v=c0.slice();v[a]=LO[a]+u[0]*rg[0];v[b]=LO[b]+u[1]*rg[1];return v},S=u=>S4(toV(u));
+ let u=[cl((st[0]-LO[a])/rg[0]),cl((st[1]-LO[b])/rg[1])],s=S(u);const s0=s,path=[u.slice()],h=1e-4;let n=0;
+ for(;n<2000;n++){const g=[0,1].map(i=>{const p=u.slice(),m=u.slice();p[i]+=h;m[i]-=h;return(S(p)-S(m))/(2*h)}),gn=Math.hypot(...g);if(gn<1e-6)break;
+  let t=1,ok=false;for(let k=0;k<40;k++){const w=[cl(u[0]-t*g[0]),cl(u[1]-t*g[1])],sw=S(w);if(sw<s-1e-4*t*gn*gn){u=w;s=sw;ok=true;break}t/=2}
+  if(!ok)break;path.push(u.slice())}
+ paths[sel]=path.map(([p,q])=>[LO[a]+p*rg[0],LO[b]+q*rg[1]]);last4=toV(u);ov(sel);
+ $('gi').textContent=D[lang].it+' '+n+' · S: '+s0.toFixed(3)+' → '+s.toFixed(3)+' · RMSE '+Math.sqrt(s/pts.length).toFixed(4)+' · '+NT[a]+' = '+last4[a].toFixed(3)+', '+NT[b]+' = '+last4[b].toFixed(3);$('ap').style.display=''}
+async function save(fn,data){try{await dl.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')alert('Save: '+(e.code||e))}}
+const base=()=>'pendulum_'+($('seed').value||'data').replace(/[^\w\u0400-\u04ff-]/g,'_');
+$('xl').onclick=()=>{const d=D[lang],ws=XLSX.utils.aoa_to_sheet([[d.tcol,d.ycol],...pts]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');ws['!cols']=[{wch:10},{wch:10}];
+ save(base()+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}))};
+$('cs').onclick=()=>{const d=D[lang];save(base()+'.csv','\uFEFF'+[d.tcol+','+d.ycol,...pts.map(p=>p[0]+','+p[1])].join('\n')+'\n')};
+$('gen').onclick=gen;$('seed').onchange=gen;
+$('pl').onclick=restart;$('mu').onclick=()=>{mute=!mute;$('mu').textContent=mute?'🔇':'🔊'};
+$('ls').onclick=()=>{if(!shown){$('mg').innerHTML=PR.map(([a,b],n)=>`<div><canvas id="m${n}" width="${GW}" height="${GH}" style="cursor:crosshair"></canvas><div class="mut" style="text-align:center">$${NM[a]}$ → · $${NM[b]}$ ↑</div></div>`).join('');
+ PR.forEach((_,n)=>$('m'+n).onclick=e=>pick(n,e));shown=true;$('gd').style.display='';MathJax.typesetPromise&&MathJax.typesetPromise()}maps()};
+$('gd').onclick=gd;
+$('ap').onclick=()=>{if(!last4)return;const [a,b]=PR[sel];[a,b].forEach(i=>$('s'+K[i]).value=last4[i]);upd();maps();$('ap').style.display='none'};
+build();gen();setLang('uk');requestAnimationFrame(frame);
+if(window.claude&&claude.use)claude.use('downloads').then(m=>{dl=m;if(!m){$('xl').style.display=$('cs').style.display='none'}}).catch(()=>{});
+else{$('xl').style.display=$('cs').style.display='none'}
+</script></body></html>
