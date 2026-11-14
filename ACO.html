@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Мурахи vs Центр</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--mut:#6b6b70;--card:#f3f3f5;--ln:#c4c4ca;--ac:#17944d;--ce:#2b6cd4;--bad:#d33;--vi:#8a3ffc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#ececf0;--mut:#9a9aa2;--card:#222226;--ln:#4a4a50;--ac:#3ddc84;--ce:#6ea8ff;--bad:#ff6b6b;--vi:#b794ff}}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif;padding:12px;max-width:1200px;margin:auto}
+h1{font-size:18px;margin:4px 0}h2{font-size:14px;margin:0 0 4px}.mut{color:var(--mut);font-size:12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.row{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:10px;padding:8px}canvas{width:100%;display:block;border-radius:6px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:8px 0}.ctl label{display:flex;gap:6px;align-items:center}
+button{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--ln);background:var(--bg);color:var(--fg);cursor:pointer}
+button.d{border-color:var(--bad);color:var(--bad)}.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin:6px 0}.lg i{display:inline-block;width:22px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}.gb{height:10px;border-radius:5px;background:linear-gradient(90deg,#2b6cd4,#d8def0 50%,#17944d);margin:4px 0}.gl{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}.c{color:var(--ce)}.a{color:var(--ac)}
+</style></head><body>
+<h1>🐜 Мурахи vs Центр: ціна інформації й відмова центру</h1>
+<div class="mut">Те саме місто й ті самі події (затори — помаранчеві, закриття — червоні). Фіолетовий пунктир — що система <i>вважає</i> поганим. Центр дізнається лише від машин, що відстають або впираються в закриття; про покращення — лише через «забування» (τ=60 с). Звіти доходять пакетами раз на T; T=∞ — машини автономні (базова карта + об'їзд закритих ребер).</div>
+<div class="ctl">
+<label>Період оновлення центру T <input id="tt" type="range" min="0" max="7" value="1"><b id="ttv">10 с</b></label>
+<label>Вантажівок <input id="nv" type="range" min="6" max="96" step="6" value="18"><b id="nvv">18</b></label>
+<label>Випаровування ACO τ <input id="ev" type="range" min="10" max="300" step="10" value="60"><b id="evv">60 с</b></label><label>Швидкість <input id="sp" type="range" min="0" max="10" value="1"><b id="spv">1×</b></label><button id="kill" class="d">💥 Вимкнути центр</button><button id="rst">↺ Скинути</button><button id="nw">🗺 Нове місто</button><span id="sdv" class="mut"></span></div>
+<div class="lg"><span><i style="border-color:var(--ln)"></i>вільно</span><span><i style="border-color:hsl(20,90%,50%)"></i>затор (колір: жовтий→оранжевий = швидкість падає)</span><span><i style="border-color:var(--bad);border-top-width:5px"></i>закриття</span><span><i style="border-top-style:dashed;border-color:var(--vi)"></i>система вважає погано</span><span><i style="border-color:rgba(23,148,77,.5);border-top-width:8px"></i>феромонний слід ACO = лічильник проїздів логера (товщі = більше машин, вигасає ~30 с; у центру логерів немає)</span><span>■ склад</span><span>▲ магазин</span><span>● з вантажем</span><span>○ порожня</span></div>
+<div class="row"><div class="card"><h2 class="c">Централізоване керування</h2><canvas id="c1"></canvas><div id="s1" class="mut"></div></div>
+<div class="card"><h2 class="a">ACO (логери на ребрах)</h2><canvas id="c2"></canvas><div id="s2" class="mut"></div></div></div>
+<div class="card" style="margin-top:10px"><h2>Живі метрики (вікно 300 с)</h2><canvas id="c4"></canvas></div>
+<details class="card" style="margin-top:10px"><summary><b>Теорія: формули ACO і що саме реалізовано</b></summary>
+<p class="mut">Класичний Ant System: мураха \(k\) у вузлі \(i\) обирає вузол \(j\) з ймовірністю</p>
+$$p_{ij}^{k}=\frac{\tau_{ij}^{\alpha}\,\eta_{ij}^{\beta}}{\sum_{l\in\mathcal N_i^k}\tau_{il}^{\alpha}\,\eta_{il}^{\beta}},\qquad \eta_{ij}=\frac{1}{\ell_{ij}}$$
+<p class="mut">Оновлення феромона: випаровування \(\rho\) і відкладення (\(T_k\) — маршрут мурахи, \(L_k\) — його довжина):</p>
+$$\tau_{ij}\leftarrow(1-\rho)\,\tau_{ij}+\sum_{k}\Delta\tau_{ij}^{k},\qquad \Delta\tau_{ij}^{k}=\begin{cases}Q/L_k,&(i,j)\in T_k\\0,&\text{інакше}\end{cases}$$
+<p class="mut"><b>У симуляторі</b> (спрощена стигмергічна форма): «феромон» — це остання виміряна логером швидкість, що вигасає до нормальної \(v^0\) з сталою \(\tau_\rho\) (повзунок; аналог \(\rho\approx 1/\tau_\rho\)); \(h(j,d)\) — статична відстань від \(j\) до цілі \(d\) при нормальних швидкостях:</p>
+$$\hat v_{ij}(t)=v^{0}_{ij}+\bigl(v^{\mathrm{obs}}_{ij}-v^{0}_{ij}\bigr)e^{-(t-t^{\mathrm{obs}}_{ij})/\tau_\rho},\qquad c_{ij}=\frac{\ell_{ij}}{\hat v_{ij}(t)}+h(j,d)$$
+$$p_{ij}=\frac{e^{-(c_{ij}-c_{\min})/T}}{\sum_{l}e^{-(c_{il}-c_{\min})/T}},\qquad T=2\ \text{с}$$
+<p class="mut">Це еквівалент \(\tau^\alpha\eta^\beta\) у логарифмічній шкалі, але <i>без</i> накопичення за якістю розв'язку: класичного відкладення \(Q/L_k\) тут немає. Зелене свічення \(\phi_{ij}\) (лічильник проїздів: \(+1\) при в'їзді, множник \(e^{-\Delta t/\tau_\rho}\)) лише візуалізується і на маршрутизацію не впливає. Центр використовує ту саму форму \(\hat v\) з \(\tau=60\) с, але оновлює її звітами, що приходять пакетами раз на \(T\) с (\(T=\infty\) — центр відключено).</p></details>
+<script>window.MathJax={svg:{fontCache:'global'}}</script><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<div class="card" style="margin-top:10px"><h2>Фазова площина: кому вигідніше? (розмір флоту × період оновлення центру T)</h2>
+<div class="mut">Значення — на скільки % ACO швидший за центр (середній час рейсу, 4 міста по 25 хв, рахується кілька хвилин). <span class="a">Зелене</span> — виграє ACO, <span class="c">синє</span> — центр.</div>
+<div class="gb"></div><div class="gl"><span>−25%: центр кращий</span><span>0</span><span>+25%: ACO кращий</span></div><div class="ctl"><button id="ph">▶ Порахувати карту</button><span id="pp" class="mut"></span></div><canvas id="c3"></canvas></div>
+<script>
+const $=i=>document.getElementById(i),DT=.25,CW=800,CH=540;
+function rng(s){return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
+function mkCity(seed){const r=rng(seed),C=13,R=9,N=C*R,nd=[],cand=[];
+for(let j=0;j<R;j++)for(let i=0;i<C;i++)nd.push({x:40+i*60+(r()-.5)*30,y:40+j*58+(r()-.5)*30});
+for(let j=0;j<R;j++)for(let i=0;i<C;i++){const a=j*C+i;if(i<C-1)cand.push([a,a+1]);if(j<R-1)cand.push([a,a+C]);
+if(i<C-1&&j<R-1&&r()<.3)cand.push([a,a+C+1]);if(i>0&&j<R-1&&r()<.3)cand.push([a,a+C-1])}
+const rph=r()*6,rv=x=>300+55*Math.sin(x/130+rph),bc=new Set();while(bc.size<3)bc.add(1+((r()*(C-2))|0));
+for(let q=cand.length-1;q>=0;q--){const[a,b]=cand[q],ya=nd[a].y-rv(nd[a].x),yb=nd[b].y-rv(nd[b].x);if(ya*yb<0&&!(b==a+C&&bc.has(a%C)))cand.splice(q,1)}
+for(let k=cand.length-1;k>0;k--){const m=(r()*(k+1))|0;[cand[k],cand[m]]=[cand[m],cand[k]]}
+const p=[...Array(N).keys()],f=x=>p[x]==x?x:(p[x]=f(p[x])),E=[];
+for(const[a,b]of cand){const j=f(a)!=f(b);if(j||r()<.55){if(j)p[f(a)]=f(b);E.push([a,b])}}
+
+const L=[],vf=[],to=[],fr=[],out=[],inn=[];
+for(let n=0;n<N;n++){out.push([]);inn.push([])}
+E.forEach(([a,b],k)=>{L.push(Math.hypot(nd[a].x-nd[b].x,nd[a].y-nd[b].y));vf.push(10);
+fr.push(a,b);to.push(b,a);out[a].push(2*k);out[b].push(2*k+1);inn[b].push(2*k);inn[a].push(2*k+1)});
+const near=(x,y)=>{let b=0,m=1e9;nd.forEach((p,i)=>{const d=Math.hypot(p.x-x,p.y-y);if(d<m){m=d;b=i}});return b},ctr=near(400,270),rg=[0,1,2,3,4,5].map(k=>near(400+250*Math.cos(k*1.047),270+160*Math.sin(k*1.047))),og=[0,1,2,3,4,5].map(k=>near(400+370*Math.cos(k*1.047),270+235*Math.sin(k*1.047))),hubs=[ctr,...rg],art=new Set(),walk=(a,b)=>{if(a==b)return;const d=dj({N,inn,fr},L,b);let u=a,g=0;while(u!=b&&g++<300){let bd=-1,bv=1e18;for(const x of out[u]){const v=L[x>>1]+d[to[x]];if(v<bv){bv=v;bd=x}}if(bd<0)break;art.add(bd>>1);u=to[bd]}};
+rg.forEach((h,k)=>{walk(ctr,h);walk(h,rg[(k+1)%6]);walk(h,og[k])});art.forEach(k=>vf[k]=18);
+const bd=[];for(let n=0;n<N;n++){const i=n%C,j=(n/C)|0;if(i==0||i==C-1||j==0||j==R-1)bd.push(n)}const W=[],S=[];while(W.length<3){const n=bd[(r()*bd.length)|0];if(W.every(w=>Math.hypot(nd[n].x-nd[w].x,nd[n].y-nd[w].y)>300))W.push(n)}let g3=0;while(S.length<6){g3++;const n=(r()*N)|0;if(!W.includes(n)&&!S.includes(n)&&(g3>4e3||n%C>1&&n%C<C-2)&&W.every(w=>Math.hypot(nd[n].x-nd[w].x,nd[n].y-nd[w].y)>(g3<2e3?230:120)))S.push(n)}
+const c={nd,N,E,L,vf,to,fr,out,inn,W,S,ne:E.length,rv,hubs};c.vn=vf.map((v,e)=>v/(1+.15));c.tn=L.map((l,e)=>l/c.vn[e]);
+c.Dn=new Map;[...W,...S].forEach(t=>c.Dn.set(t,dj(c,c.tn,t)));return c}
+function dj(c,tm,t){const d=new Float64Array(c.N).fill(1e9),u=new Uint8Array(c.N);d[t]=0;
+for(let it=0;it<c.N;it++){let b=-1,m=1e18;for(let i=0;i<c.N;i++)if(!u[i]&&d[i]<m){m=d[i];b=i}if(b<0)break;u[b]=1;
+for(const dd of c.inn[b]){const a=c.fr[dd]>>0,x=c.fr[dd],y=m+tm[dd>>1];if(y<d[x])d[x]=y}}return d}
+function genEv(c,seed,T){const r=rng(seed*9+3),ev=[];let t=-60;
+while((t+=-Math.log(1-r())*12)<T){const b=(r()*c.ne)|0,k=1+((r()*5)|0),es=new Set([b]);let q=[c.to[2*b]];
+while(es.size<k&&q.length){const u=q.shift();for(const d of c.out[u]){if(es.size<k&&!es.has(d>>1)){es.add(d>>1);q.push(c.to[d])}}}
+const cl=r()<.3;ev.push({s:t,e:t+(cl?40-Math.log(1-r())*80:25-Math.log(1-r())*50),ed:[...es],cl,f:cl?.1:.15+.3*r()})}return ev}
+function mkSim(c,ev,mode,o,seed){const r=rng(seed*77+1),ne=c.ne,isC=mode=='C',fac=new Float64Array(ne),cl=new Uint8Array(ne),n=new Int16Array(ne),V=new Float64Array(ne);
+const EV=()=>o.ev||60,ph=new Float64Array(ne),S={t:0,alive:true,trips:[],veh:[],o,c,mode,fac,cl,V,ph};
+const mv=Float64Array.from(c.vn),mt=new Float64Array(ne).fill(-1e9),mc=new Uint8Array(ne),eff=Float64Array.from(c.vn),tm=Float64Array.from(c.tn),
+lv=Float64Array.from(c.vn),lt=new Float64Array(ne).fill(-1e9),mk=new Float64Array(ne).fill(-1e9);
+let D=new Map(c.Dn),q=[],dirty=false,lastR=0;
+const rep=(e,v)=>{if(!S.alive||r()<o.ls)return;q.push([(o.T>1e8?1e18:Math.ceil(S.t/o.T)*o.T),e,v])};
+S.bel=e=>isC?(mc[e]&&S.t-mt[e]<90)||eff[e]<.7*c.vn[e]:(S.t-mk[e]<1.5*EV())||c.vn[e]+(lv[e]-c.vn[e])*Math.exp(-(S.t-lt[e])/EV())<.7*c.vn[e];
+const mkV=(wh,sh)=>({nd:c.W[wh],ed:-1,p:0,wh,sh,dest:c.S[sh],st:0,t0:0,w:r()*20,te:0,ex:1,lr:0,pv:-1});
+for(let i=0;i<(o.nv||18);i++)S.veh.push(mkV(i%3,i%6));
+const enter=(v,d)=>{const e=d>>1;ph[e]++;v.ed=d;v.p=0;v.te=S.t;v.lr=0;if(isC)v.ex=c.L[e]/eff[e];else mk[e]=-1e9};
+function step(){const t=S.t,PD=Math.exp(-DT/EV());fac.fill(1);cl.fill(0);
+for(const x of ev)if(x.s<=t&&t<x.e)for(const e of x.ed){fac[e]*=x.f;if(x.cl)cl[e]=1}
+n.fill(0);for(const v of S.veh)if(v.ed>=0)n[v.ed>>1]++;
+for(let e=0;e<ne;e++){V[e]=Math.max(.3,c.vf[e]*fac[e]/(1+(n[e]/3)**2));ph[e]*=PD;if(!isC&&n[e]){lv[e]=V[e];lt[e]=t}}
+if(isC&&S.alive){if(q.length){const k=[];for(const x of q){if(x[0]<=t){mv[x[1]]=x[2];mt[x[1]]=t;mc[x[1]]=x[2]==0?1:0;dirty=true}else k.push(x)}q=k}
+if((dirty&&t-lastR>=2)||t-lastR>=10){lastR=t;dirty=false;for(let e=0;e<ne;e++){eff[e]=Math.max(.5,c.vn[e]+(mv[e]-c.vn[e])*Math.exp(-(t-mt[e])/60));tm[e]=c.L[e]/eff[e]+(mc[e]&&t-mt[e]<90?300:0)}
+D=new Map;for(const g of D0)D.set(g,dj(c,tm,g))}}
+for(const v of S.veh){if(v.ed>=0){const e=v.ed>>1;v.p+=V[e]*DT;
+if(isC&&!v.lr&&t-v.te>v.ex*1.3+2){rep(e,V[e]);v.lr=1}
+if(v.p<c.L[e])continue;v.nd=c.to[v.ed];v.pv=v.ed;v.ed=-1}
+if(v.w>t)continue;
+if(v.nd==v.dest){if(v.st==0){S.trips.push([t,t-v.t0]);v.st=1;v.dest=c.W[v.wh]}else{v.st=0;v.sh=(r()*6)|0;v.wh=v.sh%3;v.dest=c.S[v.sh];if(v.nd!=c.W[v.wh]){v.wh=c.W.indexOf(v.nd)<0?v.wh:c.W.indexOf(v.nd);}v.t0=t+3}v.w=t+3;continue}
+if(isC&&v.bm&&(!v.Dl||v.Dt!=v.dest)&&v.dx>t){const tl=Float64Array.from(tm);for(const k in v.bm)if(v.bm[k]>t)tl[k]+=1e5;v.Dl=dj(c,tl,v.dest);v.Dt=v.dest}const Dd=(v.Dl&&v.Dt==v.dest&&v.dx>t)?v.Dl:D.get(v.dest);let cs=c.out[v.nd].map(d=>{const e=d>>1;let x;if(isC)x=tm[e]+Dd[c.to[d]]+(v.bm&&v.bm[e]>t?1e5:0);else{const vl=c.vn[e]+(lv[e]-c.vn[e])*Math.exp(-(t-lt[e])/EV());x=c.L[e]/Math.max(vl,.5)+(t-mk[e]<1.5*EV()?300:0)+c.Dn.get(v.dest)[c.to[d]]}return[x,d]});
+if(!isC&&cs.length>1&&v.pv>=0){const f=cs.filter(a=>a[1]!=(v.pv^1));if(f.length)cs=f}
+if(isC){cs.sort((a,b)=>a[0]-b[0]);for(const[x,d]of cs){if(x>=5e4)break;const e2=d>>1;if(cl[e2]){if(v.bm&&v.bm[e2]>t)continue;rep(e2,0);(v.bm=v.bm||{})[e2]=t+90;const tl=Float64Array.from(tm);for(const k in v.bm)if(v.bm[k]>t)tl[k]+=1e5;v.Dl=dj(c,tl,v.dest);v.Dt=v.dest;v.dx=t+90;break}enter(v,d);break}}
+else{while(cs.length){const m=Math.min(...cs.map(a=>a[0])),w=cs.map(a=>Math.exp(-(a[0]-m)/2));let u=r()*w.reduce((a,b)=>a+b),i=0;while(i<w.length-1&&u>w[i]){u-=w[i];i++}
+const d=cs[i][1];if(cl[d>>1]){mk[d>>1]=t;cs.splice(i,1);continue}enter(v,d);break}}}
+S.t+=DT}
+const D0=[...c.W,...c.S];S.step=step;S.revive=()=>{dirty=true;lastR=-1e9};return S}
+function mean(S,from){const a=S.trips.filter(x=>x[0]>=from);return a.length?a.reduce((s,x)=>s+x[1],0)/a.length:NaN}
+const o={dl:0,ls:0,T:10,nv:18,ev:60,sp:1};let c1,c2,S1,S2,city,evs,SD=1,hist=[],nextH=0,marks=[];
+function init(){hist=[];nextH=0;marks=[];$('sdv').textContent='місто #'+SD;city=mkCity(SD);evs=genEv(city,SD,36000);S1=mkSim(city,evs,'C',o,SD);S2=mkSim(city,evs,'A',o,SD)}
+function draw(cv,S,st){const k=cv.clientWidth/CW;cv.width=cv.clientWidth;cv.height=CH*k;const g=cv.getContext('2d'),cs=getComputedStyle(document.documentElement),c=S.c;
+g.scale(k,k);g.lineCap='round';g.beginPath();for(let x=0;x<=CW;x+=10)x?g.lineTo(x,S.c.rv(x)):g.moveTo(x,S.c.rv(x));g.strokeStyle='rgba(70,140,230,.35)';g.lineWidth=18;g.stroke();
+c.fr.forEach((a,d)=>{if(d%2)return;const e=d>>1,A=c.nd[c.fr[d]],B=c.nd[c.to[d]],q=S.V[e]/c.vf[e];if(S.mode=='A'&&S.ph[e]>.05){g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);g.lineWidth=3+Math.min(9,S.ph[e]*2.5);g.strokeStyle='rgba(23,148,77,'+Math.min(.6,S.ph[e]*.2)+')';g.setLineDash([]);g.stroke()}g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);
+g.strokeStyle=S.cl[e]?cs.getPropertyValue('--bad'):q<.8?'hsl('+(40*q/.8)+',90%,50%)':cs.getPropertyValue('--ln');g.lineWidth=S.cl[e]?4:c.vf[e]>12?3:1.5;g.setLineDash([]);g.stroke();
+if(S.bel(e)){g.setLineDash([4,3]);g.strokeStyle=cs.getPropertyValue('--vi');g.lineWidth=1.6;g.stroke()}});g.setLineDash([]);
+c.hubs.forEach(n=>{g.beginPath();g.arc(c.nd[n].x,c.nd[n].y,7,0,7);g.strokeStyle=cs.getPropertyValue('--fg');g.lineWidth=1.5;g.stroke()});c.W.forEach(n=>{g.fillStyle=cs.getPropertyValue('--ac');g.fillRect(c.nd[n].x-6,c.nd[n].y-6,12,12)});
+c.S.forEach(n=>{g.fillStyle=cs.getPropertyValue('--vi');g.beginPath();g.moveTo(c.nd[n].x,c.nd[n].y-7);g.lineTo(c.nd[n].x+7,c.nd[n].y+5);g.lineTo(c.nd[n].x-7,c.nd[n].y+5);g.fill()});
+for(const v of S.veh){let x,y;if(v.ed>=0){const A=c.nd[c.fr[v.ed]],B=c.nd[c.to[v.ed]],f=Math.min(1,v.p/c.L[v.ed>>1]);x=A.x+(B.x-A.x)*f;y=A.y+(B.y-A.y)*f}else{x=c.nd[v.nd].x;y=c.nd[v.nd].y}
+g.beginPath();g.arc(x,y,4,0,7);g.fillStyle=v.st?'transparent':cs.getPropertyValue(S.mode=='C'?'--ce':'--ac');g.fill();g.strokeStyle=cs.getPropertyValue('--fg');g.lineWidth=1;g.stroke()}
+if(!S.alive){g.fillStyle='rgba(211,51,51,.9)';g.font='bold 22px system-ui';g.fillText('ЦЕНТР ВИМКНЕНО (карта заморожена)',150,30)}
+const m=mean(S,S.t-300);$(st).textContent='t='+S.t.toFixed(0)+' с · середній час рейсу (300 с): '+(isNaN(m)?'—':m.toFixed(0)+' с')+' · рейсів: '+S.trips.length}
+function loop(){for(let i=0;i<o.sp;i++){S1.step();S2.step();if(S1.t>=nextH){nextH+=10;if(S1.t>=300){const f=S=>{const a=S.trips.filter(x=>x[0]>=S.t-300);return[a.length?a.reduce((s,x)=>s+x[1],0)/a.length:NaN,a.length*12]},a=f(S1),b=f(S2);hist.push([S1.t,a[0],b[0],a[1],b[1]]);if(hist.length>360)hist.shift()}}}draw($('c1'),S1,'s1');draw($('c2'),S2,'s2');chart();requestAnimationFrame(loop)}
+const TL=[2,10,30,60,120,300,600,1e9];$('tt').oninput=e=>{o.T=TL[+e.target.value];$('ttv').textContent=o.T>1e8?'∞ (центр відключено)':o.T+' с'};$('nv').oninput=e=>{o.nv=+e.target.value;$('nvv').textContent=o.nv;init();$('kill').textContent='💥 Вимкнути центр'};
+$('kill').onclick=()=>{S1.alive=!S1.alive;marks.push([S1.t,S1.alive?'--ac':'--bad']);if(S1.alive)S1.revive();$('kill').textContent=S1.alive?'💥 Вимкнути центр':'🔌 Увімкнути центр'};$('ev').oninput=e=>{o.ev=+e.target.value;$('evv').textContent=o.ev+' с'};$('sp').oninput=e=>{o.sp=+e.target.value;$('spv').textContent=o.sp+'×'};$('nw').onclick=()=>{SD=1+((Math.random()*1e6)|0);init();$('kill').textContent='💥 Вимкнути центр'};$('rst').onclick=()=>{init();$('kill').textContent='💥 Вимкнути центр'};
+const DL=[0,15,30,60,120],LS=[0,.3,.6,.85,.97];let res=null;
+function runH(seed,mode,oo){const c=mkCity(seed),ev=genEv(c,seed,1800),S=mkSim(c,ev,mode,oo,seed);while(S.t<1800)S.step();return mean(S,300)}
+function drawPh(){const cv=$('c3'),w=cv.clientWidth,h=260;cv.width=w;cv.height=h;const g=cv.getContext('2d'),cs=getComputedStyle(document.documentElement),x0=70,y0=10,cw=(w-x0-10)/5,ch=(h-y0-34)/5;
+g.font='12px system-ui';LS.forEach((l,j)=>DL.forEach((d,i)=>{const v=res?res[j][i]:NaN;if(!isNaN(v)){const a=Math.min(1,Math.abs(v)/25);g.fillStyle=v>0?`rgba(23,148,77,${.15+a*.8})`:`rgba(43,108,212,${.15+a*.8})`}else g.fillStyle=cs.getPropertyValue('--bg');
+g.fillRect(x0+i*cw,y0+(4-j)*ch,cw-2,ch-2);g.fillStyle=cs.getPropertyValue('--fg');g.textAlign='center';g.fillText(isNaN(v)?'':(v>0?'+':'')+v.toFixed(0)+'%',x0+i*cw+cw/2,y0+(4-j)*ch+ch/2+4)}));
+g.textAlign='center';DL.forEach((d,i)=>g.fillText(d+' с',x0+i*cw+cw/2,h-18));g.fillText('затримка звіту →',x0+2.5*cw,h-4);g.save();g.translate(12,y0+2.5*ch);g.rotate(-Math.PI/2);g.fillText('втрата звітів →',0,0);g.restore();g.textAlign='right';LS.forEach((l,j)=>g.fillText(Math.round(l*100)+'%',x0-6,y0+(4-j)*ch+ch/2+4))}
+$('ph').onclick=async()=>{res=LS.map(()=>DL.map(()=>NaN));drawPh();const aco=[1,2,3,4,5,6].map(s=>runH(s,'A',{dl:0,ls:0}));let k=0;
+for(let j=0;j<5;j++)for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,0));const cm=[1,2,3,4,5,6].map(s=>runH(s,'C',{dl:DL[i],ls:LS[j]})),mc=cm.reduce((a,b)=>a+b)/cm.length,ma=aco.reduce((a,b)=>a+b)/aco.length;
+res[j][i]=(mc-ma)/mc*100;$('pp').textContent=(++k)+'/25';drawPh()}};
+function chart(){const cv=$('c4'),w=cv.clientWidth,h=210;cv.width=w;cv.height=h;const g=cv.getContext('2d'),cs=getComputedStyle(document.documentElement),fg=cs.getPropertyValue('--fg'),mu=cs.getPropertyValue('--mut'),H=hist;g.font='12px system-ui';
+const pw=(w-110)/2,ph_=h-62;
+const P=(x,k,ttl)=>{g.textAlign='left';g.fillStyle=fg;g.fillText(ttl,x,12);g.strokeStyle=mu;g.lineWidth=1;g.strokeRect(x,20,pw,ph_);if(H.length<2)return;
+const t0=H[0][0],t1=H[H.length-1][0],mx=Math.max(1,...H.flatMap(r=>[r[k],r[k+1]]).filter(v=>v==v))*1.1;g.fillStyle=mu;g.textAlign='right';g.fillText(mx.toFixed(0),x-3,30);g.fillText('0',x-3,20+ph_);g.textAlign='center';g.fillText('t, с: '+t0.toFixed(0)+' … '+t1.toFixed(0),x+pw/2,h-28);
+[[k,'--ce'],[k+1,'--ac']].forEach(([i,col])=>{g.beginPath();let s=0;H.forEach(r=>{if(r[i]!=r[i])return;const X=x+(r[0]-t0)/(t1-t0)*pw,Y=20+ph_-r[i]/mx*ph_;s?g.lineTo(X,Y):g.moveTo(X,Y);s=1});g.strokeStyle=cs.getPropertyValue(col);g.lineWidth=2;g.stroke()});
+for(const[mt_,mc_]of marks)if(mt_>=t0){const X=x+(mt_-t0)/(t1-t0)*pw;g.strokeStyle=cs.getPropertyValue(mc_);g.setLineDash([4,3]);g.beginPath();g.moveTo(X,20);g.lineTo(X,20+ph_);g.stroke();g.setLineDash([])}};
+P(40,1,'Середній час рейсу, с (менше — краще)');P(70+pw,3,'Пропускна здатність, рейсів/год (більше — краще)');
+g.textAlign='left';g.fillStyle=cs.getPropertyValue('--ce');g.fillText('— центр',40,h-6);g.fillStyle=cs.getPropertyValue('--ac');g.fillText('— ACO',110,h-6);g.fillStyle=cs.getPropertyValue('--bad');g.fillText('┆ відмова (червона) / відновлення (зелена) центру',170,h-6)}
+const TS=[2,10,60,300,1e9],NV=[12,24,36,54,72];let res2=null;
+function drawPh(){const cv=$('c3'),w=cv.clientWidth,h=270;cv.width=w;cv.height=h;const g=cv.getContext('2d'),cs=getComputedStyle(document.documentElement),x0=70,y0=10,cw=(w-x0-10)/5,ch=(h-y0-40)/5;g.font='12px system-ui';
+NV.forEach((nv,j)=>TS.forEach((T,i)=>{const v=res2?res2[j][i]:NaN;if(!isNaN(v)){const a=Math.min(1,Math.abs(v)/25);g.fillStyle=v>0?`rgba(23,148,77,${.15+a*.8})`:`rgba(43,108,212,${.15+a*.8})`}else g.fillStyle=cs.getPropertyValue('--bg');
+g.fillRect(x0+i*cw,y0+(4-j)*ch,cw-2,ch-2);g.fillStyle=cs.getPropertyValue('--fg');g.textAlign='center';g.fillText(isNaN(v)?'':(v>0?'+':'')+v.toFixed(0)+'%',x0+i*cw+cw/2,y0+(4-j)*ch+ch/2+4)}));
+g.textAlign='center';TS.forEach((T,i)=>g.fillText(T>1e8?'∞':T+' с',x0+i*cw+cw/2,h-24));g.fillText('період оновлення центру T →',x0+2.5*cw,h-8);
+g.textAlign='right';NV.forEach((nv,j)=>g.fillText(nv,x0-6,y0+(4-j)*ch+ch/2+4));g.save();g.translate(12,y0+2.5*ch);g.rotate(-Math.PI/2);g.textAlign='center';g.fillText('вантажівок у флоті →',0,0);g.restore()}
+function runH(seed,mode,oo){const c=mkCity(seed),ev=genEv(c,seed,1500),S=mkSim(c,ev,mode,oo,seed);while(S.t<1500)S.step();return mean(S,300)}
+$('ph').onclick=async()=>{res2=NV.map(()=>TS.map(()=>NaN));drawPh();const sd=[1,2,3,4];let k=0;
+for(let j=0;j<5;j++){await new Promise(r=>setTimeout(r,0));const ma=sd.map(s=>runH(s,'A',{dl:0,ls:0,nv:NV[j]})).reduce((a,b)=>a+b)/4;
+for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,0));const mc=sd.map(s=>runH(s,'C',{dl:0,ls:0,T:TS[i],nv:NV[j]})).reduce((a,b)=>a+b)/4;res2[j][i]=(mc-ma)/mc*100;$('pp').textContent=(++k)+'/25';drawPh()}}};
+init();drawPh();loop();addEventListener('resize',drawPh);
+</script></body></html>

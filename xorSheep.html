@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Нейроеволюція XOR: світло і висота</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#1d2733;--mut:#5b6b7c;--line:#cfd8e3;--acc:#2f6fb5;--mv:#e08a1a;--st:#2f6fb5;--dn:#8e44ad;--ok:#2e8b57;--bad:#c0392b}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+header{padding:12px 16px 0;max-width:1280px;margin:0 auto}
+h1{font-size:18px;margin:0 0 2px}.sub{color:var(--mut);margin:0 0 8px}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.tabs button{border:1px solid var(--line);border-bottom:none;background:#e9eff6;border-radius:6px 6px 0 0;padding:6px 14px}
+.tabs button.on{background:var(--card);color:var(--acc);font-weight:600}
+main{max-width:1280px;margin:0 auto;padding:12px 16px 40px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.card h2{font-size:14px;margin:0 0 6px}
+canvas{width:100%;display:block;border:1px solid var(--line);border-radius:4px;background:#fff}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:5px;padding:4px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}button.pri:hover:not(:disabled){color:#fff;filter:brightness(1.1)}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;align-items:center}
+.leg{font-size:12px;color:var(--mut);margin-top:4px}.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.leg b.sw{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:3px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:3px 5px;border-bottom:1px solid #e6ebf1;text-align:left}
+th{font-weight:600;color:var(--mut);font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}
+.stat td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+#msg{min-height:20px;margin-top:4px;font-weight:600}
+.row{display:grid;grid-template-columns:1fr 110px 46px;gap:8px;align-items:center;margin:5px 0;font-size:13px}.row output{text-align:right;font-variant-numeric:tabular-nums}
+.row select{grid-column:2/4;font:inherit;padding:3px;max-width:100%}
+details summary{cursor:pointer;font-weight:600}
+#th{font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.6;max-width:860px}
+#th h3{font-size:17px;margin:20px 0 4px;font-family:system-ui,sans-serif}#th p{margin:6px 0}#th .box{background:#eef4fb;border-left:3px solid var(--acc);padding:6px 12px;margin:10px 0}
+#th table{width:auto;font-family:system-ui,sans-serif}#th th,#th td{padding:3px 12px}
+#th mjx-container[display="true"]{margin:.6em 0!important;overflow-x:auto;overflow-y:hidden}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'},options:{enableMenu:false}};</script>
+</head><body>
+<header><h1>Нейроеволюція XOR: світло і висота</h1>
+<p class="sub">Вівця бачить лише два сигнали і мусить сама винайти правило, яке не можна задати прямою лінією.</p>
+<div class="tabs"><button id="tSim" class="on">Симуляція</button><button id="tCmp">Конкуренція 3D</button><button id="tTh">Теорія</button></div></header>
+
+<main id="pSim"><div class="grid">
+<section>
+ <div class="card"><h2>Світ із двох місць</h2>
+  <canvas id="cvW"></canvas>
+  <div class="btns"><button class="pri" id="bRun">Пуск</button><button id="bStep">Крок</button>
+   <button data-sp="1" class="on">×1</button><button data-sp="3">×3</button><button data-sp="10">×10</button><button data-sp="50">×50</button><button data-sp="300">×300</button><button data-sp="2000">×2000</button>
+   <button id="bReset">Перезапустити</button></div>
+  <div id="msg"></div>
+  <div class="leg"><b class="sw" style="background:#333"></b>вівця <b class="sw" style="background:#e08a1a"></b>щойно перейшла <b class="sw" style="background:#c0392b"></b>майже без енергії. Сонце й місяць, плавні сутінки лише для краси: сигнал світла двійковий.</div></div>
+ <div class="card"><h2>Мозок вівці</h2>
+  <div class="row"><label for="b_out">Вихід ↻</label><select id="b_out"><option value="toggle">один: перейти / лишитись (XOR)</option><option value="signed">знаковий: вгору / вниз / стоїмо</option></select></div>
+  <div class="row"><label for="b_L">Прихованих шарів ↻</label><select id="b_L"><option value="0">0 — входи → вихід (один шар)</option><option value="1">1 прихований шар</option><option value="2">2 приховані шари</option></select></div>
+  <div class="row"><label for="b_W">Нейронів у прихованому шарі ↻</label><input type="range" id="b_W" min="1" max="4" step="1" value="2"><output id="o_bW">2</output></div>
+  <div class="row"><label for="b_act">Активація прихованих нейронів ↻</label><select id="b_act"><option value="tanh">tanh</option><option value="relu">ReLU</option><option value="step">поріг (step)</option></select></div>
+  <div class="btns"><button class="pri" id="bApply">Застосувати й перезапустити</button><span class="leg" id="brInfo"></span></div>
+  <details id="dNet" style="margin-top:6px"><summary>Граф мережі: ваги й активації вибраної вівці</summary>
+   <div class="btns"><span>Показати для стану:</span><select id="gState"><option value="cur">поточного стану вівці</option><option value="0,0">A=0, B=0 (ніч · долина)</option><option value="1,0">A=1, B=0 (день · долина)</option><option value="0,1">A=0, B=1 (ніч · гора)</option><option value="1,1">A=1, B=1 (день · гора)</option></select></div>
+   <canvas id="cvG"></canvas>
+   <div class="btns" style="align-items:flex-start"><canvas id="cvF" style="max-width:300px"></canvas><div class="leg" id="gTxt" style="flex:1;min-width:180px"></div></div>
+   <div class="leg">Товщина лінії — модуль ваги, синя — додатна, червона — від'ємна. Колір кружка — значення (синій +, червоний −), обвідка й підпис b — зсув.</div></details></div>
+ <div class="card"><h2>Таблиця істинності: що треба робити в кожному стані</h2>
+  <table id="tt"><thead><tr><th>Світло A</th><th>Висота B</th><th>Стан</th><th>Потрібна дія</th><th class="n">Діють правильно</th><th>Вибрана вівця</th></tr></thead><tbody></tbody></table>
+  <div class="btns"><span>Показувати мозок:</span><select id="selMode"><option value="best">найточнішої вівці</option><option value="rand">випадкової вівці</option></select><button id="bRoll">Інша вівця</button></div></div>
+ <div class="card"><h2>Показники</h2><table class="stat" id="stat"></table></div>
+ <div class="card"><details><summary>Параметри</summary><div id="cfg"></div>
+  <div class="leg">↻ — застосовується після «Перезапустити». Решта діє одразу.</div></details></div>
+</section>
+<section>
+ <div class="card"><h2>Площина сигналів (A, B) і карта рішень вибраної вівці</h2>
+  <canvas id="cvP"></canvas>
+  <div class="leg" id="legP"></div></div>
+ <div class="card"><h2>Скільки з 4 станів стадо розв'язує правильно</h2><canvas id="cvA"></canvas>
+  <div class="leg"><i style="background:#2f6fb5"></i>середня точність <i style="background:#e08a1a"></i>найкраща вівця <i style="background:#2e8b57"></i>частка овець, що знають усі 4 стани · пунктир — 3/4: стеля однієї прямої</div></div>
+ <div class="card"><h2>Де стадо за тактами доби (частка в долині)</h2><canvas id="cvV"></canvas>
+  <div class="leg"><i style="background:#999"></i>перша доба <i style="background:#2f6fb5"></i>остання доба · сіра смуга — ніч</div></div>
+ <div class="card"><h2>Чисельність і причини зникнення</h2><canvas id="cvN"></canvas>
+  <div class="leg"><i style="background:#2f6fb5"></i>вівець <i style="background:#c0392b"></i>потоп <i style="background:#e08a1a"></i>голод <i style="background:#7f8c8d"></i>старість (за добу)</div></div>
+ <div class="card"><h2>Серія експериментів: як часто мозок знаходить XOR</h2>
+  <div class="row"><span>Запусків на конфігурацію</span><input type="range" id="bRuns" min="6" max="40" step="2" value="12"><output id="oRuns">12</output></div>
+  <div class="row"><span>Макс. діб у запуску</span><input type="range" id="bMax" min="60" max="2000" step="20" value="600"><output id="oMax">600</output></div>
+  <div class="btns"><button class="pri" id="bBatch">Запустити серію</button><span id="bProg" class="leg"></span></div>
+  <table id="bTab"></table>
+  <div class="leg">Інші параметри беруться з поточних налаштувань, зерна змінюються. «XOR закріпився» — запуск зупиняється, щойно понад половина стада знає всі 4 стани. Час появи XOR сильно розкиданий (від десятків до понад тисячі діб), тому при малому ліміті діб частка успіху занижується: 0% означає лише «не встигло». Базове налаштування (1 шар × 2 нейрони) у вимірах давало XOR приблизно у 85% запусків за 1500 діб, медіана близько 150 діб, але розкид від ~20 до ~1200 діб.</div></div>
+</section></div></main>
+
+<main id="pCmp" hidden><div class="grid">
+<section>
+ <div class="card"><h2>Чорні проти білих: спільна трава</h2>
+  <canvas id="cmpC3" style="aspect-ratio:16/10;cursor:grab;touch-action:none"></canvas>
+  <div class="btns"><button class="pri" id="cmpRun">Пуск</button>
+   <button data-cs="1" class="on">×1</button><button data-cs="10">×10</button><button data-cs="100">×100</button><button data-cs="1000">×1000</button>
+   <button id="cmpReset">Перезапустити</button><span id="cmpPhase" class="leg"></span></div>
+  <div id="cmpMsg" style="min-height:20px;font-weight:600"></div>
+  <div class="leg" id="cmpInfo">Клікніть по вівці, щоб побачити її мозок і стан. Тягнути — обертати, коліщатко — масштаб.</div>
+  <div class="leg"><b class="sw" style="background:#fff;border:1px solid #333"></b>білі <b class="sw" style="background:#1a1a1a"></b>чорні · Трава: зелений → бурий (з'їдена), сірий — голі скелі. Синя прозора товща — нічний потоп. Обидві популяції їдять одну й ту саму траву, схрещуються лише всередині свого кольору, а рятувальних подій немає.</div></div>
+ <div class="card"><h2>Мозок кожної популяції</h2>
+  <table id="cmpBr"><thead><tr><th></th><th>Чорні</th><th>Білі</th></tr></thead><tbody><tr><td>Шарів приховано ↻</td><td><select id="cmpL0"><option value="0">0 — входи → вихід</option><option value="1">1 прихований шар</option><option value="2">2 приховані шари</option></select></td><td><select id="cmpL1"><option value="0">0 — входи → вихід</option><option value="1">1 прихований шар</option><option value="2">2 приховані шари</option></select></td></tr><tr><td>Нейронів у шарі ↻</td><td><input type="range" id="cmpH0" min="1" max="12" step="1" value="6" style="width:90px"> <output id="cmpH0o">6</output></td><td><input type="range" id="cmpH1" min="1" max="12" step="1" value="6" style="width:90px"> <output id="cmpH1o">6</output></td></tr><tr><td>Активація ↻</td><td><select id="cmpA0"><option value="lin">лінійна (без активації)</option><option value="tanh">tanh</option><option value="relu">ReLU</option><option value="step">поріг (step)</option></select></td><td><select id="cmpA1"><option value="lin">лінійна (без активації)</option><option value="tanh">tanh</option><option value="relu">ReLU</option><option value="step">поріг (step)</option></select></td></tr><tr><td>Вихід ↻</td><td><select id="cmpO0"><option value="cont">2 неперервні (вгору/вниз і вбік)</option><option value="signed">знаковий: вгору / стоїмо / вниз</option></select></td><td><select id="cmpO1"><option value="cont">2 неперервні (вгору/вниз і вбік)</option><option value="signed">знаковий: вгору / стоїмо / вниз</option></select></td></tr></tbody></table>
+  <div class="leg" id="cmpBrInfo"></div>
+  <div class="leg">Шарів 0 — прямий зв’язок входів з виходом (перцептрон); тоді «активація» стосується виходу. Для 1–2 прихованих шарів активація стосується прихованих нейронів, а вихід завжди tanh. «Знаковий» вихід — один нейрон: &gt; 0,3 — іти вгору схилом, &lt; −0,3 — вниз, між — стояти (без руху вбік), як у 2D-вкладці. ↻ — застосовується після «Перезапустити». Решту параметрів (початкова частка, рельєф, трава, витрати, мутація) змінюйте нижче.</div>
+  <details style="margin-top:6px"><summary>Параметри світу</summary><div id="cmpCfg"></div></details></div>
+ <div class="card"><h2>Серія експериментів: хто перемагає?</h2>
+  <div class="leg" style="margin:0 0 4px">Запускає N повторів із поточними мозками й параметрами світу (без 3D, послідовно) і збирає підсумки. Серія зупиняється для кожного повтору, коли одна з популяцій вимирає або минув ліміт діб.</div>
+  <div class="row"><label for="bxN">Кількість повторів</label><input type="range" id="bxN" min="3" max="30" step="1" value="8"><output id="bxNo">8</output></div>
+  <div class="row"><label for="bxD">Ліміт діб на повтор</label><input type="range" id="bxD" min="30" max="300" step="10" value="100"><output id="bxDo">100</output></div>
+  <div class="row"><label for="bxL">Змінювати ландшафт між повторами</label><input type="checkbox" id="bxL" style="justify-self:start"></div>
+  <div class="btns"><button class="pri" id="bxRun">Запустити серію</button><button id="bxStop" disabled>Скасувати</button><span class="leg" id="bxProg"></span></div>
+  <canvas id="cmpBX"></canvas>
+  <div class="leg">Частка чорних серед живих (N<sub>ч</sub>/(N<sub>ч</sub>+N<sub>б</sub>)) у часі, кожна лінія — один повтор. Вище 0.5 — ведуть чорні, нижче — білі; 0 або 1 — одна з популяцій вимерла.</div>
+  <div id="bxSum" style="margin-top:6px"></div><table id="bxT" style="margin-top:6px"></table></div>
+
+</section>
+<section>
+ <div class="card"><h2>Чисельність у часі</h2><canvas id="cmpN"></canvas>
+  <div class="leg"><b class="sw" style="background:#fff;border:1px solid #333"></b>білі <b class="sw" style="background:#1a1a1a"></b>чорні <i style="background:#9aa5b1"></i>пунктир — стеля</div></div>
+ <div class="card"><h2>Причини смерті по добах (останні 60 діб)</h2>
+  <div class="leg" style="margin:0 0 2px">Чорні</div><canvas id="cmpD0"></canvas>
+  <div class="leg" style="margin:6px 0 2px">Білі</div><canvas id="cmpD1"></canvas>
+  <div class="leg"><i style="background:#2f86d6"></i>потоп (втопилась) <i style="background:#c0392b"></i>голод (на місці) <i style="background:#e08a1a"></i>виснаження (енергія скінчилась під час підйому) <i style="background:#8d99a6"></i>старість. Однакова вертикальна шкала для обох графіків.</div></div>
+ <div class="card"><h2>Зведення</h2><table class="stat" id="cmpT"></table></div>
+ <div class="card"><h2>Індекс міграції M</h2><canvas id="cmpM"></canvas>
+  <div class="leg">Як у головному симуляторі: різниця середньої висоти овець перед водою (фаза .55–.62) і вдень, у частках рівня води. M &gt; 0.5 (пунктир) — стадо підіймається до потопу.</div></div>
+</section></div>
+<div id="cmpModal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,.55);z-index:50;align-items:center;justify-content:center;padding:12px">
+ <div class="card" style="max-width:820px;width:100%;max-height:94vh;overflow:auto;margin:0">
+  <div class="btns" style="justify-content:space-between;margin-top:0"><h2 id="cmpMT" style="margin:0">Мозок вівці</h2><button id="cmpMX">Закрити ✕</button></div>
+  <div class="leg" id="cmpMI"></div>
+  <canvas id="cmpG"></canvas>
+  <div class="btns" style="align-items:flex-start"><canvas id="cmpF" style="max-width:300px"></canvas><div class="leg" id="cmpGT" style="flex:1;min-width:200px"></div></div>
+  <div class="leg">Лінії — ваги: товщина — модуль, синя додатна, червона від'ємна. Кружки — поточна активація (синій +, червоний −), обвідка — зсув (bias). Дані оновлюються наживо, поки вівця жива; Esc або клік поза вікном — закрити.</div>
+ </div></div>
+</main>
+
+<main id="pTh" hidden><div id="th"></div></main>
+
+<script>
+// ===== SIM =====
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const DEF={N0:100,cap:300,D:12,Nn:8,grace:2,pFlood:.2,gain:3,meta:1,moveCost:.5,Estart:10,Emax:40,reproE:20,childE:8,tax:4,maxAge:400,
+ L:1,W:2,act:'tanh',outMode:'toggle',theta:.5,pm:30,pg:35,sigma:.5,cx:'clone',seed:1};
+const ST=[[0,0,'ніч · долина'],[1,0,'день · долина'],[0,1,'ніч · гора'],[1,1,'день · гора']];
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function glen(c){let n=0,p=2;for(let l=0;l<=c.L;l++){const q=l===c.L?1:c.W;n+=q*(p+1);p=q}return n}
+function actF(act,a){return act==='relu'?(a>0?a:0):act==='step'?(a>0?1:0):Math.tanh(a)}
+class World{
+ constructor(c){this.c=c;this.rand=rng(c.seed*7919+13);this.t=0;this.cycle=0;this.uid=0;this.sheep=[];this.hist=[];
+  this.firstEv=-1;this.spread=-1;this.extinct=-1;this.deaths={flood:0,starve:0,age:0};this.births=0;
+  const C=c.D+c.Nn;this.valSum=new Float64Array(C);this.valCnt=new Float64Array(C);this.firstProf=null;this.lastProf=null;
+  const n=glen(c);this.u=new Float64Array(8);this.v=new Float64Array(8);
+  for(let i=0;i<c.N0;i++){const g=new Float32Array(n);for(let k=0;k<n;k++)g[k]=this.rand()*2-1;this.sheep.push(this.mk(g,this.rand()<.5?0:1,c.Estart,0))}
+  this.best=null;this.initPerfect=0;const s0=this.score();this.initPerfect=s0.perfect}
+ get C(){return this.c.D+this.c.Nn}
+ mk(g,loc,E,gen){return{g,loc,E,age:0,gen,dead:0,id:++this.uid,moved:0,mut:false,acc:0,rx:this.rand(),ry:this.rand()}}
+ gauss(){let u=0;while(!u)u=this.rand();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*this.rand())}
+ out(g,A,B){const c=this.c,L=c.L;if(L===0)return g[0]*A+g[1]*B+g[2];
+  const W=c.W,u=this.u,v=this.v,act=c.act;let p=0;
+  for(let j=0;j<W;j++){u[j]=actF(act,g[p]*A+g[p+1]*B+g[p+2]);p+=3}
+  for(let l=1;l<L;l++){for(let j=0;j<W;j++){let a=g[p+W];for(let i=0;i<W;i++)a+=g[p+i]*u[i];p+=W+1;v[j]=actF(act,a)}for(let j=0;j<W;j++)u[j]=v[j]}
+  let o=g[p+W];for(let i=0;i<W;i++)o+=g[p+i]*u[i];return o}
+ trace(g,A,B){const c=this.c,acts=[[A,B]],zs=[[]];let prev=[A,B],p=0;
+  for(let l=0;l<c.L;l++){const cur=[],z=[];for(let j=0;j<c.W;j++){let a=g[p+prev.length];for(let i=0;i<prev.length;i++)a+=g[p+i]*prev[i];p+=prev.length+1;z.push(a);cur.push(actF(c.act,a))}acts.push(cur);zs.push(z);prev=cur}
+  let o=g[p+prev.length];for(let i=0;i<prev.length;i++)o+=g[p+i]*prev[i];acts.push([o]);zs.push([o]);return{acts,zs}}
+ raw(o){const c=this.c;return c.outMode==='toggle'?(o>0?1:0):(o>c.theta?1:o<-c.theta?-1:0)}
+ eff(o,B){const c=this.c;if(c.outMode==='toggle')return o>0?1:0;return(o>c.theta&&B===0)?1:(o<-c.theta&&B===1)?-1:0}
+ need(A,B){return this.c.outMode==='toggle'?(A===B?1:0):(A===0&&B===0?1:(A===1&&B===1?-1:0))}
+ evalSheep(s){let n=0;const ok=[0,0,0,0];for(let k=0;k<4;k++){const A=ST[k][0],B=ST[k][1];if(this.eff(this.out(s.g,A,B),B)===this.need(A,B)){ok[k]=1;n++}}return{n,ok}}
+ score(){let sum=0,best=-1,perfect=0,perfectEv=0,bs=null;const st=[0,0,0,0],N=this.sheep.length;
+  for(const s of this.sheep){const r=this.evalSheep(s);s.acc=r.n/4;sum+=s.acc;for(let k=0;k<4;k++)st[k]+=r.ok[k];
+   if(r.n===4){perfect++;if(s.gen>0)perfectEv++}
+   if(s.acc>best||(s.acc===best&&bs&&s.E>bs.E)){best=s.acc;bs=s}}
+  this.best=bs;return{N,mean:N?sum/N:0,best:N?best:0,perfect,perfectEv,st:st.map(x=>N?x/N:0)}}
+ kill(s,why){s.dead=1;this.deaths[why]++}
+ mutate(g){const c=this.c;if(this.rand()>=c.pm/100)return false;let any=false;
+  for(let i=0;i<g.length;i++)if(this.rand()<c.pg/100){g[i]=clamp(g[i]+this.gauss()*c.sigma,-4,4);any=true}
+  if(!any){const i=Math.floor(this.rand()*g.length);g[i]=clamp(g[i]+this.gauss()*c.sigma,-4,4)}return true}
+ birth(a,b){const c=this.c,n=a.g.length,g=new Float32Array(n);
+  for(let i=0;i<n;i++)g[i]=(b&&this.rand()<.5)?b.g[i]:a.g[i];
+  const m=this.mutate(g),cost=c.childE+c.tax;if(b){a.E-=cost/2;b.E-=cost/2}else a.E-=cost;
+  const ch=this.mk(g,a.loc,c.childE,Math.max(a.gen,b?b.gen:0)+1);ch.mut=m;this.sheep.push(ch);this.births++}
+ repro(){const c=this.c;if(this.sheep.length>=c.cap)return;const rd=this.sheep.filter(s=>!s.dead&&s.E>=c.reproE);if(!rd.length)return;
+  for(let i=rd.length-1;i>0;i--){const j=Math.floor(this.rand()*(i+1));[rd[i],rd[j]]=[rd[j],rd[i]]}
+  if(c.cx==='clone'){for(const a of rd){if(this.sheep.length>=c.cap)break;this.birth(a,null)}}
+  else for(let i=0;i+1<rd.length;i+=2){if(this.sheep.length>=c.cap)break;this.birth(rd[i],rd[i+1])}}
+ tick(){const c=this.c,C=this.C,tau=this.t%C,A=tau<c.D?1:0,nIdx=tau-c.D,flood=A===0&&nIdx>=c.grace;
+  for(const s of this.sheep){s.age++;const B=s.loc,act=this.eff(this.out(s.g,A,B),B);s.moved=0;
+   if(act!==0){s.loc=c.outMode==='toggle'?1-B:(act>0?1:0);s.moved=1}
+   s.E-=c.meta+(s.moved?c.moveCost:0);if(s.loc===0)s.E+=c.gain;if(s.E>c.Emax)s.E=c.Emax;
+   if(flood&&s.loc===0&&this.rand()<c.pFlood)this.kill(s,'flood');else if(s.E<=0)this.kill(s,'starve');else if(s.age>c.maxAge)this.kill(s,'age');
+   if(!s.dead){this.valCnt[tau]++;if(s.loc===0)this.valSum[tau]++}}
+  let k=0;for(let i=0;i<this.sheep.length;i++){const s=this.sheep[i];if(!s.dead)this.sheep[k++]=s}this.sheep.length=k;
+  this.repro();this.t++;if(this.t%C===0)this.endCycle()}
+ endCycle(){const sc=this.score(),prof=Array.from(this.valSum,(v,i)=>this.valCnt[i]?v/this.valCnt[i]:NaN);
+  this.cycle++;if(!this.firstProf)this.firstProf=prof;this.lastProf=prof;
+  this.hist.push({cycle:this.cycle,N:sc.N,acc:sc.mean,best:sc.best,perfect:sc.N?sc.perfect/sc.N:0,d:{...this.deaths},b:this.births,st:sc.st});
+  if(this.firstEv<0&&sc.perfectEv>0)this.firstEv=this.cycle;
+  if(this.spread<0&&sc.N>=10&&sc.perfect/sc.N>=.5)this.spread=this.cycle;
+  if(sc.N===0&&this.extinct<0)this.extinct=this.cycle;
+  this.deaths={flood:0,starve:0,age:0};this.births=0;this.valSum.fill(0);this.valCnt.fill(0)}
+}
+function runOne(c,maxC){const w=new World(c);while(w.cycle<maxC&&w.sheep.length>0&&w.spread<0)w.tick();
+ return{out:w.sheep.length===0?'extinct':(w.spread>=0?'xor':'alive'),spread:w.spread,cycle:w.cycle}}
+// ===== END SIM =====
+
+// ---------- UI ----------
+const $=id=>document.getElementById(id);
+const COL={mv:'#e08a1a',st:'#2f6fb5',dn:'#8e44ad'};
+const cfg={...DEF},pend={};const RK=new Set(['N0','L','W','act','outMode','seed','D','Nn']);
+let world=new World(cfg),running=false,spd=1,carry=0,selMode='best',rnd=null,lastLen=-1;
+function hi(cv,w,h){cv.width=w*2;cv.height=h*2;cv.style.aspectRatio=w+'/'+h;const x=cv.getContext('2d');x.scale(2,2);return x}
+const xW=hi($('cvW'),720,300),xP=hi($('cvP'),460,460),xA=hi($('cvA'),560,230),xV=hi($('cvV'),560,200),xN=hi($('cvN'),560,200);
+
+// --- параметри ---
+const CFGS=[['N0','Початкова кількість овець',20,500,10,1],['cap','Стеля популяції',50,600,10,0],
+['D','Тривалість дня, тактів',6,30,1,1],['Nn','Тривалість ночі, тактів',4,20,1,1],['grace','Тактів до підйому води',1,5,1,0],['pFlood','Імовірність загинути за такт у воді',.05,1,.05,0],
+['gain','Їжа в долині за такт',1,6,.5,0],['meta','Обмін за такт',.5,2,.1,0],['moveCost','Вартість переходу',0,2,.1,0],['Estart','Початкова енергія',4,30,1,0],
+['reproE','Поріг розмноження',10,40,1,0],['childE','Енергія нащадка',4,15,1,0],['tax','Податок на розмноження',0,10,1,0],['maxAge','Максимальний вік, тактів',100,2000,50,0],
+['pm','Імовірність мутанта-нащадка, %',0,100,5,0],['pg','Частка мутованих генів, %',5,100,5,0],['sigma','σ мутації',.1,1.5,.1,0],['seed','Зерно випадковості',1,99,1,1]];
+$('cfg').innerHTML=CFGS.map(([k,l,a,b,s,r])=>`<div class="row"><label for="i_${k}">${l}${r?' ↻':''}</label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${cfg[k]}"><output id="o_${k}">${cfg[k]}</output></div>`).join('')+
+`<div class="row"><label for="s_cx">Розмноження</label><select id="s_cx"><option value="clone">безстатеве (клон + мутація)</option><option value="uniform">парне (рівномірний кросовер)</option></select></div>`;
+for(const[k]of CFGS)$('i_'+k).oninput=e=>{const v=+e.target.value;(RK.has(k)?pend:cfg)[k]=v;$('o_'+k).textContent=v};
+$('s_cx').onchange=e=>cfg.cx=e.target.value;
+$('s_cx').value=cfg.cx;
+
+// --- керування ---
+function setRun(v){running=v;$('bRun').textContent=v?'Пауза':'Пуск'}
+$('bRun').onclick=()=>{if(world.sheep.length)setRun(!running)};
+$('bStep').onclick=()=>{setRun(false);if(world.sheep.length)world.tick();refresh(true)};
+document.querySelectorAll('button[data-sp]').forEach(b=>b.onclick=()=>{spd=+b.dataset.sp;document.querySelectorAll('button[data-sp]').forEach(x=>x.classList.toggle('on',x===b))});
+function restart(){Object.assign(cfg,pend);world=new World(cfg);rnd=null;lastLen=-1;carry=0;refresh(true)}
+$('bReset').onclick=()=>{setRun(false);restart()};
+$('selMode').onchange=e=>{selMode=e.target.value;rnd=null;refresh(true)};
+$('bRoll').onclick=()=>{selMode='rand';$('selMode').value='rand';rnd=world.sheep.length?world.sheep[Math.floor(Math.random()*world.sheep.length)]:null;refresh(true)};
+$('tSim').onclick=()=>tab(0);$('tCmp').onclick=()=>tab(1);$('tTh').onclick=()=>tab(2);
+function tab(i){$('pSim').hidden=i!==0;$('pCmp').hidden=i!==1;$('pTh').hidden=i!==2;$('tSim').classList.toggle('on',i===0);$('tCmp').classList.toggle('on',i===1);$('tTh').classList.toggle('on',i===2);if(i===1&&window.cmpShow)window.cmpShow()}
+function selSheep(){if(selMode==='rand'){if(!rnd||rnd.dead||!world.sheep.includes(rnd))rnd=world.sheep.length?world.sheep[Math.floor(Math.random()*world.sheep.length)]:null;return rnd}
+ return world.best&&!world.best.dead&&world.sheep.includes(world.best)?world.best:(world.sheep[0]||null)}
+
+// --- малювання світу ---
+const smooth=x=>x*x*(3-2*x);
+function skyAt(p,D,C){const d=D/C,w=.06;let k;if(p<d-w)k=1;else if(p<d+w)k=1-smooth((p-(d-w))/(2*w));else if(p<1-w)k=0;else k=smooth((p-(1-w))/w);
+ const a=[207,233,255],b=[84,108,160];return`rgb(${a.map((v,i)=>Math.round(b[i]+(v-b[i])*k)).join(',')})`}
+// Рельєф: одна гладка крива (гауссова гора), що плавно переходить у долину. Місця спокою на горі лежать вище максимального рівня води.
+const GW=720,GH=300,Y0=246,HM=190,XP=540,SG=130,WMAX=40;
+const gnd=x=>Y0-HM*Math.exp(-(((x-XP)/SG)**2));
+const vTarget=s=>s.loc===0?24+s.rx*306:405+s.rx*270;
+let dispWater=0;
+function drawWorld(dt){const w=world,c=w.c,C=w.C,tau=w.t%C,A=tau<c.D?1:0,nIdx=tau-c.D,W=GW,H=GH,tt=tau+(running?Math.min(1,carry):0);
+ const dayP=Math.min(1,A?tt/c.D:(tt-c.D)/c.Nn),sx=40+dayP*(W-80),sy=64-Math.sin(dayP*Math.PI)*36,sky=skyAt(tt/C,c.D,C);
+ xW.clearRect(0,0,W,H);xW.fillStyle=sky;xW.fillRect(0,0,W,H);
+ xW.fillStyle=A?'#ffd23f':'#f4f1de';xW.beginPath();xW.arc(sx,sy,14,0,6.2832);xW.fill();
+ if(!A){xW.fillStyle=sky;xW.beginPath();xW.arc(sx+6,sy-3,12,0,6.2832);xW.fill()}
+ const gr=xW.createLinearGradient(0,Y0-HM,0,Y0+10);gr.addColorStop(0,'#a3a39c');gr.addColorStop(.7,'#9a9a94');gr.addColorStop(.88,'#8fb878');gr.addColorStop(1,'#8fb878');
+ xW.fillStyle=gr;xW.beginPath();xW.moveTo(0,H);for(let x=0;x<=W;x+=4)xW.lineTo(x,gnd(x));xW.lineTo(W,H);xW.closePath();xW.fill();
+ xW.fillStyle='#7d7d78';xW.fillRect(0,Y0+14,W,H-Y0-14);
+ xW.setLineDash([5,4]);xW.strokeStyle='rgba(47,134,214,.7)';xW.lineWidth=1;xW.beginPath();xW.moveTo(0,Y0-WMAX);xW.lineTo(400,Y0-WMAX);xW.stroke();xW.setLineDash([]);
+ xW.font='11px system-ui';xW.fillStyle=A?'#2f6fb5':'#d6e8ff';xW.textAlign='left';xW.fillText('рівень потопу',8,Y0-WMAX-4);
+ const fl=A===0&&nIdx>=c.grace,target=A===0?WMAX*Math.min(1,(nIdx+1)/(c.grace+1)):0;dispWater+=(target-dispWater)*Math.min(1,(dt||0)*5);if(!dt&&Math.abs(target-dispWater)>WMAX)dispWater=target;
+ const vsp=700*Math.max(1,spd)*(dt||0);let nv=0,nm=0;
+ for(const s of w.sheep){const tx=vTarget(s);if(s.dx===undefined)s.dx=tx;
+  if(spd>=300)s.dx=tx;else{const d=tx-s.dx;s.dx+=Math.abs(d)<=vsp?d:Math.sign(d)*vsp}
+  const y=gnd(s.dx)-3-s.ry*9,mv=Math.abs(tx-s.dx)>1.5;if(s.loc===0)nv++;else nm++;
+  xW.fillStyle=s.E<3?'#c0392b':mv?'#e08a1a':'#333';xW.beginPath();xW.arc(s.dx,y,3.6,0,6.2832);xW.fill();xW.strokeStyle='rgba(255,255,255,.95)';xW.lineWidth=1.3;xW.stroke()}
+ if(dispWater>.5){const wy=Y0-dispWater;xW.fillStyle=fl?'rgba(47,134,214,.6)':'rgba(47,134,214,.38)';xW.beginPath();xW.moveTo(0,wy);xW.lineTo(W,wy);for(let x=W;x>=0;x-=4)xW.lineTo(x,Math.max(gnd(x),wy));xW.closePath();xW.fill()}
+ xW.font='13px system-ui';xW.fillStyle=A?'#1d2733':'#f2f5fa';xW.textAlign='center';xW.fillText('Гора: трави нема',XP,Y0-HM-8);xW.fillStyle='#1d2733';xW.textAlign='left';xW.fillText('Долина: трава',8,Y0+30);
+ xW.fillText(`у долині: ${nv}`,8,H-8);xW.textAlign='right';xW.fillText(`на горі: ${nm}`,W-8,H-8);
+ xW.textAlign='left';xW.fillStyle=A?'#1d2733':'#f2f5fa';xW.fillText(`доба ${w.cycle+1} · такт ${tau+1}/${C} · ${A?'день':'ніч'}${fl?' · вода піднялась':''}`,8,20)}
+
+// --- площина ---
+const LO=-.3,HI=1.3;
+function drawPlane(){const w=world,c=w.c,S=460,m=44,px=v=>m+(v-LO)/(HI-LO)*(S-m-14),py=v=>S-m-(v-LO)/(HI-LO)*(S-m-14);
+ xP.clearRect(0,0,S,S);const s=selSheep(),sig=c.outMode==='signed',n=44;
+ if(s){const cs=(S-m-14)/n;for(let i=0;i<n;i++)for(let j=0;j<n;j++){const A=LO+(i+.5)/n*(HI-LO),B=LO+(j+.5)/n*(HI-LO),o=w.out(s.g,A,B),r=sig?w.eff(o,B>.5?1:0):w.raw(o);
+  xP.fillStyle=r>0?'rgba(224,138,26,.28)':r<0?'rgba(142,68,173,.28)':'rgba(47,111,181,.22)';xP.fillRect(px(A)-cs/2,py(B)-cs/2,cs+.6,cs+.6)}}
+ xP.strokeStyle='#cfd8e3';xP.lineWidth=1;xP.strokeRect(px(LO),py(HI),px(HI)-px(LO),py(LO)-py(HI));
+ xP.font='13px system-ui';xP.fillStyle='#5b6b7c';xP.textAlign='center';
+ for(const v of[0,1]){xP.fillText(v,px(v),S-m+16);xP.textAlign='right';xP.fillText(v,m-6,py(v)+4);xP.textAlign='center'}
+ xP.fillText('A: світло (0 — ніч, 1 — день)',(px(LO)+px(HI))/2,S-8);xP.save();xP.translate(12,(py(LO)+py(HI))/2);xP.rotate(-Math.PI/2);xP.fillText('B: висота (0 — долина, 1 — гора)',0,0);xP.restore();
+ xP.setLineDash([4,4]);xP.strokeStyle='#8a97a6';xP.beginPath();xP.moveTo(px(0),py(0));xP.lineTo(px(1),py(1));xP.moveTo(px(1),py(0));xP.lineTo(px(0),py(1));xP.stroke();xP.setLineDash([]);
+ for(const[A,B]of ST){const nd=w.need(A,B);xP.fillStyle=nd>0?COL.mv:nd<0?COL.dn:COL.st;xP.beginPath();xP.arc(px(A),py(B),17,0,6.2832);xP.fill();xP.strokeStyle='#fff';xP.lineWidth=2;xP.stroke();
+  xP.fillStyle='#fff';xP.font='bold 17px system-ui';xP.textAlign='center';xP.textBaseline='middle';xP.fillText(sig?(nd>0?'↑':nd<0?'↓':'■'):(nd>0?'1':'0'),px(A),py(B)+1);xP.textBaseline='alphabetic'}
+ $('legP').innerHTML=sig?`<b>Фон</b> — що вибрана вівця реально зробила б у цій точці: <b class="sw" style="background:${COL.mv}"></b>піднімається (з долини), <b class="sw" style="background:${COL.dn}"></b>спускається (з гори), <b class="sw" style="background:${COL.st}"></b>стоїть. Нижня половина (B=0) — вівця в долині, верхня (B=1) — на горі, тому вниз у долині чи вгору на горі означає «стоїть». <b>Кружки</b> — потрібна дія в чотирьох станах (↑ вгору, ↓ вниз, ■ стоїмо). Збіг кольору кружка і фону в ньому означає правильну дію.`
+  :`<b>Фон</b> — що вибрана вівця зробила б у цій точці: <b class="sw" style="background:${COL.mv}"></b>перейти, <b class="sw" style="background:${COL.st}"></b>лишитись. <b>Кружки</b> — потрібна дія в чотирьох станах (1 = перейти, 0 = лишитись). Збіг кольору кружка і фону в ньому означає правильну дію. Діагоналі (штрих) перетинаються: жодна пряма не відокремить 1 від 0.`}
+
+// --- графіки ---
+function lineChart(x,W,Hh,o){const L=34,R=8,T=8,B=20,pw=W-L-R,ph=Hh-T-B,ymax=o.ymax,ymin=o.ymin??0,X=i=>L+pw*i/o.nx,Y=v=>T+ph-(clamp(v,ymin,ymax)-ymin)/(ymax-ymin)*ph;
+ x.clearRect(0,0,W,Hh);if(o.band){x.fillStyle='rgba(40,60,100,.12)';x.fillRect(X(o.band[0]),T,X(o.band[1])-X(o.band[0]),ph)}
+ x.strokeStyle='#e1e7ee';x.lineWidth=1;x.font='11px system-ui';x.fillStyle='#5b6b7c';x.textAlign='right';
+ for(const v of o.ticks){x.beginPath();x.moveTo(L,Y(v));x.lineTo(W-R,Y(v));x.stroke();x.fillText(o.fmt?o.fmt(v):v,L-4,Y(v)+4)}
+ for(const[i,t]of o.xt){x.textAlign=i===0?'left':'right';x.fillText(t,i===0?L:X(i),Hh-5)}
+ for(const h of o.hl||[]){x.setLineDash([5,4]);x.strokeStyle='#8a97a6';x.beginPath();x.moveTo(L,Y(h));x.lineTo(W-R,Y(h));x.stroke();x.setLineDash([])}
+ for(const s of o.series){x.strokeStyle=s.c;x.lineWidth=s.w||2;x.globalAlpha=s.a||1;x.beginPath();let pen=false;s.d.forEach((v,i)=>{if(v==null||isNaN(v)){pen=false;return}const xx=X(i+(s.off||0)),yy=Y(v);pen?x.lineTo(xx,yy):x.moveTo(xx,yy);pen=true});x.stroke();x.globalAlpha=1}}
+function charts(){const w=world,h=w.hist,c=w.c,nx=Math.max(30,h.length-1),C=w.C;
+ lineChart(xA,560,230,{nx,ymax:1,ymin:0,ticks:[0,.25,.5,.75,1],xt:[[0,'доба 1'],[nx,'доба '+(nx+1)]],hl:c.outMode==='toggle'?[.75]:[],series:[
+  {d:h.map(q=>q.acc),c:'#2f6fb5'},{d:h.map(q=>q.best),c:'#e08a1a'},{d:h.map(q=>q.perfect),c:'#2e8b57',w:2.5}]});
+ const pf=(p,col,a)=>({d:p||[],c:col,a,w:2.5});
+ lineChart(xV,560,200,{nx:C-1,ymax:1,ticks:[0,.5,1],band:[c.D-.5,C-.5],xt:[[0,'такт 1'],[C-1,'такт '+C]],series:[pf(w.firstProf,'#999',1),pf(w.lastProf&&w.lastProf!==w.firstProf?w.lastProf:null,'#2f6fb5',1)]});
+ let mx=10;for(const q of h)mx=Math.max(mx,q.N,q.d.flood,q.d.starve,q.d.age);
+ lineChart(xN,560,200,{nx,ymax:mx,ticks:[0,Math.round(mx/2),mx],xt:[[0,'доба 1'],[nx,'доба '+(nx+1)]],series:[{d:h.map(q=>q.N),c:'#2f6fb5'},{d:h.map(q=>q.d.flood),c:'#c0392b'},{d:h.map(q=>q.d.starve),c:'#e08a1a'},{d:h.map(q=>q.d.age),c:'#7f8c8d'}]})}
+
+// --- таблиця і показники ---
+const ACTN={toggle:{1:'перейти',0:'лишитись'},signed:{1:'вгору',0:'лишитись','-1':'вниз'}};
+function table(){const w=world,c=w.c,s=selSheep(),st=w.sheepStats();
+ $('tt').tBodies[0].innerHTML=ST.map(([A,B,l],k)=>{const nd=w.need(A,B),sa=s?w.eff(w.out(s.g,A,B),B):null,ok=sa===nd;
+  return`<tr><td>${A}</td><td>${B}</td><td>${l}</td><td>${ACTN[c.outMode][nd]}</td><td class="n">${(st[k]*100).toFixed(0)}%</td><td>${s?(ACTN[c.outMode][sa]+' <span class="'+(ok?'ok':'no')+'">'+(ok?'✓':'✗')+'</span>'):'–'}</td></tr>`}).join('')}
+World.prototype.sheepStats=function(){const st=[0,0,0,0],N=this.sheep.length;for(const s of this.sheep){const r=this.evalSheep(s);for(let k=0;k<4;k++)st[k]+=r.ok[k]}return st.map(x=>N?x/N:0)};
+function stats(){const w=world,h=w.hist[w.hist.length-1],n=w.sheep.length;let pf=0,sm=0,bs=0;for(const s of w.sheep){const r=w.evalSheep(s);sm+=r.n/4;if(r.n===4)pf++;if(r.n/4>bs)bs=r.n/4}
+ const G=glen(w.c);
+ const rows=[['Доба',w.cycle+1],['Вівець (стеля)',`${n} (${w.c.cap})`],['Генів у мозку',G],['Середня точність',n?(sm/n*100).toFixed(0)+'%':'–'],['Найкраща точність',n?(bs*100).toFixed(0)+'%':'–'],
+  ['Овець, що знають усі 4 стани',n?`${pf} (${(pf/n*100).toFixed(0)}%)`:'–'],['Таких серед початкових (випадково)',w.initPerfect],
+  ['Перший нащадок із XOR',w.firstEv>=0?'доба '+w.firstEv:'ще ні'],['XOR закріпився (≥50% стада)',w.spread>=0?'з доби '+w.spread:'ще ні']];
+ $('stat').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+ $('msg').innerHTML=w.extinct>=0||n===0?'<span class="no">Популяція вимерла на добі '+(w.extinct>=0?w.extinct:w.cycle+1)+'.</span>':w.spread>=0?'<span class="ok">XOR-правило закріпилось у стаді.</span>':''}
+function refresh(full){drawWorld(0);drawPlane();table();stats();drawNet();if(full||world.hist.length!==lastLen){lastLen=world.hist.length;charts()}}
+
+// --- картка «Мозок» ---
+const OUTN={toggle:'перейти / лишитись',signed:'вгору / вниз / стоїмо'};
+function brainInfo(){const P={...cfg,...pend},cur=glen(world.c);
+ $('brInfo').textContent=`Генів у новому мозку: ${glen(P)} · зараз у світі: ${world.c.L} прих. шар(ів)${world.c.L?' × '+world.c.W:''}, ${OUTN[world.c.outMode]}, ${cur} генів`;$('b_W').disabled=P.L===0}
+$('b_out').value=cfg.outMode;$('b_L').value=cfg.L;$('b_W').value=cfg.W;$('b_act').value=cfg.act;$('o_bW').textContent=cfg.W;
+$('b_out').onchange=e=>{pend.outMode=e.target.value;brainInfo()};
+$('b_L').onchange=e=>{pend.L=+e.target.value;brainInfo()};
+$('b_W').oninput=e=>{pend.W=+e.target.value;$('o_bW').textContent=e.target.value;brainInfo()};
+$('b_act').onchange=e=>{pend.act=e.target.value;brainInfo()};
+$('bApply').onclick=()=>{setRun(false);restart()};
+
+// --- граф мережі ---
+const xG=hi($('cvG'),560,300),xF=hi($('cvF'),300,140);
+const ncol=v=>{const k=Math.round(240-Math.min(1,Math.abs(v))*150);return v>=0?`rgb(${k},${k+5},255)`:`rgb(255,${k},${k})`};
+function drawNet(){if(!$('dNet').open)return;const w=world,c=w.c,s=selSheep(),W=560,H=300;xG.clearRect(0,0,W,H);xF.clearRect(0,0,300,140);
+ if(!s){xG.fillStyle='#5b6b7c';xG.font='14px system-ui';xG.textAlign='center';xG.fillText('Немає живих овець',W/2,H/2);return}
+ const sel=$('gState').value;let A,B;if(sel==='cur'){A=(w.t%w.C)<c.D?1:0;B=s.loc}else{[A,B]=sel.split(',').map(Number)}
+ const g=s.g,tr=w.trace(g,A,B),sizes=[2];for(let i=0;i<c.L;i++)sizes.push(c.W);sizes.push(1);const cols=sizes.length;
+ const X=i=>78+(W-78-170)*i/(cols-1),Y=(i,j)=>sizes[i]===1?H/2:34+(H-68)*j/(sizes[i]-1);
+ const off=[0];for(let l=1;l<cols;l++)off[l]=off[l-1]+(l>1?sizes[l-1]*(sizes[l-2]+1):0);
+ const edges=[];for(let l=1;l<cols;l++){const pc=sizes[l-1];let p=0;for(let k=1;k<l;k++)p+=sizes[k]*(sizes[k-1]+1);
+  for(let j=0;j<sizes[l];j++){for(let i=0;i<pc;i++)edges.push({x1:X(l-1),y1:Y(l-1,i),x2:X(l),y2:Y(l,j),w:g[p+j*(pc+1)+i]})}}
+ for(const e of edges){xG.strokeStyle=e.w>=0?'rgba(47,111,181,.8)':'rgba(192,57,43,.8)';xG.lineWidth=.5+Math.min(7,Math.abs(e.w)*1.8);xG.beginPath();xG.moveTo(e.x1,e.y1);xG.lineTo(e.x2,e.y2);xG.stroke()}
+ if(edges.length<=14){xG.font='11px system-ui';xG.textAlign='center';for(const e of edges){const mx=e.x1+(e.x2-e.x1)*.4,my=e.y1+(e.y2-e.y1)*.4,t=e.w.toFixed(1),tw=xG.measureText(t).width+4;xG.fillStyle='rgba(255,255,255,.85)';xG.fillRect(mx-tw/2,my-7,tw,13);xG.fillStyle='#1d2733';xG.fillText(t,mx,my+3)}}
+ const titles=['вхід',...Array.from({length:c.L},(_,i)=>'прихований '+(i+1)),'вихід'];
+ for(let l=0;l<cols;l++){xG.font='11px system-ui';xG.fillStyle='#8a97a6';xG.textAlign='center';xG.fillText(titles[l],X(l),13);
+  let p=0;for(let k=1;k<l;k++)p+=sizes[k]*(sizes[k-1]+1);
+  for(let j=0;j<sizes[l];j++){const v=tr.acts[l][j],x=X(l),y=Y(l,j);let b=null;if(l>0)b=g[p+j*(sizes[l-1]+1)+sizes[l-1]];
+   xG.beginPath();xG.arc(x,y,17,0,6.2832);xG.fillStyle=ncol(l===cols-1?clamp(v/2,-1,1):v);xG.fill();
+   xG.lineWidth=b==null?1.5:1.5+Math.min(4,Math.abs(b)*1.5);xG.strokeStyle=b==null?'#5b6b7c':b>=0?'#2f6fb5':'#c0392b';xG.stroke();
+   xG.fillStyle='#1d2733';xG.font='bold 11px system-ui';xG.textAlign='center';xG.fillText(v.toFixed(2),x,y+4);
+   if(b!=null){xG.font='10px system-ui';xG.fillStyle=b>=0?'#2f6fb5':'#c0392b';xG.fillText('b='+b.toFixed(1),x,y+31)}}}
+ xG.font='13px system-ui';xG.fillStyle='#1d2733';xG.textAlign='right';xG.fillText('A: світло = '+A,X(0)-24,Y(0,0)+4);xG.fillText('B: висота = '+B,X(0)-24,Y(0,1)+4);
+ const o=tr.acts[cols-1][0],ef=w.eff(o,B),txt=ACTN[c.outMode][ef],xx=X(cols-1)+26;xG.textAlign='left';xG.font='bold 13px system-ui';xG.fillStyle=ef>0?COL.mv:ef<0?COL.dn:COL.st;xG.fillText(txt,xx,H/2-4);
+ xG.font='11px system-ui';xG.fillStyle='#5b6b7c';xG.fillText(c.outMode==='toggle'?'o > 0 → перейти':'o > '+c.theta+' → вгору; o < −'+c.theta+' → вниз',xx,H/2+12);
+ xG.fillText('потрібно: '+ACTN[c.outMode][w.need(A,B)]+(ef===w.need(A,B)?' ✓':' ✗'),xx,H/2+28);
+ // схема активації
+ const a=c.act,ymin=a==='relu'?-.5:-1.3,ymax=a==='relu'?3:1.3,fx=z=>10+(z+3)/6*280,fy=v=>130-(clamp(v,ymin,ymax)-ymin)/(ymax-ymin)*118;
+ xF.strokeStyle='#cfd8e3';xF.lineWidth=1;xF.beginPath();xF.moveTo(10,fy(0));xF.lineTo(290,fy(0));xF.moveTo(fx(0),8);xF.lineTo(fx(0),132);xF.stroke();
+ xF.font='10px system-ui';xF.fillStyle='#8a97a6';xF.textAlign='left';xF.fillText('z',284,fy(0)-3);xF.fillText('f(z)',fx(0)+3,14);
+ if(c.L>0){xF.strokeStyle='#1d2733';xF.lineWidth=2;xF.beginPath();for(let i=0;i<=120;i++){const z=-3+i/20,X2=fx(z),Y2=fy(actF(a,z));i?xF.lineTo(X2,Y2):xF.moveTo(X2,Y2)}xF.stroke();
+  const pal=['#e08a1a','#8e44ad'];for(let l=1;l<=c.L;l++)for(let j=0;j<c.W;j++){const z=tr.zs[l][j];xF.fillStyle=pal[l-1];xF.beginPath();xF.arc(fx(clamp(z,-3,3)),fy(actF(a,z)),4,0,6.2832);xF.fill()}}
+ else{xF.fillStyle='#5b6b7c';xF.font='12px system-ui';xF.textAlign='center';xF.fillText('Прихованих шарів немає: активації нема,',150,60);xF.fillText('вихід o = w₁A + w₂B + b',150,78)}
+ const fn={tanh:'f(z) = tanh(z), значення в (−1; 1)',relu:'f(z) = max(0; z)',step:'f(z) = 1, якщо z > 0, інакше 0'}[a];
+ $('gTxt').innerHTML=c.L>0?`Кожен прихований нейрон: <b>z = Σ wᵢ·xᵢ + b</b>, потім <b>a = f(z)</b>.<br>${fn}.<br>Крапки на кривій — поточні z нейронів (колір — шар). Вихідний нейрон без активації: o = Σ w·a + b.`:`Один нейрон: o = w₁A + w₂B + b без активації. Межа o = 0 — пряма.`}
+$('gState').onchange=()=>drawNet();$('dNet').ontoggle=()=>drawNet();
+
+// --- цикл ---
+let last=performance.now(),fc=0;
+function frame(now){requestAnimationFrame(frame);const dt=Math.min(.1,(now-last)/1000);last=now;
+ if(running&&world.sheep.length){carry+=dt*1.5*spd;let n=Math.floor(carry);carry-=n;const t0=performance.now();while(n-->0&&world.sheep.length){world.tick();if(performance.now()-t0>12){carry=0;break}}
+  if(!world.sheep.length){setRun(false)}}
+ drawWorld(dt);if(++fc%6===0||!running)refresh(false)}
+
+// --- серія експериментів ---
+$('bRuns').oninput=e=>$('oRuns').textContent=e.target.value;$('bMax').oninput=e=>$('oMax').textContent=e.target.value;
+const BC=[{l:'Без прихованого шару, перейти/лишитись',o:{L:0,outMode:'toggle'}},{l:'1 шар × 1 нейрон, перейти/лишитись',o:{L:1,W:1,outMode:'toggle'}},{l:'1 шар × 2 нейрони, перейти/лишитись',o:{L:1,W:2,outMode:'toggle'}},{l:'1 шар × 3 нейрони, перейти/лишитись',o:{L:1,W:3,outMode:'toggle'}},{l:'2 шари × 2 нейрони, перейти/лишитись',o:{L:2,W:2,outMode:'toggle'}},
+ {l:'Без прихованого шару, знаковий вихід',o:{L:0,outMode:'signed'}},{l:'1 шар × 2 нейрони, знаковий вихід',o:{L:1,W:2,outMode:'signed'}}];
+$('bBatch').onclick=async()=>{const R=+$('bRuns').value,M=+$('bMax').value,btn=$('bBatch');btn.disabled=true;const rows=[];
+ const draw=()=>$('bTab').innerHTML='<tr><th>Конфігурація</th><th class="n">вимерли</th><th class="n">XOR закріпився</th><th class="n">живе без XOR</th><th class="n">медіана доби XOR</th></tr>'+rows.map(r=>`<tr><td>${r.l}</td><td class="n">${r.ext}%</td><td class="n">${r.xor}%</td><td class="n">${r.alive}%</td><td class="n">${r.med}</td></tr>`).join('');
+ for(const b of BC){let e=0,x=0,a=0;const sp=[];
+  for(let r=0;r<R;r++){$('bProg').textContent=`${b.l}: ${r+1}/${R}`;await new Promise(f=>setTimeout(f,0));
+   const o=runOne({...cfg,...pend,...b.o,act:pend.act||cfg.act,seed:r+1},M);if(o.out==='extinct')e++;else if(o.out==='xor'){x++;if(o.spread>=0)sp.push(o.spread)}else a++}
+  sp.sort((p,q)=>p-q);rows.push({l:b.l,ext:Math.round(e/R*100),xor:Math.round(x/R*100),alive:Math.round(a/R*100),med:sp.length?sp[sp.length>>1]:'–'});draw()}
+ $('bProg').textContent='Готово.';btn.disabled=false};
+
+// --- теорія ---
+$('th').innerHTML=String.raw`
+<h3>1. Задача</h3>
+<p>Вівця має два двійкові входи: світло \(A\) (день = 1, ніч = 0) і висоту \(B\) (гора = 1, долина = 0). Її дія залежить від пари \((A,B)\). Вночі треба бути на горі (потоп), а вдень у долині (там трава). Тому вівця рухається, лише коли її місце не відповідає часу доби:</p>
+<table><tr><th>A</th><th>B</th><th>стан</th><th>дія</th></tr><tr><td>0</td><td>0</td><td>ніч у долині</td><td>перейти</td></tr><tr><td>1</td><td>1</td><td>день на горі</td><td>перейти</td></tr><tr><td>0</td><td>1</td><td>ніч на горі</td><td>лишитись</td></tr><tr><td>1</td><td>0</td><td>день у долині</td><td>лишитись</td></tr></table>
+\[ \text{перейти}=1 \iff A=B, \qquad \text{тобто}\quad \text{перейти}=\overline{A\oplus B}\ \ (\text{XNOR}). \]
+<p>Це та сама функція «виключне АБО», лише з інвертованим виходом: на площині \((A,B)\) одиниці стоять у протилежних кутах.</p>
+<h3>2. Один нейрон — це пряма</h3>
+<p>Нейрон без прихованого шару обчислює</p>
+\[ o = w_1 A + w_2 B + b,\qquad \text{перейти} \iff o>0. \]
+<p>Межа рішення \(w_1A+w_2B+b=0\) — це пряма в площині \((A,B)\). По один бік від неї нейрон каже «перейти», по другий — «лишитись». Вага \(w\) задає нахил прямої, а зсув \(b\) її положення. Нічого іншого один нейрон намалювати не може.</p>
+<h3>3. Чому пряма не розділить XOR</h3>
+<p>Для чотирьох станів потрібні нерівності:</p>
+\[ \begin{aligned} (0,0):&\ b>0, & (1,1):&\ w_1+w_2+b>0,\\ (1,0):&\ w_1+b<0, & (0,1):&\ w_2+b<0. \end{aligned} \]
+<p>Додамо перші дві: \(w_1+w_2+2b>0\). Додамо останні дві: \(w_1+w_2+2b<0\). Вийшла суперечність, отже ваг \(w_1,w_2,b\) не існує.</p>
+<div class="box">Геометрично те саме: діагоналі квадрата, що сполучають однакові класи, перетинаються в точці \((\tfrac12,\tfrac12)\). Пряму, що відділяє два класи, можна провести лише тоді, коли їхні опуклі оболонки не перетинаються. Тут вони перетинаються.</div>
+<p>Найкращий, чого може досягти пряма, це 3 стани з 4. Тому на графіку точності стадо з одним шаром не може піднятися вище 75% (пунктир); на практиці воно лишається нижче, бо вигідні для виживання стратегії, як-от «сидіти в долині», розв'язують ще менше станів.</p>
+<h3>4. Приховані нейрони: дві прямі замість однієї</h3>
+<p>Додамо два нейрони, що рахують «хоч один сигнал» і «обидва сигнали»:</p>
+\[ h_1=[A+B>0{,}5]\ (\text{АБО}),\qquad h_2=[A+B>1{,}5]\ (\text{І}),\qquad o=0{,}5-h_1+h_2. \]
+<p>Перевірка: у \((0,0)\) маємо \(h_1=h_2=0\) і \(o=0{,}5>0\) (перейти); у \((1,0)\) і \((0,1)\) маємо \(h_1=1,h_2=0\) і \(o=-0{,}5<0\) (лишитись); у \((1,1)\) маємо \(h_1=h_2=1\) і \(o=0{,}5>0\) (перейти).</p>
+<p>Геометрично область «лишитись» — смуга між двома паралельними прямими \(A+B=0{,}5\) і \(A+B=1{,}5\). Один шар дає півплощину, а два нейрони разом дають смугу.</p>
+<h3>5. Чому одного прихованого нейрона замало</h3>
+<p>Якщо прихований шар має лише один нейрон, вихід є функцією однієї лінійної комбінації \(u=w_1A+w_2B+b\): \(o=g(u)\). Для монотонних активацій (tanh, ReLU, поріг) межа \(o=0\) знову відповідає \(u=\text{const}\), тобто пряма. Потрібні щонайменше два приховані нейрони, і в симуляції можна це перевірити: картка «Мозок» (шари й нейрони) і серія експериментів.</p>
+<h3>6. Дешева альтернатива: знаковий вихід</h3>
+<p>Змінимо спосіб виходу. Нехай мозок видає одне число \(o\), а дія залежить від його знака і величини:</p>
+\[ \text{вгору}: o>\theta,\qquad \text{вниз}: o<-\theta,\qquad \text{лишитись}: |o|\le\theta. \]
+<p>Тепер правильна відповідь лінійна. Бажана висота дорівнює \(1-A\) (вночі гора, вдень долина), фактична — \(B\), а помилка:</p>
+\[ o = (1-A) - B = 1 - A - B . \]
+<p>Перевірка: у \((0,0)\) маємо \(o=1\) (вгору); у \((1,1)\) маємо \(o=-1\) (вниз); у \((0,1)\) і \((1,0)\) маємо \(o=0\) (лишитись). Це звичайний регулятор «помилка = бажане − фактичне».</p>
+<div class="box">Нелінійність нікуди не зникла: вона перемістилась із мозку у спосіб, яким вихід перетворюється на дію. «Мертва зона» \(|o|\le\theta\) — це знову смуга між двома паралельними прямими, тобто роль двох прихованих нейронів із п. 4 виконує декодер дії. Тому лінійного нейрона з трьома вагами тут вистачає. Цей приклад показує, що складність мозку залежить і від того, як влаштований інтерфейс між мозком і тілом.</div>
+<h3>7. Чому XOR народжується рідко</h3>
+<p>У безперервній еволюції без допомоги популяція спочатку складається з випадкових мозків. Випадковий мозок розв'язує XOR дуже рідко: у вибірці з 5000 випадкових геномів 1 шар × 2 нейрони (tanh) дали лише 1 розв'язок (≈0,02%), а 1×1, 1×3 і 2×2 — жодного; для порівняння, знаковий вихід без прихованого шару розв'язує задачу в ≈1,5% випадкових геномів. Тож надія лише на мутації й дрейф. Вони потребують часу, а час дає тільки «базовий» вид, який виживає без правила. Таким є стадо, що весь час сидить у долині: воно їсть, а вночі частину овець забирає вода (ймовірність загибелі за такт задає параметр потопу). Це плато без жодної частинки правила: тут ні один лінійний мозок не краще «сидіти в долині».</p>
+<p>Лінійні мозки не можуть піднятися вище: проміжні стратегії дають нуль. «Іти вгору лише вночі» ставить вівцю на гору, де вона голодує, а «спускатись лише вдень» топить її першої ночі. Тому XOR народжується не поступовим вдосконаленням лінійної функції, а випадковою мутацією, яка одночасно правильно встановлює кілька ваг у прихованому шарі. Ця мутація накопичується в нейтральному дрейфі геномів, а коли з'являється, стадо швидко переходить на нове правило. Графік точності показує це як довге плато і різкий стрибок.</p>
+<h3>Що показали вимірювання</h3>
+<p>Для базових параметрів (по 20 запусків на конфігурацію, ліміт 1500 діб, «закріпився» = понад половина стада знає всі 4 стани):</p>
+<table><tr><th>Мозок</th><th>XOR закріпився</th><th>доба появи серед успішних (мін · медіана · макс)</th></tr>
+<tr><td>0 шарів, перейти/лишитись</td><td>0 з 20</td><td>— (стадо живе без правила)</td></tr>
+<tr><td>1 шар × 1 нейрон</td><td>0 з 20</td><td>— (стадо живе без правила)</td></tr>
+<tr><td>1 шар × 2 нейрони (базове)</td><td>17 з 20</td><td>18 · ≈150 · 1202</td></tr>
+<tr><td>1 шар × 3 нейрони</td><td>20 з 20</td><td>16 · ≈115 · 472</td></tr>
+<tr><td>2 шари × 2 нейрони</td><td>20 з 20</td><td>17 · ≈65 · 525</td></tr>
+<tr><td>0 шарів, знаковий вихід</td><td>20 з 20</td><td>5 · 8 · 19</td></tr>
+<tr><td>1 шар × 2 нейрони, знаковий вихід</td><td>20 з 20</td><td>7 · ≈12 · 19</td></tr></table>
+<p>Висновки: (1) без прихованого шару, а також з одним прихованим нейроном, XOR не з'являється, і причина — не вимирання, а «базовий» вид, що виживає без правила. (2) Для мереж з ≥2 прихованими нейронами час появи правила розкиданий на два порядки, тому коротка серія (до 200–400 діб) легко дає хибне «0%». (3) Знаковий вихід розв'язує задачу майже одразу, бо правило для нього лінійне. Це невеликі вибірки (20 запусків), тож відсотки мають широкі довірчі інтервали.</p>
+<h3>8. Що перевірити</h3>
+<p>1) Режим «перейти/лишитись» з H=0 і H=1: чому стадо не вимирає, а лишається «базовим» (сидить у долині без правила) і XOR не з'являється ніколи? 2) H=2, H=3 і два шари: як швидко з'являється XOR і наскільки великий розкид між запусками? Не робіть висновків про «0% успіху» з короткого ліміту діб. 3) Знаковий вихід з H=0: чи досить одного шару? 4) Вартість переходу і тривалість ночі: де межа виживання? 5) Активація: tanh, ReLU і жорсткий поріг. 6) Скільки овець на старті потрібно, щоб XOR з'явився у половині запусків?</p>
+<h3>Література</h3>
+<p>Minsky M., Papert S. Perceptrons, 1969. Rumelhart D., Hinton G., Williams R. Learning representations by back-propagating errors, 1986.</p>`;
+
+refresh(true);requestAnimationFrame(frame);
+</script>
+<script>
+// ===== CMP SIM =====
+function createCmp(){
+const S={N0:200,cap:200,share:50,T:1000,Lmax:5,hgrass:4.5,vmax:.12,regrow:2,gE:10,reproE:80,matureDays:2,pm:30,pg:10,sigma:.3,
+ hills:9,seed:7,rseed:0,cx:'clone',noise:.25,eBase:.02,eMove:.05,eClimb:.1,grassCap:1,peakGrass:.25,peakRegrow:.1,
+ l0:0,h0:6,a0:'lin',o0:'signed',l1:0,h1:6,a1:'tanh',o1:'cont'};
+const GN=121,GS=.5,GO=-30,BND=26,NIN=8,REACH=14,CAUSES=['flood','starve','exhaust','age'];
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rand=rng(1);
+const gauss=()=>{let u=0;while(!u)u=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*rand())};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const sm=x=>x*x*(3-2*x);
+const light=p=>p<.4?1:p<.6?1-sm((p-.4)/.2):p<.8?0:sm((p-.8)/.2);
+const trend=p=>{if(p>=.4&&p<.6){const u=(p-.4)/.2;return -4*u*(1-u)}if(p>=.8){const u=(p-.8)/.2;return 4*u*(1-u)}return 0};
+const waterAt=p=>p<.62?0:p<.68?S.Lmax*sm((p-.62)/.06):p<.76?S.Lmax:p<.84?S.Lmax*(1-sm((p-.76)/.08)):0;
+const phaseName=p=>p<.4?'день':p<.6?'сутінки':p<.8?'ніч':'світанок';
+let hills=[],Hg=new Float32Array(GN*GN),Kc=new Float32Array(GN*GN),Fm=new Float32Array(GN*GN),gS=new Float32Array(GN*GN),gT=new Int32Array(GN*GN),hmax=10,shelter=0;
+function hv(q,x,z){const dx=x-q.x,dz=z-q.z;return q.h*Math.exp(-((dx*dx+dz*dz)/(2*q.s*q.s)))}
+function Hraw(x,z){let h=0;for(const q of hills)h+=hv(q,x,z);return h}
+function cidx(x,z){const ix=Math.round((x-GO)/GS),iz=Math.round((z-GO)/GS);return clamp(iz,0,GN-1)*GN+clamp(ix,0,GN-1)}
+function fillGrid(){hmax=0;for(let iz=0;iz<GN;iz++)for(let ix=0;ix<GN;ix++){const h=Hraw(GO+ix*GS,GO+iz*GS);Hg[iz*GN+ix]=h;if(h>hmax)hmax=h}
+ for(let i=0;i<GN*GN;i++){Kc[i]=S.grassCap*Math.max(S.peakGrass,1-Hg[i]/S.hgrass);Fm[i]=S.peakRegrow+(1-S.peakRegrow)*Math.max(0,1-Hg[i]/S.hgrass);gS[i]=Kc[i];gT[i]=0}}
+function shelterDist(){const safe=[],gr=[];for(let x=-26;x<=26;x++)for(let z=-26;z<=26;z++){const i=cidx(x,z);if(Hg[i]>S.Lmax+.5)safe.push([x,z]);else if(Kc[i]>0)gr.push([x,z])}
+ if(!safe.length)return 99;let m=0;for(const[a,b]of gr){let d=1e9;for(const[c,e]of safe){const q=(a-c)**2+(b-e)**2;if(q<d)d=q}if(d>m)m=d}return Math.sqrt(m)}
+function genLand(){let best=null;
+ for(let at=0;at<40;at++){const r=rng(S.seed*9973+1+at*7717),U=(a,b)=>a+(b-a)*r(),hs=[];let minD=12,tr=0;
+  while(hs.length<S.hills&&tr++<3000){if(tr%300===0)minD=Math.max(7,minD-1);
+   const c={x:U(-23,23),z:U(-23,23),h:U(7.5,10),s:U(3.6,5)};
+   if(hs.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>minD))hs.push(c)}
+  hills=hs;fillGrid();const d=shelterDist();if(!best||d<best.d)best={d,hs:hs.slice()};if(d<=REACH)break}
+ hills=best.hs;fillGrid();shelter=best.d}
+let SH=0,SGX=0,SGZ=0;
+function samp(x,z){const fx=(x-GO)/GS,fz=(z-GO)/GS;let ix=Math.floor(fx),iz=Math.floor(fz);ix=clamp(ix,0,GN-2);iz=clamp(iz,0,GN-2);
+ const ax=fx-ix,az=fz-iz,i=iz*GN+ix,a=Hg[i],b=Hg[i+1],c=Hg[i+GN],d=Hg[i+GN+1];
+ SH=a*(1-ax)*(1-az)+b*ax*(1-az)+c*(1-ax)*az+d*ax*az;SGX=((b-a)*(1-az)+(d-c)*az)/GS;SGZ=((c-a)*(1-ax)+(d-b)*ax)/GS}
+let t=0;
+const grass=i=>Math.min(Kc[i],gS[i]+S.regrow*1e-4*Fm[i]*(t-gT[i]));
+const grassP=(x,z)=>grass(cidx(x,z));
+// ----- мозки двох популяцій (конфіг фіксується при перезапуску) -----
+// B={L:шарів,H:нейронів,act:'lin'|'tanh'|'relu'|'step',out:'cont'|'signed'}; L=0: act — активація виходу; L>=1: act — активація прихованих, вихід tanh.
+let BR=[null,null];
+const mkB=(L,H,act,o)=>{const nO=o==='signed'?1:2,sz=[NIN];for(let i=0;i<L;i++)sz.push(H);sz.push(nO);const off=[];let n=0;
+ for(let l=1;l<sz.length;l++){off.push(n);n+=sz[l]*(sz[l-1]+1)}return{L,H,act,out:o,nO,sz,off,n}};
+const glenB=B=>B.n;
+const ACT=(act,a)=>act==='relu'?(a>0?a:0):act==='step'?(a>0?1:0):act==='tanh'?Math.tanh(a):a;
+const inp=new Float32Array(NIN),out=new Float32Array(2),bufA=new Float32Array(16),bufB=new Float32Array(16),selIn=new Float32Array(NIN),selOut=new Float32Array(2);
+const rec={pre:[],post:[]};
+function think(g,B,r){let cur=inp,nxt=bufA;const nl=B.sz.length-1;
+ if(r){r.pre.length=0;r.post.length=0;r.post.push(Array.from(inp));r.pre.push(null)}
+ for(let l=0;l<nl;l++){const p=B.sz[l],q=B.sz[l+1];let o=B.off[l];const last=l===nl-1,f=last?(B.L===0?B.act:'tanh'):B.act,pr=r?[]:null;
+  for(let j=0;j<q;j++){let a=g[o+p];for(let i=0;i<p;i++)a+=g[o+i]*cur[i];if(pr)pr.push(a);nxt[j]=ACT(f,a);o+=p+1}
+  if(r){r.pre.push(pr);r.post.push(Array.from(nxt.subarray(0,q)))}
+  cur=nxt;nxt=cur===bufA?bufB:bufA}
+ out[0]=cur[0];out[1]=B.nO>1?cur[1]:0}
+// ефективна вага входу i на перший вихід: добуток ваг (активації ігноруються)
+function effW(g,i,B){const nl=B.sz.length-1;let v=new Float64Array(B.sz[nl]).fill(0);v[0]=1;
+ for(let l=nl-1;l>=0;l--){const p=B.sz[l],q=B.sz[l+1],o=B.off[l],u=new Float64Array(p);
+  for(let j=0;j<q;j++)for(let k=0;k<p;k++)u[k]+=v[j]*g[o+j*(p+1)+k];v=u}
+ return v[i]}
+function randG(B){const n=glenB(B),g=new Float32Array(n);for(let i=0;i<n;i++)g[i]=rand()*2-1;return g}
+function crossG(ga,gb,B){const n=ga.length,c=new Float32Array(n);const m=S.cx;
+ if(!gb||m==='clone'){c.set(ga);return c}
+ if(m==='block'){for(let l=0;l<B.sz.length-1;l++){const p=B.sz[l]+1;for(let j=0;j<B.sz[l+1];j++){const o=B.off[l]+j*p,par=rand()<.5?ga:gb;for(let k=0;k<p;k++)c[o+k]=par[o+k]}}return c}
+ for(let i=0;i<n;i++)c[i]=rand()<.5?ga[i]:gb[i];return c}
+function mutate(g){if(rand()>=S.pm/100)return false;let any=false;const n=g.length;
+ for(let i=0;i<n;i++)if(rand()<S.pg/100){g[i]=clamp(g[i]+gauss()*(rand()<.05?1:S.sigma),-3,3);any=true}
+ if(!any){const i=Math.floor(rand()*n);g[i]=clamp(g[i]+gauss()*S.sigma,-3,3)}return true}
+// ----- стан -----
+let sheep=[],dayIdx=0,curL=0,curLight=1,curPhase=0,nNight=[0,0],uid=0,sel=null;
+let hist=[],trace=[],dayDeaths,sums,extinctDay=[-1,-1];
+const zero=()=>[0,1].map(()=>({flood:0,starve:0,exhaust:0,age:0}));
+const deathTot=zero(),born=[0,0];
+const newSums=()=>[0,1].map(()=>({dS:0,dC:0,nS:0,nC:0}));
+function mkSheep(p,x,z,g,E,age,gen){samp(x,z);const a=rand()*6.2832;return{p,x,z,h:SH,E,age,cd:0,g,dx:Math.cos(a),dz:Math.sin(a),gen,rollDay:-1,dead:0,why:'',id:++uid,up:0}}
+function randPos(){return[(rand()*2-1)*BND,(rand()*2-1)*BND]}
+function initWorld(){BR=[mkB(S.l0,S.h0,S.a0,S.o0),mkB(S.l1,S.h1,S.a1,S.o1)];rand=rng(S.seed*7919+13+S.rseed*104729);genLand();t=0;dayIdx=0;sheep=[];hist=[];trace=[];sel=null;uid=0;
+ dayDeaths=zero();sums=newSums();curL=0;nNight=[0,0];extinctDay=[-1,-1];born[0]=born[1]=0;
+ for(const d of deathTot)d.flood=d.starve=d.exhaust=d.age=0;
+ const n0=Math.round(S.N0*S.share/100),n1=S.N0-n0;
+ for(let i=0;i<n0;i++){const[x,z]=randPos();sheep.push(mkSheep(0,x,z,randG(BR[0]),60,S.matureDays*S.T,0))}
+ for(let i=0;i<n1;i++){const[x,z]=randPos();sheep.push(mkSheep(1,x,z,randG(BR[1]),60,S.matureDays*S.T,0))}
+ for(let i=sheep.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[sheep[i],sheep[j]]=[sheep[j],sheep[i]]}
+ record()}
+function die(s,why){s.dead=1;s.why=why;dayDeaths[s.p][why]++;deathTot[s.p][why]++}
+function birth(a,b){const B=BR[a.p],g=crossG(a.g,b?b.g:null,B);mutate(g);
+ a.E-=b?20:40;a.cd=S.T;if(b){b.E-=20;b.cd=S.T}
+ const c=mkSheep(a.p,clamp(a.x+(rand()-.5)*1.2,-BND,BND),clamp(a.z+(rand()-.5)*1.2,-BND,BND),g,30,0,Math.max(a.gen,b?b.gen:0)+1);sheep.push(c);born[a.p]++}
+function repro(){if(sheep.length>=S.cap)return;const need=S.matureDays*S.T;
+ const ready=sheep.filter(s=>!s.dead&&s.E>=S.reproE&&s.age>=need&&s.cd<=0);if(!ready.length)return;
+ for(let i=ready.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[ready[i],ready[j]]=[ready[j],ready[i]]}
+ if(S.cx==='clone'){for(const a of ready){if(sheep.length>=S.cap)break;birth(a,null)}return}
+ const used=new Set();
+ for(const a of ready){if(used.has(a)||sheep.length>=S.cap)continue;let b=null,bd=6.25;
+  for(const q of ready){if(q===a||used.has(q)||q.p!==a.p)continue;const d=(q.x-a.x)**2+(q.z-a.z)**2;if(d<bd){bd=d;b=q}}
+  if(b){used.add(a);used.add(b);birth(a,b)}}}
+function counts(){const n=[0,0];for(const s of sheep)n[s.p]++;return n}
+function record(){const n=counts();trace.push({t,n0:n[0],n1:n[1]})}
+function endDay(d){
+ const n=counts(),M=[0,1].map(p=>{const q=sums[p];return q.dC&&q.nC?(q.nS/q.nC-q.dS/q.dC)/S.Lmax:NaN});
+ const e=[0,0],gm=[0,0],w=[0,1].map(()=>new Array(NIN).fill(0));
+ for(const s of sheep){e[s.p]+=s.E;gm[s.p]+=s.gen;for(let i=0;i<NIN;i++)w[s.p][i]+=effW(s.g,i,BR[s.p])}
+ hist.push({d,n:n.slice(),M,dd:dayDeaths.map(x=>({...x})),E:[e[0]/(n[0]||1),e[1]/(n[1]||1)],gen:[gm[0]/(n[0]||1),gm[1]/(n[1]||1)],nn:nNight.slice()});
+ for(let p=0;p<2;p++)if(!n[p]&&extinctDay[p]<0)extinctDay[p]=d+1;
+ dayDeaths=zero();sums=newSums()}
+function tick(){
+ const dI=Math.floor(t/S.T),ph=(t%S.T)/S.T,lt=light(ph),tr=trend(ph),L=waterAt(ph);
+ dayIdx=dI;curL=L;curLight=lt;curPhase=ph;
+ if(t%S.T===Math.floor(.6*S.T)){nNight=counts()}
+ const sample=t%10===0,D=1.5;
+ for(const s of sheep){
+  s.age++;s.cd--;
+  samp(s.x,s.z);const h=SH,gx=SGX,gz=SGZ,gm=Math.hypot(gx,gz);
+  let ux,uz;if(gm>.02){ux=gx/gm;uz=gz/gm}else{ux=s.dx;uz=s.dz}
+  const px=-uz,pz=ux,ci=cidx(s.x,s.z),G0=grass(ci);
+  inp[0]=lt;inp[1]=tr;inp[2]=1-s.E/100;inp[3]=h/hmax;inp[4]=gm>1?1:gm;inp[5]=G0;
+  inp[6]=clamp((grassP(s.x+ux*D,s.z+uz*D)-grassP(s.x-ux*D,s.z-uz*D))*1.5,-1,1);
+  inp[7]=clamp((grassP(s.x+px*D,s.z+pz*D)-grassP(s.x-px*D,s.z-pz*D))*1.5,-1,1);
+  think(s.g,BR[s.p],s===sel?rec:null);if(s===sel){selIn.set(inp);selOut.set(out)}
+  let vx,vz,vn;
+  if(BR[s.p].out==='signed'){const d=out[0]>.3?1:out[0]<-.3?-1:0;vx=d*ux;vz=d*uz;vn=Math.abs(d)}
+  else{vx=out[0]*ux+out[1]*px;vz=out[0]*uz+out[1]*pz;vn=Math.hypot(vx,vz);if(vn>1){vx/=vn;vz/=vn;vn=1}}
+  if(S.noise>0){vx+=gauss()*S.noise*.5;vz+=gauss()*S.noise*.5;vn=Math.hypot(vx,vz);if(vn>1){vx/=vn;vz/=vn;vn=1}}
+  const up=clamp(vx*gx+vz*gz,0,1),sp=S.vmax*(1-.5*up);
+  s.x=clamp(s.x+vx*sp,-BND,BND);s.z=clamp(s.z+vz*sp,-BND,BND);
+  if(vn>.05){s.dx=vx/vn;s.dz=vz/vn}
+  s.up=up;
+  s.E-=S.eBase+S.eMove*vn+S.eClimb*up;
+  const i2=cidx(s.x,s.z),G=grass(i2),take=Math.min(G,.1*(1-.6*vn),(100-s.E)/S.gE);
+  if(take>0){gS[i2]=G-take;gT[i2]=t;s.E+=take*S.gE}
+  samp(s.x,s.z);s.h=SH;
+  if(L>SH&&s.rollDay!==dI){s.rollDay=dI;die(s,'flood')}
+  if(!s.dead){if(s.E<=0)die(s,s.up>.1?'exhaust':'starve');else if(s.age>30*S.T)die(s,'age')}
+  if(sample&&!s.dead){const q=sums[s.p];
+   if(ph<.4){q.dS+=s.h;q.dC++}else if(ph>=.55&&ph<.62){q.nS+=s.h;q.nC++}}}
+ let k=0;for(let i=0;i<sheep.length;i++){const s=sheep[i];if(!s.dead)sheep[k++]=s}sheep.length=k;
+ if(t%5===0)repro();
+ t++;if(t%(S.T/20)===0)record();if(t%S.T===0)endDay(dI)}
+return{S,CAUSES,NIN,GN,GS,GO,BND,
+ init:initWorld,tick,pick:s=>{sel=s},
+ get sheep(){return sheep},get hist(){return hist},get trace(){return trace},get t(){return t},get day(){return dayIdx},get L(){return curL},get light(){return curLight},get phase(){return curPhase},
+ get Hg(){return Hg},get Kc(){return Kc},grass,get hmax(){return hmax},get shelter(){return shelter},get extinct(){return extinctDay},get deathTot(){return deathTot},get born(){return born},
+ get BR(){return BR},get sel(){return sel},selIn,selOut,rec,phaseName,counts,samp,get SH(){return SH},REACH}}
+// ===== END CMP SIM =====
+
+// ===== CMP UI =====
+(function(){
+const q=id=>document.getElementById(id);
+const C=createCmp(),S=C.S;
+let running=false,spd=1,spAcc=0,fr=0,inited3=false,msgShown=[false,false];
+const hi=(cv,w,h)=>{cv.width=w*2;cv.height=h*2;cv.style.aspectRatio=w+'/'+h;const x=cv.getContext('2d');x.scale(2,2);return x};
+const xN=hi(q('cmpN'),560,220),xD=[hi(q('cmpD0'),560,130),hi(q('cmpD1'),560,130)],xM=hi(q('cmpM'),560,200);
+// --- параметри ---
+const CF=[['N0','Початкова кількість овець (разом) ↻',40,500,10],['share','Частка чорних, % ↻',10,90,5],['cap','Стеля популяції (разом)',60,600,10],
+['seed','Зерно ландшафту ↻',1,99,1],['rseed','Зерно випадковості ↻',0,99,1],['noise','Випадковість руху (шум)',0,.8,.05],['noise','Випадковість руху (шум напрямку)',0,.8,.05],['Lmax','Макс. рівень води',3,8,.5],['grassCap','Родючість (макс. трава)',.2,1,.05],
+['peakGrass','Трава на висотах (0 = голі вершини)',0,.6,.05],['peakRegrow','Відростання на висотах (× від низин)',.02,1,.02],['regrow','Відростання трави, ×10⁻⁴/такт',.5,10,.5],
+['gE','Енергія од. трави',4,20,1],['reproE','Поріг розмноження, E',50,95,5],['eBase','Витрата: обмін, E/такт',0,.06,.005],['eMove','Витрата: рух, E/такт',0,.15,.01],['eClimb','Витрата: підйом, E/такт',0,.3,.01],
+['pm','Імовірність мутанта-нащадка, %',0,100,5],['pg','Частка мутованих генів, %',1,50,1],['sigma','σ мутації',.05,1,.05]];
+q('cmpCfg').innerHTML=CF.map(([k,l,a,b,s])=>`<div class="row"><label for="c_${k}">${l}</label><input type="range" id="c_${k}" min="${a}" max="${b}" step="${s}" value="${S[k]}"><output id="co_${k}">${S[k]}</output></div>`).join('')+
+ `<div class="row"><label for="c_rr">Нове зерно випадковості при кожному перезапуску</label><input type="checkbox" id="c_rr" checked style="justify-self:start"></div><div class="row"><label for="c_cx">Розмноження</label><select id="c_cx"><option value="clone">безстатеве (клон + мутація)</option><option value="uniform">парне (рівномірний кросовер)</option><option value="block">парне (блоковий кросовер)</option></select></div>`;
+for(const[k]of CF)q('c_'+k).oninput=e=>{S[k]=+e.target.value;q('co_'+k).textContent=S[k]};
+q('c_cx').value=S.cx;q('c_cx').onchange=e=>S.cx=e.target.value;
+const BKEY={L:'l',A:'a',O:'o'};
+function brInfo(){const f=p=>{const l=S['l'+p],a=S['a'+p];return (l?l+' прих. шар'+(l>1?'и':'')+' × '+S['h'+p]+' нейр., активація прихованих — ':'без прихованих шарів, активація виходу — ')+({lin:'лінійна',tanh:'tanh',relu:'ReLU',step:'поріг'})[a]+', '+(S['o'+p]==='signed'?'знаковий вихід':'2 виходи')};
+ q('cmpBrInfo').textContent='Чорні: '+f(0)+'. Білі: '+f(1)+'.'}
+for(const p of[0,1]){for(const[k,id]of[['l','L'],['a','A'],['o','O']]){const e=q('cmp'+id+p);e.value=S[k+p];e.onchange=ev=>{S[k+p]=k==='l'?+ev.target.value:ev.target.value;brInfo();setH(p)}}
+ q('cmpH'+p).value=S['h'+p];q('cmpH'+p+'o').textContent=S['h'+p];q('cmpH'+p).oninput=e=>{S['h'+p]=+e.target.value;q('cmpH'+p+'o').textContent=e.target.value;brInfo()};setH(p)}
+function setH(p){q('cmpH'+p).disabled=S['l'+p]===0}
+brInfo();
+// --- 3D ---
+let rd,sc,cam,hemi,sun,water,terrain,vCell,vCol,bodyM,headM,outM,marker,dummy,az=.8,el=.7,dist=75;const tgt=()=>({x:0,y:1,z:0});
+const dayC=()=>new THREE.Color(0xcfe9ff),nightC=()=>new THREE.Color(0x56709f);let dC,nC;
+const MAXI=700;
+function camUpd(){cam.position.set(dist*Math.cos(el)*Math.sin(az),1+dist*Math.sin(el),dist*Math.cos(el)*Math.cos(az));cam.lookAt(0,1,0)}
+function resize(){if(!rd)return;const cv=q('cmpC3'),w=cv.clientWidth||600,h=cv.clientHeight||375;rd.setPixelRatio(Math.min(2,devicePixelRatio));rd.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+function init3(){
+ if(inited3)return;inited3=true;const cv=q('cmpC3');
+ if(typeof THREE==='undefined'){q('cmpMsg').textContent='Не вдалося завантажити Three.js (потрібен інтернет) — 3D недоступне, але графіки працюють.';return}
+ try{rd=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){q('cmpMsg').textContent='WebGL недоступний у цьому браузері.';rd=null;return}
+ sc=new THREE.Scene();sc.fog=new THREE.Fog(0xcfe9ff,80,190);cam=new THREE.PerspectiveCamera(50,1.6,.1,400);
+ hemi=new THREE.HemisphereLight(0xffffff,0x6a8f5a,.85);sc.add(hemi);sun=new THREE.DirectionalLight(0xfff2d0,.9);sun.position.set(30,50,20);sc.add(sun);
+ dC=dayC();nC=nightC();
+ water=new THREE.Mesh(new THREE.BoxGeometry(60.4,1,60.4),new THREE.MeshBasicMaterial({color:0x3a9aff,transparent:true,opacity:.5,depthWrite:false}));water.visible=false;sc.add(water);
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x7fae6c}));ground.position.y=-.08;sc.add(ground);
+ dummy=new THREE.Object3D();
+ const BC=[0x1a1a1a,0xffffff],HC=[0xb4b4b4,0x3a3a3a];bodyM=[];headM=[];outM=[];
+ for(let p=0;p<2;p++){
+  bodyM.push(new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshLambertMaterial({color:BC[p]}),MAXI));
+  headM.push(new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6),new THREE.MeshLambertMaterial({color:HC[p]}),MAXI));
+  outM.push(new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshBasicMaterial({color:0x9db0c8,side:THREE.BackSide}),MAXI));
+  for(const m of[bodyM[p],headM[p],outM[p]]){m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;m.count=0;sc.add(m)}}
+ marker=new THREE.Mesh(new THREE.ConeGeometry(.35,.9,8).rotateX(Math.PI),new THREE.MeshBasicMaterial({color:0xffd400}));marker.visible=false;sc.add(marker);
+ let drag=null,down=null;
+ cv.addEventListener('pointerdown',e=>{drag=down=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+ cv.addEventListener('pointermove',e=>{if(!drag)return;az-=(e.clientX-drag[0])*.006;el=Math.max(.12,Math.min(1.45,el+(e.clientY-drag[1])*.005));drag=[e.clientX,e.clientY];camUpd()});
+ cv.addEventListener('pointerup',e=>{drag=null;cv.style.cursor='grab';if(down&&Math.hypot(e.clientX-down[0],e.clientY-down[1])<5)pick(e.clientX,e.clientY);down=null});
+ cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(20,Math.min(140,dist*(1+Math.sign(e.deltaY)*.08)));camUpd()},{passive:false});
+ addEventListener('resize',resize);camUpd();resize();buildTerrain()}
+const cDry=()=>new THREE.Color(0xa9946a),cGreen=()=>new THREE.Color(0x3c9a38),cRock=()=>new THREE.Color(0x9b9c92);let kD,kG,kR;
+function buildTerrain(){if(!rd)return;if(!kD){kD=cDry();kG=cGreen();kR=cRock()}
+ if(terrain){sc.remove(terrain);terrain.geometry.dispose()}
+ const g=new THREE.PlaneGeometry(60,60,120,120);g.rotateX(-Math.PI/2);const p=g.attributes.position;vCell=new Int32Array(p.count);vCol=new Float32Array(p.count*3);
+ const Hg=C.Hg;
+ for(let i=0;i<p.count;i++){const ix=Math.round((p.getX(i)-C.GO)/C.GS),iz=Math.round((p.getZ(i)-C.GO)/C.GS),c=iz*C.GN+ix;vCell[i]=c;p.setY(i,Hg[c])}
+ g.setAttribute('color',new THREE.BufferAttribute(vCol,3));g.computeVertexNormals();
+ terrain=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));sc.add(terrain);colorTerrain()}
+function colorTerrain(){if(!terrain)return;const n=vCell.length,Kc=C.Kc,Hg=C.Hg,hmax=C.hmax;
+ for(let i=0;i<n;i++){const c=vCell[i];let r,g,b;
+  if(Kc[c]<=0){const k=Math.min(1,Hg[c]/hmax*.3);r=kR.r+k*.1;g=kR.g+k*.1;b=kR.b+k*.1}
+  else{const G=C.grass(c);r=kD.r+(kG.r-kD.r)*G;g=kD.g+(kG.g-kD.g)*G;b=kD.b+(kG.b-kD.b)*G}
+  vCol[i*3]=r;vCol[i*3+1]=g;vCol[i*3+2]=b}
+ terrain.geometry.attributes.color.needsUpdate=true}
+function renderSheep(){const sh=C.sheep,k=[0,0];
+ for(const s of sh){const p=s.p,i=k[p];if(i>=MAXI)continue;k[p]++;const yaw=Math.atan2(s.dx,s.dz);
+  dummy.position.set(s.x,s.h+.55,s.z);dummy.rotation.set(0,yaw,0);dummy.scale.set(.45,.42,.7);dummy.updateMatrix();bodyM[p].setMatrixAt(i,dummy.matrix);
+  dummy.scale.multiplyScalar(1.2);dummy.updateMatrix();outM[p].setMatrixAt(i,dummy.matrix);
+  dummy.position.set(s.x+Math.sin(yaw)*.7,s.h+.8,s.z+Math.cos(yaw)*.7);dummy.scale.set(.2,.22,.25);dummy.updateMatrix();headM[p].setMatrixAt(i,dummy.matrix)}
+ for(let p=0;p<2;p++){bodyM[p].count=headM[p].count=outM[p].count=k[p];bodyM[p].instanceMatrix.needsUpdate=headM[p].instanceMatrix.needsUpdate=outM[p].instanceMatrix.needsUpdate=true}}
+const pv=()=>new THREE.Vector3();
+function pick(cx,cy){if(!rd)return;const r=q('cmpC3').getBoundingClientRect();let best=null,bd=26*26;const v=pv();
+ for(const s of C.sheep){v.set(s.x,s.h+.6,s.z).project(cam);if(v.z>1)continue;const dx=(v.x+1)/2*r.width-(cx-r.left),dy=(1-v.y)/2*r.height-(cy-r.top),d=dx*dx+dy*dy;if(d<bd){bd=d;best=s}}
+ C.pick(best);info();if(best)openM();else closeM()}
+const PN=['чорна','біла'],AN={lin:'лін.',tanh:'tanh',relu:'ReLU',step:'поріг'};
+function info(){const s=C.sel,el=q('cmpInfo');if(!s){el.textContent='Клікніть по вівці, щоб побачити її мозок і стан. Тягнути — обертати, коліщатко — масштаб.';return}
+ const B=C.BR[s.p];el.textContent=`#${s.id} · ${PN[s.p]} (${B.L?B.L+'×'+B.H+' '+AN[B.act]:'без прих. шарів, '+AN[B.act]}, ${B.out==='signed'?'знаковий':'2 виходи'}) · ${s.dead?'загинула':'жива'} · вік ${(s.age/S.T).toFixed(1)} діб · E ${s.E.toFixed(0)} · пок. ${s.gen} · h ${s.h.toFixed(1)} · a=${C.selOut[0].toFixed(2)} b=${C.selOut[1].toFixed(2)}`}
+// --- графіки ---
+const CC={flood:'#2f86d6',starve:'#c0392b',exhaust:'#e08a1a',age:'#8d99a6'};
+function drawN(){const x=xN,w=560,h=220,X0=34,X1=w-8,Y0=10,Y1=h-22,tr=C.trace;x.clearRect(0,0,w,h);
+ const ymax=Math.max(S.cap*1.05,10),tmax=Math.max(30*S.T,tr.length?tr[tr.length-1].t:0),px=t=>X0+(X1-X0)*t/tmax,py=v=>Y1-(Y1-Y0)*v/ymax;
+ x.strokeStyle='#d5dde6';x.lineWidth=1;x.strokeRect(X0,Y0,X1-X0,Y1-Y0);x.fillStyle='#5b6b7c';x.font='11px system-ui';x.textAlign='right';
+ for(const v of[0,.5,1]){const V=Math.round(ymax/1.05*v);x.fillText(V,X0-4,py(V)+4)}
+ x.textAlign='center';const dd=tmax/S.T,st=dd>200?100:dd>100?50:dd>40?20:10;for(let d=0;d<=dd;d+=st)x.fillText(d,px(d*S.T),h-6);x.fillText('доба',(X0+X1)/2,h-6+0);
+ x.setLineDash([6,5]);x.strokeStyle='#9aa5b1';x.beginPath();x.moveTo(X0,py(S.cap));x.lineTo(X1,py(S.cap));x.stroke();x.setLineDash([]);
+ const ln=(f,col,wd)=>{x.strokeStyle=col;x.lineWidth=wd;x.lineJoin='round';x.beginPath();tr.forEach((a,i)=>{const X=px(a.t),Y=py(f(a));i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke()};
+ ln(a=>a.n1,'#333',5);ln(a=>a.n1,'#fff',2.5);ln(a=>a.n0,'#1a1a1a',2.5)}
+function drawD(p){const x=xD[p],w=560,h=130,X0=34,X1=w-8,Y0=6,Y1=h-18,hs=C.hist;x.clearRect(0,0,w,h);
+ const last=hs.length,W=60,d0=Math.max(0,last-W);let ymax=10;for(const k of[0,1])for(let i=d0;i<last;i++){const d=hs[i].dd[k];ymax=Math.max(ymax,d.flood+d.starve+d.exhaust+d.age)}
+ const py=v=>Y1-(Y1-Y0)*v/ymax,bw=(X1-X0)/W;
+ x.strokeStyle='#d5dde6';x.lineWidth=1;x.strokeRect(X0,Y0,X1-X0,Y1-Y0);x.fillStyle='#5b6b7c';x.font='11px system-ui';x.textAlign='right';x.fillText(ymax,X0-4,Y0+8);x.fillText('0',X0-4,Y1);
+ x.textAlign='center';for(let i=d0;i<last;i+=Math.max(1,Math.ceil(W/6)))x.fillText(hs[i].d,X0+(i-d0+.5)*bw,h-4);
+ for(let i=d0;i<last;i++){const d=hs[i].dd[p];let y=0;for(const c of C.CAUSES){if(!d[c])continue;x.fillStyle=CC[c];x.fillRect(X0+(i-d0)*bw+.5,py(y+d[c]),Math.max(1,bw-1),py(y)-py(y+d[c]));y+=d[c]}}}
+function drawM(){const x=xM,w=560,h=200,X0=8,X1=w-8,Y0=10,Y1=h-10,lo=-.5,hi2=1.2,hs=C.hist;x.clearRect(0,0,w,h);
+ const py=v=>Y1-(Y1-Y0)*(Math.max(lo,Math.min(hi2,v))-lo)/(hi2-lo),Nx=Math.max(30,hs.length-1),px=i=>X0+(X1-X0)*i/Nx;
+ x.strokeStyle='#e1e7ee';x.lineWidth=1;x.beginPath();x.moveTo(X0,py(0));x.lineTo(X1,py(0));x.stroke();
+ x.setLineDash([8,6]);x.strokeStyle='#2e8b57';x.beginPath();x.moveTo(X0,py(.5));x.lineTo(X1,py(.5));x.stroke();x.setLineDash([]);
+ const ln=(p,col,wd)=>{x.strokeStyle=col;x.lineWidth=wd;x.beginPath();let pen=false;hs.forEach((a,i)=>{const v=a.M[p];if(isNaN(v)){pen=false;return}pen?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v));pen=true});x.stroke()};
+ ln(1,'#333',5);ln(1,'#fff',2.5);ln(0,'#1a1a1a',2.5)}
+function table(){const n=C.counts(),hs=C.hist,l=hs[hs.length-1],dt=C.deathTot,rows=[];
+ const f=v=>isNaN(v)?'–':v.toFixed(2);
+ rows.push(['Живих зараз',n[0],n[1]]);
+ rows.push(['Середня енергія',l?l.E[0].toFixed(1):'–',l?l.E[1].toFixed(1):'–']);rows.push(['Середнє покоління',l?l.gen[0].toFixed(1):'–',l?l.gen[1].toFixed(1):'–']);
+ rows.push(['Народжено всього',C.born[0],C.born[1]]);
+ const lab={flood:'Втопилось',starve:'Голод',exhaust:'Виснаження на схилі',age:'Старість'};
+ for(const c of C.CAUSES){rows.push([lab[c]+' (всього)',dt[0][c],dt[1][c]])}
+ rows.push(['Індекс міграції M (остання доба)',l?f(l.M[0]):'–',l?f(l.M[1]):'–']);
+ rows.push(['Вимерли в добу',C.extinct[0]<0?'–':C.extinct[0],C.extinct[1]<0?'–':C.extinct[1]]);
+ q('cmpT').innerHTML='<tr><th></th><th class="n">Чорні</th><th class="n">Білі</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}
+
+// --- модальне вікно: граф мережі ---
+const NIN=C.NIN,INAMES=['світло','тренд світла','голод','висота','крутизна','трава тут','∇трави вгору','∇трави вбік'];
+const xG=hi(q('cmpG'),760,430),xF=hi(q('cmpF'),300,190);
+const wcol=w=>{const a=Math.min(1,.25+Math.abs(w)/2);return w>0?`rgba(47,111,181,${a})`:`rgba(192,57,43,${a})`};
+const ncol=v=>{const k=Math.round(235-Math.min(1,Math.abs(v))*150);return v>=0?`rgb(${k},${k},255)`:`rgb(255,${k},${k})`};
+const WHYN={flood:'потоп',starve:'голод',exhaust:'виснаження на схилі',age:'старість'};
+function openM(){q('cmpModal').style.display='flex';drawM2()}
+function closeM(){q('cmpModal').style.display='none'}
+q('cmpMX').onclick=()=>{closeM()};
+q('cmpModal').addEventListener('click',e=>{if(e.target===q('cmpModal'))closeM()});
+addEventListener('keydown',e=>{if(e.key==='Escape')closeM()});
+const STEPF={tanh:Math.tanh,relu:a=>a>0?a:0,step:a=>a>0?1:0,lin:a=>a};
+function drawM2(){const s=C.sel;if(!s||q('cmpModal').style.display==='none')return;
+ const B=C.BR[s.p],g=s.g,r=C.rec,x=xG,W=760,H=430,nl=B.sz.length;
+ q('cmpMT').textContent=`Мозок вівці #${s.id} (${PN[s.p]})`;
+ q('cmpMI').textContent=`${s.dead?'загинула ('+(WHYN[s.why]||'?')+') — показано останній стан':'жива'} · вік ${(s.age/S.T).toFixed(1)} діб · E ${s.E.toFixed(0)} · покоління ${s.gen} · висота ${s.h.toFixed(1)} · ${B.L?B.L+' прих. шар(и) × '+B.H+', '+AN[B.act]:'без прихованих шарів, активація виходу: '+AN[B.act]} · ${B.out==='signed'?'знаковий вихід':'2 виходи'}`;
+ x.clearRect(0,0,W,H);x.font='12px system-ui';x.textBaseline='middle';
+ const X0=190,X1=W-200,xs=l=>X0+(X1-X0)*l/(nl-1);
+ const ys=(n,l)=>{const top=34,bot=H-26;if(n===1)return[(top+bot)/2];return Array.from({length:n},(_,i)=>top+(bot-top)*i/(n-1))};
+ const Y=B.sz.map((n,l)=>l===nl-1&&n===2?[H/2-55,H/2+55]:ys(n,l));
+ const have=r.post.length===nl&&!!r.post[0]&&r.post[0].length===NIN;
+ for(let l=0;l<nl-1;l++){const p=B.sz[l];for(let j=0;j<B.sz[l+1];j++){const o=B.off[l]+j*(p+1);for(let k=0;k<p;k++){const w=g[o+k];x.strokeStyle=wcol(w);x.lineWidth=Math.min(4.5,.4+Math.abs(w)*1.5);x.beginPath();x.moveTo(xs(l),Y[l][k]);x.lineTo(xs(l+1),Y[l+1][j]);x.stroke()}}}
+ const node=(px,py,v,b,rad)=>{x.beginPath();x.arc(px,py,rad,0,6.2832);x.fillStyle=ncol(v);x.fill();x.lineWidth=b==null?1.5:1.5+Math.min(4,Math.abs(b)*1.5);x.strokeStyle=b==null?'#5b6b7c':b>=0?'#2f6fb5':'#c0392b';x.stroke()};
+ x.textAlign='right';
+ for(let i=0;i<NIN;i++){node(xs(0),Y[0][i],have?r.post[0][i]:0,null,10);x.fillStyle='#1d2733';x.fillText(INAMES[i]+(have?' '+r.post[0][i].toFixed(2):''),xs(0)-16,Y[0][i])}
+ for(let l=1;l<nl;l++){const p=B.sz[l-1];for(let j=0;j<B.sz[l];j++){const b=g[B.off[l-1]+j*(p+1)+p];node(xs(l),Y[l][j],have?r.post[l][j]:0,b,l===nl-1?13:11)}}
+ x.textAlign='center';x.fillStyle='#5b6b7c';x.fillText('входи',xs(0),12);
+ for(let l=1;l<nl-1;l++)x.fillText('прихований '+l+(B.act==='lin'?'':' · '+AN[B.act]),xs(l),12);x.fillText('вихід'+(B.L===0?' · '+AN[B.act]:' · tanh'),xs(nl-1),12);
+ x.textAlign='left';const xo=xs(nl-1)+22,ov=have?r.post[nl-1]:[0,0];
+ if(B.out==='signed'){const o=ov[0],d=o>.3?1:o<-.3?-1:0;x.fillStyle='#1d2733';x.fillText('o = '+o.toFixed(2),xo,Y[nl-1][0]-14);x.fillStyle=d>0?'#8e44ad':d<0?'#e08a1a':'#2f6fb5';x.font='bold 13px system-ui';x.fillText(d>0?'↑ вгору схилом':d<0?'↓ вниз схилом':'■ стоїть',xo,Y[nl-1][0]+6);x.font='11px system-ui';x.fillStyle='#5b6b7c';x.fillText('> 0.3 вгору · < −0.3 вниз',xo,Y[nl-1][0]+24)}
+ else{const nm=['a: вгору (+) / вниз (−)','b: вбік (+/−)'];for(let o=0;o<2;o++){x.fillStyle='#1d2733';x.fillText(nm[o],xo,Y[nl-1][o]-8);x.fillStyle='#5b6b7c';x.fillText(ov[o].toFixed(2),xo,Y[nl-1][o]+10)}}
+ // графік активації
+ const f=B.L===0?B.act:B.act,F=STEPF[f],w=300,h=190,m=26;xF.clearRect(0,0,w,h);
+ const px=v=>m+(v+3)/6*(w-m-8),py=v=>h-m-(v+1.5)/3*(h-m-8);
+ xF.strokeStyle='#e1e7ee';xF.lineWidth=1;xF.beginPath();xF.moveTo(px(-3),py(0));xF.lineTo(px(3),py(0));xF.moveTo(px(0),py(-1.5));xF.lineTo(px(0),py(1.5));xF.stroke();
+ xF.strokeStyle='#5b6b7c';xF.lineWidth=2;xF.beginPath();for(let i=0;i<=120;i++){const v=-3+i/20,X=px(v),Yy=py(Math.max(-1.5,Math.min(1.5,F(v))));i?xF.lineTo(X,Yy):xF.moveTo(X,Yy)}xF.stroke();
+ xF.fillStyle='#5b6b7c';xF.font='11px system-ui';xF.textAlign='left';xF.fillText('Активація: '+AN[f]+(B.L===0?' (вихід)':' (приховані)'),4,10);xF.textAlign='center';xF.fillText('сума входів',w/2+8,h-4);
+ if(have){const pal=['#e08a1a','#8e44ad','#2f6fb5'];const hl=B.L===0?[1]:Array.from({length:B.L},(_,i)=>i+1);hl.forEach((l,ix)=>{for(let j=0;j<B.sz[l];j++){const z=r.pre[l][j];xF.fillStyle=pal[ix];xF.beginPath();xF.arc(px(Math.max(-3,Math.min(3,z))),py(Math.max(-1.5,Math.min(1.5,F(z)))),4,0,6.2832);xF.fill()}})}
+ const t=[];t.push(B.L===0?'Точки — нейрони виходу: їхня сума входів (вісь x) і значення після активації.':'Точки — прихований шар(и): колір відповідає шару (помаранчевий — перший, фіолетовий — другий).');
+ if(B.L>0)t.push('Вихід: tanh.');if(B.out==='signed')t.push('Знаковий вихід: один нейрон, дві пороги ±0.3 дають три дії.');else t.push('Швидкість вздовж схилу = a, вбік = b; рух ще збурюється випадковим шумом.');
+ q('cmpGT').innerHTML=t.join('<br>')}
+
+// --- серія експериментів ---
+const xB=hi(q('cmpBX'),560,200);let bxRuns=[],bxTimer=null,bxBusy=false;
+q('bxN').oninput=e=>q('bxNo').textContent=e.target.value;q('bxD').oninput=e=>q('bxDo').textContent=e.target.value;
+function bxDraw(){const x=xB,w=560,h=200,X0=30,X1=w-8,Y0=8,Y1=h-22,maxD=+q('bxD').value;x.clearRect(0,0,w,h);
+ const px=d=>X0+(X1-X0)*d/maxD,py=v=>Y1-(Y1-Y0)*v;x.strokeStyle='#d5dde6';x.lineWidth=1;x.strokeRect(X0,Y0,X1-X0,Y1-Y0);
+ x.setLineDash([6,5]);x.beginPath();x.moveTo(X0,py(.5));x.lineTo(X1,py(.5));x.stroke();x.setLineDash([]);
+ x.fillStyle='#5b6b7c';x.font='11px system-ui';x.textAlign='right';x.fillText('1',X0-4,Y0+8);x.fillText('.5',X0-4,py(.5)+4);x.fillText('0',X0-4,Y1);
+ x.textAlign='center';for(let d=0;d<=maxD;d+=Math.max(10,Math.round(maxD/6/10)*10))x.fillText(d,px(d),h-6);
+ bxRuns.forEach(r=>{x.strokeStyle=r.win===0?'rgba(26,26,26,.75)':r.win===1?'rgba(47,134,214,.75)':'rgba(140,150,160,.7)';x.lineWidth=1.5;x.beginPath();r.fr.forEach((v,i)=>{i?x.lineTo(px(i+1),py(v)):x.moveTo(px(1),py(v))});x.stroke()})}
+function bxTable(){const R=bxRuns,n=R.length;if(!n){q('bxSum').textContent='';q('bxT').innerHTML='';return}
+ const w=[0,0,0,0],rev=[0,0];let ext=[[],[]];
+ for(const r of R){w[r.win<0?2:r.win]++;if(r.win===-2)w[3]++;if(r.lead30!==null&&r.win>=0){rev[0]++;if(r.lead30!==r.win)rev[1]++}if(r.ext0>0)ext[0].push(r.ext0);if(r.ext1>0)ext[1].push(r.ext1)}
+ const mean=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(0):'–';
+ q('bxSum').innerHTML=`<b>Повторів: ${n}.</b> Перемогли чорні: ${w[0]}, білі: ${w[1]}, обидві живі на ліміті діб: ${w[2]-w[3]}, обидві вимерли: ${w[3]}.`+
+  (rev[0]?` Серед повторів із переможцем лідер на 30-й добі зрештою програв у ${rev[1]} з ${rev[0]}.`:'')+` Середня доба вимирання: чорні ${mean(ext[0])}, білі ${mean(ext[1])}.`;
+ const lab={flood:'потоп',starve:'голод',exhaust:'виснаж.',age:'старість'};
+ q('bxT').innerHTML='<tr><th>#</th><th>Результат</th><th class="n">Лідер на 30-й добі</th><th class="n">Живих ч/б</th><th class="n">Вимерли (доба) ч/б</th><th class="n">Доба закінчення</th></tr>'+
+  R.map((r,i)=>`<tr><td>${i+1}</td><td>${r.win===0?'чорні':r.win===1?'білі':r.win===-2?'обидві вимерли':'обидві живі'}</td><td class="n">${r.lead30===null?'–':r.lead30===0?'чорні':r.lead30===1?'білі':'порівну'}</td><td class="n">${r.n.join(' / ')}</td><td class="n">${r.ext0>0?r.ext0:'–'} / ${r.ext1>0?r.ext1:'–'}</td><td class="n">${r.day}</td></tr>`).join('')+
+  '<tr><td colspan="6" class="leg" style="padding-top:6px">Причини смерті, сума за всі повтори (ч / б): '+C.CAUSES.map(c=>lab[c]+' '+R.reduce((a,r)=>a+r.dt[0][c],0)+' / '+R.reduce((a,r)=>a+r.dt[1][c],0)).join(' · ')+'</td></tr>'}
+function bxStart(){if(bxBusy)return;bxBusy=true;bxRuns=[];const N=+q('bxN').value,maxD=+q('bxD').value,vary=q('bxL').checked,snap={...S};
+ q('bxRun').disabled=true;q('bxStop').disabled=false;let i=0,B=null,cancelled=false;q('bxStop').onclick=()=>{cancelled=true};
+ const next=()=>{B=createCmp();Object.assign(B.S,snap);B.S.rseed=(snap.rseed||0)+i;if(vary)B.S.seed=((snap.seed-1+i)%99)+1;B.init()};
+ const fin=()=>{bxBusy=false;q('bxRun').disabled=false;q('bxStop').disabled=true;q('bxProg').textContent=cancelled?`Скасовано (${bxRuns.length} з ${N})`:`Готово (повторів: ${N})`;bxDraw();bxTable()};
+ next();
+ const step=()=>{if(cancelled||i>=N){fin();return}
+  const t0=performance.now();
+  while(performance.now()-t0<30){B.tick();const nn=B.counts();
+   if(!nn[0]||!nn[1]||B.t>=maxD*snap.T){
+    const hs=B.hist,fr=hs.map(a=>{const s=a.n[0]+a.n[1];return s?a.n[0]/s:NaN});
+    let win=nn[0]&&!nn[1]?0:nn[1]&&!nn[0]?1:(!nn[0]&&!nn[1])?-2:-1;
+    let lead30=null;if(hs.length>=30){const a=hs[29].n;lead30=a[0]>a[1]?0:a[1]>a[0]?1:2}
+    bxRuns.push({win,n:nn,fr:fr.map(v=>isNaN(v)?(win===1?0:1):v),lead30,ext0:B.extinct[0],ext1:B.extinct[1],day:B.day,dt:B.deathTot.map(d=>({...d}))});
+    i++;bxDraw();bxTable();if(i<N)next();else break}
+   if(i>=N)break}
+  q('bxProg').textContent=`Повтор ${Math.min(i+1,N)} з ${N}`+(B&&i<N?` · доба ${B.day}`:'');
+  setTimeout(step,0)};
+ step()}
+q('bxRun').onclick=bxStart;
+let lastLen=-1,lastTr=-1;
+function updateUI(){
+ q('cmpPhase').textContent=`Доба ${C.day} · ${C.phaseName(C.phase)}${C.L>0?' · вода '+C.L.toFixed(1):''}`;
+ const n=C.counts(),e=C.extinct;let m='';
+ if(!n[0]&&!n[1])m='Обидві популяції вимерли.';else if(!n[0])m=`Чорні вимерли (доба ${e[0]}). Залишились білі.`;else if(!n[1])m=`Білі вимерли (доба ${e[1]}). Залишились чорні.`;
+ if(!(n[0]*n[1])&&running&&(!n[0]&&!n[1]))setRun(false);
+ q('cmpMsg').textContent=(rd||typeof THREE!=='undefined'||!m)?m:q('cmpMsg').textContent;
+ if(m&&typeof THREE!=='undefined')q('cmpMsg').textContent=m;
+ table();drawN();if(C.hist.length!==lastLen){lastLen=C.hist.length;drawD(0);drawD(1);drawM()}}
+function setRun(v){running=v;q('cmpRun').textContent=v?'Пауза':'Пуск'}
+q('cmpRun').onclick=()=>{if(C.sheep.length)setRun(!running)};
+document.querySelectorAll('button[data-cs]').forEach(b=>b.onclick=()=>{spd=+b.dataset.cs;document.querySelectorAll('button[data-cs]').forEach(x=>x.classList.toggle('on',x===b))});
+function restart(){setRun(false);if(q('c_rr').checked){S.rseed=Math.floor(Math.random()*99);q('c_rseed').value=S.rseed;q('co_rseed').textContent=S.rseed}C.init();lastLen=-1;q('cmpMsg').textContent='';info();if(rd)buildTerrain();updateUI();drawD(0);drawD(1);drawM()}
+q('cmpReset').onclick=restart;
+function frame(){requestAnimationFrame(frame);if(q('pCmp').hidden)return;fr++;
+ if(running){const t0=performance.now();spAcc+=spd;let n=Math.floor(spAcc);spAcc-=n;while(n-->0){C.tick();if(performance.now()-t0>14){spAcc=0;break}if(!C.sheep.length){break}}
+  if(!C.sheep.length)setRun(false)}
+ if(rd){const k=1-C.light;sc.background=dC.clone().lerp(nC,k);sc.fog.color.copy(sc.background);hemi.intensity=.7-.2*k;sun.intensity=.65-.3*k;
+  const L=C.L;if(L<.02)water.visible=false;else{water.visible=true;water.scale.y=L+5;water.position.y=(L-5)/2}
+  renderSheep();const s=C.sel;if(s&&!s.dead){marker.visible=true;marker.position.set(s.x,s.h+2+Math.sin(fr*.15)*.2,s.z)}else marker.visible=false;
+  if(fr%6===0)colorTerrain();rd.render(sc,cam)}
+ if(C.sel&&fr%5===0){info();drawM2()}
+ if(fr%10===0)updateUI()}
+window.cmpShow=()=>{init3();resize();updateUI();drawD(0);drawD(1);drawM()};
+window.cmpApi=C;
+C.init();updateUI();drawD(0);drawD(1);drawM();requestAnimationFrame(frame);
+})();
+// ===== END CMP UI =====
+
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+</body></html>
