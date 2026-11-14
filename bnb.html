@@ -76,7 +76,35 @@
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
         
         .narrative-box { font-size: 15px; min-height: 80px; padding: 10px; background: #fffde7; border: 1px solid #f9e79f; border-radius: 8px; margin-top: 10px; }
-    </style>
+    
+        /* Tree */
+        #tree-wrap { overflow: auto; max-height: 460px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+        #tree-canvas { position: relative; }
+        #tree-canvas svg { position: absolute; left: 0; top: 0; pointer-events: none; }
+        .tn { position: absolute; width: 62px; height: 50px; box-sizing: border-box; border: 2px solid #7f8c8d; border-radius: 6px; background: #fff; font-size: 10px; text-align: center; cursor: pointer; transition: transform .12s; }
+        .tn:hover { border-color: #e67e22; }
+        .tn .tl { font-weight: bold; padding-top: 2px; white-space: nowrap; }
+        .tn .tm { display: flex; gap: 2px; align-items: flex-end; justify-content: center; height: 24px; margin-top: 3px; }
+        .tn .tm i { width: 8px; background: var(--primary); opacity: .75; border-radius: 1px; display: block; }
+        #tree-pop { position: fixed; z-index: 1000; display: none; pointer-events: none; background: #fff; border: 2px solid var(--primary); border-radius: 10px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.25); font-size: 13px; max-width: 320px; }
+        #tree-pop .pt { font-weight: bold; margin-bottom: 6px; }
+        #tree-pop .pb { display: flex; gap: 8px; align-items: flex-end; height: 80px; }
+        #tree-pop .pb div { width: 34px; background: var(--primary); opacity: .8; border-radius: 3px 3px 0 0; position: relative; }
+        #tree-pop .pb div.full { background: var(--success); }
+        #tree-pop .pb div span { position: absolute; top: -15px; left: 0; width: 100%; text-align: center; font-size: 11px; color: #333; }
+        #tree-pop .pl { display: flex; gap: 8px; margin-top: 3px; }
+        #tree-pop .pl div { width: 34px; font-size: 10px; text-align: center; color: #555; word-break: break-all; }
+        #tree-pop .pr { margin-top: 8px; color: var(--danger); font-size: 12px; }
+        .tn.st-done { background: #ecf0f1; color: #7f8c8d; }
+        .tn.onpath { background: #fff3c4; border-color: #f39c12; }
+        .tn.st-pending { border-style: dashed; opacity: .55; background: #fff; cursor: default; }
+        .tn.st-skip { border-style: dashed; opacity: .6; background: #f4ecf7; border-color: #8e44ad; cursor: default; }
+        .tn.st-pruned { background: #fdecea; border-color: var(--danger); color: var(--danger); }
+        .tn.st-record { background: #e8f8f5; border-color: var(--success); }
+        .tn.focus { box-shadow: 0 0 0 3px rgba(241,196,15,.8); }
+        .tree-legend { font-size: 11px; color: #555; margin-bottom: 6px; line-height: 1.7; }
+        .tree-legend span { display: inline-block; padding: 0 6px; margin-right: 4px; border: 2px solid #7f8c8d; border-radius: 4px; font-size: 10px; }
+</style>
 </head>
 <body>
 
@@ -109,10 +137,12 @@
                 <li id="rule-0"><b>Підготовка:</b> Сортую вантажі (від великих до малих). Рахую мінімально можливу кількість машин (Lower Bound).</li>
                 <li id="rule-1"><b>Дія:</b> Беру наступну коробку. Перевіряю машини строго по черзі (№1, №2...).</li>
                 <li id="rule-2"><b>Правило "Перша підходяща":</b> Якщо влізла — залишаю і беру наступну. Не шукаю ідеал прямо зараз.</li>
-                <li id="rule-3"><b>Оптимізація (Анти-дубль):</b> Якщо Машина А і Машина Б однаково заповнені, я не буду перевіряти Б, якщо А не підійшла.</li>
-                <li id="rule-4"><b>Нова машина:</b> Якщо нікуди не лізе — беру нову.</li>
-                <li id="rule-5"><b>Відсікання:</b> Якщо я бачу, що поточний шлях вже гірший за знайдений рекорд — зупиняюсь. Це і є гілка (дерева рішень), що відсікається, зменшуючи кількість кроків</li>
-                <li id="rule-6"><b>ВІДКАТ:</b> (Коли я змінюю рішення) Коли я дійшов до кінця і запакував усе, я запам'ятовую результат. Потім я повертаюсь назад, <b>виймаю останню коробку</b> і пробую покласти її в НАСТУПНУ машину (в яку ще не пробував).</li>
+                <li id="rule-3"><b>Оптимізація (Анти-дубль):</b> Якщо машина має таке саме навантаження, як уже перевірена раніше, її пропускаю: результат буде дзеркальним.</li>
+                <li id="rule-4"><b>Нова машина:</b> Це окрема гілка, яка перевіряється завжди (останньою), навіть якщо вантаж десь влізає.</li>
+                <li id="rule-5"><b>Відсікання:</b> Нижня межа гілки = max(відкрито машин, ⌈сума/місткість⌉). Якщо вона ≥ рекорду, гілка не може бути кращою: зупиняюсь і повертаюсь.</li>
+                <li id="rule-6"><b>ВІДКАТ:</b> Гілку повністю перевірено. Повертаюсь до батьківського вузла й беру наступний ще не пробований варіант. Дерево справа показує, що вже перебрано, а що ще ні.</li>
+                <li id="rule-7"><b>РЕКОРД (пам'ять):</b> Усе розкладено меншою кількістю машин, ніж раніше. Запам'ятовую цю конфігурацію. Це єдине, що не стирається при відкаті.</li>
+                <li id="rule-8"><b>Завершення:</b> Рекорд = теоретичний мінімум (краще неможливо) або всі гілки перебрано.</li>
             </ol>
         </div>
 
@@ -166,6 +196,20 @@
                 </div>
             </div>
         </div>
+
+        <div id="tree-panel" style="display:none; margin-top:15px;">
+            <h4 style="margin:0 0 6px 0;">🌳 Дерево рішень (це і є «пам'ять» алгоритму)</h4>
+            <div class="tree-legend">
+                Вузол = «вантаж → машина», усередині мініатюра завантаження машин (наведіть для збільшення, клік — перейти до кроку).<br>
+                <span style="background:#fff3c4;border-color:#f39c12">поточний шлях</span>
+                <span style="background:#ecf0f1;color:#7f8c8d">перебрано</span>
+                <span style="border-style:dashed;opacity:.6">ще не пробував</span>
+                <span style="border-style:dashed;background:#f4ecf7;border-color:#8e44ad">⇄ пропуск (дубль)</span>
+                <span style="background:#fdecea;border-color:#c0392b;color:#c0392b">✕ відсічено</span>
+                <span style="background:#e8f8f5;border-color:#27ae60">★ рекорд</span>
+            </div>
+            <div id="tree-wrap"><div id="tree-canvas"></div></div>
+        </div>
     </div>
 </div>
 
@@ -188,9 +232,23 @@
         initGame([6, 5, 4, 4, 3, 3, 3, 2]);
     }
 
+    function ffdCount(ws) {
+        const bins = [];
+        [...ws].sort((x, y) => y - x).forEach(w => {
+            const k = bins.findIndex(l => l + w <= CAPACITY);
+            if (k < 0) bins.push(w); else bins[k] += w;
+        });
+        return bins.length;
+    }
+
     function generateRandom() {
         CAPACITY = 10;
-        let arr = Array.from({length: 12}, () => Math.floor(Math.random() * 6) + 2);
+        let arr;
+        // Шукаємо набір, де жадібний спуск НЕ оптимальний: тоді буде видно відкат і відсікання
+        for (let t = 0; t < 300; t++) {
+            arr = Array.from({length: 10}, () => Math.floor(Math.random() * 6) + 2);
+            if (ffdCount(arr) > Math.ceil(arr.reduce((x, y) => x + y, 0) / CAPACITY)) break;
+        }
         initGame(arr);
     }
 
@@ -221,6 +279,7 @@
         document.getElementById('progress').style.width = '0%';
         document.getElementById('step-counter').innerText = "0 / 0";
         highlightRule(-1);
+        document.getElementById('tree-panel').style.display = 'none';
 
         // Підготовка ручного режиму
         document.getElementById('narrative').innerHTML = "<b>Ручний режим:</b> Перетягніть коробки в машини";
@@ -295,17 +354,18 @@
         itemsData.sort((a, b) => b.w - a.w);
         
         steps = [];
-        bestSolution = itemsData.length + 1;
+        bestSolution = Infinity; nodeCount = 0; pendingEv = []; bestNode = -1;
         bestBins = [];
         stopAlgorithm = false;
 
+        addNode(-1, "старт", [], "active", 0);
         // Крок 0: План
-        steps.push({
+        pushStep({
             msg: `🔍 <b>Старт:</b> Вантажі відсортовано. Теоретичний мінімум = <b>${theoreticalMin}</b> машин.<br>Якщо я знайду рішення на ${theoreticalMin} машин, я зупинюсь, бо краще не буває.`,
-            bins: [], itemIdx: -1, rule: 0, best: "?"
+            bins: [], itemIdx: -1, rule: 0, best: "?", node: 0
         });
 
-        solve(0, []);
+        solve(0, [], 0);
 
         if(stopAlgorithm && bestBins.length > 0) {
              // Якщо ми зупинились достроково (ідеал), ми вже записали крок.
@@ -313,18 +373,19 @@
         } 
         else if (bestBins.length > 0) {
             // Додаємо фінальний крок з найкращим результатом
-            steps.push({
+            pushStep({
                 msg: `🏆 <b>ФІНІШ:</b> Пошук завершено. Ось найкраще знайдене рішення: <b>${bestSolution}</b> машин.`,
-                bins: clone(bestBins), itemIdx: itemsData.length, rule: 5, best: bestSolution, type: 'perfect'
+                bins: clone(bestBins), itemIdx: itemsData.length, rule: 8, best: bestSolution, type: 'perfect', node: bestNode
             });
         } else {
-             steps.push({
+             pushStep({
                 msg: `🏁 <b>Кінець:</b> Не вдалося знайти рішення (щось пішло не так).`,
                 bins: [], itemIdx: -1, rule: 0, best: bestSolution
             });
         }
 
         // Запуск UI
+        document.getElementById('tree-panel').style.display = 'block';
         currentStep = 0;
         document.getElementById('btn-start').disabled = true;
         document.getElementById('btn-next').disabled = false;
@@ -333,97 +394,186 @@
         updateUI();
     }
 
-    function solve(itemIdx, currentBins) {
-        if (stopAlgorithm) return;
+    // --- ДЕРЕВО: події накопичуються і прив'язуються до наступного кроку ---
+    let nodeCount = 0, pendingEv = [], bestNode = -1;
+    function pushStep(o) { o.ev = pendingEv; pendingEv = []; steps[steps.length] = o; }
+    function addNode(parent, label, bins, status, depth) {
+        const id = nodeCount++;
+        pendingEv.push({add: {id, parent, label, bins: clone(bins), status, depth}});
+        return id;
+    }
+    function setSt(id, status, reason) { pendingEv.push({set: id, status, reason}); }
 
-        // 1. ПЕРЕВІРКА НА ЗАВЕРШЕННЯ
+    function solve(itemIdx, currentBins, nid) {
+        if (stopAlgorithm) return;
+        const total = itemsData.reduce((a, b) => a + b.w, 0);
+
+        // 1. ВСЕ РОЗКЛАДЕНО
         if (itemIdx === itemsData.length) {
             if (currentBins.length < bestSolution) {
+                if (bestNode >= 0) setSt(bestNode, 'done');
                 bestSolution = currentBins.length;
-                bestBins = clone(currentBins); // ЗБЕРІГАЄМО КРАЩУ КОНФІГУРАЦІЮ
-                
-                steps.push({
-                    msg: `🎉 <b>РЕКОРД!</b> Все вмістилося у <b>${bestSolution}</b> машин. <br>Зберігаю цей варіант. Чи можна краще? Зараз зроблю відкат і перевірю.`,
-                    bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution, type: 'record'
+                bestBins = clone(currentBins);
+                bestNode = nid;
+                setSt(nid, 'record', `рекорд: ${bestSolution} маш.`);
+                pushStep({
+                    msg: `🎉 <b>РЕКОРД!</b> Все вмістилося у <b>${bestSolution}</b> машин.<br>Запам'ятовую цю конфігурацію (єдине, що не стирається при відкаті). Тепер відкат: чи є краще?`,
+                    bins: clone(currentBins), itemIdx, rule: 7, best: bestSolution, type: 'record', node: nid
                 });
-                
-                // Супер-відсікання: якщо досягли теоретичного мінімуму
                 if (bestSolution === theoreticalMin) {
-                    steps.push({
-                        msg: `✨ <b>ІДЕАЛ!</b> Ми досягли теоретичного мінімуму (${theoreticalMin}). Краще неможливо. <br>Зупиняю пошук.`,
-                        bins: clone(currentBins), itemIdx: itemIdx, rule: 5, best: bestSolution, type: 'perfect'
+                    pushStep({
+                        msg: `✨ <b>ІДЕАЛ!</b> Досягли теоретичного мінімуму (${theoreticalMin}). Краще неможливо.<br>Усі ще не перевірені гілки (пунктир) відсікаються разом. Зупиняю пошук.`,
+                        bins: clone(currentBins), itemIdx, rule: 8, best: bestSolution, type: 'perfect', node: nid
                     });
                     stopAlgorithm = true;
                 }
+            } else {
+                setSt(nid, 'done');
             }
             return;
         }
 
-        let item = itemsData[itemIdx];
-
-        // 2. ВІДСІКАННЯ (PRUNING) - Bound
-        let currentLoadSum = currentBins.reduce((a,b) => a+b.load, 0);
-        let remainingWeight = itemsData.slice(itemIdx).reduce((a,b) => a+b.w, 0);
-        let minPossibleTotal = Math.max(currentBins.length, Math.ceil((currentLoadSum + remainingWeight)/CAPACITY));
-
-        if (minPossibleTotal >= bestSolution) {
-            steps.push({
-                msg: `🛑 <b>СТОП (Відсікання):</b> Я порахував, що цим шляхом вийде мінімум <b>${minPossibleTotal}</b> машин. <br>Але у нас вже є рекорд <b>${bestSolution}</b>. Вертаюсь назад!`,
-                bins: clone(currentBins), itemIdx: itemIdx, rule: 5, best: bestSolution, type: 'prune'
+        // 2. ВІДСІКАННЯ (Bound). Сума вже розкладеного + решта = уся сума, тому межа = max(відкрито, ⌈сума/місткість⌉)
+        const ceilSum = Math.ceil(total / CAPACITY);
+        const lb = Math.max(currentBins.length, ceilSum);
+        if (lb >= bestSolution) {
+            setSt(nid, 'pruned', `межа ${lb} ≥ рекорд ${bestSolution}`);
+            pushStep({
+                msg: `🛑 <b>СТОП (Відсікання):</b> нижня межа цієї гілки = max(відкрито машин: ${currentBins.length}, ⌈${total}/${CAPACITY}⌉ = ${ceilSum}) = <b>${lb}</b>.<br>Рекорд уже <b>${bestSolution}</b>, тож краще тут не вийде. Гілку відсікаю, повертаюсь.`,
+                bins: clone(currentBins), itemIdx, rule: 5, best: bestSolution, type: 'prune', node: nid
             });
             return;
         }
 
-        // 3. ПЕРЕБІР МАШИН
-        for (let i = 0; i < currentBins.length; i++) {
-            if (stopAlgorithm) return;
+        // 3. КАНДИДАТИ-ГІЛКИ (усі одразу з'являються в дереві пунктиром)
+        const item = itemsData[itemIdx];
+        const cands = [], seen = new Set();
+        currentBins.forEach((b, i) => {
+            if (b.load + item.w > CAPACITY) return;
+            const nb = clone(currentBins); nb[i].items.push(item.w); nb[i].load += item.w;
+            const dup = seen.has(b.load);
+            seen.add(b.load);
+            cands.push({i, skip: dup, bins: nb, label: dup ? `⇄ М${i+1}` : `${item.w}→М${i+1}`});
+        });
+        const nbNew = clone(currentBins); nbNew.push({items: [item.w], load: item.w});
+        cands.push({isNew: true, bins: nbNew, label: `${item.w}→нова`});
+        cands.forEach(c => { c.id = addNode(nid, c.label, c.bins, 'pending', itemIdx + 1); });
 
-            // Symmetry Breaking
-            if (i > 0 && currentBins[i].load === currentBins[i-1].load) {
+        for (let k = 0; k < cands.length; k++) {
+            if (stopAlgorithm) return;
+            const c = cands[k];
+            const left = cands.slice(k + 1).filter(x => !x.skip).length;
+
+            if (c.skip) {
+                setSt(c.id, 'skip', 'дубль за навантаженням');
+                pushStep({
+                    msg: `⇄ <b>Анти-дубль:</b> Машина №${c.i+1} має те саме навантаження (${currentBins[c.i].load}), що й уже перевірена. Результат був би дзеркальним, пропускаю.`,
+                    bins: clone(currentBins), itemIdx, rule: 3, best: bestSolution, node: nid
+                });
                 continue;
             }
 
-            if (currentBins[i].load + item.w <= CAPACITY) {
-                steps.push({
-                    msg: `👉 Беру <b>${item.w}</b>. Кладу в <b>Машину №${i+1}</b> (там ${currentBins[i].load}/${CAPACITY}).<br>Влізло! Одразу беру наступну.`,
-                    bins: clone(currentBins), itemIdx: itemIdx, rule: 2, best: bestSolution, 
-                    activeTruck: i, activeItem: true
+            setSt(c.id, 'active');
+            if (c.isNew) {
+                pushStep({
+                    msg: `🆕 Окрема гілка: <b>нова Машина №${currentBins.length+1}</b> для вантажу <b>${item.w}</b> (перевіряється завжди, останньою).`,
+                    bins: clone(currentBins), itemIdx, rule: 4, best: bestSolution, activeItem: true, node: c.id
                 });
-
-                let newBins = clone(currentBins);
-                newBins[i].items.push(item.w);
-                newBins[i].load += item.w;
-
-                solve(itemIdx + 1, newBins);
-                
-                if (stopAlgorithm) return;
-
-                steps.push({
-                    msg: `🔙 <b>ВІДКАТ:</b> Перевірив все з <b>${item.w}</b> у Машині №${i+1}.<br>Тепер виймаю її і пробую наступний варіант.`,
-                    bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution,
-                    activeTruck: i
+            } else {
+                pushStep({
+                    msg: `👉 Беру <b>${item.w}</b>. Кладу в <b>Машину №${c.i+1}</b> (там ${currentBins[c.i].load}/${CAPACITY}). Влізло, одразу беру наступну.`,
+                    bins: clone(currentBins), itemIdx, rule: 2, best: bestSolution, activeTruck: c.i, activeItem: true, node: c.id
                 });
             }
-        }
 
-        // 4. НОВА МАШИНА
-        if (stopAlgorithm) return;
+            solve(itemIdx + 1, c.bins, c.id);
+            if (stopAlgorithm) return;
 
-        steps.push({
-            msg: `🆕 У наявні машини не лізе (або варіанти погані).<br>Беру <b>НОВУ Машину №${currentBins.length+1}</b> для вантажу <b>${item.w}</b>.`,
-            bins: clone(currentBins), itemIdx: itemIdx, rule: 4, best: bestSolution, activeItem: true
-        });
-
-        let newBinsNew = clone(currentBins);
-        newBinsNew.push({items: [item.w], load: item.w});
-        
-        solve(itemIdx + 1, newBinsNew);
-
-        if (!stopAlgorithm) {
-             steps.push({
-                msg: `🔙 <b>ВІДКАТ:</b> Прибираю нову машину з вантажем <b>${item.w}</b>. Повертаюсь на рівень вище.`,
-                bins: clone(currentBins), itemIdx: itemIdx, rule: 6, best: bestSolution
+            pushStep({
+                msg: `🔙 <b>ВІДКАТ:</b> гілку «${c.label}» повністю перевірено. Повертаюсь до вузла для вантажу <b>${item.w}</b>.<br>` +
+                     (left > 0 ? `Ще не пробував варіантів: <b>${left}</b>, беру наступний.` : `Варіантів більше немає: цей вузол теж повністю перебрано.`),
+                bins: clone(currentBins), itemIdx, rule: 6, best: bestSolution, node: nid
             });
+        }
+        setSt(nid, 'done');
+    }
+
+    // --- TREE RENDER (стан дерева на кроці k відновлюється з подій кроків 0..k) ---
+    function buildTree(k) {
+        const T = {};
+        for (let i = 0; i <= k; i++) {
+            for (const e of (steps[i].ev || [])) {
+                if (e.add) { T[e.add.id] = Object.assign({ch: []}, e.add); if (e.add.parent >= 0) T[e.add.parent].ch.push(e.add.id); }
+                else { T[e.set].status = e.status; if (e.reason) T[e.set].reason = e.reason; }
+            }
+        }
+        return T;
+    }
+
+    function hideTreePop() { const p = document.getElementById('tree-pop'); if (p) p.style.display = 'none'; }
+
+    function showTreePop(nodeEl) {
+        const n = (window.treeT || {})[nodeEl.dataset.id];
+        if (!n) return;
+        let p = document.getElementById('tree-pop');
+        if (!p) { p = document.createElement('div'); p.id = 'tree-pop'; document.body.appendChild(p); }
+        const bars = n.bins.map(b => `<div class="${b.load === CAPACITY ? 'full' : ''}" style="height:${Math.max(3, b.load / CAPACITY * 80)}px"><span>${b.load}</span></div>`).join('');
+        const labs = n.bins.map((b, i) => `<div>М${i+1}<br>${b.items.join('+')}</div>`).join('');
+        p.innerHTML = `<div class="pt">${n.label} <span style="font-weight:normal;color:#777">(машин: ${n.bins.length}, місткість ${CAPACITY})</span></div>` +
+            (n.bins.length ? `<div class="pb">${bars}</div><div class="pl">${labs}</div>` : '<i>порожньо</i>') +
+            (n.reason ? `<div class="pr">${n.reason}</div>` : '');
+        p.style.visibility = 'hidden'; p.style.display = 'block';
+        const r = nodeEl.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+        let left = r.right + 10;
+        if (left + pw > window.innerWidth - 8) left = Math.max(8, r.left - pw - 10);
+        let top = r.top + r.height / 2 - ph / 2;
+        top = Math.min(Math.max(8, top), window.innerHeight - ph - 8);
+        p.style.left = left + 'px'; p.style.top = top + 'px'; p.style.visibility = 'visible';
+    }
+
+    document.getElementById('tree-canvas').addEventListener('mouseover', e => { const t = e.target.closest('.tn'); if (t) showTreePop(t); });
+    document.getElementById('tree-canvas').addEventListener('mouseout', e => { if (e.target.closest('.tn')) hideTreePop(); });
+    document.getElementById('tree-wrap').addEventListener('scroll', hideTreePop);
+
+    function jumpTo(id) {
+        const k = steps.findIndex(s => s.node === id);
+        if (k >= 0) { currentStep = k; updateUI(); }
+    }
+
+    function renderTree(k) {
+        const T = buildTree(k), focus = steps[k].node;
+        window.treeT = T; hideTreePop();
+        const NW = 62, NH = 50, X = 92, Y = 62;
+        let row = 0, maxD = 0; const pos = {};
+        (function lay(id) {
+            const n = T[id]; maxD = Math.max(maxD, n.depth);
+            if (!n.ch.length) pos[id] = row++;
+            else { n.ch.forEach(lay); pos[id] = (pos[n.ch[0]] + pos[n.ch[n.ch.length - 1]]) / 2; }
+        })(0);
+        const path = new Set();
+        for (let id = focus; id !== undefined && id >= 0 && T[id]; id = T[id].parent) path.add(id);
+
+        let edges = '', nodesHtml = '';
+        Object.values(T).forEach(n => {
+            const x = n.depth * X + 10, y = pos[n.id] * Y + 10;
+            if (n.parent >= 0) {
+                const px = T[n.parent].depth * X + 10 + NW, py = pos[n.parent] * Y + 10 + NH / 2, cy = y + NH / 2, mx = (px + x) / 2;
+                const on = path.has(n.id);
+                edges += `<path d="M${px},${py} C${mx},${py} ${mx},${cy} ${x},${cy}" fill="none" stroke="${on ? '#f39c12' : '#b2bec3'}" stroke-width="${on ? 3 : 1.5}" stroke-dasharray="${n.status === 'pending' || n.status === 'skip' ? '4 3' : ''}"/>`;
+            }
+            const icon = n.status === 'pruned' ? '✕ ' : n.status === 'record' ? '★ ' : '';
+            const thumb = n.bins.map(b => `<i style="height:${Math.max(2, b.load / CAPACITY * 22)}px"></i>`).join('');
+            const cls = ['tn', 'st-' + n.status, path.has(n.id) && n.status === 'active' ? 'onpath' : '', n.id === focus ? 'focus' : ''].join(' ');
+            nodesHtml += `<div class="${cls}" style="left:${x}px;top:${y}px" data-id="${n.id}" onclick="jumpTo(${n.id})"><div class="tl">${icon}${n.label}</div><div class="tm">${thumb}</div></div>`;
+        });
+        const W = (maxD + 1) * X + 30, H = Math.max(row, 1) * Y + 20;
+        const canvas = document.getElementById('tree-canvas');
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        canvas.innerHTML = `<svg width="${W}" height="${H}">${edges}</svg>` + nodesHtml;
+        const wrap = document.getElementById('tree-wrap');
+        if (T[focus]) {
+            wrap.scrollLeft = T[focus].depth * X - wrap.clientWidth / 2;
+            wrap.scrollTop = pos[focus] * Y - wrap.clientHeight / 2;
         }
     }
 
@@ -446,6 +596,7 @@
         // Narrative & Highlight
         document.getElementById('narrative').innerHTML = s.msg;
         highlightRule(s.rule);
+        renderTree(currentStep);
         
         // Metrics
         document.getElementById('best-record').innerText = (s.best === Infinity || s.best === "?") ? "?" : s.best;
