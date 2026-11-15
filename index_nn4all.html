@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Нейромережі: інтерактивний курс</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6fb;--ink:#101a3d;--mute:#56608a;--line:#d5daee;--hero:#101a3d;--hero-ink:#f4f6fb;--acc:#2f4bff;--sig:#ffb703;--row:#ffffff}
+@media (prefers-color-scheme:dark){:root:not([data-t]){--bg:#0b1126;--ink:#e8ecfa;--mute:#98a2c9;--line:#242d57;--hero:#070b1b;--row:#121a38;--acc:#7f93ff}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Onest,"Segoe UI",system-ui,sans-serif}
+.hero{position:relative;background:var(--hero);color:var(--hero-ink);overflow:hidden;min-height:min(78vh,560px);display:flex;align-items:flex-end}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero .in{position:relative;width:100%;max-width:1040px;margin:0 auto;padding:72px 24px 48px}
+.hero h1{font:700 clamp(2rem,6vw,4rem)/1.05 Unbounded,Onest,sans-serif;margin:0 0 18px;letter-spacing:-.02em;max-width:14em}
+.hero p{max-width:34em;margin:0 0 26px;font-size:1.1rem;color:color-mix(in srgb,var(--hero-ink) 80%,transparent)}
+.hero .go{display:inline-block;background:var(--sig);color:#101a3d;font-weight:600;text-decoration:none;padding:13px 24px;border-radius:999px}
+.hero .go:hover{filter:brightness(1.08)}
+.hero .go:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.hero .play{margin-left:12px;background:none;color:var(--hero-ink);font:inherit;border:1px solid color-mix(in srgb,var(--hero-ink) 45%,transparent);padding:12px 20px;border-radius:999px;cursor:pointer}.hero .play:hover{background:color-mix(in srgb,var(--hero-ink) 14%,transparent)}.hero .sw{position:absolute;top:20px;right:24px;font-size:.95rem;color:var(--hero-ink);text-decoration:none;border:1px solid color-mix(in srgb,var(--hero-ink) 40%,transparent);padding:7px 14px;border-radius:999px;z-index:2}
+.hero .sw:hover{background:color-mix(in srgb,var(--hero-ink) 14%,transparent)}
+main{max-width:1040px;margin:0 auto;padding:56px 24px 40px}
+h2{font:600 1.5rem/1.2 Unbounded,Onest,sans-serif;margin:56px 0 6px;letter-spacing:-.01em}
+h2:first-child{margin-top:0}
+.lead{color:var(--mute);margin:0 0 20px;max-width:46em}
+ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+li{border-bottom:1px solid var(--line)}
+li a{display:grid;grid-template-columns:3rem 1fr auto;gap:8px 16px;align-items:baseline;padding:16px 8px;color:inherit;text-decoration:none;transition:background .15s,padding-left .15s}
+ul.plain li a{grid-template-columns:1fr auto}
+li a:hover{background:var(--row);padding-left:16px}
+.n{font:600 1.05rem Unbounded,Onest,sans-serif;color:var(--acc)}
+.t{font-weight:600;font-size:1.06rem}
+.s{display:block;color:var(--mute);font-size:.95rem;font-weight:400;margin-top:2px}
+.tag{font-size:.85rem;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.both{border-color:var(--sig);color:var(--ink);background:color-mix(in srgb,var(--sig) 22%,transparent)}
+footer{max-width:1040px;margin:0 auto;padding:24px;color:var(--mute);font-size:.9rem;border-top:1px solid var(--line)}
+@media (max-width:620px){li a{grid-template-columns:2.2rem 1fr}ul.plain li a{grid-template-columns:1fr}.tag{grid-column:2;justify-self:start}ul.plain .tag{grid-column:1}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}li a{transition:none}}
+</style></head><body>
+<header class="hero"><canvas id="cv" aria-hidden="true"></canvas>
+<a class="sw" href="index_nature.html">Оптимізація, натхненна природою</a>
+<div class="in"><h1>Нейромережі, які можна розібрати руками</h1><p>Симулятори, у яких мережа вчиться на ваших очах: грає в хрестики-нулики, стріляє з гармати, вчить граматику. Спершу основи, далі приклади різних архітектур.</p><a class="go" href="#start">Почати з першого симулятора</a></div></header>
+<main id="start"><h2>Основний курс</h2><p class="lead">Іде від загальної картини до навчання, перенавчання й уваги. Краще проходити по порядку.</p><ul class=""><li><a href="NN_____total.html" target="_blank" rel="noopener"><span class="n">1</span><span><span class="t">Огляд нейромереж</span><span class="s">Типи нейромереж, архітектури та методи навчання</span></span><span></span></a></li><li><a href="nnSwitch.html" target="_blank" rel="noopener"><span class="n">2</span><span><span class="t">Життєвий цикл нейромережі</span><span class="s">Структура, робота й навчання. Мережа вчиться грати у хрестики-нулики</span></span><span></span></a></li><li><a href="brain.html" target="_blank" rel="noopener"><span class="n">3</span><span><span class="t">Лабораторний стенд</span><span class="s">Активація, багатошаровість, методи навчання. Мережа стріляє з гармати</span></span><span></span></a></li><li><a href="Grammar.html" target="_blank" rel="noopener"><span class="n">4</span><span><span class="t">Архітектура і навчання на розмічених даних</span><span class="s">Критерії вибору. Мережа виводить граматичні правила</span></span><span></span></a></li><li><a href="io.html" target="_blank" rel="noopener"><span class="n">5</span><span><span class="t">Представлення даних</span><span class="s">Входи і виходи нейромережі. Мережа робить прогноз</span></span><span></span></a></li><li><a href="backProp.html" target="_blank" rel="noopener"><span class="n">6</span><span><span class="t">Зворотне поширення помилки</span><span class="s">Як мережа навчається</span></span><span></span></a></li><li><a href="overfitting.html" target="_blank" rel="noopener"><span class="n">7</span><span><span class="t">Недонавчання і перенавчання</span></span><span></span></a></li><li><a href="regularization.html" target="_blank" rel="noopener"><span class="n">8</span><span><span class="t">Регуляризація</span><span class="s">Мережа робить прогноз, частина 2</span></span><span></span></a></li><li><a href="self-attention.html" target="_blank" rel="noopener"><span class="n">9</span><span><span class="t">Механізм уваги в LLM</span><span class="s">Алгебраїчні методи</span></span><span></span></a></li><li><a href="xorSheep.html" target="_blank" rel="noopener"><span class="n">10</span><span><span class="t">Нейроеволюція і правило XOR</span><span class="s">Мережа знаходить правило XOR за допомогою еволюції</span></span><span class="tag both">також в оптимізації</span></a></li></ul><h2>Симулятори різних архітектур</h2><p class="lead">Кожен симулятор самодостатній. Беріть той тип мережі, який цікавить.</p><ul class="plain"><li><a href="vocoder_encoder2.html" target="_blank" rel="noopener"><span><span class="t">Автоенкодер</span></span><span class="tag">Стиснення</span></a></li><li><a href="classifier.html" target="_blank" rel="noopener"><span><span class="t">Класифікатор</span><span class="s">Розпізнавання голосу, softmax</span></span><span class="tag">Звук</span></a></li><li><a href="NNcat5.html" target="_blank" rel="noopener"><span><span class="t">Машинний зір: багатошаровий перцептрон</span></span><span class="tag">Зображення</span></a></li><li><a href="CNN-plus.html" target="_blank" rel="noopener"><span><span class="t">Згорткова нейромережа</span></span><span class="tag">Зображення</span></a></li><li><a href="CNNdeep7.html" target="_blank" rel="noopener"><span><span class="t">Машинний зір: згорткові мережі та глибоке навчання</span></span><span class="tag">Зображення</span></a></li><li><a href="GNN.html" target="_blank" rel="noopener"><span><span class="t">Графові нейромережі</span><span class="s">Виявлення аномальних спільнот</span></span><span class="tag">Графи</span></a></li><li><a href="bottleneck_vs_umap.html" target="_blank" rel="noopener"><span><span class="t">Енкодер і автоенкодер проти UMAP</span><span class="s">Розпізнавання рухів</span></span><span class="tag">Стиснення</span></a></li><li><a href="diffusion.html" target="_blank" rel="noopener"><span><span class="t">Дифузійні моделі</span><span class="s">Генерація зображень</span></span><span class="tag">Генерація</span></a></li><li><a href="microLLM.html" target="_blank" rel="noopener"><span><span class="t">Трансформер у браузері</span><span class="s">Невелика, але справжня мовна модель</span></span><span class="tag">Мова</span></a></li></ul></main>
+<footer>Кожен симулятор відкривається в новому вікні й працює в браузері, без встановлення.</footer>
+<script>
+(()=>{
+const c=document.getElementById('cv'),x=c.getContext('2d');
+let W,H,N=[],C=[],t=0;
+function size(){
+ const r=devicePixelRatio||1;W=c.clientWidth;H=c.clientHeight;c.width=W*r;c.height=H*r;x.setTransform(r,0,0,r,0,0);
+ const L=[4,6,6,3],gx=W>700?W*.52:W*.1,sp=W>700?W*.1:W*.2;
+ N=[];L.forEach((n,i)=>{for(let j=0;j<n;j++)N.push({l:i,x:gx+i*sp,y:H*.12+(j+1)*(H*.5/(n+1)),a:0})});
+ C=[];N.forEach(a=>N.forEach(b=>{if(b.l===a.l+1)C.push({a,b,w:Math.random()*2-1,v:0})}));
+}
+function step(){
+ const p=t%240;
+ if(p===0){C.forEach(k=>{k.w=Math.max(-1,Math.min(1,k.w+(Math.random()-.5)*.6))});}
+ if(p===0||p===24||p===48||p===72){
+  const l=p/24;
+  C.forEach(k=>{if(k.b.l===l)k.v=Math.abs(k.w)*(l?Math.max(.3,k.a.a):1)});
+  N.forEach(n=>{if(n.l===l)n.a=l===3?.25+Math.random()*.2:.35+Math.random()*.65});
+  if(l===3){const o=N.filter(n=>n.l===3);o[Math.random()*o.length|0].a=1}
+ }
+ C.forEach(k=>k.v*=.975);N.forEach(n=>n.a*=.972);t++;
+}
+function draw(){
+ x.clearRect(0,0,W,H);
+ C.forEach(k=>{
+  const pos=k.w>=0,al=.07+.85*k.v;
+  x.strokeStyle=pos?'rgba(127,147,255,'+al+')':'rgba(255,183,3,'+al+')';
+  x.lineWidth=.7+2.4*k.v;x.beginPath();x.moveTo(k.a.x,k.a.y);x.lineTo(k.b.x,k.b.y);x.stroke()});
+ N.forEach(n=>{
+  if(n.a>.02){x.fillStyle='rgba(255,183,3,'+(.22*n.a)+')';x.beginPath();x.arc(n.x,n.y,9+10*n.a,0,7);x.fill()}
+  x.fillStyle='#101a3d';x.strokeStyle='rgba(127,147,255,'+(.55+.45*n.a)+')';x.lineWidth=2;
+  x.beginPath();x.arc(n.x,n.y,9,0,7);x.fill();x.stroke();
+  if(n.a>.02){x.fillStyle='rgba(255,183,3,'+n.a+')';x.beginPath();x.arc(n.x,n.y,6.5,0,7);x.fill()}});
+}
+function frame(){step();draw();requestAnimationFrame(frame)}
+addEventListener('resize',size);size();frame();
+})();
+</script></body></html>

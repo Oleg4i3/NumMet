@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Оптимізація, натхненна природою</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6fb;--ink:#101a3d;--mute:#56608a;--line:#d5daee;--hero:#101a3d;--hero-ink:#f4f6fb;--acc:#2f4bff;--sig:#ffb703;--row:#ffffff}
+@media (prefers-color-scheme:dark){:root:not([data-t]){--bg:#0b1126;--ink:#e8ecfa;--mute:#98a2c9;--line:#242d57;--hero:#070b1b;--row:#121a38;--acc:#7f93ff}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Onest,"Segoe UI",system-ui,sans-serif}
+.hero{position:relative;background:var(--hero);color:var(--hero-ink);overflow:hidden;min-height:min(78vh,560px);display:flex;align-items:flex-end}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero .in{position:relative;width:100%;max-width:1040px;margin:0 auto;padding:72px 24px 48px}
+.hero h1{font:700 clamp(2rem,6vw,4rem)/1.05 Unbounded,Onest,sans-serif;margin:0 0 18px;letter-spacing:-.02em;max-width:14em}
+.hero p{max-width:34em;margin:0 0 26px;font-size:1.1rem;color:color-mix(in srgb,var(--hero-ink) 80%,transparent)}
+.hero .go{display:inline-block;background:var(--sig);color:#101a3d;font-weight:600;text-decoration:none;padding:13px 24px;border-radius:999px}
+.hero .go:hover{filter:brightness(1.08)}
+.hero .go:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.hero .play{margin-left:12px;background:none;color:var(--hero-ink);font:inherit;border:1px solid color-mix(in srgb,var(--hero-ink) 45%,transparent);padding:12px 20px;border-radius:999px;cursor:pointer}.hero .play:hover{background:color-mix(in srgb,var(--hero-ink) 14%,transparent)}.hero .sw{position:absolute;top:20px;right:24px;font-size:.95rem;color:var(--hero-ink);text-decoration:none;border:1px solid color-mix(in srgb,var(--hero-ink) 40%,transparent);padding:7px 14px;border-radius:999px;z-index:2}
+.hero .sw:hover{background:color-mix(in srgb,var(--hero-ink) 14%,transparent)}
+main{max-width:1040px;margin:0 auto;padding:56px 24px 40px}
+h2{font:600 1.5rem/1.2 Unbounded,Onest,sans-serif;margin:56px 0 6px;letter-spacing:-.01em}
+h2:first-child{margin-top:0}
+.lead{color:var(--mute);margin:0 0 20px;max-width:46em}
+ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+li{border-bottom:1px solid var(--line)}
+li a{display:grid;grid-template-columns:3rem 1fr auto;gap:8px 16px;align-items:baseline;padding:16px 8px;color:inherit;text-decoration:none;transition:background .15s,padding-left .15s}
+ul.plain li a{grid-template-columns:1fr auto}
+li a:hover{background:var(--row);padding-left:16px}
+.n{font:600 1.05rem Unbounded,Onest,sans-serif;color:var(--acc)}
+.t{font-weight:600;font-size:1.06rem}
+.s{display:block;color:var(--mute);font-size:.95rem;font-weight:400;margin-top:2px}
+.tag{font-size:.85rem;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.both{border-color:var(--sig);color:var(--ink);background:color-mix(in srgb,var(--sig) 22%,transparent)}
+footer{max-width:1040px;margin:0 auto;padding:24px;color:var(--mute);font-size:.9rem;border-top:1px solid var(--line)}
+@media (max-width:620px){li a{grid-template-columns:2.2rem 1fr}ul.plain li a{grid-template-columns:1fr}.tag{grid-column:2;justify-self:start}ul.plain .tag{grid-column:1}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}li a{transition:none}}
+:root{--bg:#f2f7f3;--ink:#0f2a22;--mute:#506b60;--line:#cfe0d5;--hero:#0f2a22;--acc:#13805f}@media (prefers-color-scheme:dark){:root:not([data-t]){--bg:#0a1a15;--ink:#e6f3ec;--mute:#93b3a4;--line:#1f3a2f;--hero:#06120e;--row:#10261e;--acc:#5fd3a6}}.hero .in{padding-top:280px}</style></head><body>
+<header class="hero"><canvas id="cv" aria-hidden="true"></canvas>
+<a class="sw" href="index_nn4all.html">Нейромережі</a>
+<div class="in"><h1>Алгоритми, які природа винайшла задовго до нас</h1><p>Метал, що остигає. Еволюція, що відбирає найкращих. Мурашки, що торують стежку. Три способи шукати розв’язок там, де звичайні методи заплутуються.</p><a class="go" href="#start">Почати з першого симулятора</a></div></header>
+<main id="start"><h2>Методи, натхненні природою</h2><p class="lead">Кожен метод бере за зразок природний процес. Остання позиція поєднує еволюцію з нейромережами.</p><ul class=""><li><a href="SA.html" target="_blank" rel="noopener"><span class="n">1</span><span><span class="t">Імітація відпалу</span><span class="s">Пошук мінімуму через поступове «охолодження»</span></span><span class="tag">Фізика</span></a></li><li><a href="GAsheeps.html" target="_blank" rel="noopener"><span class="n">2</span><span><span class="t">Еволюційна оптимізація</span><span class="s">Генетичний алгоритм: добір, схрещування, мутація</span></span><span class="tag">Еволюція</span></a></li><li><a href="ACO.html" target="_blank" rel="noopener"><span class="n">3</span><span><span class="t">Алгоритм мурашиної колонії</span><span class="s">Мурашки знаходять найкоротший шлях за феромонами</span></span><span class="tag">Рої</span></a></li><li><a href="xorSheep.html" target="_blank" rel="noopener"><span class="n">4</span><span><span class="t">Нейроеволюція і правило XOR</span><span class="s">Еволюція замість градієнтного спуску: так мережа знаходить правило XOR</span></span><span class="tag both">також в нейромережах</span></a></li></ul></main>
+<footer>Кожен симулятор відкривається в новому вікні й працює в браузері, без встановлення.</footer>
+<script>
+(()=>{
+const c=document.getElementById('cv'),x=c.getContext('2d');
+let rm=false;
+const AMB='#ffb703',PALE='rgba(230,243,236,',GRN='#5fd3a6';
+let W,H,pw,top=70,ph=190,sa,ga,aco;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pan=i=>({x0:i*pw+18,y0:top+8,w:pw-36,h:ph-34});
+/* --- 1. Імітація відпалу --- */
+const fE=u=>0.3*Math.sin(u*17)+0.2*Math.sin(u*43+1)+0.8*(u-0.6)*(u-0.6);
+let fmin=1e9,fmax=-1e9,umin=0;
+for(let k=0;k<=400;k++){const u=k/400,v=fE(u);if(v<fmin){fmin=v;umin=u}if(v>fmax)fmax=v}
+const vE=u=>(fE(u)-fmin)/(fmax-fmin);
+function saInit(){let u;do{u=Math.random()}while(Math.abs(u-umin)<0.3);sa={u,T:1,hold:0}}
+function saStep(){
+ if(sa.hold>0){if(--sa.hold===0)saInit();return}
+ for(let k=0;k<2;k++){
+  const u2=clamp(sa.u+rnd(-1,1)*(0.03+0.3*sa.T),0,1),d=vE(u2)-vE(sa.u);
+  if(d<0||Math.random()<Math.exp(-d/(sa.T*0.25+0.003)))sa.u=u2}
+ sa.T*=0.9935;if(sa.T<0.04){sa.T=0.04;sa.hold=90}
+}
+function saDraw(){
+ const p=pan(0),Y=u=>p.y0+p.h*(0.9-0.8*vE(u));
+ x.strokeStyle=PALE+'.5)';x.lineWidth=1.5;x.beginPath();
+ for(let k=0;k<=70;k++){const u=k/70;k?x.lineTo(p.x0+u*p.w,Y(u)):x.moveTo(p.x0,Y(u))}x.stroke();
+ x.fillStyle=AMB;x.beginPath();x.arc(p.x0+sa.u*p.w,Y(sa.u)-5,4+3*sa.T,0,7);x.fill();
+ x.strokeStyle='rgba(255,183,3,.65)';x.lineWidth=3;x.beginPath();
+ x.moveTo(p.x0+p.w+9,p.y0+p.h);x.lineTo(p.x0+p.w+9,p.y0+p.h*(1-sa.T));x.stroke();
+}
+/* --- 2. Еволюція --- */
+function gaInit(){
+ const p=pan(1);
+ ga={t:{x:rnd(p.x0+p.w*.2,p.x0+p.w*.8),y:rnd(p.y0+p.h*.2,p.y0+p.h*.8)},gen:0,tick:0,hold:0,pop:[]};
+ for(let i=0;i<22;i++){const px=rnd(p.x0,p.x0+p.w),py=rnd(p.y0,p.y0+p.h);ga.pop.push({x:px,y:py,nx:px,ny:py})}
+}
+function gaStep(){
+ const p=pan(1),d=a=>Math.hypot(a.nx-ga.t.x,a.ny-ga.t.y);
+ ga.pop.forEach(a=>{a.x+=(a.nx-a.x)*.2;a.y+=(a.ny-a.y)*.2});
+ if(ga.hold>0){if(--ga.hold===0)gaInit();return}
+ if(++ga.tick<28)return;
+ ga.tick=0;ga.gen++;
+ ga.pop.sort((a,b)=>d(a)-d(b));
+ const sg=Math.max(3,p.h*.22*Math.pow(.8,ga.gen)),par=ga.pop.slice(0,6),g=()=>(Math.random()+Math.random()+Math.random()-1.5)*2*sg;
+ ga.pop.forEach((a,i)=>{if(i<6)return;const q=par[Math.random()*6|0];
+  a.nx=clamp(q.nx+g(),p.x0,p.x0+p.w);a.ny=clamp(q.ny+g(),p.y0,p.y0+p.h)});
+ ga.pop.sort((a,b)=>d(a)-d(b));
+ if(d(ga.pop[0])<5||ga.gen>=14)ga.hold=70;
+}
+function gaDraw(){
+ x.strokeStyle=GRN;x.lineWidth=1.5;x.beginPath();x.arc(ga.t.x,ga.t.y,8,0,7);x.stroke();
+ x.fillStyle=GRN;x.beginPath();x.arc(ga.t.x,ga.t.y,2,0,7);x.fill();
+ ga.pop.forEach((a,i)=>{x.fillStyle=i===0?AMB:PALE+'.6)';x.beginPath();x.arc(a.x,a.y,i===0?4:3,0,7);x.fill()});
+}
+/* --- 3. Мурашина колонія --- */
+function bez(i,s){
+ const a=aco.nest,b=aco.food,cx=(a.x+b.x)/2,cy=(a.y+b.y)/2+aco.offs[i]*2,u=1-s;
+ return{x:u*u*a.x+2*u*s*cx+s*s*b.x,y:u*u*a.y+2*u*s*cy+s*s*b.y};
+}
+function acoInit(){
+ const p=pan(2),my=p.y0+p.h/2;
+ aco={nest:{x:p.x0+6,y:my},food:{x:p.x0+p.w-6,y:my},offs:[-.5,0,.5].map(k=>k*p.h),tau:[1,1,1],ants:[],tick:0,age:0,obs:0,len:[]};
+ for(let i=0;i<3;i++){let L=0,pr=bez(i,0);for(let k=1;k<=20;k++){const q=bez(i,k/20);L+=Math.hypot(q.x-pr.x,q.y-pr.y);pr=q}aco.len.push(L)}
+}
+function acoStep(){
+ aco.age++;
+ if(!aco.obs&&aco.age>250&&aco.tau[1]/(aco.tau[0]+aco.tau[1]+aco.tau[2])>.55){
+  aco.obs=1;aco.ants=aco.ants.filter(a=>!(a.i===1&&a.s>.5))}
+ if(!aco.obs&&aco.age>900){acoInit();return}
+ if(aco.obs&&++aco.obs>1100){acoInit();return}
+ if(++aco.tick%9===0&&aco.ants.length<26){
+  const w=aco.tau.map(t=>t*t+.02),r=Math.random()*(w[0]+w[1]+w[2]);
+  aco.ants.push({i:r<w[0]?0:r<w[0]+w[1]?1:2,s:0,d:1,dead:false})}
+ aco.ants=aco.ants.filter(a=>{
+  a.s+=a.d*3/aco.len[a.i];
+  if(aco.obs&&a.i===1&&a.d===1&&a.s>=.46){a.s=.46;a.d=-1;a.dead=true}
+  if(a.d===1&&a.s>=1){a.s=1;a.d=-1}
+  else if(a.d===-1&&a.s<=0){if(!a.dead)aco.tau[a.i]+=108000/(aco.len[a.i]*aco.len[a.i]);return false}
+  return true});
+ aco.tau=aco.tau.map((t,i)=>{const b=aco.obs&&i===1;return Math.max(b?.02:.2,t*(b?.978:.999))});
+}
+function acoDraw(){
+ const mx=Math.max(...aco.tau);
+ for(let i=0;i<3;i++){
+  const k=aco.tau[i]/mx;
+  x.strokeStyle='rgba(95,211,166,'+(.15+.65*k)+')';x.lineWidth=1+5*k;x.beginPath();
+  for(let j=0;j<=24;j++){const q=bez(i,j/24);j?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y)}x.stroke()}
+ if(aco.obs){const d=Math.min(1,aco.obs/18),q=bez(1,.5),R=[1,.85,1.1,.9,1.05,.88];
+  x.fillStyle='rgba(70,92,83,'+d+')';x.strokeStyle=PALE+(.85*d)+')';x.lineWidth=1.5;x.beginPath();
+  R.forEach((r,k)=>{const an=k*Math.PI/3,px=q.x+Math.cos(an)*10*r,py=q.y-(1-d)*34+Math.sin(an)*10*r;k?x.lineTo(px,py):x.moveTo(px,py)});
+  x.closePath();x.fill();x.stroke()}
+ x.fillStyle=PALE+'.9)';x.beginPath();x.arc(aco.nest.x,aco.nest.y,5,0,7);x.fill();
+ x.fillStyle=GRN;x.beginPath();x.arc(aco.food.x,aco.food.y,5,0,7);x.fill();
+ x.fillStyle=AMB;aco.ants.forEach(a=>{const q=bez(a.i,a.s);x.beginPath();x.arc(q.x,q.y,2.4,0,7);x.fill()});
+}
+/* --- загальне --- */
+function draw(){
+ x.clearRect(0,0,W,H);
+ x.strokeStyle=PALE+'.14)';x.lineWidth=1;
+ for(let i=1;i<3;i++){x.beginPath();x.moveTo(i*pw,top);x.lineTo(i*pw,top+ph);x.stroke()}
+ saDraw();gaDraw();acoDraw();
+ const L=W<600?['Відпал','Еволюція','Мурахи']:['Імітація відпалу','Еволюція','Мурашина колонія'];
+ x.font='600 '+(W<600?12:13)+'px Onest,sans-serif';x.textAlign='center';x.fillStyle=PALE+'.8)';
+ L.forEach((t,i)=>x.fillText(t,i*pw+pw/2,top+ph-8));
+}
+function update(){saStep();gaStep();acoStep()}
+function size(){
+ const r=devicePixelRatio||1;W=c.clientWidth;H=c.clientHeight;pw=W/3;
+ c.width=W*r;c.height=H*r;x.setTransform(r,0,0,r,0,0);
+ saInit();gaInit();acoInit();
+ if(rm){for(let i=0;i<500;i++)update();draw()}
+}
+function frame(){update();draw();requestAnimationFrame(frame)}
+addEventListener('resize',size);size();
+frame();
+})();
+</script></body></html>
