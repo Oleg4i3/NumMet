@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSO проти градієнта: оптимізація форми ферми</title>
+<style>
+:root{--bg:#f7f6f2;--fg:#1d2330;--mut:#5b6475;--card:#fff;--line:#d9d6cc;--ac:#1f5fa8;--bad:#b3261e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 Georgia,'Times New Roman',serif;padding:14px;max-width:1100px;margin:auto}
+h1{font-size:21px;margin:4px 0 2px}p.s{margin:0 0 10px;color:var(--mut);font-size:14px}
+.ctl{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:14px}
+.ctl label{display:flex;gap:6px;align-items:center}button,select{font:inherit;padding:4px 10px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac)}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px}.card h3{margin:0 0 4px;font-size:14px}
+table{border-collapse:collapse;margin:4px 0}td,th{border:1px solid var(--line);padding:3px 8px;text-align:right}th{background:#efece4}td:first-child{text-align:left}details{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin-top:10px}summary{cursor:pointer;font-weight:bold}.f{font-style:italic;font-family:'Times New Roman',serif;font-size:16px}.eq{margin:6px 0 6px 18px}
+canvas{width:100%;height:auto;display:block}.m{font:13px/1.4 monospace;color:var(--mut)}.n{font-size:13px;color:var(--mut);margin-top:8px}
+@media(max-width:700px){.g{grid-template-columns:1fr}}
+
+.jbox{background:#fff;border:1px solid var(--line);border-left:5px solid var(--ac);border-radius:6px;padding:8px 14px;margin:8px 0 10px}
+.jbox h2,#th h4{margin:10px 0 4px;font-size:17px}#th h4{font-size:15px;color:var(--ac)}
+.jbox p,#th p,#th li{margin:5px 0}#th ul{margin:4px 0 4px 18px;padding:0}
+td.l,th.l{text-align:left}.k{background:#eef3fa;border-radius:4px;padding:6px 10px;margin:6px 0}
+</style></head><body>
+<h1>PSO проти градієнтного спуску: форма верхнього пояса ферми</h1>
+<p class="s">Ферма Warren (за замовчуванням 8 панелей), рівномірне навантаження. Змінні: висоти 8 вузлів верхнього пояса, усі одного знака (арка над проїздом або «риба» під ним). Бюджет обчислень однаковий для обох методів.</p>
+<section class="jbox">
+<h2>Що ми мінімізуємо: цільова функція J</h2>
+<p><b>Задача.</b> Спроєктувати міст-ферму: підібрати <i>форму верхнього пояса</i>, тобто висоти вузлів <span class="f">h<sub>1</sub>, …, h<sub>n</sub></span> над проїздом (арка) або під ним («риба»). Нижній пояс лежить на проїзді й не змінюється.</p>
+<p><b>Цільова функція J</b> — одне число, яке оцінює, наскільки «погана» (дорога) конкретна форма. Тут J — це <b>витрата матеріалу</b>, тобто загальний обʼєм усіх стрижнів в умовних одиницях. Менше J означає легший і дешевший міст.</p>
+<div class="eq f">J(h) = Σ<sub>k</sub> A<sub>k</sub> · l<sub>k</sub> + 0,004 · N</div>
+<p>де <span class="f">l<sub>k</sub></span> — довжина k-го стрижня (вона залежить від висот h), <span class="f">A<sub>k</sub></span> — площа перерізу, яку потрібно дати цьому стрижню, щоб він витримав навантаження, <span class="f">N</span> — кількість вузлів (невеликий «штраф» за кожен вузол).</p>
+<p><b>Як програма рахує J для однієї форми:</b></p>
+<ul><li>з рівнянь рівноваги вузлів знаходить зусилля <span class="f">T<sub>k</sub></span> у кожному стрижні (розтяг чи стиск);</li>
+<li>розтягнутому стрижню потрібна площа <span class="f">A = |T|/σ</span>; стиснутому — більша, бо він ще й може втратити стійкість (як довга тонка лінійка, що вигинається): <span class="f">A = |T| + l·√|T| / 0,2</span> (тут напруження σ = 1 в нормованих одиницях);</li>
+<li>площа округлюється <i>вгору</i> до найближчого значення сортаменту (готових профілів із кроком <span class="f">q</span>, повзунок «Крок сортаменту»);</li>
+<li>обʼєми <span class="f">A<sub>k</sub>·l<sub>k</sub></span> додаються — це і є J.</li></ul>
+<p><b>Мета оптимізації:</b> знайти такі висоти <span class="f">h</span>, за яких J найменше. Важливо, що ми не маємо формули J(h): можемо лише підставити форму й отримати число («чорна скринька»). Кожне таке обчислення — це одна «витрата» з бюджету.</p>
+<p class="n">Нова тема? Прочитайте <a href="#th" onclick="document.getElementById('th').open=true">довідку внизу</a>: там пояснено PSO, градієнтний пошук і чому вони поводяться по-різному.</p>
+</section>
+<div class="ctl">
+<label>Пресет <select id="pre"><option value="a">Сходинки ×1,35</option><option value="b">Сходинки ×1,8</option><option value="c">Гладка (контроль)</option><option value="d">Градієнт стартує лише в «рибі»</option></select></label>
+<label>Крок сортаменту ×<input id="rat" type="range" min="1" max="2" step="0.05" value="1.35"><b id="ratv">1.35</b></label>
+<label><input id="sgn" type="checkbox" checked> Випадковий старт (арка/риба)</label>
+<label><input id="sym" type="checkbox" checked> Симетричний міст</label><label>Панелей <select id="np"><option>4</option><option>6</option><option selected>8</option><option>12</option><option>16</option></select></label><label>Проліт L <select id="sp"><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label><label>Бюджет <select id="bud"><option>2000</option><option selected>4000</option><option>8000</option></select></label>
+<label>Seed <input id="seed" type="number" value="3" style="width:56px"></label>
+<button id="go" class="p">Старт</button><button id="rst">Скинути</button><button id="b10">Середнє з 10 сідів</button></div>
+<div class="g">
+<div class="card"><h3>PSO: найкраща частинка</h3><canvas id="c1" width="520" height="300"></canvas><div class="m" id="i1"></div></div>
+<div class="card"><h3>Градієнт (мультистарт): найкращий розв'язок</h3><canvas id="c2" width="520" height="300"></canvas><div class="m" id="i2"></div></div>
+<div class="card"><h3>Найкраще J проти кількості обчислень</h3><canvas id="c3" width="520" height="260"></canvas></div>
+<div class="card"><h3>Статистика: середнє з 10 сідів</h3><div id="bo" class="n" style="margin-top:2px">Натисніть «Середнє з 10 сідів»: для сідів 1–10 порахуємо результат кожного методу при тому самому бюджеті.</div></div></div>
+<p class="n">Пунктир на правому мосту показує поточну пробу градієнта: старти випадкові по кожному вузлу, тому проба спочатку зубчаста і згладжується в ході спуску. Синій колір стрижня означає розтяг, червоний стиск, сірий стрижень без зусилля (біля оптимальної арки розкоси майже розвантажені), товщина пропорційна площі перерізу. Біля h = 0 ферма стає механізмом і J → ∞: це бар'єр між схемами «арка над проїздом» і «підвіска під ним».</p>
+<details id="th"><summary>Довідка: цільова функція, градієнтний пошук і PSO (для початківців)</summary>
+
+<h4>1. Образ «ландшафту»</h4>
+<p>Уявіть гори, де <b>висота місцевості — це J</b>, а координати на карті — це висоти вузлів <span class="f">h</span>. Шукаємо найглибшу долину (найменше J). Складність: ми не бачимо всієї карти, а лише ту точку, в яку «поставили» форму, і можемо спитати «яке тут J?». Для 8 змінних такий ландшафт 8-вимірний, тож його не намалювати.</p>
+<p>У нашій задачі ландшафт важкий: по-перше, він <b>ступінчастий</b> (через округлення до сортаменту утворюються плоскі «сходинки»); по-друге, при <span class="f">h → 0</span> ферма стає механізмом і <span class="f">J → ∞</span> — це «стіна» між арками (<span class="f">h &gt; 0</span>) і «рибами» (<span class="f">h &lt; 0</span>); по-третє, є багато дрібних «ямок» — локальних мінімумів.</p>
+
+<h4>2. Градієнтний пошук («кулька, що котиться вниз»)</h4>
+<p>Беремо стартову точку, дивимось, куди ландшафт йде вниз найкрутіше, і робимо крок туди:</p>
+<div class="eq f">x ← x − α · ∇J(x)</div>
+<p>де <span class="f">∇J</span> (градієнт) — вектор, який показує, куди J зростає найшвидше (мінус — куди спадає), а <span class="f">α</span> — довжина кроку. Занадто великий α — «перестрибнемо» долину, занадто малий — повзтимемо дуже довго. Градієнт оцінюється <i>скінченними різницями</i>: трохи зсуваємо одну змінну на ε й дивимось, як змінилось J:</p>
+<div class="eq f">∂J/∂h<sub>i</sub> ≈ [J(h + ε·e<sub>i</sub>) − J(h)] / ε</div>
+<p>Це коштує окремого обчислення J на кожну змінну, тобто <i>n</i> обчислень на кожен крок. Стохастичний варіант (SPSA) зсуває всі змінні одразу у випадковому напрямку Δ (кожне Δ<sub>i</sub> = ±1) і оцінює нахил усього за двома обчисленнями: <span class="f">ĝ ≈ [J(x + cΔ) − J(x − cΔ)] / (2c)</span> (напрямок спуску — вздовж −ĝ·Δ; більший c краще «згладжує» сходинки, але грубіше).</p>
+<div class="k"><b>Чому застрягає в локальному мінімумі.</b> На дні будь-якої ямки нахил дорівнює нулю — і метод «вирішує», що прийшов. Він не знає, що за пагорбом є глибша долина: бачить тільки місцевий нахил. Куди скотиться кулька, залежить від стартової точки. Тому роблять <b>мультистарт</b> (багато кульок із різних місць), але це лише збільшує шанс, а не гарантує успіх. У нашій задачі так само: градієнт, що стартував у зоні «риби», через «стіну» в зону арки не потрапить.</div>
+<div class="k"><b>Чому ламається на негладких функціях.</b> Градієнт має сенс, коли функція плавна. Тут це не так: (1) на сходинці нахил дорівнює 0 в усіх напрямках — кулька стоїть на «сходинці» й не знає, куди йти, хоча нижче є ще сходинки; (2) на краю сходинки J стрибком змінюється, тож різниця <span class="f">ΔJ/ε</span> дає величезне або випадкове число, що залежить від ε, а не від реального нахилу; (3) у точках зламу (наприклад, коли розкіс змінює розтяг на стиск, або √ при нульовому стиску) похідної просто не існує. Тому спуск або стоїть на місці, або стрибає навмання. У картці «Градієнт» це видно за тим, що спуски швидко обриваються й починаються заново.</div>
+
+<h4>3. PSO — метод рою частинок</h4>
+<p><b>Ідея.</b> Зграя птахів шукає їжу: кожен птах пам’ятає, де сам знаходив найкраще, і бачить, де найкраще знайшла вся зграя. Тут «птах» — це <b>частинка</b>: одна пробна форма моста, тобто набір висот <span class="f">x<sub>i</sub> = (h<sub>1</sub>, …, h<sub>n</sub>)</span>. Всього 24 частинки. Кожна має положення <span class="f">x<sub>i</sub></span>, швидкість <span class="f">v<sub>i</sub></span>, власний найкращий результат <span class="f">p<sub>i</sub></span> (де вона сама бачила найменше J) і спільний найкращий результат рою <span class="f">g</span>. На кожній ітерації:</p>
+<div class="eq f">v<sub>i</sub> ← w·v<sub>i</sub> + c<sub>1</sub>·r<sub>1</sub>·(p<sub>i</sub> − x<sub>i</sub>) + c<sub>2</sub>·r<sub>2</sub>·(g − x<sub>i</sub>)</div>
+<div class="eq f">x<sub>i</sub> ← x<sub>i</sub> + v<sub>i</sub></div>
+<p>Перша формула — «куди й як швидко рухатись», друга — сам рух. У швидкості три доданки:</p>
+<ul><li><b>w·v</b> — <i>інерція</i>: частинка прагне летіти туди, куди летіла;</li>
+<li><b>c<sub>1</sub>r<sub>1</sub>(p<sub>i</sub> − x<sub>i</sub>)</b> — <i>власна пам’ять</i>: тяжіння до місця, де цій частинці було найкраще;</li>
+<li><b>c<sub>2</sub>r<sub>2</sub>(g − x<sub>i</sub>)</b> — <i>колектив</i>: тяжіння до найкращого місця всього рою.</li></ul>
+<p><span class="f">r<sub>1</sub>, r<sub>2</sub></span> — випадкові числа від 0 до 1 (свої для кожної частинки й змінної). Без них частинки летіли б по прямих, а так рух «тремтить», і рій краще обстежує простір. У симуляторі <span class="f">w = 0,72</span>, <span class="f">c<sub>1</sub> = c<sub>2</sub> = 1,5</span> (зафіксовані).</p>
+<table><tr><th class="l">Коефіцієнт</th><th class="l">Що відповідає</th><th class="l">Якщо збільшити</th><th class="l">Якщо зменшити</th></tr>
+<tr><td class="l">w</td><td class="l">інерція</td><td class="l">частинки розганяються, пошук ширший, але можуть пролітати повз мінімум; при w ≳ 1 рій зазвичай розбігається</td><td class="l">рій швидко гальмує й стискається, ризик зупинитися завчасно</td></tr>
+<tr><td class="l">c<sub>1</sub></td><td class="l">довіра до себе</td><td class="l">рій різноманітніший, повільніше збігається, менше шансів застрягти</td><td class="l">частинки слабко пам’ятають власні знахідки</td></tr>
+<tr><td class="l">c<sub>2</sub></td><td class="l">довіра до колективу</td><td class="l">швидка збіжність, але ризик усім зібратися в одній (можливо, поганій) ямці</td><td class="l">частинки шукають майже самостійно, повільніше</td></tr></table>
+<p><b>Як поводиться рій.</b> На початку частинки розкидані по всій області: це <i>дослідження</i>, рій «роздивляється» ландшафт. Коли хтось знаходить кращу форму, <span class="f">g</span> оновлюється, і всі частинки відчувають тяжіння до нового лідера. Рій поступово <i>стискається</i> навколо найкращих знахідок: це <i>уточнення</i>. Баланс між цими двома фазами якраз і задають w, c<sub>1</sub>, c<sub>2</sub>. Якщо рій стиснувся надто рано, навколо локального мінімуму, він там і залишиться: PSO теж не гарантує знайти найглибшу долину, просто частіше за градієнт знаходить хорошу.</p>
+<p><b>Чому PSO не заважають сходинки.</b> Йому потрібні лише <i>порівняння</i> («J цієї форми менше, ніж запам’ятоване?»), а не нахил. Сходинка для нього просто ще одне значення. Крім того, рій розкиданий по області, тому одразу «чує» кілька долин. У цьому симуляторі рій поділений на два підрої по 12 частинок: одні шукають серед арок, інші серед «риб»; у кожного підрою свій <span class="f">g</span>, а в картці показано кращу з двох форм. Частинки не виходять за допустимі межі висот.</p>
+<p><b>Ціна.</b> Одна ітерація рою — 24 обчислення J (по одному на частинку), а один крок градієнта — щонайменше n+1. Бюджет обчислень для обох методів однаковий, тому порівняння чесне.</p>
+
+<p><b>Чесний старт.</b> Усі методи починають з однакового набору з 24 початкових форм (він залежить від seed). Рій розставляє по них свої частинки, а градієнт по черзі запускає спуски з цих самих точок (коли вони закінчаться, бере нові випадкові). Початкові обчислення J теж однаково враховані в бюджеті. Виняток — пресет «Градієнт стартує лише в „рибі“»: там градієнт навмисно бере лише ті точки з набору, що лежать у зоні «риби».</p>
+
+<h4>4. Seed і мультистарт</h4>
+<p><b>Seed</b> — початкове число генератора псевдовипадкових чисел. Воно визначає всі «жереби»: початкові положення частинок, <span class="f">r<sub>1</sub>, r<sub>2</sub></span>, стартові точки градієнта. Той самий seed дає той самий результат, інший — інший «забіг» того самого алгоритму. <b>Мультистарт</b> — це частина градієнтного методу: кілька спусків із різних точок і вибір кращого, <span class="f">J* = min<sub>j≤K</sub> J(x<sub>j</sub>*)</span>. Якщо «басейн» кращого мінімуму займає частку <span class="f">p</span> області, шанс потрапити в нього за K стартів дорівнює <span class="f">1 − (1 − p)<sup>K</sup></span>. Одного запуску замало для висновків: тому є кнопка «Середнє з 10 сідів».</p>
+
+<h4>5. Що спробувати в симуляторі</h4>
+<ul><li><b>«Гладка (контроль)»</b> (крок сортаменту 1,00): сходинок немає. Градієнт тут у своїй стихії й може не поступатися PSO.</li>
+<li><b>«Сходинки ×1,35» → «×1,8»</b>: чим ширші сходинки, тим частіше градієнт «стоїть» на плато й перезапускається.</li>
+<li><b>«Градієнт стартує лише в „рибі“»</b>: метод не здатний перейти «стіну» й ніколи не побачить арок.</li>
+<li><b>«Середнє з 10 сідів»</b>: порівняйте медіану й розкид трьох методів (PSO, градієнт, SPSA). Висновок про переваги має спиратися на таку статистику, а не на один запуск.</li></ul>
+
+<h4>6. Це навчальна модель</h4>
+<p>Цей симулятор спеціально спрощений: у ньому лише <b>8 змінних</b> (висоти вузлів), одне навантаження й єдина мета J — обʼєм матеріалу. У справжньому проєктуванні змінних буде десятки (висоти, площі й типи профілів, положення опор, кількість панелей тощо), а до них додаються <b>десятки обмежень</b>: допустимі напруження й прогини, стійкість стиснутих стрижнів, власні частоти, кілька комбінацій навантажень (вітер, сніг, рухоме навантаження), габарити, вузли й зварні шви, вартість виготовлення. Кожне обчислення J у такій задачі може бути набагато дорожчим, тому бюджет обчислень стає критичним, а ландшафт — ще більш заплутаним, з великою кількістю локальних мінімумів. Отже, висновки симулятора («PSO краще справляється зі сходинками, градієнт — з гладкими задачами») показують принцип, а не готовий рецепт: на реальній задачі методи обирають і налаштовують окремо, а результат перевіряють розрахунком.</p>
+</details>
+<script>
+// CORE_START
+let n=8,nb,N,m,bx,tx,mem;
+function build(k){n=k;nb=n+1;N=2*n+1;m=4*n-1;bx=[];tx=[];mem=[];
+for(let i=0;i<nb;i++)bx.push(i/n);for(let i=0;i<n;i++)tx.push((i+.5)/n);
+for(let i=0;i<n;i++)mem.push([i,i+1]);for(let i=0;i<n-1;i++)mem.push([nb+i,nb+i+1]);
+for(let i=0;i<n;i++){mem.push([i,nb+i]);mem.push([i+1,nb+i]);}gauss0();}
+const S={ratio:1.35,rnd:true,sym:true,c:0.2,L:1};
+function sm(x){return S.sym?x.map((v,i)=>(v+x[n-1-i])/2):x;}
+function lim(s){return s<0?[-0.4,-0.02]:[0.02,0.4];}
+function gauss(A,K){for(let c=0;c<K;c++){let p=c;for(let r=c+1;r<K;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;
+if(Math.abs(A[p][c])<1e-9)return null;[A[c],A[p]]=[A[p],A[c]];
+for(let r=c+1;r<K;r++){const f=A[r][c]/A[c][c];if(f)for(let k=c;k<=K;k++)A[r][k]-=f*A[c][k];}}
+const x=new Array(K);for(let r=K-1;r>=0;r--){let s=A[r][K];for(let k=r+1;k<K;k++)s-=A[r][k]*x[k];x[r]=s/A[r][r];}return x;}
+let SG=1;
+function analyse(h){const X=bx.concat(tx).map(v=>v*S.L),Y=new Array(nb).fill(0).concat(h.map(v=>v*S.L)),K=2*N;
+const A=[];for(let i=0;i<K;i++)A.push(new Array(K+1).fill(0));const l=[];
+mem.forEach(([a,b],k)=>{const dx=X[b]-X[a],dy=Y[b]-Y[a],L=Math.hypot(dx,dy);l.push(L);
+A[2*a][k]+=dx/L;A[2*a+1][k]+=dy/L;A[2*b][k]-=dx/L;A[2*b+1][k]-=dy/L;});
+A[1][m]=1;A[2*(nb-1)+1][m+1]=1;A[0][m+2]=1;
+for(let i=0;i<nb;i++)A[2*i+1][K]=S.L*((i>0&&i<n)?1/n:.5/n);
+const F=gauss(A,K);if(!F)return{J:50*S.L*S.L};
+const Ar=[];let J=0.004*N;
+for(let k=0;k<m;k++){const T=SG*F[k],t=Math.max(T,0),c=Math.max(-T,0);
+let a=t+c+l[k]*Math.sqrt(c)/S.c;
+if(S.ratio>1.001&&a>0)a=0.03*Math.pow(S.ratio,Math.max(0,Math.ceil(Math.log(a/0.03)/Math.log(S.ratio)-1e-12)));
+Ar.push(a);J+=a*l[k];}
+const cap=50*S.L*S.L;if(!isFinite(J))J=cap;return{J:Math.min(J,cap),F,Ar,l,mx:Math.max(1e-12,...F.slice(0,m).map(Math.abs))};}
+function gauss0(){const sv=S.ratio;S.ratio=1;SG=1;const o=analyse(new Array(n).fill(.15));SG=o.F[n>>1]>0?1:-1;S.ratio=sv;return 1;}
+build(8);
+function Jf(x,s){const[l,h]=lim(s);return analyse(sm(x).map(v=>Math.min(h,Math.max(l,v)))).J;}
+function rng(s){let a=s>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function mkPSO(R){const P=24,o={R,x:[],v:[],pb:[],pf:[],sg:[],gb:{},gf:{},ev:0,hist:[]};
+for(let i=0;i<P;i++){const s=i%2?1:-1,[lo,hi]=lim(s),x=Array.from({length:n},()=>lo+R()*(hi-lo));
+o.sg.push(s);o.x.push(x);o.v.push(new Array(n).fill(0));const f=Jf(x,s);o.ev++;o.pb.push(x.slice());o.pf.push(f);
+if(!(s in o.gf)||f<o.gf[s]){o.gf[s]=f;o.gb[s]=x.slice();}}
+bestP(o);o.hist.push([o.ev,o.f]);return o;}
+function bestP(o){const s=o.gf[1]<=o.gf[-1]?1:-1;o.f=o.gf[s];o.bx=sm(o.gb[s]);o.s=s;}
+function stepPSO(o){for(let i=0;i<o.x.length;i++){const s=o.sg[i],[lo,hi]=lim(s),g=o.gb[s];
+for(let d=0;d<n;d++){o.v[i][d]=.72*o.v[i][d]+1.5*o.R()*(o.pb[i][d]-o.x[i][d])+1.5*o.R()*(g[d]-o.x[i][d]);o.x[i][d]=Math.min(hi,Math.max(lo,o.x[i][d]+o.v[i][d]));}
+const f=Jf(o.x[i],s);o.ev++;if(f<o.pf[i]){o.pf[i]=f;o.pb[i]=o.x[i].slice();if(f<o.gf[s]){o.gf[s]=f;o.gb[s]=o.x[i].slice();}}}
+bestP(o);o.hist.push([o.ev,o.f]);}
+function mkGD(R,init){const g={R,ev:0,best:1e9,bx:null,x:null,f:0,s:-1,runs:0,stall:0,a:0.03,hist:[],h2:[],q:[]};
+if(init){g.q=init.filter(p=>S.rnd||p.s<0).map(p=>({x:p.x.slice(),s:p.s,f:Jf(p.x,p.s)}));g.ev+=g.q.length;g.q.forEach(p=>{if(p.f<g.best){g.best=p.f;g.bx=sm(p.x).slice();}});}
+gstart(g);g.hist.push([g.ev,g.best]);g.h2.push([g.ev,g.f]);return g;}
+function gstart(g){const p=g.q&&g.q.shift();if(p){g.s=p.s;g.x=p.x;g.f=p.f;}else{g.s=S.rnd?(g.R()<.5?-1:1):-1;const[lo,hi]=lim(g.s);g.x=Array.from({length:n},()=>lo+g.R()*(hi-lo));g.f=Jf(g.x,g.s);g.ev++;}g.runs++;g.stall=0;g.a=0.03;upd(g);}
+function upd(g){if(g.f<g.best){g.best=g.f;g.bx=sm(g.x).slice();}}
+function stepGD(g,B){const[lo,hi]=lim(g.s),e=0.002,gr=[];
+for(let d=0;d<n;d++){const dd=g.x[d]+e<=hi?e:-e,y=g.x.slice();y[d]+=dd;gr.push((Jf(y,g.s)-g.f)/dd);g.ev++;}
+const nr=Math.hypot(...gr);let ok=false;
+if(nr>1e-9)for(let t=0;t<8&&g.ev<B;t++){const y=g.x.map((v,i)=>Math.min(hi,Math.max(lo,v-g.a*gr[i]/nr)));const f=Jf(y,g.s);g.ev++;
+if(f<g.f-1e-10){g.x=y;g.f=f;ok=true;g.a=Math.min(0.2,g.a*1.5);g.stall=0;break;}g.a/=3;}
+upd(g);if(!ok){g.a=0.03;if(++g.stall>=2&&g.ev<B)gstart(g);}
+g.hist.push([g.ev,g.best]);g.h2.push([g.ev,g.f]);}
+function runSP(R,B,cc,init){cc=cc||0.03;let ev=0,best=1e9,bb=null;const q=(init||[]).map(p=>({x:p.x.slice(),s:p.s}));q.forEach(p=>{const f=Jf(p.x,p.s);ev++;if(f<best){best=f;bb=p.x.slice();}});
+while(ev+3<=B){const p=q.shift(),s=p?p.s:(R()<.5?-1:1),[lo,hi]=lim(s);let x=p?p.x:Array.from({length:n},()=>lo+R()*(hi-lo));
+for(let k=1;k<=60&&ev+3<=B;k++){const d=x.map(()=>R()<.5?-1:1);
+const fp=Jf(x.map((v,i)=>v+cc*d[i]),s),fm=Jf(x.map((v,i)=>v-cc*d[i]),s);ev+=2;
+const g=d.map(v=>(fp-fm)/(2*cc)*v),nr=Math.hypot(...g)||1,a=0.05/Math.pow(1+k/30,0.6);
+x=x.map((v,i)=>Math.min(hi,Math.max(lo,v-a*g[i]/nr)));const f=Jf(x,s);ev++;if(f<best){best=f;bb=x.slice();}}}
+return{f:best,bx:sm(bb)};}
+// CORE_END
+const $=id=>document.getElementById(id),cv=[1,2,3].map(i=>$('c'+i)),cx=cv.map(c=>c.getContext('2d'));
+let pso,gd,run=false,dp=new Array(n).fill(.15),dg=new Array(n).fill(.15),B=4000;
+function initPts(o){return o.x.map((x,i)=>({x:x.slice(),s:o.sg[i]}));}
+function setPre(){const p=$('pre').value;const t={a:[1.35,true],b:[1.8,true],c:[1,true],d:[1.35,false]}[p];$('rat').value=t[0];$('sgn').checked=t[1];reset();}
+function reset(){run=false;build(+$('np').value);S.L=+$('sp').value;$('go').textContent='Старт';S.ratio=+$('rat').value;S.rnd=$('sgn').checked;S.sym=$('sym').checked;$('ratv').textContent=S.ratio.toFixed(2);B=+$('bud').value;
+const s=+$('seed').value;pso=mkPSO(rng(s*7919));gd=mkGD(rng(s*104729+5),initPts(pso));dp=pso.bx.slice();dg=gd.bx.slice();draw();}
+function pier(c,x,y){c.save();c.fillStyle='#b8694d';c.fillRect(x-24,y+7,48,76);c.strokeStyle='#efe3d8';c.lineWidth=1;
+for(let r=0;r<6;r++){const yy=y+7+r*12.7;c.beginPath();c.moveTo(x-24,yy);c.lineTo(x+24,yy);c.stroke();
+for(let vx=x-24+(r%2?12:24);vx<x+24;vx+=24){c.beginPath();c.moveTo(vx,yy);c.lineTo(vx,yy+12.7);c.stroke();}}
+c.fillStyle='#8a4a35';c.fillRect(x-28,y,56,8);c.restore();}
+function truss(c,h,info,t,g){const w=c.canvas.width,hh=c.canvas.height;c.clearRect(0,0,w,hh);const o=analyse(h),sx=w-60,y0=hh*.55,sc=sx;
+const P=i=>i<nb?[30+bx[i]*sx,y0]:[30+tx[i-nb]*sx,y0-h[i-nb]*sc];
+pier(c,30,y0);pier(c,30+sx,y0);c.strokeStyle='#bbb';c.setLineDash([4,4]);c.beginPath();c.moveTo(20,y0);c.lineTo(w-20,y0);c.stroke();c.setLineDash([]);
+if(o.Ar)mem.forEach(([a,b],k)=>{const p=P(a),q=P(b),T=SG*o.F[k];c.strokeStyle=Math.abs(T)<1e-3*o.mx?'#9a9a9a':T>0?'#1f5fa8':'#b3261e';c.lineWidth=1+5*Math.sqrt(o.Ar[k]);c.beginPath();c.moveTo(...p);c.lineTo(...q);c.stroke();});
+c.fillStyle='#1d2330';for(let i=0;i<N;i++){const p=P(i);c.beginPath();c.arc(p[0],p[1],3,0,7);c.fill();}
+if(g){c.strokeStyle='rgba(0,0,0,.45)';c.setLineDash([3,3]);c.lineWidth=1;c.beginPath();for(let i=0;i<n;i++){const x=30+tx[i]*sx,y=y0-g[i]*sc;i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();c.setLineDash([]);}
+c.font='13px Georgia';c.fillText(t,10,18);}
+function chart(){const c=cx[2],w=520,hh=260;c.clearRect(0,0,w,hh);const m0=40,pw=w-50,ph=hh-40;let ymax=1e-9,ymin=1e9;
+[pso.hist,gd.hist].forEach(a=>a.forEach(p=>{ymax=Math.max(ymax,Math.min(p[1],12*S.L*S.L));ymin=Math.min(ymin,p[1]);}));ymin=Math.floor(ymin*5)/5;ymax=Math.max(ymax,ymin+.5);
+c.strokeStyle='#999';c.strokeRect(m0,10,pw,ph);c.fillStyle='#5b6475';c.font='12px Georgia';c.fillText(ymax.toFixed(1),4,20);c.fillText(ymin.toFixed(1),4,ph+10);c.fillText('0',m0,hh-8);c.fillText(B+' обчислень',w-100,hh-8);
+[[pso.hist,'#1f5fa8','PSO'],[gd.hist,'#b3261e','Градієнт (найкраще з усіх спусків)']].forEach(([a,col,nm],j)=>{c.strokeStyle=col;c.lineWidth=2;c.beginPath();a.forEach((p,i)=>{const x=m0+p[0]/B*pw,y=10+ph*(1-(Math.min(p[1],ymax)-ymin)/(ymax-ymin));i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();c.fillStyle=col;c.fillText(nm,m0+10+j*70,26);});
+c.strokeStyle='rgba(179,38,30,.35)';c.lineWidth=1;c.beginPath();gd.h2.forEach((p,i)=>{const x=m0+p[0]/B*pw,y=10+ph*(1-(Math.min(p[1],ymax)-ymin)/(ymax-ymin));i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();c.fillStyle='rgba(179,38,30,.6)';c.fillText('тонка лінія: поточний спуск',m0+10,hh-28);}
+function draw(){truss(cx[0],dp,'', 'J = '+pso.f.toFixed(3));truss(cx[1],dg,'','J = '+gd.best.toFixed(3)+' (найкраще) · пунктир: спуск №'+gd.runs+(gd.s>0?' (арка)':' (риба)'),sm(gd.x));
+$('i1').textContent='обчислень: '+pso.ev+' / '+B+',  найкраще J = '+pso.f.toFixed(3);
+$('i2').textContent='обчислень: '+gd.ev+' / '+B+',  спусків: '+gd.runs+',  найкраще J = '+gd.best.toFixed(3);chart();}
+function frame(){if(run){if(pso.ev+24<=B)stepPSO(pso);let t=gd.ev+24;while(gd.ev<t&&gd.ev<B)stepGD(gd,B);if(pso.ev+24>B&&gd.ev>=B){run=false;$('go').textContent='Старт';}}
+const k=.2;for(let i=0;i<n;i++){dp[i]+=(pso.bx[i]-dp[i])*k;dg[i]+=(gd.bx[i]-dg[i])*k;}draw();requestAnimationFrame(frame);}
+$('go').onclick=()=>{if(pso.ev>=B)reset();run=!run;$('go').textContent=run?'Пауза':'Старт';};$('rst').onclick=reset;$('pre').onchange=setPre;
+['rat','sgn','sym','bud','seed','np','sp'].forEach(i=>$(i).onchange=reset);$('rat').oninput=()=>$('ratv').textContent=(+$('rat').value).toFixed(2);
+function st(a){const m=a.reduce((s,v)=>s+v,0)/a.length,v=a.slice().sort((x,y)=>x-y);return[v[v.length>>1],m,Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/a.length)];}
+$('b10').onclick=async()=>{run=false;$('go').textContent='Старт';const o=$('bo');o.textContent='Рахуємо...';const P=[],G=[],Q=[];
+for(let s=1;s<=10;s++){const a=mkPSO(rng(s*7919)),ip=initPts(a);while(a.ev+24<=B)stepPSO(a);P.push(a.f);
+const g=mkGD(rng(s*104729+5),ip);while(g.ev<B)stepGD(g,B);G.push(g.best);Q.push(runSP(rng(s*1299709),B,0.03,ip).f);
+o.textContent='Рахуємо... сід '+s+'/10';await new Promise(r=>setTimeout(r,0));}
+const row=(n,a)=>{const[md,mn,sd]=st(a);return'<tr><td>'+n+'</td><td>'+md.toFixed(3)+'</td><td>'+mn.toFixed(3)+'</td><td>'+sd.toFixed(3)+'</td><td>'+(n==='PSO'?'—':P.filter((v,i)=>v<a[i]-1e-9).length+' з 10')+'</td></tr>';};
+o.innerHTML='<table><tr><th>Метод</th><th>медіана J</th><th>середнє J</th><th>розкид (sd)</th><th>PSO кращий у</th></tr>'+row('PSO',P)+row('Градієнт (мультистарт)',G)+row('Стохастичний градієнт (SPSA)',Q)+'</table>Сіди 1–10, бюджет '+B+' обчислень, поточні налаштування.';};
+setPre();frame();
+</script></body></html>
