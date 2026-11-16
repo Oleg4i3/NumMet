@@ -17,7 +17,15 @@ canvas{width:100%;height:auto;display:block}.m{font:13px/1.4 monospace;color:var
 .jbox h2,#th h4{margin:10px 0 4px;font-size:17px}#th h4{font-size:15px;color:var(--ac)}
 .jbox p,#th p,#th li{margin:5px 0}#th ul{margin:4px 0 4px 18px;padding:0}
 td.l,th.l{text-align:left}.k{background:#eef3fa;border-radius:4px;padding:6px 10px;margin:6px 0}
+
+.tabs{display:flex;gap:6px;margin:0 0 12px;border-bottom:1px solid var(--line)}
+.tabs button{border-radius:6px 6px 0 0;border-bottom:none;background:#efece4;padding:7px 14px}
+.tabs button.on{background:#fff;font-weight:bold;color:var(--ac);border-color:var(--ac)}
+[hidden]{display:none!important}
+#beeFrame{width:100%;height:900px;border:0;display:block;background:transparent}
 </style></head><body>
+<div class="tabs"><button id="tabT" class="on">Ферма: PSO проти градієнта</button><button id="tabB">Принцип: натхнено природою</button></div>
+<div id="tab-truss">
 <h1>PSO проти градієнтного спуску: форма верхнього пояса ферми</h1>
 <p class="s">Ферма Warren (за замовчуванням 8 панелей), рівномірне навантаження. Змінні: висоти 8 вузлів верхнього пояса, усі одного знака (арка над проїздом або «риба» під ним). Бюджет обчислень однаковий для обох методів.</p>
 <section class="jbox">
@@ -93,6 +101,339 @@ td.l,th.l{text-align:left}.k{background:#eef3fa;border-radius:4px;padding:6px 10
 <h4>6. Це навчальна модель</h4>
 <p>Цей симулятор спеціально спрощений: у ньому лише <b>8 змінних</b> (висоти вузлів), одне навантаження й єдина мета J — обʼєм матеріалу. У справжньому проєктуванні змінних буде десятки (висоти, площі й типи профілів, положення опор, кількість панелей тощо), а до них додаються <b>десятки обмежень</b>: допустимі напруження й прогини, стійкість стиснутих стрижнів, власні частоти, кілька комбінацій навантажень (вітер, сніг, рухоме навантаження), габарити, вузли й зварні шви, вартість виготовлення. Кожне обчислення J у такій задачі може бути набагато дорожчим, тому бюджет обчислень стає критичним, а ландшафт — ще більш заплутаним, з великою кількістю локальних мінімумів. Отже, висновки симулятора («PSO краще справляється зі сходинками, градієнт — з гладкими задачами») показують принцип, а не готовий рецепт: на реальній задачі методи обирають і налаштовують окремо, а результат перевіряють розрахунком.</p>
 </details>
+</div>
+<div id="tab-bee" hidden>
+<p class="s">Той самий принцип рою, але наочно: змінних лише дві (координати на мапі), тож рій видно. Тут ми шукаємо <b>максимум</b> висоти, а в задачі з фермою мінімізували J. Для PSO це не має значення, бо достатньо поміняти знак. Знизу є режим «Градієнтні бджоли», який відповідає градієнтному методу з вкладки про ферму.</p>
+<iframe id="beeFrame" title="Бджоли шукають найвищу гору"></iframe>
+</div>
+<script type="text/plain" id="beeSrc"><!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Бджоли шукають найвищу гору: рій частинок (PSO)</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#1d2733;--mut:#5b6b7c;--line:#cfd8e3;--acc:#2f6fb5;--bee:#d99a00}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+header{padding:12px 16px 0;max-width:1320px;margin:0 auto}h1{font-size:18px;margin:0 0 2px}.sub{color:var(--mut);margin:0 0 8px}
+main{max-width:1320px;margin:0 auto;padding:8px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}.card h2{font-size:14px;margin:0 0 6px}
+canvas{width:100%;display:block;border:1px solid var(--line);border-radius:4px;background:#fff}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:5px;padding:4px 10px;cursor:pointer}button:hover{border-color:var(--acc);color:var(--acc)}
+button.pri,button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px;align-items:center}
+.leg{font-size:12px;color:var(--mut);margin-top:4px}
+.row{display:grid;grid-template-columns:1fr 130px 50px;gap:8px;align-items:center;margin:5px 0;font-size:13px}.row output{text-align:right;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:3px 6px;border-bottom:1px solid #e6ebf1;text-align:left}td.n{text-align:right;font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-weight:600}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}@media(max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+#v2{image-rendering:pixelated;aspect-ratio:1/1;max-width:560px;margin:0 auto}
+#verdict{font-weight:600;margin:4px 0}
+.ok{color:#15803d}.bad{color:#c2410c}
+#theory .th{font-size:13.5px;max-width:980px}#theory h3{font-size:14px;margin:14px 0 4px}#theory p{margin:4px 0}#theory li{margin:3px 0}
+#theory table{margin:6px 0 10px}#theory th,#theory td{vertical-align:top}.katex-display{overflow-x:auto;overflow-y:hidden;padding:2px 0}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"></head><body>
+<header><h1>Бджоли шукають найвищу гору: рій частинок (PSO)</h1>
+<p class="sub">Кожна бджола — частинка. Вона бачить лише висоту під собою й пам'ятає найкраще місце, де побувала сама, та найкраще місце, про яке знають її сусіди по рою (або весь рій, якщо обрати глобальну топологію). Швидкість складається з інерції, тяжіння до власного рекорду й тяжіння до рекорду сусідів. Чи знайде рій справжній Еверест, чи застрягне на передгір'ї — залежить від параметрів і рельєфу.</p></header>
+<main>
+<div class="card"><div class="btns"><button class="pri" id="bRun">Пуск</button>
+ <button data-sp="1" class="on">×1</button><button data-sp="3">×3</button><button data-sp="10">×10</button><button data-sp="50">×50</button>
+ <button id="bReset">Перезапустити</button><button id="bRand">Інший рельєф</button>
+ <select id="sAlg" title="Baseline: кожна бджола незалежно повзе вгору по градієнті (мультистарт), без обміну знаннями"><option value="0">Рій (PSO)</option><option value="1">Градієнтні бджоли (baseline)</option></select>
+ <label><input type="checkbox" id="cRot"> автообертання</label><label><input type="checkbox" id="cTrail"> сліди</label><label><input type="checkbox" id="cBeam" checked> промінь над вершиною</label><label><input type="checkbox" id="cFlag"> прапорець рекорду рою</label><label title="Бджола, що надовго застрягла далеко від лідера, забуває свій рекорд і вилітає в нову випадкову точку"><input type="checkbox" id="cScout" checked> розвідниці</label>
+ <span id="stat" class="leg"></span></div>
+ <details style="margin-top:6px"><summary>Параметри</summary><div id="cfg"></div>
+ <div class="leg">↻ — застосовується після «Перезапустити». Інерція w — наскільки бджола тримає свій напрямок; c1 — тяжіння до власного рекорду («пам'ять»); c2 — до рекорду рою («стадність»); vmax — обмеження швидкості в клітинках за крок.</div></details></div>
+<div class="card"><h2>Гори й рій</h2><canvas id="v3" style="aspect-ratio:16/9;cursor:grab;touch-action:none"></canvas>
+ <div class="leg">Жовтий промінь із неба — справжня найвища вершина (бджоли про неї не знають). Золотий прапорець (за бажанням, галочкою) — рекорд рою: найвище місце, яке на цей момент знайшли бджоли; на старті це лише найкраща випадкова позиція. Перетягуйте мишею, щоб обертати, коліщатком — наближати.</div></div>
+<div class="cols">
+ <div class="card"><h2>Мапа (вид згори)</h2><canvas id="v2"></canvas>
+  <div class="leg">Жовті пікселі — бджоли, червоне кільце — рекорд рою, жовтий квадрат — справжня найвища вершина, пунктир — зона, де на старті бджіл немає, блакитна рамка — розвідниця, що щойно вилетіла в нову точку. Сірий — скелі, зелений — долини, блакитний — озера.</div></div>
+ <div class="card"><h2>Прогрес пошуку</h2><div id="verdict"></div><canvas id="ch" style="aspect-ratio:16/9;margin-bottom:8px"></canvas>
+  <div class="leg"><b style="color:#c2410c">━</b> рекорд рою &nbsp; <b style="color:#2f6fb5">━</b> середня висота бджіл &nbsp; <b style="color:#15803d">╌</b> справжня найвища вершина</div>
+  <table style="margin-top:8px"><tbody id="tb"></tbody></table></div>
+</div>
+<div class="card"><h2>Рій проти градієнта на 20 рельєфах</h2><div class="btns"><button id="bCmp">Порівняти при поточній кількості бджіл</button></div>
+ <div id="cmpOut" class="leg">Однакова кількість бджіл у всіх трьох методах. Успіх: хоча б одна бджола (для рою — його рекорд) дійшла до справжньої вершини. Обчислень f у таблиці — середнє за запуск.</div></div>
+<div class="card"><details id="theory"><summary>Теорія: що означають параметри і чим рій кращий (і гірший) за інші методи</summary>
+<div class="th">
+<h3>1. Задача</h3>
+<p>Шукаємо точку з найбільшою висотою: $\mathbf{x}^*=\arg\max_{\mathbf{x}\in[0,G-1]^2} f(\mathbf{x})$, де $f(\mathbf{x})$ — висота рельєфу в точці $\mathbf{x}=(x,z)$. Бджола не бачить мапи й не знає градієнта: вона може лише «поміряти» висоту там, де стоїть, тобто обчислити $f$. Такі методи називають методами нульового порядку (black-box).</p>
+<h3>2. Алгоритм рою частинок</h3>
+<p>У кожної бджоли $i$ є положення $\mathbf{x}_i$, швидкість $\mathbf{v}_i$, особистий рекорд $\mathbf{p}_i$ (найвища точка, де вона була) і спільний рекорд рою $\mathbf{g}$. Один крок:</p>
+$$\mathbf{v}_i^{t+1}=\underbrace{w_t\,\mathbf{v}_i^{t}}_{\text{інерція}}+\underbrace{c_1\,\mathbf{r}_1\odot(\mathbf{p}_i-\mathbf{x}_i^{t})}_{\text{власна пам'ять}}+\underbrace{c_2\,\mathbf{r}_2\odot(\mathbf{l}_i-\mathbf{x}_i^{t})}_{\text{стадність}},\qquad \mathbf{x}_i^{t+1}=\mathbf{x}_i^{t}+\mathbf{v}_i^{t+1}$$
+<p>Тут $\mathbf{r}_1,\mathbf{r}_2\sim U(0,1)^2$ — випадкові числа, незалежні для кожної бджоли, кроку й координати; $\odot$ — покоординатне множення. Після кроку оновлюються рекорди:</p>
+$$\mathbf{p}_i\leftarrow\mathbf{x}_i^{t+1}\ \text{ якщо }\ f(\mathbf{x}_i^{t+1})\gt f(\mathbf{p}_i),\qquad \mathbf{l}_i=\arg\max_{j\in\mathcal N_i} f(\mathbf{p}_j),\qquad \mathbf{g}=\arg\max_i f(\mathbf{p}_i)$$
+<p>Тут $\mathcal N_i$ — «сусіди» бджоли $i$. У <b>глобальній топології</b> це весь рій ($\mathbf{l}_i=\mathbf{g}$): інформація поширюється миттєво, збіжність швидка, але рій легко злипається на найближчій великій горі. У <b>кільцевій</b> бджоли пронумеровані по колу, і сусіди — $k$ бджіл з кожного боку: $\mathcal N_i=\{i-k,\dots,i+k\}$. Новина про високе місце «повзе» по кільцю повільно, тож різні групи бджіл довше досліджують різні гори. Інерція $w_t$ лінійно спадає від $w_0$ до $w_1$ за $300$ ітерацій: $w_t=w_0+(w_1-w_0)\min(1,t/300)$ — спочатку широкий огляд, потім уточнення.</p>
+<h3>3. Параметри</h3>
+<ul>
+<li><b>Інерція $w_t$.</b> Скільки попередньої швидкості бджола зберігає. Велике $w$ (близько 0,9) означає широкий огляд і розгін, малий $w$ (близько 0,4) — швидку зупинку й локальний пошук. У ньютонівській аналогії $1-w$ — це «тертя». При $w\gt1$ рій розбігається. Спадна інерція поєднує обидва режими.</li>
+<li><b>Власна пам'ять $c_1$.</b> Тяжіння до свого рекорду $\mathbf{p}_i$. Велике $c_1$ робить бджіл незалежними дослідниками (різноманіття зберігається довше).</li>
+<li><b>Стадність $c_2$.</b> Тяжіння до рекорду рою $\mathbf{g}$. Велике $c_2$ швидко стягує рій до того, що знайшла найвдаліша бджола, але й вбиває різноманіття, тож ризик передчасної збіжності зростає.</li>
+<li><b>Обмеження швидкості $v_{\max}$.</b> Кожна компонента швидкості обрізається до $[-v_{\max},v_{\max}]$. Мале значення дає обережний пошук, велике дозволяє перескакувати вузькі піки.</li>
+<li><b>Кількість бджіл $N$.</b> Більше бджіл — більше різних стартів, надійніше, але дорожче: за одну ітерацію витрачається $N$ обчислень $f$.</li>
+<li><b>Межі.</b> Біля краю мапи бджола зупиняється, а її швидкість розвертається й гаситься: $v\leftarrow-0{,}5\,v$.</li>
+</ul>
+<h3>4. Стабільність: чому $w$, $c_1$, $c_2$ не можна брати довільними</h3>
+<p>Якщо зафіксувати $\mathbf{p}_i,\mathbf{g}$ і замінити випадкові множники їх середніми, то для однієї координати маємо лінійну рекурентність</p>
+$$x^{t+1}=(1+w-\varphi)\,x^{t}-w\,x^{t-1}+\varphi\,p,\qquad \varphi=\tfrac{c_1+c_2}{2}.$$
+<p>Її характеристичне рівняння $\lambda^2-(1+w-\varphi)\lambda+w=0$ має корені в одиничному колі, тобто положення збігається, коли</p>
+$$|w|\lt1,\qquad 0\lt c_1+c_2\lt 4(1+w).$$
+<p>Це лише стійкість середнього. Для стійкості дисперсії (Poli, 2009) умова суворіша:</p>
+$$c_1+c_2\lt\frac{24\,(1-w^2)}{7-5w}.$$
+<p>Для $w=0{,}4$ права частина дорівнює приблизно $4{,}0$, тож $c_1+c_2=3{,}2$ у кінці пошуку лежить усередині області. На початку, при $w=0{,}9$, права частина лише $\approx1{,}8$, тобто за дисперсією рій поки нестабільний — це свідомий «розгін» для дослідження, його стримують $v_{\max}$ і спад $w_t$. Якщо підняти $c_1+c_2$ вище межі, бджоли почнуть «вибухати» й вилітати за мапу. Клерк і Кеннеді запропонували замість обмеження швидкості коефіцієнт стиснення</p>
+$$\chi=\frac{2}{\left|2-\phi-\sqrt{\phi^2-4\phi}\right|},\quad \phi=c_1+c_2\gt4,\qquad \mathbf{v}\leftarrow\chi\,[\mathbf{v}+\dots]$$
+<h3>5. Передчасна збіжність</h3>
+<p>Розкид рою (число, яке ви бачите в таблиці) визначається так:</p>
+$$D^t=\frac1N\sum_{i=1}^{N}\|\mathbf{x}_i^t-\mathbf{g}\|.$$
+<p>Коли $D\to0$, усі $\mathbf{x}_i\approx\mathbf{p}_i\approx\mathbf{g}$, обидва тяжіння зникають, а швидкість згасає як $\|\mathbf{v}^t\|\sim w^t$. Рій «завмирає» там, де зібрався, навіть якщо це лише передгір'я. Саме це й показує вердикт «передчасна збіжність». У цьому симуляторі можна повзунком заборонити бджолам стартувати біля справжньої вершини («Зона без бджіл»), а рельєф має круті шпилі, вузькі гребені й широкі пологі гори-пастки. Тож просто «скотитися вгору» тут не завжди вдасться.</p>
+<h3>5а. Чому рій «замерзає» і навіщо розвідниці</h3>
+<p>Якщо бджола не покращує свій рекорд, то в середньому вона сходиться не до рекорду рою, а до точки між двома «магнітами»:</p>
+$$\mathbf{m}_i=\frac{c_1\,\mathbf{p}_i+c_2\,\mathbf{l}_i}{c_1+c_2}.$$
+<p>При $c_1=2,\ c_2=1{,}2$ ця точка лежить на $62\%$ шляху до власного рекорду. Якщо в $\mathbf{m}_i$ висота нижча за $f(\mathbf{p}_i)$, рекорд не оновлюється, і бджола залишається там. Тому після того, як хтось знайшов вершину, частина рою «зависає» посередині (при зоні без бджіл 34 на кільцевій топології відсталих було 80–90%). Друга біда: коли інерція $w$ спала до 0,4, рій перестає досліджувати, тож нові відкриття вже не відбуваються.</p>
+<p><b>Розвідниця</b> (ідея з алгоритму бджолиної колонії ABC). Якщо бджола вже $K$ ітерацій не покращувала рекорд, її рекорд нижчий за рекорд рою щонайменше на $0{,}02$ (80 м) і вона далі ніж за 6 клітинок від лідера, вона забуває свій рекорд і вилітає в нову випадкову точку мапи. Біля лідера бджоли залишаються, тож рій згортається на вершині. Вимикач «розвідниці» дозволяє порівняти з чистим PSO.</p>
+<p><b>Чесно:</b> це вже не класичний PSO. Розвідниці — це повторні випадкові старти, і частина успіху дає саме вони, а не колективна пам'ять. За це доводиться платити додатковими обчисленнями.</p>
+<h3>5б. Baseline: градієнтні бджоли</h3>
+<p>У режимі «Градієнтні бджоли» кожна бджола незалежно рухається вгору по оціненому градієнту ($\nabla f\approx[f(\mathbf{x}+\varepsilon\mathbf{e})-f(\mathbf{x}-\varepsilon\mathbf{e})]/2\varepsilon$, $\varepsilon=1{,}5$ клітинки) і зупиняється на першій вершині. Це мультистарт: $N$ бджіл дають $N$ спроб, і за незалежних стартів успіх дорівнює $1-(1-p)^N$, де $p$ — частка карти, з якої підйом приводить до справжньої вершини. Тому за великого $N$ хоч одна бджола майже напевно дійде. Перевага рою проявляється, коли $N$ невелике: бджоли діляться знаннями, а інерція дозволяє перелітати дрібні пастки.</p>
+<p>У моїх вимірах (40 рельєфів × 3 набори стартів, зона без бджіл 0, кільцева топологія) частка успіхів така: градієнт — 59% при $N=15$ і 87% при $N=40$; PSO — 68% і 98%; PSO з розвідницями — 94% і 100%. Тож без розвідниць перевага рою над градієнтом на цьому рельєфі помірна, а основний виграш дають саме розвідниці, тобто повторні випадкові старти. Якщо виставити «Зону без бджіл» 34, градієнт не дійде ніколи (0%), а рій без розвідниць матиме лише 30–60%: такий рельєф не підходить для чесного baseline, це «важкий режим». Кнопка «Порівняти» під графіком перераховує це для вашого $N$ на 20 рельєфах; через малу вибірку цифри там можуть відрізнятися на кілька відсотків.</p>
+<h3>6. Рій проти інших методів</h3>
+<p><b>Стохастичний градієнтний підйом із мультистартом.</b></p>
+$$\mathbf{x}_{k+1}=\mathbf{x}_k+\eta\,\widehat{\nabla f}(\mathbf{x}_k)+\boldsymbol{\xi}_k,\qquad \text{успіх за }M\text{ стартів: }\ 1-(1-p)^M,$$
+<p>де $p$ — частка площі, з якої підйом приводить до глобального максимуму. Градієнтові методи дуже ефективні, коли $f$ гладка й градієнт дешевий (глибоке навчання), але на рельєфі з гребенями, ступенями й шумом градієнт локальний і приводить до найближчого піка. Незалежні старти не обмінюються знаннями, тож $M$ спроб коштують рівно $M$ повних підйомів. Рій же нульового порядку (потрібні лише значення $f$), а його бджоли діляться знанням: соціальний член $c_2$ скеровує пошук до перспективних областей. Крім того, інерція $w$ працює як імпульс у методі «важкої кульки» $\mathbf{x}_{k+1}=\mathbf{x}_k+\eta\nabla f+\mu(\mathbf{x}_k-\mathbf{x}_{k-1})$ і дозволяє перескакувати дрібні горбки.</p>
+<p><b>Імітація відпалу.</b> Одна «мандрівна» точка приймає крок $\mathbf{x}'=\mathbf{x}+\boldsymbol{\varepsilon}$ з імовірністю</p>
+$$P_{\text{accept}}=\min\!\Big(1,\ \exp\!\big(\tfrac{f(\mathbf{x}')-f(\mathbf{x})}{T_k}\big)\Big),\qquad T_k=T_0\,\alpha^k.$$
+<p>Відпал уміє свідомо спускатися вниз, щоб вибратися з пастки, і теоретично збігається до глобального оптимуму при логарифмічному охолодженні $T_k\ge c/\ln k$ (Hajek), але на практиці це надто повільно. Одна точка не має пам'яті про інші місця, а швидкість охолодження треба налаштовувати вручну. Рій — це популяція з пам'яттю: рекорди $\mathbf{p}_i,\mathbf{g}$ не втрачаються навіть тоді, коли бджола летить униз.</p>
+<p><b>Генетичний алгоритм.</b> Покоління особин змінюється через відбір, схрещення й мутацію, наприклад</p>
+$$\mathbf{x}_{\text{child}}=\alpha\,\mathbf{x}_a+(1-\alpha)\,\mathbf{x}_b+\boldsymbol{\eta},\qquad \alpha\sim U(-0{,}1;1{,}1),\ \ \boldsymbol{\eta}\sim\mathcal N(0,\sigma^2).$$
+<p>ГА сильний у дискретних і комбінаторних задачах, де схрещення поєднує корисні шматки рішень, і краще зберігає різноманіття завдяки мутації. На неперервних гладких ландшафтах, як тут, рій простіший (3 числові параметри замість відбору, схрещення, мутації й розміру еліти), не «вбиває» особин, а рухає їх, та зазвичай швидше збігається, але й швидше втрачає різноманіття.</p>
+<h3>7. Порівняння</h3>
+<table><thead><tr><th></th><th>Градієнт + мультистарт</th><th>Відпал</th><th>ГА</th><th>Рій (PSO)</th></tr></thead><tbody>
+<tr><td>Що пам'ятає</td><td>лише поточну точку кожного старту</td><td>поточну (і найкращу) точку</td><td>поточне покоління</td><td>$\mathbf{p}_i$ кожного й $\mathbf{g}$ рою</td></tr>
+<tr><td>Обмін знаннями</td><td>немає</td><td>немає</td><td>через схрещення</td><td>через $\mathbf{g}$ в кожному кроці</td></tr>
+<tr><td>Потрібен градієнт</td><td>так</td><td>ні</td><td>ні</td><td>ні</td></tr>
+<tr><td>Головні параметри</td><td>$\eta$, $M$</td><td>$T_0$, $\alpha$, крок</td><td>відбір, схрещення, мутація, розмір</td><td>$w$, $c_1$, $c_2$, $N$</td></tr>
+<tr><td>Слабке місце</td><td>застрягає в найближчому піку</td><td>повільне охолодження</td><td>багато налаштувань</td><td>передчасна збіжність</td></tr></tbody></table>
+<p><b>Чесно про «кращий».</b> Жоден метод не виграє всюди (теорема «безкоштовного обіду»). Рій не має гарантії знайти глобальний максимум: базовому PSO доведено лише збіжність до точки стагнації, і ви можете побачити це самі. Спробуйте: глобальну топологію, $w=0{,}4$ сталу, $c_2=3$ і 10 бджіл — рій швидко збігається, але часто не туди. А кільцева топологія, $c_1\gt c_2$, спадна інерція й 60–100 бджіл дають найвищу гору в більшості запусків (у моїх вимірах ~75–80% на 40 різних рельєфах, решта — передчасна збіжність). Рій виграє там, де $f$ багатоекстремальна, шумна або недиференційовна, розмірність невелика (від кількох до кількох десятків змінних), а обчислення $f$ дорогі, але допускають паралельність.</p>
+</div></details></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\/script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
+<script>
+const q=id=>document.getElementById(id);
+const G=96,H=24,ALT=4000; // сітка G×G, висота мапи в одиницях сцени, «метрів» на одиницю висоти
+function rng(seed){let a=(seed*2654435761)>>>0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
+const hsh=(a,b)=>{const x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x)};
+const P={n:80,w:.9,w2:.4,c1:2,c2:1.2,vmax:1.5,seed:7,safe:0,topo:1,kn:1,scout:true,K:40,mode:0};
+const CFG=[['n','Кількість бджіл ↻',5,200,1],['w','Інерція w на початку',0,1.2,.01],['w2','Інерція w в кінці (спад за 300 ітерацій)',0,1.2,.01],['c1','Власна пам\'ять c1',0,3,.05],['c2','Рій c2',0,3,.05],['vmax','Макс. швидкість',.5,10,.1],['topo','Топологія: 0 — глобальна, 1 — кільце',0,1,1],['kn','Сусідів у кільці з кожного боку',1,5,1],['seed','Зерно рельєфу ↻',1,99,1],['safe','Зона без бджіл навколо вершини ↻',0,45,1],['K','Розвідниця: ітерацій без покращення',10,150,5]];
+{const d=q('cfg');for(const [k,l,mn,mx,st] of CFG){const r=document.createElement('div');r.className='row';r.innerHTML=`<span>${l}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${P[k]}"><output>${P[k]}</output>`;const inp=r.children[1],o=r.children[2];inp.oninput=()=>{P[k]=+inp.value;o.textContent=inp.value};d.appendChild(r)}}
+
+// ---------- рельєф ----------
+let h=new Float32Array(G*G),peakI=0,peakX=0,peakZ=0,minH=0;
+let GS_MIN=5,GS_MAX=6.5,TOP=.88,GM_MIN=11,GM_MAX=14,GM_H=.8;
+function genTerrain(seed){const R=rng(seed*7919+13);
+ const nz=(x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),tx=x-xi,ty=y-yi,sx=tx*tx*(3-2*tx),sy=ty*ty*(3-2*ty),f=(a,b)=>hsh(a+seed*17,b+seed*31);return(f(xi,yi)*(1-sx)+f(xi+1,yi)*sx)*(1-sy)+(f(xi,yi+1)*(1-sx)+f(xi+1,yi+1)*sx)*sy};
+ const U=(a,b)=>a+(b-a)*R(),ridges=[],mounds=[],spires=[];
+ // гребені: довгі звивисті хребти з різкою кромкою, висота вздовж хребта міняється — між вершинами виникають перевали
+ for(let i=0,n=6+((R()*3)|0);i<n;i++){const cx=U(18,G-18),cz=U(18,G-18),a=R()*Math.PI,len=U(22,48);ridges.push({x0:cx-Math.cos(a)*len/2,z0:cz-Math.sin(a)*len/2,x1:cx+Math.cos(a)*len/2,z1:cz+Math.sin(a)*len/2,len,w:U(4.5,8),p:U(1.4,1.9),hh:U(.55,.9),ph:R()*90})}
+ // пологі масиви (широкі, круглі) і круті шпилі
+ for(let i=0;i<6;i++)mounds.push({x:U(8,G-8),z:U(8,G-8),s:U(8,15),h:U(.4,.82)});
+ for(let i=0;i<6;i++)spires.push({x:U(8,G-8),z:U(8,G-8),s:U(3.8,6),h:U(.55,.9)});
+ const Q=6,val=(x,z)=>{const X=x+8*(nz(x/11+50,z/11)-.5)*2,Z=z+8*(nz(x/11,z/11+80)-.5)*2;let v=0;
+  for(const r of ridges){const dx=r.x1-r.x0,dz=r.z1-r.z0,t=Math.max(0,Math.min(1,((X-r.x0)*dx+(Z-r.z0)*dz)/(r.len*r.len))),px=r.x0+dx*t,pz=r.z0+dz*t,d=Math.hypot(X-px,Z-pz),
+    al=.55+.45*nz(t*r.len/7+r.ph,r.ph)-.45*Math.pow(Math.abs(2*t-1),2.2);v+=Math.pow(r.hh*al*Math.exp(-Math.pow(d/r.w,r.p)),Q)}
+  for(const m of mounds){const d=Math.hypot(X-m.x,Z-m.z);v+=Math.pow(m.h*Math.exp(-Math.pow(d/m.s,2)),Q)}
+  for(const p of spires){const d=Math.hypot(X-p.x,Z-p.z);v+=Math.pow(p.h*Math.exp(-Math.pow(d/p.s,1.7)),Q)}
+  const rid=1-Math.abs(2*nz(x/4.5,z/4.5)-1);
+  v=Math.pow(v,1/Q);return v*(.9+.1*rid)+.04+.2*Math.pow(nz(x/13+7,z/13),1.3)+.07*nz(x/5,z/5)+.025*nz(x/2.2,z/2.2)};
+ let mx=0;for(let z=0;z<G;z++)for(let x=0;x<G;x++){const v=val(x,z);h[z*G+x]=v;if(v>mx)mx=v}
+ for(let i=0;i<G*G;i++)h[i]=h[i]/mx*TOP;
+ // глобальна вершина: окремий вузький шпиль, що стоїть на схилі (висота 1.0, решта ≤ .92)
+ let gx=G/2,gz=G/2;for(let k=0;k<80;k++){const x=U(26,G-26),z=U(26,G-26),v=h[(z|0)*G+(x|0)];if(v<.45){gx=x;gz=z;break}}
+ const gs=GS_MIN+(GS_MAX-GS_MIN)*R(),gm=GM_MIN+(GM_MAX-GM_MIN)*R();for(let z=0;z<G;z++)for(let x=0;x<G;x++){const d=Math.hypot(x-gx,z-gz),a=h[z*G+x],b=Math.max(Math.exp(-Math.pow(d/gs,1.7)),GM_H*Math.exp(-Math.pow(d/gm,2)));h[z*G+x]=Math.pow(Math.pow(a,6)+Math.pow(b,6),1/6)}
+ minH=1e9;peakI=0;for(let i=0;i<G*G;i++){if(h[i]>h[peakI])peakI=i;if(h[i]<minH)minH=h[i]}
+ const m1=h[peakI];for(let i=0;i<G*G;i++)h[i]/=m1;minH/=m1;
+ peakX=peakI%G;peakZ=(peakI/G)|0}
+const hAt=(x,z)=>{x=Math.max(0,Math.min(G-1.001,x));z=Math.max(0,Math.min(G-1.001,z));const ix=x|0,iz=z|0,tx=x-ix,tz=z-iz,a=h[iz*G+ix],b=h[iz*G+ix+1],c=h[(iz+1)*G+ix],d=h[(iz+1)*G+ix+1];return(a*(1-tx)+b*tx)*(1-tz)+(c*(1-tx)+d*tx)*tz};
+const WL=.07; // рівень озер
+let base3=null;
+function mkBase3(){base3=new Float32Array(G*G*3);const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),sm=x=>x*x*(3-2*x),mx=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+ for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=y*G+x,hv=h[i],gx=((x<G-1?h[i+1]:hv)-(x>0?h[i-1]:hv))/2,gy=((y<G-1?h[i+G]:hv)-(y>0?h[i-G]:hv))/2,sl=Math.hypot(gx,gy)*H,n1=hsh(i,1),n2=hsh(i,2),n3=hsh((x*.35)|0,((y*.35)|0)+7);
+  let c=[.45+.05*n1,.56+.05*n1,.38+.04*n1];
+  c=mx(c,[.5,.45,.34],cl((.12-hv)/.1)*.8);
+  const rk=.40+.1*n2+.05*n3;
+  c=mx(c,[rk,rk+.003,rk+.012],Math.max(sm(cl((hv-.3)/.2)),cl((sl-.5)/.7)*.9));
+  const sn=sm(cl((hv-.84+n3*.05)/.08))*(1-.5*cl((sl-1.2)/1.2));
+  c=mx(c,[.8,.91,1],sn);
+  base3.set(c,i*3)}}
+
+// ---------- рій (PSO) ----------
+const pso={X:null,V:null,pb:null,pbf:null,gb:[0,0],gbf:-1,it:0,hist:[],trail:[],R:null};
+function psoInit(){const n=P.n,R=rng(P.seed*131+7);pso.R=R;pso.X=[];pso.V=[];pso.pb=[];pso.pbf=[];pso.gbf=-1;pso.it=0;pso.hist=[];pso.trail=[];pso.ev=n;pso.dn=new Array(n).fill(0);pso.gs=new Array(n).fill(1);pso.dnN=0;pso.st=new Array(n).fill(0);pso.sc=new Array(n).fill(-1e9);pso.scN=0;
+ for(let i=0;i<n;i++){let x,z,k=0;do{x=R()*(G-1);z=R()*(G-1);k++}while(Math.hypot(x-peakX,z-peakZ)<P.safe&&k<2000);pso.X.push([x,z]);pso.V.push([(R()-.5)*P.vmax,(R()-.5)*P.vmax]);const f=hAt(x,z);pso.pb.push([x,z]);pso.pbf.push(f);if(f>pso.gbf){pso.gbf=f;pso.gb=[x,z]}}
+ psoRecord()}
+const W_ITERS=300;
+function psoStep(){pso.ev+=P.n;const R=pso.R,n=P.n,w=P.w+(P.w2-P.w)*Math.min(1,pso.it/W_ITERS),lb=P.topo===1;
+ let L=null;if(lb){L=new Array(n);for(let i=0;i<n;i++){let b=i;for(let k=-P.kn;k<=P.kn;k++){const j=((i+k)%n+n)%n;if(pso.pbf[j]>pso.pbf[b])b=j}L[i]=pso.pb[b]}}
+ for(let i=0;i<n;i++){const X=pso.X[i],V=pso.V[i],pb=pso.pb[i],gb=lb?L[i]:pso.gb;
+  for(let d=0;d<2;d++){V[d]=w*V[d]+P.c1*R()*(pb[d]-X[d])+P.c2*R()*(gb[d]-X[d]);if(V[d]>P.vmax)V[d]=P.vmax;if(V[d]<-P.vmax)V[d]=-P.vmax;X[d]+=V[d];
+   if(X[d]<0){X[d]=0;V[d]*=-.5}else if(X[d]>G-1){X[d]=G-1;V[d]*=-.5}}
+  const f=hAt(X[0],X[1]);if(f>pso.pbf[i]){if(f>pso.pbf[i]+1e-4)pso.st[i]=0;else pso.st[i]++;pso.pbf[i]=f;pb[0]=X[0];pb[1]=X[1]}else pso.st[i]++;
+  // розвідниця: давно без успіху, нижча за рекорд рою і далеко від лідера, тож забуває місце й летить у випадкову точку мапи
+  if(P.scout&&pso.st[i]>P.K&&pso.pbf[i]<pso.gbf-.02&&Math.hypot(X[0]-pso.gb[0],X[1]-pso.gb[1])>6){X[0]=R()*(G-1);X[1]=R()*(G-1);V[0]=(R()-.5)*P.vmax*2;V[1]=(R()-.5)*P.vmax*2;pb[0]=X[0];pb[1]=X[1];pso.pbf[i]=hAt(X[0],X[1]);pso.st[i]=0;pso.sc[i]=pso.it;pso.scN++;pso.ev++}}
+ for(let i=0;i<n;i++)if(pso.pbf[i]>pso.gbf){pso.gbf=pso.pbf[i];pso.gb=[pso.pb[i][0],pso.pb[i][1]]}
+ pso.it++;psoRecord()}
+// baseline: кожна бджола сама повзе вгору по градієнту (центральні різниці, крок підлаштовується), без обміну знаннями
+function gradStep(){const n=P.n,e=1.5;
+ for(let i=0;i<n;i++){if(pso.dn[i])continue;const X=pso.X[i],gx=(hAt(X[0]+e,X[1])-hAt(X[0]-e,X[1]))/(2*e),gz=(hAt(X[0],X[1]+e)-hAt(X[0],X[1]-e))/(2*e),nr=Math.hypot(gx,gz);pso.ev+=4;
+  if(nr<1e-9){pso.dn[i]=1;pso.dnN++;continue}
+  let ok=false,st=pso.gs[i];
+  for(let t=0;t<6;t++){const nx=Math.max(0,Math.min(G-1.001,X[0]+st*gx/nr)),nz=Math.max(0,Math.min(G-1.001,X[1]+st*gz/nr)),fv=hAt(nx,nz);pso.ev++;
+   if(fv>pso.pbf[i]+1e-7){X[0]=nx;X[1]=nz;pso.pb[i][0]=nx;pso.pb[i][1]=nz;pso.pbf[i]=fv;ok=true;st=Math.min(2,st*1.3);break}st/=2}
+  pso.gs[i]=st;if(!ok){pso.dn[i]=1;pso.dnN++}}
+ for(let i=0;i<n;i++)if(pso.pbf[i]>pso.gbf){pso.gbf=pso.pbf[i];pso.gb=[pso.pb[i][0],pso.pb[i][1]]}
+ pso.it++;psoRecord()}
+const stepAny=()=>P.mode===1?gradStep():psoStep();
+function psoRecord(){let m=0;for(const X of pso.X)m+=hAt(X[0],X[1]);pso.hist.push([pso.gbf,m/P.n]);
+ pso.trail.push(pso.X.map(X=>[X[0],X[1]]));if(pso.trail.length>26)pso.trail.shift()}
+function spread(){let s=0;for(const X of pso.X)s+=Math.hypot(X[0]-pso.gb[0],X[1]-pso.gb[1]);return s/P.n}
+
+// ---------- 3D ----------
+let K=null,views=null,running=false,spd=1,az=.7,el=.8,dist=118,lastT=0,acc=0,fr=0;
+function part(mesh,ox,oy,oz,sx,sy,sz,rx,ry,rz){const i=mesh.userData.n++;K.e.set(rx,ry,rz);K.qa.setFromEuler(K.e);K.p.set(ox,oy,oz);K.s.set(sx,sy,sz);K.L.compose(K.p,K.qa,K.s);K.W.multiplyMatrices(K.M,K.L);mesh.setMatrixAt(i,K.W)}
+const wp=(x,z)=>[x-(G-1)/2,z-(G-1)/2];
+let T3=null;
+function mk3D(){const cv=q('v3');if(typeof THREE==='undefined')return null;let rd;try{rd=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){return null}
+ K={M:new THREE.Matrix4(),L:new THREE.Matrix4(),W:new THREE.Matrix4(),q:new THREE.Quaternion(),qa:new THREE.Quaternion(),e:new THREE.Euler(),p:new THREE.Vector3(),s:new THREE.Vector3(),AY:new THREE.Vector3(0,1,0)};
+ rd.shadowMap.enabled=true;rd.shadowMap.type=THREE.PCFSoftShadowMap;
+ const sc=new THREE.Scene();
+ {const g=document.createElement('canvas');g.width=2;g.height=256;const x=g.getContext('2d'),gr=x.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#7fb0e6');gr.addColorStop(.6,'#cfe2f3');gr.addColorStop(1,'#eef4fa');x.fillStyle=gr;x.fillRect(0,0,2,256);sc.background=new THREE.CanvasTexture(g)}
+ sc.fog=new THREE.Fog(0xdce8f4,160,360);
+ const cam=new THREE.PerspectiveCamera(45,16/9,.1,600);
+ sc.add(new THREE.HemisphereLight(0xdcebff,0x5d6b52,.75));
+ const sun=new THREE.DirectionalLight(0xfff1d6,.95);sun.position.set(50,90,35);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+ {const s=sun.shadow.camera;s.left=-62;s.right=62;s.top=62;s.bottom=-62;s.near=20;s.far=280}sun.shadow.bias=-.0005;sun.shadow.normalBias=.25;sc.add(sun);
+ const geo=new THREE.PlaneGeometry(G-1,G-1,G-1,G-1);geo.rotateX(-Math.PI/2);
+ const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.92}));terrain.castShadow=true;terrain.receiveShadow=true;terrain.frustumCulled=false;sc.add(terrain);
+ const water=new THREE.Mesh(new THREE.PlaneGeometry(G-1,G-1).rotateX(-Math.PI/2),new THREE.MeshPhongMaterial({color:0x4f95cf,transparent:true,opacity:.8,shininess:90,specular:0xbbddff,depthWrite:false}));water.frustumCulled=false;sc.add(water);
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(700,700).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0xb9c8b2}));sc.add(ground);
+ const sk=new THREE.BufferGeometry();sc.add(Object.assign(new THREE.Mesh(sk,new THREE.MeshLambertMaterial({color:0x7b6a55,side:THREE.DoubleSide})),{frustumCulled:false}));
+ // бджоли: інстанси з примітивів
+ const mk=(g,mat,max,sh=true)=>{const m=new THREE.InstancedMesh(g,mat,max);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;m.castShadow=sh;m.count=0;m.userData.n=0;sc.add(m);return m};
+ const sg=new THREE.SphereGeometry(1,12,9),bg=new THREE.BoxGeometry(1,1,1),std=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.55},o||{}));
+ const MX=1300,pool={yel:mk(sg,std(0xf6bd16,{emissive:0x3a2800}),MX),blk:mk(sg,std(0x1c1208),MX),fur:mk(sg,std(0x5a3a12),MX),sting:mk(new THREE.ConeGeometry(.5,1,8),std(0x1c1208),MX),leg:mk(bg,std(0x2a1a08),MX*3),
+  wing:mk(sg,new THREE.MeshStandardMaterial({color:0xe9f4ff,transparent:true,opacity:.55,roughness:.2,side:THREE.DoubleSide,depthWrite:false}),MX*2,false)};
+ // рекордний прапорець і промінь
+ const flag=new THREE.Group();{const pole=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,6,6),std(0xeeeae0));pole.position.y=3;flag.add(pole);
+  const fl=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.3,.08),std(0xffc400,{emissive:0x553d00}));fl.position.set(1.1,5.3,0);flag.add(fl);
+  const cv2=document.createElement('canvas');cv2.width=320;cv2.height=72;const lt=new THREE.CanvasTexture(cv2),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:lt,transparent:true,depthWrite:false}));sp.scale.set(11,2.5,1);sp.position.set(2.2,8.2,0);flag.add(sp);flag.userData={cv2,lt,txt:''}}sc.add(flag);
+ const bm=(r0,r1,hh,al)=>new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,hh,24,1,true),new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{a:{value:al},t:{value:0}},
+  vertexShader:'varying vec2 vU;varying vec3 vN;varying vec3 vV;void main(){vU=uv;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'uniform float a;uniform float t;varying vec2 vU;varying vec3 vN;varying vec3 vV;void main(){float e=abs(dot(vN,vV));float f=pow(1.-vU.y,1.6);float s=.92+.08*sin(vU.y*40.-t*3.);gl_FragColor=vec4(vec3(1.,.74,.08),a*f*pow(e,1.8)*s);}'}));
+ const tp=new THREE.Group();{const BH=240;const core=bm(.6,.6,BH,.55),glow=bm(2.4,2.4,BH,.3),halo=bm(6,6,BH,.14);for(const m of[core,glow,halo]){m.position.y=BH/2;tp.add(m)}
+  const rc=document.createElement('canvas');rc.width=rc.height=128;{const x=rc.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,190,30,.55)');g.addColorStop(.5,'rgba(255,190,30,.18)');g.addColorStop(1,'rgba(255,190,30,0)');x.fillStyle=g;x.fillRect(0,0,128,128)}
+  const ring=new THREE.Mesh(new THREE.PlaneGeometry(12,12).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(rc),transparent:true,depthWrite:false}));ring.position.y=.4;tp.add(ring);tp.userData={ms:[core,glow,halo]}}sc.add(tp);
+ const tl=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe27a,transparent:true,opacity:.55}));tl.frustumCulled=false;sc.add(tl);
+ const v={rd,sc,cam,geo,pool,flag,tp,tl,sk,water,ground,cv,st:[],fp:[0,0]};return v}
+function buildWorld(){const v=T3;if(!v)return;const p=v.geo.attributes.position,col=new Float32Array(p.count*3);
+ for(let i=0;i<p.count;i++){const ix=Math.round(p.getX(i)+(G-1)/2),iz=Math.round(p.getZ(i)+(G-1)/2),c=iz*G+ix;p.setY(i,h[c]*H);col[i*3]=base3[c*3];col[i*3+1]=base3[c*3+1];col[i*3+2]=base3[c*3+2]}
+ v.geo.setAttribute('color',new THREE.BufferAttribute(col,3));p.needsUpdate=true;v.geo.computeVertexNormals();
+ v.water.position.y=WL*H;const y0=minH*H-1.2;v.ground.position.y=y0-.01;
+ const per=[];for(let i=0;i<G;i++)per.push([i,0]);for(let i=1;i<G;i++)per.push([G-1,i]);for(let i=G-2;i>=0;i--)per.push([i,G-1]);for(let i=G-2;i>=1;i--)per.push([0,i]);per.push([0,0]);
+ const skp=new Float32Array((per.length-1)*18);
+ for(let k=0;k<per.length-1;k++){const a=per[k],b=per[k+1],ax=a[0]-(G-1)/2,az=a[1]-(G-1)/2,bx=b[0]-(G-1)/2,bz=b[1]-(G-1)/2,ya=h[a[1]*G+a[0]]*H,yb=h[b[1]*G+b[0]]*H;skp.set([ax,ya,az,ax,y0,az,bx,yb,bz,bx,yb,bz,ax,y0,az,bx,y0,bz],k*18)}
+ v.sk.setAttribute('position',new THREE.BufferAttribute(skp,3));v.sk.computeVertexNormals();v.st=[]}
+function flyY(x,z){let m=0;for(let dz=-2;dz<=2;dz+=2)for(let dx=-2;dx<=2;dx+=2)m=Math.max(m,hAt(x+dx,z+dz));return m*H+3}
+const AS=2.6;
+function render3(dt){const v=T3;if(!v)return;fr++;const cam=v.cam,P2=v.pool;
+ cam.position.set(dist*Math.cos(el)*Math.sin(az),dist*Math.sin(el)+4,dist*Math.cos(el)*Math.cos(az));cam.lookAt(0,7,0);
+ for(const k in P2)P2[k].userData.n=0;
+ const alpha=1-Math.exp(-dt*Math.min(2*spd,14)),t=fr*.016;
+ for(let i=0;i<P.n;i++){const X=pso.X[i];let s=v.st[i];
+  if(!s){s={x:X[0],z:X[1],y:flyY(X[0],X[1]),ang:hsh(i,5)*6.28,ph:hsh(i,3)*6.28};v.st[i]=s}
+  const ox=s.x,oz=s.z;s.x+=(X[0]-s.x)*alpha;s.z+=(X[1]-s.z)*alpha;
+  const dx=s.x-ox,dz=s.z-oz;if(Math.hypot(dx,dz)>.004){const ta=Math.atan2(dz,dx);let da=ta-s.ang;da=Math.atan2(Math.sin(da),Math.cos(da));s.ang+=da*.25}
+  s.y+=(flyY(s.x,s.z)+.5*Math.sin(t*2+s.ph)-s.y)*.12;s.ph+=.9;
+  const w=wp(s.x,s.z);K.M.compose(K.p.set(w[0],s.y,w[1]),K.q.setFromAxisAngle(K.AY,-s.ang),K.s.set(AS,AS,AS));
+  // тулуб
+  part(P2.blk,.36,.3,0,.1,.1,.1,0,0,0);             // голова
+  part(P2.fur,.16,.31,0,.15,.14,.14,0,0,0);         // груди
+  part(P2.yel,-.08,.3,0,.17,.15,.15,0,0,0);         // черевце: смуги
+  part(P2.blk,-.2,.3,0,.12,.145,.145,0,0,0);
+  part(P2.yel,-.31,.3,0,.14,.12,.12,0,0,0);
+  part(P2.blk,-.41,.3,0,.09,.1,.1,0,0,0);
+  part(P2.sting,-.55,.3,0,.07,.2,.07,0,0,1.5708);   // жало
+  for(const sd of[-1,1]){const f=.25+.75*Math.sin(s.ph*1.7+(sd>0?0:0));
+   part(P2.wing,.12,.38+.2*Math.sin(f),sd*.22*Math.cos(f),.1,.012,.24,-sd*f,0,0);
+   part(P2.leg,.2,.16,sd*.07,.02,.17,.02,-.25*sd,0,0);part(P2.leg,.1,.16,sd*.08,.02,.17,.02,-.4*sd,0,0);part(P2.leg,0,.16,sd*.08,.02,.17,.02,-.55*sd,0,0);
+   part(P2.leg,.44,.4,sd*.05,.15,.015,.015,0,sd*.5,.5)}}
+ for(const k in P2){const m=P2[k];m.count=m.userData.n;m.instanceMatrix.needsUpdate=true}
+ // прапорець
+ {const g=wp(pso.gb[0],pso.gb[1]);v.fp[0]+=(g[0]-v.fp[0])*.15;v.fp[1]+=(g[1]-v.fp[1])*.15;const fx=v.fp[0]+(G-1)/2,fz=v.fp[1]+(G-1)/2;v.flag.position.set(v.fp[0],hAt(fx,fz)*H,v.fp[1]);v.flag.visible=pso.gbf>=0&&q('cFlag').checked;const tx='рекорд рою: '+Math.round(pso.gbf*ALT)+' м';if(v.flag.userData.txt!==tx){const u=v.flag.userData,c=u.cv2.getContext('2d');c.clearRect(0,0,320,72);c.fillStyle='rgba(255,255,255,.88)';c.strokeStyle='#b45309';c.lineWidth=3;c.beginPath();c.roundRect?c.roundRect(3,3,314,66,14):c.rect(3,3,314,66);c.fill();c.stroke();c.fillStyle='#78350f';c.font='bold 30px system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(tx,160,38);u.lt.needsUpdate=true;u.txt=tx}}
+ v.tp.visible=q('cBeam').checked;{const g=wp(peakX,peakZ);v.tp.position.set(g[0],h[peakI]*H,g[1]);for(const m of v.tp.userData.ms)m.material.uniforms.t.value=t*8}
+ // сліди
+ v.tl.visible=q('cTrail').checked;if(v.tl.visible&&v.trKey!==pso.it+'/'+pso.trail.length+'/'+P.n){v.trKey=pso.it+'/'+pso.trail.length+'/'+P.n;const tr=pso.trail,L=tr.length,arr=[];
+  for(let k=1;k<L;k++)for(let i=0;i<P.n;i++){const a=tr[k-1][i],b=tr[k][i],wa=wp(a[0],a[1]),wb=wp(b[0],b[1]);if(Math.hypot(a[0]-b[0],a[1]-b[1])<6)arr.push(wa[0],hAt(a[0],a[1])*H+1,wa[1],wb[0],hAt(b[0],b[1])*H+1,wb[1])}
+  v.tl.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(arr),3))}
+ v.rd.render(v.sc,cam)}
+function resize3(){const v=T3;if(!v)return;const cv=v.cv,w=cv.clientWidth,hh=cv.clientHeight;if(!w||!hh)return;const dpr=Math.min(2,devicePixelRatio||1);if(cv.width!==(w*dpr|0)||cv.height!==(hh*dpr|0)){v.rd.setPixelRatio(dpr);v.rd.setSize(w,hh,false);v.cam.aspect=w/hh;v.cam.updateProjectionMatrix()}}
+
+// ---------- 2D ----------
+const c2=q('v2'),x2=c2.getContext('2d');c2.width=G;c2.height=G;let img2=null;
+function mkImg2(){img2=x2.createImageData(G,G);for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=y*G+x,hl=x>0?h[i-1]:h[i],hu=y>0?h[i-G]:h[i],sh=Math.max(.7,Math.min(1.25,1+3*((hl-h[i])+(hu-h[i]))));let r=base3[i*3]*255*sh,g=base3[i*3+1]*255*sh,b=base3[i*3+2]*255*sh;
+  if(h[i]<WL){const d=Math.min(1,(WL-h[i])/.05);r=130-70*d;g=185-80*d;b=225-50*d}
+  const o=i*4;img2.data[o]=Math.min(255,r);img2.data[o+1]=Math.min(255,g);img2.data[o+2]=Math.min(255,b);img2.data[o+3]=255}}
+function draw2(){x2.putImageData(img2,0,0);
+ {x2.strokeStyle='#3b2a00';x2.lineWidth=1.6;x2.strokeRect(peakX-1.5,peakZ-1.5,4,4);x2.strokeStyle='#ffd34d';x2.lineWidth=.8;x2.strokeRect(peakX-1.5,peakZ-1.5,4,4);if(P.safe>0){x2.setLineDash([2,2]);x2.lineWidth=.6;x2.beginPath();x2.arc(peakX+.5,peakZ+.5,P.safe,0,6.2832);x2.stroke();x2.setLineDash([])}}
+ if(pso.gbf>=0){const gx=Math.round(pso.gb[0]),gz=Math.round(pso.gb[1]);x2.fillStyle='#fff';x2.fillRect(gx-4,gz-4,9,1);x2.fillRect(gx-4,gz+4,9,1);x2.fillRect(gx-4,gz-3,1,7);x2.fillRect(gx+4,gz-3,1,7);
+  x2.fillStyle='#e11d48';x2.fillRect(gx-3,gz-3,7,1);x2.fillRect(gx-3,gz+3,7,1);x2.fillRect(gx-3,gz-2,1,5);x2.fillRect(gx+3,gz-2,1,5)}
+ x2.fillStyle='#1c1208';for(const X of pso.X)x2.fillRect(Math.round(X[0])-1,Math.round(X[1])-1,3,3);
+ x2.fillStyle='#ffc61a';for(const X of pso.X)x2.fillRect(Math.round(X[0]),Math.round(X[1]),2,2);
+ if(P.scout){x2.strokeStyle='#0ea5e9';x2.lineWidth=.8;for(let i=0;i<P.n;i++)if(pso.it-pso.sc[i]<12){const X=pso.X[i];x2.strokeRect(Math.round(X[0])-2,Math.round(X[1])-2,5,5)}}}
+
+// ---------- графік і статистика ----------
+function drawChart(){const cv=q('ch'),dpr=Math.min(2,devicePixelRatio||1),w=cv.clientWidth,hh=cv.clientHeight;if(!w)return;cv.width=w*dpr;cv.height=hh*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,hh);
+ const L=52,R=8,T=8,B=20,pw=w-L-R,ph=hh-T-B,N=pso.hist.length,xs=i=>L+pw*(N<2?0:i/(N-1)),y0=Math.floor(minH*10)/10,ys=v=>T+ph*(1-(v-y0)/(1-y0+.02));
+ x.font='11px system-ui';x.fillStyle='#5b6b7c';x.strokeStyle='#e6ebf1';x.textAlign='right';
+ for(let k=0;k<=4;k++){const v=y0+(1-y0)*k/4;x.beginPath();x.moveTo(L,ys(v));x.lineTo(w-R,ys(v));x.stroke();x.fillText(Math.round(v*ALT)+' м',L-4,ys(v)+4)}
+ x.textAlign='center';x.fillText('ітерація 0 … '+(N-1),L+pw/2,hh-4);
+ x.setLineDash([5,4]);x.strokeStyle='#15803d';x.beginPath();x.moveTo(L,ys(1));x.lineTo(w-R,ys(1));x.stroke();x.setLineDash([]);
+ const ln=(k,c)=>{x.strokeStyle=c;x.lineWidth=2;x.beginPath();pso.hist.forEach((p,i)=>{const X=xs(i),Y=ys(p[k]);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke()};ln(1,'#2f6fb5');ln(0,'#c2410c')}
+function stats(){const d=Math.hypot(pso.gb[0]-peakX,pso.gb[1]-peakZ),sp=spread();let near=0;for(const X of pso.X)if(Math.hypot(X[0]-peakX,X[1]-peakZ)<4)near++;
+ const mean=pso.hist[pso.hist.length-1][1],conv=sp<2.2,pct=pso.gbf/1*100;
+ q('tb').innerHTML=`<tr><td>Ітерація</td><td class="n">${pso.it}</td></tr><tr><td>Рекорд рою</td><td class="n">${Math.round(pso.gbf*ALT)} м (${pct.toFixed(1)}% від найвищої)</td></tr><tr><td>Справжня вершина</td><td class="n">${Math.round(h[peakI]*ALT)} м</td></tr><tr><td>Відстань рекорду до вершини</td><td class="n">${d.toFixed(1)} клітинок</td></tr><tr><td>Середня висота бджіл</td><td class="n">${Math.round(mean*ALT)} м</td></tr><tr><td>Бджіл біля справжньої вершини</td><td class="n">${near} з ${P.n}</td></tr><tr><td>Розкид рою (серед. відстань до рекорду)</td><td class="n">${sp.toFixed(1)}</td></tr><tr><td>Обчислень f</td><td class="n">${pso.ev}</td></tr>${P.scout&&P.mode===0?`<tr><td>Розвідок запущено</td><td class="n">${pso.scN}</td></tr>`:''}`;
+ const vd=q('verdict');if(P.mode===1)vd.innerHTML=pso.dnN>=P.n?(near>0?`<span class="ok">Усі підйоми завершені: до вершини дійшли ${near} з ${P.n} ✓</span>`:'<span class="bad">Усі підйоми завершені, жодна бджола не дійшла до вершини</span>'):'Бджоли повзуть угору по градієнту, обміну знаннями немає…';else if(conv)vd.innerHTML=d<4?'<span class="ok">Рій зібрався на найвищій вершині ✓</span>':'<span class="bad">Рій застряг на нижчій вершині (передчасна збіжність)</span>';else vd.textContent=pso.it?'Пошук триває…':'Бджоли розлетілися випадково';
+ q('stat').textContent=`ітерація ${pso.it}, рекорд ${Math.round(pso.gbf*ALT)} м`}
+
+// ---------- керування ----------
+function resetAll(newTerrain){if(newTerrain){genTerrain(P.seed);mkBase3();mkImg2();buildWorld()}psoInit();if(T3){T3.st=[];T3.fp=wp(pso.gb[0],pso.gb[1]);T3.trKey=null}refresh()}
+function refresh(){draw2();drawChart();stats()}
+q('sAlg').onchange=()=>{P.mode=+q('sAlg').value;resetAll(false)};
+q('bCmp').onclick=async()=>{const b=q('bCmp'),NT=20,keep=[P.seed,P.mode,P.scout],R={g:[0,0],p:[0,0],s:[0,0]};b.disabled=true;
+ for(let sd=1;sd<=NT;sd++){b.textContent='Рахуємо… '+sd+'/'+NT;await new Promise(r=>setTimeout(r,0));genTerrain(sd);P.seed=sd;
+  for(const [k,md,sc] of [['g',1,false],['p',0,false],['s',0,true]]){P.mode=md;P.scout=sc;psoInit();if(md===1){for(let t=0;t<400&&pso.dnN<P.n;t++)gradStep()}else for(let t=0;t<600;t++)psoStep();
+   if(Math.hypot(pso.gb[0]-peakX,pso.gb[1]-peakZ)<4)R[k][0]++;R[k][1]+=pso.ev}}
+ [P.seed,P.mode,P.scout]=keep;b.disabled=false;b.textContent='Порівняти при поточній кількості бджіл';resetAll(true);
+ const row=(nm,a)=>`<tr><td>${nm}</td><td class="n">${Math.round(100*a[0]/NT)}%</td><td class="n">${Math.round(a[1]/NT)}</td></tr>`;
+ q('cmpOut').innerHTML=`<table><thead><tr><th>Метод, N = ${P.n}</th><th>успіх (з ${NT} рельєфів)</th><th>обчислень f</th></tr></thead><tbody>${row('Градієнтні бджоли (мультистарт)',R.g)}${row('Рій PSO',R.p)}${row('Рій PSO + розвідниці',R.s)}</tbody></table>Зона без бджіл: ${P.safe}. Рій: 600 ітерацій; градієнт: до завершення всіх підйомів. Градієнт дешевший за обчисленнями, але не має обміну знаннями.`};
+q('cScout').onchange=()=>{P.scout=q('cScout').checked;refresh()};
+q('bRun').onclick=()=>{running=!running;q('bRun').textContent=running?'Пауза':'Пуск'};
+q('bReset').onclick=()=>{const old=P.seed;resetAll(true)};
+q('bRand').onclick=()=>{P.seed=1+((Math.random()*99)|0);const r=[...q('cfg').children].find(e=>e.children[0].textContent.startsWith('Зерно'));r.children[1].value=P.seed;r.children[2].textContent=P.seed;resetAll(true)};
+document.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{spd=+b.dataset.sp;document.querySelectorAll('[data-sp]').forEach(x=>x.classList.toggle('on',x===b))});
+{let drag=null;const cv=q('v3');cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+ cv.addEventListener('pointermove',e=>{if(!drag)return;az-=(e.clientX-drag[0])*.008;el=Math.max(.12,Math.min(1.45,el+(e.clientY-drag[1])*.006));drag=[e.clientX,e.clientY]});
+ const up=()=>{drag=null;cv.style.cursor='grab'};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+ cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(20,Math.min(190,dist*(1+Math.sign(e.deltaY)*.08)))},{passive:false})}
+function loop(t){const dt=Math.min(.1,(t-lastT)/1000||0.016);lastT=t;
+ if(running){acc+=dt*2*spd;let k=0;while(acc>=1&&k<40){stepAny();acc-=1;k++}if(k>12)acc=0;if(k){draw2();stats();drawChart()}}
+ if(q('cRot').checked)az+=dt*.15;
+ resize3();render3(dt);requestAnimationFrame(loop)}
+function boot(){genTerrain(P.seed);mkBase3();mkImg2();T3=mk3D();if(T3)buildWorld();else q('v3').replaceWith(Object.assign(document.createElement('div'),{textContent:'WebGL недоступний — працює лише 2D-мапа.',className:'leg'}));
+ psoInit();if(T3)T3.fp=wp(pso.gb[0],pso.gb[1]);refresh();addEventListener('resize',drawChart);requestAnimationFrame(loop)}
+boot();
+addEventListener('load',()=>{try{renderMathInElement(q('theory'),{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false})}catch(e){}});
+<\/script><script>(function(){const post=()=>parent.postMessage({beeH:Math.ceil(document.body.getBoundingClientRect().height)},"*");addEventListener("load",post);new ResizeObserver(post).observe(document.body)})();<\/script></body></html>
+</script>
 <script>
 // CORE_START
 let n=8,nb,N,m,bx,tx,mem;
@@ -180,7 +521,7 @@ c.strokeStyle='rgba(179,38,30,.35)';c.lineWidth=1;c.beginPath();gd.h2.forEach((p
 function draw(){truss(cx[0],dp,'', 'J = '+pso.f.toFixed(3));truss(cx[1],dg,'','J = '+gd.best.toFixed(3)+' (найкраще) · пунктир: спуск №'+gd.runs+(gd.s>0?' (арка)':' (риба)'),sm(gd.x));
 $('i1').textContent='обчислень: '+pso.ev+' / '+B+',  найкраще J = '+pso.f.toFixed(3);
 $('i2').textContent='обчислень: '+gd.ev+' / '+B+',  спусків: '+gd.runs+',  найкраще J = '+gd.best.toFixed(3);chart();}
-function frame(){if(run){if(pso.ev+24<=B)stepPSO(pso);let t=gd.ev+24;while(gd.ev<t&&gd.ev<B)stepGD(gd,B);if(pso.ev+24>B&&gd.ev>=B){run=false;$('go').textContent='Старт';}}
+function frame(){if($('tab-truss').hidden){requestAnimationFrame(frame);return}if(run){if(pso.ev+24<=B)stepPSO(pso);let t=gd.ev+24;while(gd.ev<t&&gd.ev<B)stepGD(gd,B);if(pso.ev+24>B&&gd.ev>=B){run=false;$('go').textContent='Старт';}}
 const k=.2;for(let i=0;i<n;i++){dp[i]+=(pso.bx[i]-dp[i])*k;dg[i]+=(gd.bx[i]-dg[i])*k;}draw();requestAnimationFrame(frame);}
 $('go').onclick=()=>{if(pso.ev>=B)reset();run=!run;$('go').textContent=run?'Пауза':'Старт';};$('rst').onclick=reset;$('pre').onchange=setPre;
 ['rat','sgn','sym','bud','seed','np','sp'].forEach(i=>$(i).onchange=reset);$('rat').oninput=()=>$('ratv').textContent=(+$('rat').value).toFixed(2);
@@ -192,4 +533,9 @@ o.textContent='Рахуємо... сід '+s+'/10';await new Promise(r=>setTimeou
 const row=(n,a)=>{const[md,mn,sd]=st(a);return'<tr><td>'+n+'</td><td>'+md.toFixed(3)+'</td><td>'+mn.toFixed(3)+'</td><td>'+sd.toFixed(3)+'</td><td>'+(n==='PSO'?'—':P.filter((v,i)=>v<a[i]-1e-9).length+' з 10')+'</td></tr>';};
 o.innerHTML='<table><tr><th>Метод</th><th>медіана J</th><th>середнє J</th><th>розкид (sd)</th><th>PSO кращий у</th></tr>'+row('PSO',P)+row('Градієнт (мультистарт)',G)+row('Стохастичний градієнт (SPSA)',Q)+'</table>Сіди 1–10, бюджет '+B+' обчислень, поточні налаштування.';};
 setPre();frame();
+(function(){const tt=$('tabT'),tb=$('tabB'),pt=$('tab-truss'),pb=$('tab-bee'),fr=$('beeFrame');let loaded=false;
+function show(b){pt.hidden=b;pb.hidden=!b;tt.classList.toggle('on',!b);tb.classList.toggle('on',b);
+ if(b&&!loaded){loaded=true;fr.srcdoc=$('beeSrc').textContent.replace(/<\\\/script/g,'</script')}}
+tt.onclick=()=>show(false);tb.onclick=()=>show(true);
+addEventListener('message',e=>{if(e.source===fr.contentWindow&&e.data&&e.data.beeH)fr.style.height=e.data.beeH+'px'})})();
 </script></body></html>
