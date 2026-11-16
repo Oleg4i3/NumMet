@@ -8,7 +8,7 @@
 :root {
   --bg: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --road: #cfcec6;
-  --a: #2a78d6; --b: #eb6834; --crit: #d03b3b; --warn: #fab219; --pher: #6250d6; --water: #d6e6f4;
+  --a: #2a78d6; --b: #eb6834; --crit: #d03b3b; --warn: #fab219; --pher: #6250d6; --water: #d6e6f4; --good: #0ca30c;
   --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   --display: "Space Grotesk", Inter, system-ui, sans-serif;
 }
@@ -56,6 +56,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 input[type=range] { width: 100%; accent-color: var(--ink); margin: 2px 0; }
 .opts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: flex-end; border-top: 1px solid var(--grid); padding-top: 12px; }
 .chk { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.chk select { font: inherit; padding: 4px 6px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); }
 .chk input { accent-color: var(--ink); width: 16px; height: 16px; margin: 0; }
 .chk.off { opacity: .45; cursor: default; }
 .brctl { width: 240px; }
@@ -111,6 +112,13 @@ th, td { text-align: right; padding: 5px 10px; border-bottom: 1px solid var(--gr
 th { color: var(--ink2); font-weight: 500; font-size: 12px; }
 th:first-child, td:first-child { text-align: left; }
 
+
+[hidden] { display: none !important; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--axis); }
+.tabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 6px 6px 0 0; background: transparent; padding: 9px 14px; min-width: 0; color: var(--ink2); }
+.tabs button:hover { background: var(--grid); }
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+
 @media (max-width: 900px) {
   .controls { grid-template-columns: 1fr; }
   .charts { grid-template-columns: 1fr; }
@@ -124,9 +132,16 @@ th:first-child, td:first-child { text-align: left; }
 <div class="wrap">
   <div>
     <h1>Феромони на вулицях</h1>
-    <p class="lead">Те саме місто, той самий потік машин і ті самі аварії в обох сценах. Ліворуч водії їдуть за статичною мапою й заторів не знають. Праворуч кожна вулиця має логер: він пам'ятає виміряну затримку й позначає закриті ділянки, але поступово забуває це. Місто можна згенерувати заново, з річкою, мостами й понтонами або без них.</p>
+    <p class="lead">Це симулятор оптимізації руху в динамічному середовищі: місто, де події (аварії, ремонти, затори) постійно змінюють проїзність вулиць. Дві сцени мають однаковий потік машин і однакові події. Ліворуч водії не знають, де зараз затори: вони їдуть за статичною мапою або взагалі наосліп. Праворуч кожна вулиця має логер, який пам'ятає виміряну затримку й закриття та поступово забуває їх. Це феромонова підказка в дусі ACO. Вкладки показують три сценарії: місто з мапою, військовий лабіринт без мапи й рельєф із озерами.</p>
   </div>
 
+  <div class="tabs" role="tablist" aria-label="Сценарії">
+    <button role="tab" id="tab_traf" type="button" aria-selected="true">Місто: логери на вулицях</button>
+    <button role="tab" id="tab_fog" type="button" aria-selected="false" tabindex="-1">Військовий сценарій: лабіринт без мапи</button>
+    <button role="tab" id="tab_ant" type="button" aria-selected="false" tabindex="-1">Рельєф: пам'ять проти феромонів</button>
+  </div>
+
+  <div id="trafApp" style="display:contents">
   <div class="controls" role="group" aria-label="Параметри симуляції">
     <div class="btns">
       <button id="play" class="primary" type="button">Пауза</button>
@@ -141,7 +156,7 @@ th:first-child, td:first-child { text-align: left; }
     </div>
     <div class="ctl">
       <label for="rho">Випаровування ρ <output id="rhoO"></output></label>
-      <input id="rho" type="range" min="0" max="100" step="1" value="65">
+      <input id="rho" type="range" min="0" max="100" step="1" value="55">
       <span class="hint" id="rhoH"></span>
     </div>
     <div class="ctl">
@@ -150,10 +165,14 @@ th:first-child, td:first-child { text-align: left; }
       <span class="hint">хвилин симуляції за секунду</span>
     </div>
     <div class="opts">
+      <label class="chk">Режим <select id="mode"><option value="map">Маршрут за мапою</option><option value="wander">Блукачі без пам'яті</option></select></label>
+      <label class="chk"><input type="checkbox" id="grid"> Прямокутна сітка</label>
+      <label class="chk" id="snapL" hidden><input type="checkbox" id="snap" checked> Знімок заторів на складі (A)</label>
       <label class="chk"><input type="checkbox" id="river" checked> Річка з мостами</label>
       <label class="chk" id="ponL"><input type="checkbox" id="pon" checked> Понтонні мости на набережних</label>
       <label class="chk"><input type="checkbox" id="loop" checked> Захист від петель (B)</label>
       <label class="chk"><input type="checkbox" id="neg" checked> Негативний феромон (B)</label>
+      <label class="chk"><input type="checkbox" id="pos"> Позитивний феромон (B)</label>
       <div class="ctl brctl" id="brctl" hidden>
         <label for="br">Аварії мостів <output id="brO"></output></label>
         <input id="br" type="range" min="0" max="40" step="1" value="10">
@@ -167,6 +186,7 @@ th:first-child, td:first-child { text-align: left; }
       <div class="controls" style="border:0;padding:8px 0 0;grid-template-columns:repeat(3,minmax(0,1fr))">
         <div class="ctl"><label for="nst">Магазини <output id="nstO"></output></label><input id="nst" type="range" min="3" max="16" step="1" value="6"><span class="hint">змінює місто (те саме зерно)</span></div>
         <div class="ctl"><label for="nwh">Склади <output id="nwhO"></output></label><input id="nwh" type="range" min="2" max="8" step="1" value="4"><span class="hint">кожен склад — свій вид товару; возять у кожен магазин</span></div>
+        <div class="ctl"><label for="edur">Тривалість події <output id="edurO"></output></label><input id="edur" type="range" min="5" max="60" step="1" value="50"><span class="hint">середня, хв: коротші за поїздку — знімок застаріває</span></div>
         <div class="ctl"><label for="lam">Трафік <output id="lamO"></output></label><input id="lam" type="range" min="10" max="80" step="1" value="30"><span class="hint">нових поїздок за хвилину</span></div>
       </div>
     </div>
@@ -175,7 +195,7 @@ th:first-child, td:first-child { text-align: left; }
   <div>
     <div class="scenes">
       <section class="scene" aria-label="Сцена A">
-        <header><h3><span class="key" style="background:var(--a)"></span>A · Без логерів</h3><span class="sub">статична мапа, затори невідомі</span></header>
+        <header><h3><span class="key" style="background:var(--a)"></span>A · Без логерів</h3><span class="sub" id="subA">статична мапа, затори невідомі</span></header>
         <canvas class="map" id="mapA" role="img" aria-label="Фрагмент міста, сцена A: машини їдуть за статичною мапою"></canvas>
         <div class="kpis">
           <div class="kpi"><span>Машин у мережі</span><b id="nA">0</b></div>
@@ -185,7 +205,7 @@ th:first-child, td:first-child { text-align: left; }
         <div class="note" id="cntA"></div>
       </section>
       <section class="scene" aria-label="Сцена B">
-        <header><h3><span class="key" style="background:var(--b)"></span>B · З логерами</h3><span class="sub">слід затримки й закриттів, що випаровується</span></header>
+        <header><h3><span class="key" style="background:var(--b)"></span>B · З логерами</h3><span class="sub" id="subB">слід затримки й закриттів, що випаровується</span></header>
         <canvas class="map" id="mapB" role="img" aria-label="Фрагмент міста, сцена B: машини читають логери на сусідніх вулицях"></canvas>
         <div class="kpis">
           <div class="kpi"><span>Машин у мережі</span><b id="nB">0</b></div>
@@ -201,6 +221,7 @@ th:first-child, td:first-child { text-align: left; }
       <span><svg class="sw" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="var(--crit)"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>проїзд закрито</span>
       <span><svg class="sw" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l6.5 11.5h-13z" fill="var(--warn)"/><path d="M8 6.5v3.2M8 11.4v.4" stroke="#0b0b0b" stroke-width="1.6" stroke-linecap="round"/></svg>затор (швидкість ×0,25)</span>
       <span><span class="grad" aria-hidden="true"></span>слід затримки (лише B)</span>
+      <span><svg class="sw" width="24" height="10" viewBox="0 0 24 10" aria-hidden="true"><path d="M1 5h22" stroke="var(--good)" stroke-width="3" stroke-linecap="round"/></svg>позитивний слід: швидкі успішні поїздки (лише B)</span>
       <span><svg class="sw" width="24" height="10" viewBox="0 0 24 10" aria-hidden="true"><path d="M1 5h22" stroke="var(--crit)" stroke-width="2.4" stroke-dasharray="2 4" stroke-linecap="round"/></svg>негативний слід: закрито, тупик (лише B)</span>
       <span class="riverleg"><svg class="sw" width="24" height="12" viewBox="0 0 24 12" aria-hidden="true"><rect x="0" y="2" width="24" height="8" rx="3" fill="var(--water)" stroke="var(--axis)"/></svg>річка</span>
       <span class="riverleg"><svg class="sw" width="24" height="10" viewBox="0 0 24 10" aria-hidden="true"><path d="M1 5h22" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/></svg>понтон, ще не розгорнутий</span>
@@ -226,7 +247,7 @@ th:first-child, td:first-child { text-align: left; }
     <summary>Таблиця значень</summary>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Хвилина</th><th>Середній вік A, хв</th><th>Середній вік B, хв</th><th>Машин A</th><th>Машин B</th><th>Понад 30 хв A</th><th>Понад 30 хв B</th></tr></thead>
+        <thead><tr><th>Час, год:хв</th><th>Середній вік A, хв</th><th>Середній вік B, хв</th><th>Машин A</th><th>Машин B</th><th>Понад 30 хв A</th><th>Понад 30 хв B</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -244,13 +265,14 @@ th:first-child, td:first-child { text-align: left; }
       <h4>2. Логер вулиці як феромон</h4>
       <p>Кожне ребро зберігає оцінку множника затримки \(\phi_e\ge 1\) (1 — вільно). Коли машина з'їжджає з ребра, вона вимірює фактичну затримку і оновлює логер:</p>
       <div class="eq">\[ \hat f_e=\frac{t_{\text{out}}-t_{\text{in}}}{t_e^0},\qquad \phi_e \;\leftarrow\; (1-\omega)\,\phi_e(t)+\omega\,\hat f_e,\qquad \omega=0{,}5 \]</div>
-      <p>Між проїздами запис випаровується: надлишок затримки \(\tau_e=\phi_e-1\) спадає експоненційно до нуля зі швидкістю \(\rho\) (слайдер):</p>
-      <div class="eq">\[ \tau_e(t)=\tau_e(t_0)\,e^{-\rho\,(t-t_0)},\qquad T_{1/2}=\frac{\ln 2}{\rho} \]</div>
-      <p>Це неперервний аналог класичного правила оновлення \(\tau_{ij}\leftarrow(1-\rho)\,\tau_{ij}+\sum_k \Delta\tau_{ij}^{k}\): випаровування стирає застарілу інформацію, проїзд машини додає свіжу. Закриття цей логер не фіксує: на закритій вулиці немає проїздів, а отже й вимірювань. Закриття видно тільки з сусіднього перехрестя, і водій запам'ятовує його до кінця поїздки. Про закриття для інших водіїв піклується окремий слід із розділу 4.</p>
+      <p>Позначення: \(s_e=\phi_e-1\ge 0\) — рівень сліду (надлишок затримки), \(\rho\) — швидкість випаровування (слайдер), \(\tau=1/\rho\) — час життя сліду, \(T_{1/2}=\tau\ln 2\) — напівжиття. Між проїздами запис випаровується експоненційно:</p>
+      <div class="eq">\[ s_e(t)=s_e(t_0)\,e^{-\rho\,(t-t_0)}=s_e(t_0)\,e^{-(t-t_0)/\tau},\qquad \tau=\frac1\rho,\quad T_{1/2}=\frac{\ln 2}{\rho} \]</div>
+      <p>За час \(\tau\) слід слабшає в \(e\approx 2{,}7\) раза, за \(3\tau\) лишається близько 5%.</p>
+      <p>Найкраще працює, коли \(\rho\) приблизно втричі менша за інтенсивність подій \(\lambda\) (у прогонах оптимум \(\rho/\lambda\approx 0{,}3\)), тобто час життя \(\tau\) охоплює кілька подій: слід не встигає застаріти. Це неперервний аналог класичного правила оновлення феромона \(s_{ij}\leftarrow(1-\rho)\,s_{ij}+\sum_k \Delta s_{ij}^{k}\) (у літературі його позначають \(\tau_{ij}\), тут \(s\), щоб не плутати з часом \(\tau\)): випаровування стирає застарілу інформацію, проїзд машини додає свіжу. Закриття цей логер не фіксує: на закритій вулиці немає проїздів, а отже й вимірювань. Закриття видно тільки з сусіднього перехрестя, і водій запам'ятовує його до кінця поїздки. Про закриття для інших водіїв піклується окремий слід із розділу 4.</p>
 
       <h4>3. Вибір маршруту</h4>
-      <p>У класичному ACO мураха в вузлі \(i\) обирає наступний вузол \(j\) імовірнісно, за привабливістю сліду \(\tau_{ij}\) і евристикою \(\eta_{ij}=1/d_{ij}\):</p>
-      <div class="eq">\[ p_{ij}=\frac{\tau_{ij}^{\alpha}\,\eta_{ij}^{\beta}}{\sum_{l\in N(i)}\tau_{il}^{\alpha}\,\eta_{il}^{\beta}} \]</div>
+      <p>У класичному ACO мураха в вузлі \(i\) обирає наступний вузол \(j\) імовірнісно, за привабливістю сліду \(s_{ij}\) і евристикою \(\eta_{ij}=1/d_{ij}\):</p>
+      <div class="eq">\[ p_{ij}=\frac{s_{ij}^{\alpha}\,\eta_{ij}^{\beta}}{\sum_{l\in N(i)}s_{il}^{\alpha}\,\eta_{il}^{\beta}} \]</div>
       <p>Тут слід кодує затримку, тобто чим він сильніший, тим гірше ребро, тому правило перетворюється на мінімізацію вартості з випадковим шумом. У вузлі \(i\) агент читає логери ребер у горизонті \(k=3\) переходів від свого вузла і задає ваги:</p>
       <div class="eq">\[ w_e=t_e^0\,\phi_e(t)\,\xi_e\ \ (e\in \mathcal H_k(i)),\qquad w_e=t_e^0\,\xi_e\ \ (e\notin \mathcal H_k(i)),\qquad \xi_e\sim \mathrm{LogNormal}(0,\,0{,}1^2) \]</div>
       <div class="eq">\[ j^{*}=\arg\min_{j\in N(i)}\Bigl(w_{ij}+d_w(j,\,\text{мета})\Bigr) \]</div>
@@ -264,9 +286,257 @@ th:first-child, td:first-child { text-align: left; }
       <div class="eq">\[ \psi_e(t)=\psi_e(t_0)\,e^{-\rho\,(t-t_0)},\qquad w_e\leftarrow w_e\,\bigl(1+\nu\,\psi_e(t)\bigr),\quad \nu=4 \]</div>
       <p>Так агенти, що ще на підході, обминають закриту ділянку, а коли її відкриють, слід зникає сам.</p>
 
+      <p><b>Позитивний феромон.</b> Окремий логер \(\pi_e\in[0,1]\) працює як у класичному ACO: коли агент доїжджає до мети, він додає слід на ребра свого шляху (після вирізання петель) тим більше, чим ближче поїздка була до вільного проїзду:</p>
+      <div class="eq">\[ \Delta\pi_e=\gamma\,q,\qquad q=\min\Bigl(1,\ \frac{\sum_{e\in\text{шлях}}t_e^0}{t_{\text{факт}}}\Bigr),\qquad w_e\leftarrow \frac{w_e}{1+\kappa\,\pi_e(t)},\quad \gamma=0{,}3,\ \kappa=0{,}3 \]</div>
+      <p>Слід випаровується зі швидкістю \(\rho\) і приваблює. Успішний проїзд ребра ще й скасовує його негативний слід \(\psi_e\), якщо проїзд був швидким. Тепер у системі є обидва знаки: \(\phi,\psi\) відштовхують, \(\pi\) притягує. У прогонах цей слід майже не допомагає, а при сильному впливі шкодить: він збирає машини на вже популярних шляхах і створює нові затори (стагнація, відома з класичного ACO). Тому за замовчуванням його вимкнено.</p>
+
       <h4>5. Річка, набережні й понтонні мости</h4>
       <p>Якщо річку ввімкнено, мережу перетинає крива \(y=y_r(x)\). Через неї ведуть чотири мости. Генератор обирає лише ті вулиці, які перетинають річку майже під прямим кутом (\(\sin\theta\ge 0{,}93\)), а решту переходів прибирає. Уздовж обох берегів ідуть набережні, а між мостами є по три місця для понтонів.</p>
       <p>Мости ламаються за пуассонівським потоком (слайдер «Аварії мостів»). Через 8 хв після поломки на найближчому вільному місці розгортають понтон, і він стоїть, доки міст не відремонтують. Поки понтон не розгорнуто, ребро для водіїв закрите, але на статичній мапі воно є: водій дізнається про це лише на сусідньому перехресті, а сцена B ще й залишає по цьому слід \(\psi_e\).</p>
+
+      <h4>6. Режим «блукачі без пам'яті»</h4>
+      <p>Тут агент не знає мапи: він бачить лише сусідні ребра й напрямок до мети (відстань \(d_i\) до пункту призначення), а власної пам'яті не має, тобто ні списку табу, ні запам'ятованих закриттів. У вузлі \(i\) він обирає ребро класичним імовірнісним правилом:</p>
+      <div class="eq">\[ p_{ij}=\frac{\eta_{ij}}{\sum_{l}\eta_{il}},\qquad \eta_{ij}=e^{\beta\,(d_i-d_j)}\cdot\begin{cases}1 &\text{(A, наосліп)}\\ \kappa_{ij}&\text{(A зі знімком)}\\ \bigl[\phi_{ij}^{\alpha}\,(1+\nu\psi_{ij})\bigr]^{-1}&\text{(B)}\end{cases} \]</div>
+      <p>Закрите сусіднє ребро агент бачить і не обирає. Знімок заторів, виданий на складі, дає \(\kappa=0{,}02\) для ребер, що були закриті на момент виїзду, і \(0{,}25\) для заторів, але події тривають недовго й знімок застаріває ще до кінця поїздки. У сцені B пам'ять замінює середовище: логер \(\phi\) відштовхує від повільних ребер, а негативний слід \(\psi\) ставлять на закриті ребра й на ребро, яким агент заїхав у тупик. Тупиком вважають і вузол, усі виходи з якого закриті або вже мають сильний слід \(\psi\), тож «кишеня» з тупиків поступово заповнюється слідом. Тут \(\alpha=2\), \(\beta=2{,}5\).</p>
+    </div>
+  </details>
+  </div>
+
+  <div id="fogApp" hidden style="display:contents">
+    <div class="controls" role="group" aria-label="Параметри військового сценарію">
+      <div class="btns">
+        <button id="fplay" class="primary" type="button">Пауза</button>
+        <button id="freset" type="button">Спочатку</button>
+        <button id="fnew" type="button">Нове місто</button>
+        <span class="clock" id="fclock" aria-live="off"></span>
+      </div>
+      <div class="ctl">
+        <label for="fcomm">Зв'язок між агентами p (РЕБ) <output id="fcommO"></output></label>
+        <input id="fcomm" type="range" min="0" max="100" step="1" value="0">
+        <span class="hint" id="fcommH"></span>
+      </div>
+      <div class="ctl">
+        <label for="fexp">Повторна перевірка закритого <output id="fexpO"></output></label>
+        <input id="fexp" type="range" min="5" max="600" step="5" value="10">
+        <span class="hint" id="fexpH"></span>
+      </div>
+      <div class="ctl">
+        <label for="frho">Випаровування мурах ρ <output id="frhoO"></output></label>
+        <input id="frho" type="range" min="0" max="100" step="1" value="41">
+        <span class="hint" id="frhoH"></span>
+      </div>
+      <div class="opts">
+        <label class="chk">Світ A <select id="fkind"><option value="mem">Агенти з пам'яттю</option><option value="solo">Одноразові (забувають між поїздками)</option><option value="dfs">Пошук у глибину (DFS)</option></select></label>
+        <label class="chk"><input type="checkbox" id="fpons"> Понтони (інженери розгортають через ≈ 3 хв)</label>
+        <div class="ctl brctl">
+          <label for="fspd">Швидкість анімації <output id="fspdO"></output></label>
+          <input id="fspd" type="range" min="1" max="100" step="1" value="10">
+          <span class="hint">хвилин симуляції за секунду (1 крок = 10 с)</span>
+        </div>
+      </div>
+      <div class="note" style="grid-column:1/-1">Типові налаштування лежать у зоні, де мурахи виграють: зв'язку немає, а пам'ять перевіряє закрите надто часто (кожні 10 кроків). Підвищте перевірку до 40–120 кроків — налаштована пам'ять обжене мурах; піднімете p до 1 — спільна мапа обжене ще більше. Місто дуже впливає на результат: на частині міст («Нове місто») пам'ять виграє й при хибному налаштуванні.</div>
+    </div>
+
+    <details id="fadv" open>
+      <summary>Події й склад флоту</summary>
+      <div class="body" style="max-width:none">
+        <div class="controls" style="border:0;padding:8px 0 0;grid-template-columns:repeat(3,minmax(0,1fr))">
+          <div class="ctl"><label for="fbr">Підриви мостів <output id="fbrO"></output></label><input id="fbr" type="range" min="0" max="100" step="1" value="36"><span class="hint" id="fbrH"></span></div>
+          <div class="ctl"><label for="fbrd">Тривалість ремонту моста <output id="fbrdO"></output></label><input id="fbrd" type="range" min="10" max="120" step="1" value="50"><span class="hint">середня; міст зламано надовго — об'їзд через пів міста</span></div>
+          <div class="ctl"><label for="fag">Агентів у кожному світі <output id="fagO"></output></label><input id="fag" type="range" min="5" max="40" step="1" value="20"><span class="hint">змінює флот (перезапуск)</span></div>
+          <div class="ctl"><label for="fev">Завали на вулицях <output id="fevO"></output></label><input id="fev" type="range" min="0" max="200" step="1" value="36"><span class="hint">випадкова вулиця стає непрохідною</span></div>
+          <div class="ctl"><label for="fevd">Тривалість завалу <output id="fevdO"></output></label><input id="fevd" type="range" min="2" max="60" step="1" value="10"><span class="hint">середня</span></div>
+        </div>
+      </div>
+    </details>
+
+    <div>
+      <div class="scenes">
+        <section class="scene" aria-label="Світ A">
+          <header><h3><span class="key" style="background:var(--a)"></span><span id="fnameA">A · Агенти з пам'яттю</span></h3><span class="sub" id="fsubA"></span></header>
+          <canvas class="map" id="fmapA" role="img" aria-label="Світ A: агенти без мапи шукають шлях у місті з підірваними мостами"></canvas>
+          <div class="kpis">
+            <div class="kpi"><span>Доставок усього</span><b id="fdA">0</b></div>
+            <div class="kpi"><span>Поїздка, остання година</span><b id="fmA">–</b></div>
+            <div class="kpi"><span>Від оракула, остання година</span><b id="fpA">–</b></div>
+          </div>
+          <div class="note" id="fnoteA"></div>
+        </section>
+        <section class="scene" aria-label="Світ B">
+          <header><h3><span class="key" style="background:var(--b)"></span>B · Мурахи</h3><span class="sub">слід за адресою магазину, що випаровується; негативний слід у тупику</span></header>
+          <canvas class="map" id="fmapB" role="img" aria-label="Світ B: мурахи без мапи, слід феромону на вулицях"></canvas>
+          <div class="kpis">
+            <div class="kpi"><span>Доставок усього</span><b id="fdB">0</b></div>
+            <div class="kpi"><span>Поїздка, остання година</span><b id="fmB">–</b></div>
+            <div class="kpi"><span>Від оракула, остання година</span><b id="fpB">–</b></div>
+          </div>
+          <div class="note" id="fnoteB"></div>
+        </section>
+      </div>
+      <div class="legend" style="margin-top:10px">
+        <span><svg class="sw" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="var(--ink)"/></svg>склад</span>
+        <span><svg class="sw" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></svg>магазин</span>
+        <span><svg class="sw" width="24" height="10" viewBox="0 0 24 10" aria-hidden="true"><path d="M1 5h22" stroke="var(--ink2)" stroke-width="3.4" stroke-linecap="round"/></svg>міст</span>
+        <span><svg class="sw" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="var(--crit)"/><path d="M5 5l6 6M11 5l-6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>завал або підірваний міст</span>
+        <span><span class="grad" aria-hidden="true"></span>слід мурах (лише B)</span>
+        <span><svg class="sw" width="24" height="10" viewBox="0 0 24 10" aria-hidden="true"><path d="M1 5h22" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/></svg>понтон, ще не розгорнутий</span>
+        <span><svg class="sw" width="24" height="12" viewBox="0 0 24 12" aria-hidden="true"><rect x="0" y="2" width="24" height="8" rx="3" fill="var(--water)" stroke="var(--axis)"/></svg>річки й острів</span>
+        <span><svg class="sw" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="var(--a)" stroke="var(--surface)" stroke-width="1.5"/></svg>агент (колір світу)</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="charts-head" style="margin-bottom:10px">
+        <h2>Метрики (вісь часу — години)</h2>
+        <div class="legend">
+          <span><span class="key" style="background:var(--a)"></span><span id="flgA">A</span></span>
+          <span><span class="key" style="background:var(--b)"></span>B · Мурахи</span>
+          <span><svg class="sw" width="18" height="4" viewBox="0 0 18 4" aria-hidden="true"><path d="M0 2h18" stroke="var(--ink2)" stroke-width="2" stroke-dasharray="4 3"/></svg>Оракул (повна мапа)</span>
+        </div>
+      </div>
+      <div class="charts">
+        <div class="chart"><h3>Доставок усього</h3><p>накопичено, більше — краще</p><canvas class="plot" id="fc1" role="img" aria-label="Накопичені доставки за часом: світи A і B та оракул"></canvas><div class="tip" hidden></div></div>
+        <div class="chart"><h3>Середня поїздка, хв</h3><p>за останню годину, з другої години, менше — краще</p><canvas class="plot" id="fc2" role="img" aria-label="Середня тривалість поїздки за останню годину: світи A і B та оракул"></canvas><div class="tip" hidden></div></div>
+        <div class="chart"><h3>Від оракула, %</h3><p>доставок за останню годину, з другої години, більше — краще</p><canvas class="plot" id="fc3" role="img" aria-label="Частка доставок від оракула за останню годину: світи A і B"></canvas><div class="tip" hidden></div></div>
+      </div>
+    </div>
+
+    <details id="ftbl">
+      <summary>Таблиця значень</summary>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Час</th><th>Доставок A</th><th>Доставок B</th><th>Доставок оракул</th><th>Поїздка A, хв</th><th>Поїздка B, хв</th><th>Поїздка оракул, хв</th></tr></thead>
+          <tbody id="ftbody"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <details id="ftheory" class="tex2jax_ignore">
+      <summary>Теорія: військовий сценарій без мапи</summary>
+      <div class="body">
+        <h4>1. Постановка</h4>
+        <p>Місто — граф \(G=(V,E)\) із двома річками (одна — притока), островом і тупиками. Береги з'єднують лише три мости. Мости підривають за пуассонівським потоком із середнім ремонтом \(D_b\), на вулицях виникають завали тривалістю \(D_e\). Агент везе товар зі складу в довільний магазин, мапи не має й бачить лише ребра, що виходять із вузла, де він стоїть. Оракул (сірий пунктир) бачить усю мапу в реальному часі: це верхня межа. Один крок симуляції дорівнює 10 с.</p>
+
+        <h4>2. Агенти з пам'яттю</h4>
+        <p>Кожен агент веде власну таблицю: для ребра \(e\) стан \(K_e\in\{\text{невідомо},\ \text{відкрито},\ \text{закрито}\}\) і момент спостереження \(t_e\). Маршрут плануємо за найкоротшим шляхом по ребрах, які вважаємо прохідними:</p>
+        <div class="eq">\[ e\ \text{прохідне}\iff K_e=\text{відкрито}\ \ \lor\ \ \bigl(K_e=\text{закрито}\ \land\ t-t_e>T_m\bigr) \]</div>
+        <p>Тут \(T_m\) — час пам'яті про закрите, він же період повторної перевірки (слайдер); це той самий параметр, що «час пам'яті логера» на вкладці рельєфу. Поки мета невідома, агент іде до найближчого ребра з невідомим станом. РЕБ глушить зв'язок: на кожному кроці агент із імовірністю \(p\) зливає свою таблицю зі спільною, залишаючи новіший запис.</p>
+        <div class="eq">\[ \text{з імовірністю } p:\qquad K,\ K^{\text{спільна}}\ \leftarrow\ \text{новіший за }t_e\ \text{запис} \]</div>
+        <p>При \(p=0\) мапи кожного агента окремі. При \(p=1\) мапа спільна. «Одноразові» агенти після кожної поїздки втрачають таблицю, а DFS іде вглиб, не пам'ятаючи нічого, окрім відвіданих вузлів поточної поїздки.</p>
+
+        <h4>3. Мурахи</h4>
+        <p>Для кожного магазину \(\ell\) ребро має слід \(\pi^{(\ell)}_e\ge\pi_{\min}\). У вузлі \(i\) мураха обирає серед відкритих ребер до ще не відвіданих вузлів:</p>
+        <div class="eq">\[ \Pr(i\to j\mid \ell)=\frac{\bigl(\pi^{(\ell)}_{ij}\bigr)^{\alpha}\,\eta_{ij}^{\beta}}{\sum_{k}\bigl(\pi^{(\ell)}_{ik}\bigr)^{\alpha}\,\eta_{ik}^{\beta}},\qquad \eta_{ij}=\frac{1}{d_{ij}},\quad \alpha=3,\ \beta=1 \]</div>
+        <p>З імовірністю \(\varepsilon=0{,}02\) вибір випадковий. Поки ребро ведуть у мету, слід випаровується; коли мураха доїхала, вона додає слід по всьому пройденому шляху довжиною \(L\):</p>
+        <div class="eq">\[ \pi_e^{(\ell)}\leftarrow\max\bigl(\pi_{\min},\,(1-\rho)\,\pi_e^{(\ell)}\bigr),\qquad \Delta\pi_e^{(\ell)}=\frac{Q}{L}\ \ (e\in\text{шлях}),\quad Q=20 \]</div>
+        <p>У глухому куті (усі відкриті сусіди відвідані) мураха відступає назад і скидає слід на ребрі, що привело в тупик: \(\pi^{(\ell)}_e\leftarrow\pi_{\min}\). Це негативний феромон. Мурахи не мають мапи й нічого не знають про закриття: вони лише відбивають результат попередніх поїздок.</p>
+
+        <h4>4. Чому пам'ять має ціну налаштування</h4>
+        <p>Закрите ребро агент вважає закритим, доки не спливе \(T_m\). Якщо \(T_m\) мале, він знову й знову їде через пів міста до підірваного моста. Якщо \(T_m\) велике, він довго не помічає, що міст уже відремонтували. Нехай \(C\) — ціна марної поїздки до закритого ребра (об'їзд назад), \(D\) — тривалість ремонту, \(\Delta\) — додаткові втрати за одиницю часу, поки агент користується об'їздом замість відремонтованого моста. За один ремонт:</p>
+        <div class="eq">\[ J(T_m)\;\approx\;\frac{C\,D}{T_m}+\frac{\Delta\,T_m}{2}\qquad\Rightarrow\qquad T_m^{*}=\sqrt{\frac{2\,C\,D}{\Delta}} \]</div>
+        <p>Це проста оцінка, а не вимір: вона пояснює, чому графік має дно всередині діапазону. У безрендерному прототипі оптимум був близьким до 120 кроків для ремонтів 200–400 кроків, а на 10 містах цієї сторінки він лежить на плато ≈ 40–120 кроків. Мурахам ця настройка не потрібна: вони не мають «таймера» перевірки, а слід на ребрі просто слабшає.</p>
+        <p><b>Випаровування \(\rho\) у режимі без мапи.</b> Тут не знайшлося внутрішнього оптимуму: найкращі значення \(\rho\approx 0\) – \(0{,}003\) (час життя \(\tau=1/\rho\) триста кроків і довше, див. «Єдині позначки»), а \(\rho=0{,}0003\) і \(0{,}002\) дали майже однаковий результат. Тобто в цьому режимі випаровування працює як страховка від застарілих слідів, а не як головний регулятор, на відміну від режиму з мапою, де оптимум \(\rho/\lambda\approx0{,}3\).</p>
+
+        <h4>5. Результати</h4>
+        <p><b>Прилад у сторінці.</b> 10 міст, які генерує ця сторінка (зерна 1, 6, 7, 9, 10, 11, 12, 14, 15, 16), 20 агентів, 6000 кроків, завали 0,01/крок тривалістю 60 кроків, підриви мостів 0,01/крок із ремонтом 300 кроків, зв'язку немає (\(p=0\)), якщо не вказано інше. Середня кількість доставок за прогон:</p>
+        <div class="tablewrap" style="padding:0 0 8px">
+          <table>
+            <thead><tr><th>Оракул</th><th>Спільна мапа p=1</th><th>Пам'ять 5</th><th>Пам'ять 10</th><th>Пам'ять 20</th><th>Пам'ять 40</th><th>Пам'ять 120</th><th>Пам'ять 600</th><th>Мурахи</th></tr></thead>
+            <tbody><tr><td>1013</td><td>847</td><td>193</td><td>265</td><td>421</td><td>591</td><td>638</td><td>430</td><td>439</td></tr></tbody>
+          </table>
+        </div>
+        <p><b>Безрендерний прототип</b> (інший набір із 8 міст, бо генератор залежить від рушія JavaScript). Три режими поломок мостів: частота / тривалість ремонту. Кожна клітинка: доставок за прогон / середня тривалість поїздки в кроках.</p>
+        <div class="tablewrap" style="padding:0 0 8px">
+          <table>
+            <thead><tr><th>Поломки</th><th>Оракул</th><th>Спільна мапа p=1</th><th>Пам'ять 20</th><th>Пам'ять 120</th><th>Пам'ять 400</th><th>Пам'ять ∞</th><th>Одноразові</th><th>DFS</th><th>Мурахи</th></tr></thead>
+            <tbody>
+              <tr><td>0,004 / 400</td><td>1446 / 89</td><td>1296 / 100</td><td>589 / 173</td><td>946 / 121</td><td>889 / 133</td><td>517 / 204</td><td>534 / 213</td><td>430 / 274</td><td>778 / 157</td></tr>
+              <tr><td>0,01 / 300</td><td>881 / 161</td><td>750 / 188</td><td>354 / 253</td><td>581 / 212</td><td>427 / 279</td><td>243 / 371</td><td>365 / 297</td><td>282 / 388</td><td>433 / 291</td></tr>
+              <tr><td>0,02 / 200</td><td>755 / 191</td><td>612 / 209</td><td>304 / 288</td><td>441 / 286</td><td>319 / 359</td><td>186 / 466</td><td>326 / 347</td><td>235 / 470</td><td>342 / 359</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>Мурахи без налаштування роблять близько 43% доставок оракула. Вони помітно перевершують пам'ять із надто частою перевіркою (5–10 кроків: у 1,7–2,3 раза), а в прототипі ще й пам'ять, що закрите не перевіряє (∞). При перевірці раз на 20 кроків і при 600 вони приблизно нарівні з пам'яттю.</li>
+          <li>Налаштована пам'ять (\(T_m\approx40\)–\(120\) кроків) виграє в мурах на 35–45% у сторінці й на 22–34% у прототипі й робить 58–66% доставок оракула.</li>
+          <li>Спільна мапа без глушіння (\(p=1\)) перемагає мурах у 1,7–1,9 раза. Мурахи виграють там, де зв'язку немає й перевірку не налаштовано.</li>
+          <li>Розкид по містах великий: при \(T_m=20\) мурахи виграють у кілька разів на одних містах і програють на інших. Висновок про середнє не гарантує виграш на кожному місті.</li>
+        </ul>
+        <p>Отже тезу «у динамічному середовищі мурахи кращі за негнучкі алгоритми з пам'яттю» цей сценарій підтверджує лише для пам'яті з хибним налаштуванням \(T_m\). Мурахи мало чутливі до налаштування (їхній результат майже не залежить від \(\rho\)), а пам'ять чутлива до нього сильно.</p>
+      </div>
+    </details>
+  </div>
+
+  <div id="antApp" hidden style="display:contents">
+    <p class="lead" style="margin:0;max-width:90ch">Рельєф із хребтами й низинами різної форми, які періодично затоплюються озерами. Мурахи носять вантаж із трьох джерел до мурашника. У світі A вони знають мапу висот, але записи про закриті клітинки в кожної мурахи свої. У світі B мапа та сама, а записи про закрите спільні й забуваються за час T<sub>m</sub> (логери). Рельєф, озера й джерела однакові в обох світах. Хто ефективніший, залежить від рельєфу й сили змін: див. серію внизу.</p>
+    <iframe id="antFrame" title="Симулятор рельєфу: пам'ять мапи проти спільних логерів" style="width:100%;height:1900px;border:0;display:block;background:transparent"></iframe>
+
+    <details id="atheory" class="tex2jax_ignore">
+      <summary>Теорія: рельєф, озера й два світи мурах</summary>
+      <div class="body">
+        <h4>1. Рельєф, вода, перешкоди</h4>
+        <p>Мапа складається з \(72\times72\) клітинок. Висота — сума плавних гауссових хребтів і улоговин різної форми над рівниною \(h_0\) (слайдери «висота рівнини», «глибина» й «розмір» низин). Крок \(a\to b\) завдовжки \(d\) коштує часу залежно від нахилу \(s\) і можливий, лише якщо схил не надто крутий:</p>
+        <div class="eq">\[ c(a\to b)=d\,\bigl(1+k_{\uparrow}\max(0,s)+\tfrac12\max(0,-s)\bigr),\qquad s=\frac{h_b-h_a}{d},\qquad \text{прохідний}\iff |s|\le s_{\max} \]</div>
+        <p>Тут \(k_\uparrow=3\) (підйом дорожчий за рівнину, спуск лише трохи дорожчий), \(s_{\max}\) — слайдер «прохідність». Час кроку \(\max(1,\operatorname{round}c)\) тактів множиться на індивідуальний коефіцієнт сповільнення мурахи \(\in[1,\,1+\sigma_v]\): без розкиду швидкостей \(\sigma_v\) мурахи одного потоку їдуть зграйкою, що ніколи не розсипається.</p>
+        <p>Вода — це рівень \(L_k(t)\) в області \(k\in\{1,\dots,5\}\). Він періодичний із періодом \(T\), у кожному циклі має свій пік, а фази областей зсунуті на \(u\,\varphi_k T\) («нерівномірність» \(u\)). Клітинка \(c\) під водою, якщо \(h_c<L_{k(c)}(t)\). На перевалах хребтів-перешкод додатково бувають лід (замерзає випадково, тане за середній час \(D_{\text{лід}}\)) і обвал (виникає з малою імовірністю за такт, зникає, коли озеро сягає цього місця). Усе це блокує прохід так само, як вода, але мурахи в льоді й обвалі не тонуть. Перемички між проходами створюють глухі кути: вздовж хребта пройти не можна, довгий шлях навколо існує.</p>
+
+        <h4>2. Світ A: мапа висот і власні записи</h4>
+        <p>Мурахи світу A знають висоти й на початку рейсу прокладають оптимальний шлях Дейкстрою за вартістю \(c\) без води. Вони бачать лише клітинку попереду. Режими обходу закритого місця:</p>
+        <ul>
+          <li><b>2 (типовий):</b> локальний перехід до найближчого проходу за бюджет \(B\) кроків («бюджет локального обходу»). Якщо не вийшло, мураха повертається в гніздо й пробує знову.</li>
+          <li><b>1:</b> мураха ставить власні записи про закриті клітинки й перепланує шлях за ними (як нижче в світі B, але без обміну).</li>
+          <li><b>0:</b> жадібний обхід по контуру озера.</li>
+        </ul>
+        <p>Якщо вода піднялася під мурахою, вона тоне й починає з гнізда без вантажу.</p>
+
+        <h4>3. Світ B: спільні логери з пам'яттю \(T_m\) (режим «мапа + логери»)</h4>
+        <p>Планувальник і статична мапа ті самі, але записи про закрите спільні для всіх мурах. Щотакту мураха оглядає 8 сусідніх клітинок і оновлює запис \(m_c\) — момент останнього спостереження, що клітинка закрита (спостереження «відкрито» стирає запис). Планувальник вважає клітинку закритою, поки запис свіжий, але лише поблизу мурахи (горизонт читання \(k\)):</p>
+        <div class="eq">\[ c\ \text{закрита для планувальника}\iff t-m_c<T_m\ \ \land\ \ \operatorname{cheb}(c,\,\text{мураха})\le k \]</div>
+        <p>Тут \(T_m\) — «час пам'яті» логера (типово 400 тактів), \(k\) — «горизонт читання» (типово 15 клітинок). Поза горизонтом шлях плануємо за статичною мапою. Перепланування починається, коли свіжо закрита клітинка лежить за \(k\) кроків уперед на поточному шляху. Якщо обхід знайти не вдалося, мураха чекає 8 тактів і повторює спробу лише після зміни спільних записів або через \(0{,}8\,T_m\).</p>
+        <p>На мапі показано «слід» як лінійно слабшу функцію віку запису, \(s_c=s_{\max}\,(1-(t-m_c)/T_m)\), а не експоненту. Це те саме, що «логер із випаровуванням» міського режиму, лише з жорстким вікном забування \(T_m\) замість \(e^{-\rho t}\); для порівняння \(T_m\) відповідає часу життя \(\tau=1/\rho\).</p>
+        <p><b>Розвідники.</b> Частка мурах \(\sigma_s\) (типово 15%) у світі B планує шлях в обхід основного коридору й перевіряє альтернативні проходи. Своїми спостереженнями вони стирають із спільних записів проходи, які знову відкрилися, і додають свіжі записи про закриті.</p>
+
+        <h4>4. Світ B, режим 0: феромонні блукачі без мапи</h4>
+        <p>Мураха не знає мапи й обирає наступну клітинку випадково, з вагою від сліду \(\pi_j\), вартості кроку й інерції напрямку (кут \(\Delta\theta\) між поточним курсом і кроком):</p>
+        <div class="eq">\[ p(i\to j)\ \propto\ \pi_j^{\alpha}\cdot\frac{1}{c_{ij}}\cdot e^{\kappa\cos\Delta\theta_{ij}},\qquad \pi\leftarrow(1-\rho)\,\pi \]</div>
+        <p>Мураха без вантажу лишає «домашній» слід, з вантажем — «харчовий» слід; внесок обернено пропорційний довжині пройденого шляху, тож короткі маршрути виграють. Повертаючись, вона знає лише напрямок на гніздо (компас \(\gamma\)). За типового \(\rho=4\cdot10^{-3}\) такт⁻¹ час життя сліду \(\tau=1/\rho=250\) тактів, а \(T_{1/2}=\ln2/\rho\approx173\). Під водою слід зникає миттєво. Цей режим знає менше за світ A (мапи немає), тому в порівнянні з A він програє закономірно.</p>
+
+        <h4>5. Що саме тут порівнюється</h4>
+        <p>Перевагу світу B у типових налаштуваннях дає не «магія слідів», а три речі разом: спільність записів, їхнє забування за \(T_m\) та глобальне перепланування (плюс розвідники). У режимі 2 світу A це свідомо слабший суперник: лише локальний обхід. Чистий вимір внеску спільності дає пара «A: режим 1» проти «B: режим 1»: різниця лише в тому, чи ділиться пам'ять.</p>
+        <p>Результат залежить від рельєфу: на типових налаштуваннях серія з 12 рельєфів дала 8 перемог B, 2 перемоги A й 2 нічиї, медіана відношення B/A дорівнює 1,10, тобто виграш помірний. Тому в серії внизу ефективність порівнюється на багатьох рельєфах, і «в середньому виграє B» не означає виграш на кожному з них. Метрики: вантаж у мурашнику; ефективність маршруту = ідеальний час рейсу по сухій мапі / фактичний; частка часу світу A на обхід.</p>
+        <p>Зв'язок із двома іншими вкладками: у «Військовому сценарії» спільна мапа \(p=1\) діє так само, як спільні логери тут, а пам'ять із налаштованим \(T_m\) виграє в мурах без мапи. Отже перевагу тут дає саме спільність і вчасне забування, а не форма сліду (див. «Єдині позначки»).</p>
+      </div>
+    </details>
+  </div>
+
+  <details id="notation" class="tex2jax_ignore">
+    <summary>Єдині позначки й зведення трьох вкладок</summary>
+    <div class="body" style="max-width:none">
+      <p>Одні й ті самі величини в усіх вкладках позначені однаково. Одиниця часу: у місті хвилина, у військовому сценарії крок (10 с), на рельєфі такт.</p>
+      <div class="tablewrap" style="padding:0 0 8px">
+        <table>
+          <thead><tr><th>Позначка</th><th>Зміст</th><th>Місто</th><th>Військовий сценарій</th><th>Рельєф</th></tr></thead>
+          <tbody>
+            <tr><td>\(\rho\)</td><td>швидкість випаровування сліду</td><td>слайдер, хв⁻¹</td><td>слайдер, крок⁻¹</td><td>слайдер (режим 0), такт⁻¹</td></tr>
+            <tr><td>\(\tau=1/\rho\), \(T_{1/2}=\ln2/\rho\)</td><td>час життя й напіврозпад сліду</td><td>під слайдером ρ</td><td>під слайдером ρ</td><td>250 і ≈173 такти (типово)</td></tr>
+            <tr><td>\(T_m\)</td><td>час пам'яті про закрите (вікно забування, він же період повторної перевірки)</td><td>\(\approx\tau\) негативного сліду \(\psi\)</td><td>слайдер «повторна перевірка»</td><td>слайдер «час пам'яті логера»</td></tr>
+            <tr><td>\(\lambda\), \(D\)</td><td>частота й тривалість подій (ремонтів)</td><td>події на годину, тривалість події</td><td>підриви мостів і завали, ремонт</td><td>період затоплень \(T\), лід, обвали</td></tr>
+            <tr><td>\(s_e=\phi_e-1\)</td><td>слід затримки (відштовхує)</td><td>логер вулиці</td><td>немає</td><td>немає</td></tr>
+            <tr><td>\(\psi\)</td><td>негативний слід: закрито, тупик</td><td>окремий логер</td><td>скидання \(\pi\) до \(\pi_{\min}\) у тупику</td><td>запис \(m_c\) про закриту клітинку</td></tr>
+            <tr><td>\(\pi\)</td><td>позитивний (привабливий) слід</td><td>вимкнений типово</td><td>\(\pi^{(\ell)}_e\) за магазином</td><td>режим 0: домашній і харчовий слід</td></tr>
+            <tr><td>\(\alpha,\ \beta,\ Q,\ \varepsilon\)</td><td>вага сліду, вага евристики, дозування, випадковий вибір</td><td>\(\alpha=2,\ \beta=2{,}5\)</td><td>\(\alpha=3,\ \beta=1,\ Q=20,\ \varepsilon=0{,}02\)</td><td>\(\alpha=1{,}5\), інерція \(\kappa\), компас \(\gamma\)</td></tr>
+            <tr><td>\(k\)</td><td>горизонт читання записів</td><td>3 переходи</td><td>немає</td><td>15 клітинок</td></tr>
+            <tr><td>A / B</td><td>порівнювані світи</td><td>A: статична мапа; B: логери</td><td>A: пам'ять або DFS; B: мурахи</td><td>A: мапа, приватні записи; B: спільні логери</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h4>Зведення</h4>
+      <ul>
+        <li><b>Місто.</b> Логери з випаровуванням виграють у статичної мапи приблизно на 30–37% при помірному трафіку (безрендерні прогони); оптимум \(\rho/\lambda\approx0{,}3\). Позитивний слід там шкодить (стадна поведінка), тому вимкнений.</li>
+          <li><b>Військовий сценарій.</b> Мурахи виграють лише в пам'яті з поганим налаштуванням \(T_m\) і без зв'язку. Налаштована пам'ять (\(T_m\approx40\)–\(120\) кроків) обганяє мурах на 22–45%, а спільна мапа без глушіння (\(p=1\)) — у 1,7–1,9 раза.</li>
+          <li><b>Рельєф.</b> Спільні логери з розвідниками й глобальним плануванням виграють у світу A з локальним обходом, але скромно: на типових налаштуваннях (12 рельєфів, 6000 тактів) B виграв на 8, A на 2, 2 нарівні, медіана B/A дорівнює 1,10. Режим без мапи (режим 0) програє світу A.</li>
+      </ul>
+      <p>Спільний висновок: у всіх трьох вкладках працює спільна пам'ять із забуванням (стигмергія). Форма самого сліду (відштовхувальний, привабливий, лінійне чи експоненційне згасання) дає мало порівняно з тим, чи записи спільні й чи вчасно забуваються.</p>
     </div>
   </details>
 </div>
@@ -275,6 +545,9 @@ th:first-child, td:first-child { text-align: left; }
 window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] }, svg: { fontCache: 'global' }, options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] } };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<script>
+window.ANT_SRC = "<!DOCTYPE html>\n<html lang=\"uk\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap\"><title>Мурахи: пам'ять мапи проти феромонів<\/title>\n<style>\n:root{--bg:#f4f7fb;--card:#fff;--ink:#1d2733;--mut:#5b6b7c;--line:#cfd8e3;--acc:#2f6fb5;--a:#2a78d6;--b:#eb6834}\n*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,\"Segoe UI\",Roboto,sans-serif}\nheader{padding:12px 16px 0;max-width:1320px;margin:0 auto}h1{font-size:18px;margin:0 0 2px}.sub{color:var(--mut);margin:0 0 8px}\nmain{max-width:1320px;margin:0 auto;padding:8px 16px 40px}\n.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}\n.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}.card h2{font-size:14px;margin:0 0 6px}\ncanvas{width:100%;display:block;border:1px solid var(--line);border-radius:4px;background:#fff}\nbutton{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:5px;padding:4px 10px;cursor:pointer}button:hover{border-color:var(--acc);color:var(--acc)}\nbutton.pri{background:var(--acc);border-color:var(--acc);color:#fff}button.on{background:var(--acc);border-color:var(--acc);color:#fff}\n.btns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;align-items:center}\n.leg{font-size:12px;color:var(--mut);margin-top:4px}.leg i[style]{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}.leg b.sw{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:3px}\n.row{display:grid;grid-template-columns:1fr 130px 50px;gap:8px;align-items:center;margin:5px 0;font-size:13px}.row output{text-align:right;font-variant-numeric:tabular-nums}\ntable{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:3px 6px;border-bottom:1px solid #e6ebf1;text-align:left}th{font-weight:600;color:var(--mut);font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}\ndetails summary{cursor:pointer;font-weight:600}\n.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}@media(max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}\n#msg3{color:#c0392b;font-weight:600}\nheader{display:none}html,body{background:transparent}body{font-family:Inter,system-ui,-apple-system,\"Segoe UI\",sans-serif}main{padding:0 0 24px;max-width:none}\n@media(prefers-color-scheme:dark){:root{--bg:#0d0d0d;--card:#1a1a19;--ink:#f0efec;--mut:#a09f98;--line:#383835;--acc:#6fa8e8}th,td{border-bottom-color:#2c2c2a}}\n<\/style><\/head><body>\n<header><h1>Мурахи: пам'ять мапи проти феромонів<\/h1>\n<p class=\"sub\">Хребтовий рельєф, низини різної форми періодично затоплюються озерами. Мурахи носять вантаж із трьох джерел до мурашника. У світі A вони знають мапу, але не залишають слідів; у світі B знають лише локальне оточення, але лишають феромон. Рельєф, озера й джерела однакові в обох світах. Хто ефективніший, залежить від рельєфу й сили змін: див. серію внизу.<\/p><\/header>\n<main>\n<div class=\"card\"><div class=\"btns\"><button class=\"pri\" id=\"bRun\">Пуск<\/button>\n <button data-sp=\"1\" class=\"on\">×1<\/button><button data-sp=\"5\">×5<\/button><button data-sp=\"20\">×20<\/button><button data-sp=\"100\">×100<\/button>\n <button id=\"bReset\">Перезапустити<\/button><label><input type=\"checkbox\" id=\"cRot\"> автообертання<\/label><label><input type=\"checkbox\" id=\"cPath\" checked> оптимальні маршрути на мапі A<\/label><label><input type=\"checkbox\" id=\"cPher\" checked> феромони на мапі B<\/label>\n <span id=\"stat\" class=\"leg\"><\/span><\/div><div id=\"msg3\"><\/div>\n <details style=\"margin-top:6px\"><summary>Параметри<\/summary><div id=\"cfg\"><\/div>\n <div class=\"leg\">↻ — застосовується після «Перезапустити». «Компас додому» — напрямок на мурашник без знання карти (інтеграція шляху); без нього мурахи світу B майже не повертаються з вантажем.<\/div><\/details><\/div>\n<div class=\"cols\">\n <div class=\"card\"><h2 id=\"hA\" style=\"color:var(--a)\">Світ A: пам'ять мапи, без феромонів<\/h2><canvas id=\"v3A\" style=\"aspect-ratio:4/3;cursor:grab;touch-action:none\"><\/canvas><canvas id=\"v2A\" style=\"margin-top:6px;aspect-ratio:1/1;max-width:560px;margin-left:auto;margin-right:auto\"><\/canvas>\n  <div class=\"leg\" id=\"legA\">Мурахи знають висоти, прокладають оптимальний шлях (Дейкстра з вартістю підйому) і ходять по ньому. Коли наступна клітинка на маршруті стає водою, мураха жадібно обходить озеро по берегу, обираючи сусідню прибережну клітинку ближчу до точки повернення на маршрут, а побачивши її по прямій, іде напряму. <b class=\"sw\" style=\"background:#d81b60\"><\/b>— мураха на обході.<\/div><\/div>\n <div class=\"card\"><h2 id=\"hB\" style=\"color:var(--b)\">Світ B: логери + мапа<\/h2><canvas id=\"v3B\" style=\"aspect-ratio:4/3;cursor:grab;touch-action:none\"><\/canvas><canvas id=\"v2B\" style=\"margin-top:6px;aspect-ratio:1/1;max-width:560px;margin-left:auto;margin-right:auto\"><\/canvas>\n  <div class=\"leg\" id=\"legB\">Мураха не знає мапи: вибирає сусідню клітинку випадково з вагами за феромоном, нахилом (локально) і інерцією напрямку. Шукаючи їжу, лишає «домашній» слід (синій), з вантажем — «харчовий» (червоний), слід випаровується й зникає під водою. Орієнтир до гнізда — лише напрямок.<\/div><\/div>\n<\/div>\n<div class=\"card\"><h2>Ефективність у часі<\/h2>\n <canvas id=\"chD\" style=\"margin-bottom:8px\"><\/canvas><canvas id=\"chR\" style=\"margin-bottom:8px\"><\/canvas><canvas id=\"chE\"><\/canvas>\n <div class=\"leg\"><i style=\"background:#2a78d6\"><\/i>світ A <i style=\"background:#eb6834\"><\/i>світ B <i style=\"background:#2a78d6;opacity:.5\"><\/i>пунктир — частка часу A на обхід озер. Блакитні смуги — час, коли є озера. Ефективність маршруту = ідеальний час рейсу по сухій карті / фактичний час (вікно 300 тактів).<\/div>\n <table id=\"tbl\" style=\"margin-top:8px\"><\/table><\/div>\n<div class=\"card\"><h2>Серія по рельєфах: хто ефективніший у середньому?<\/h2>\n <div class=\"leg\" style=\"margin:0 0 4px\">Для кожного зерна 1…N генерується свій рельєф (з поточними параметрами води й схилів), обидва світи працюють однакову кількість тактів. Показано, скільки вантажу доставлено. Результат сильно залежить від рельєфу, тому дивіться на розподіл, а не на один випадок.<\/div>\n <div class=\"row\"><label for=\"bxN\">Кількість рельєфів<\/label><input type=\"range\" id=\"bxN\" min=\"4\" max=\"30\" step=\"1\" value=\"12\"><output id=\"bxNo\">12<\/output><\/div>\n <div class=\"row\"><label for=\"bxT\">Тактів на рельєф<\/label><input type=\"range\" id=\"bxT\" min=\"3000\" max=\"12000\" step=\"1000\" value=\"6000\"><output id=\"bxTo\">6000<\/output><\/div>\n <div class=\"btns\"><button class=\"pri\" id=\"bxRun\">Запустити серію<\/button><button id=\"bxStop\" disabled>Скасувати<\/button><span id=\"bxProg\" class=\"leg\"><\/span><\/div>\n <div id=\"bxSum\"><\/div><table id=\"bxTbl\" style=\"margin-top:6px\"><\/table><\/div>\n<details class=\"card\" hidden><summary>Як це працює<\/summary><div id=\"how\" class=\"leg\" style=\"font-size:13px;line-height:1.55\"><\/div><\/details>\n<\/main>\n<script src=\"https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js\"><\/script>\n<script>\n// ===== ANT SIM =====\nfunction createAntSim(){\nconst G=72,N=G*G;\nconst P={seed:72,nAnts:60,period:1500,lmaxLo:4.6,lmaxHi:5.8,base:6,bas:2.4,bsz:1.8,maxSlope:1,kUp:3,\n alpha:1.5,beta:1,kappa:2.5,gamma:2,rho:.004,Q:1,tauD:120,tmax:20,vision:1,maxDetour:800,uneven:1,srcPol:1,slide:4,iceLen:800,bMode:1,aMode:2,memT:400,hor:30,scout:15,dead:14,localBud:60,maze:3,w1:4,w2:3,w3:3,spd:10};\nfunction rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}\nconst sm=x=>x*x*(3-2*x);\nconst DX=[1,1,0,-1,-1,-1,0,1],DY=[0,1,1,1,0,-1,-1,-1],DD=[1,1.4142,1,1.4142,1,1.4142,1,1.4142];\nconst h=new Float32Array(N),water=new Uint8Array(N),shore=new Uint8Array(N);\nconst Lf=new Float32Array(N);let RW=null,pkK=[],phK=[],blk=[0,0,0],nblk=0,bestS=0;const KR=5,wall=new Uint8Array(N),kind=new Uint8Array(N);let sites=[],rd=rng(1),OWN=[],own=[0,0,0],passCells=[];\nlet retry=0,nest=0,sources=[],ideal=[],pathNS=[],pathSN=[],t=0,level=-3,peaks=[],R=rng(1);\nconst idx=(x,y)=>y*G+x,inb=(x,y)=>x>=0&&y>=0&&x<G&&y<G;\nfunction stepCost(a,b,d){const s=(h[b]-h[a])/d;return d*(1+P.kUp*Math.max(0,s)+.5*Math.max(0,-s))}\nconst pass=(a,b,d)=>Math.abs(h[b]-h[a])/d<=P.maxSlope;\nconst stepTime=(a,b,d)=>Math.max(1,Math.round(stepCost(a,b,d)));\n// індивідуальна швидкість мурах: коефіцієнт сповільнення sp∈[1,1+spd%]; дробовий залишок переноситься, тож різниця швидкостей накопичується й розтягує зграйки\nlet rJ=rng(1);const mkSp=()=>1+P.spd/100*rJ();\nconst dl=(a,tm)=>{const v=tm*(a.sp||1)+(a.fr||0),w=Math.max(1,Math.floor(v));a.fr=v-w;return w-1};\n// ---------- рельєф ----------\nfunction gen(){R=rng((P.seed+retry*101)*7919+11);const U=(a,b)=>a+(b-a)*R();\n const ridges=[],basins=[];\n for(let i=0;i<5;i++)ridges.push({x:U(10,62),y:U(10,62),a:U(0,3.1416),su:U(13,19),sv:U(2.6,3.8),H:U(6,9)});\n for(let i=0;i<7;i++)basins.push({x:U(8,64),y:U(8,64),a:U(0,3.1416),su:U(3,8)*P.bsz,sv:U(2.2,5)*P.bsz,H:U(3,5.5)});\n const gs=(q,x,y)=>{const dx=x-q.x,dy=y-q.y,c=Math.cos(q.a),s=Math.sin(q.a),u=dx*c+dy*s,v=-dx*s+dy*c;return Math.exp(-(u*u/(2*q.su*q.su)+v*v/(2*q.sv*q.sv)))};\n const ph=[U(0,6.28),U(0,6.28),U(0,6.28)];\n const hb=(x,y)=>{let v=P.base+.35*Math.sin(x*.21+ph[0])*Math.cos(y*.17+ph[1])+.25*Math.sin((x+y)*.13+ph[2]);for(const r of ridges)v+=r.H*gs(r,x,y);for(const b of basins)v-=b.H*P.bas*gs(b,x,y);return v};\n // хребти-перешкоди: проходи (перевали) ставимо на найсуттєвіше сухому місці зони (верхня/нижня), щоб сам прохід не лежав в озері\n const walls=[],NW=Math.round(P.maze);for(let i=0;i<NW;i++){const x0=(NW>1?20+32*i/(NW-1):30)+U(-2.5,2.5),lo=i%2===0?48:6,hi2=lo+18;let by=lo,bv=-1e9;for(let y=lo;y<=hi2;y++){const v=hb(x0,y)+U(0,1.2);if(v>bv){bv=v;by=y}}let by2=by,bv2=-1e9;for(let y=lo;y<=hi2;y++){if(Math.abs(y-by)<8)continue;const v=hb(x0,y)+U(0,1.2);if(v>bv2){bv2=v;by2=y}}walls.push({x:x0,ph:U(0,6.28),gy:by,gy2:by2,ym:(by+by2)/2,H:12})}\n for(let y=0;y<G;y++)for(let x=0;x<G;x++){let v=P.base+.35*Math.sin(x*.21+ph[0])*Math.cos(y*.17+ph[1])+.25*Math.sin((x+y)*.13+ph[2]);\n  for(const r of ridges)v+=r.H*gs(r,x,y);for(const b of basins)v-=b.H*P.bas*gs(b,x,y);for(const w of walls){const dx=x-(w.x+2.5*Math.sin(y*.12+w.ph));v+=w.H*Math.exp(-dx*dx/(2*1.5*1.5))*(1-.93*Math.max(Math.exp(-((y-w.gy)**2)/(2*3.5*3.5)),Math.exp(-((y-w.gy2)**2)/(2*3.5*3.5))));\n  // перемичка між проходами (перпендикулярно хребту): вздовж хребта до сусіднього проходу не пройти, закритий прохід — глухий кут\n  if(P.dead>0){const sx=Math.abs(dx),seg=sx<=P.dead?1:Math.exp(-((sx-P.dead)**2)/(2*1.5*1.5));v+=w.H*seg*Math.exp(-((y-w.ym)**2)/(2*1.5*1.5))}}h[y*G+x]=v}\n passCells=[];for(const w of walls)for(const gc of [w.gy,w.gy2]){let bc=-1,bh=1e9;for(let yy=Math.round(gc)-1;yy<=Math.round(gc)+1;yy++)for(let xx=Math.round(w.x)-4;xx<=Math.round(w.x)+4;xx++)if(inb(xx,yy)&&h[idx(xx,yy)]<bh){bh=h[idx(xx,yy)];bc=idx(xx,yy)}if(bc>=0)passCells.push(bc)}\n // нічия: гніздо і джерела на сухій рівнині (вище за максимум води + запас)\n const hi=P.lmaxHi+.5;const dry=P.lmaxHi+.2,ok=(x,y)=>{if(!inb(x,y)||h[idx(x,y)]<=hi||h[idx(x,y)]>=hi+4)return false;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(inb(x+dx,y+dy)&&h[idx(x+dx,y+dy)]<dry)return false;return true};\n const near=(x,y)=>{let best=null,bd=1e9;for(let yy=4;yy<G-4;yy++)for(let xx=4;xx<G-4;xx++){if(!ok(xx,yy))continue;const d=(xx-x)**2+(yy-y)**2;if(d<bd){bd=d;best=idx(xx,yy)}}return best};\n nest=near(10,36);sources=[near(60,60),near(62,32),near(48,8)];\n // піки рівня води на кожен цикл\n peaks=[];const rr=rng(P.seed*31+7);for(let i=0;i<400;i++)peaks.push(P.lmaxLo+(P.lmaxHi-P.lmaxLo)*rr());\n // нерівномірне затоплення: KR областей зі своїми фазами й піками, рівень води між ними згладжується\n const rg=rng(P.seed*53+5),an=[];pkK=[];phK=[];for(let k=0;k<KR;k++){an.push([6+60*rg(),6+60*rg()]);phK.push(rg());const a=[];for(let i=0;i<400;i++)a.push(P.lmaxLo+(P.lmaxHi-P.lmaxLo)*rg());pkK.push(a)}\n RW=new Float32Array(KR*N);for(let y=0;y<G;y++)for(let x=0;x<G;x++){let sm2=0;const i=y*G+x;for(let k=0;k<KR;k++){const w=Math.exp(-((x-an[k][0])**2+(y-an[k][1])**2)/(2*13*13))+1e-9;RW[k*N+i]=w;sm2+=w}for(let k=0;k<KR;k++)RW[k*N+i]/=sm2}}\n// ---------- вода ----------\nfunction levelAt(tt,k){const U=P.uneven;if(k>=0)tt+=Math.round(U*phK[k]*P.period);const c=Math.floor(tt/P.period),p=(tt%P.period)/P.period,pk0=peaks[c%peaks.length],pk=k>=0?pk0+U*(pkK[k][c%400]-pk0):pk0;\n if(p<.25)return -3;if(p<.4)return -3+(pk+3)*sm((p-.25)/.15);if(p<.7)return pk;if(p<.85)return pk-(pk+3)*sm((p-.7)/.15);return -3}\nfunction updWater(){const lk=[];for(let k=0;k<KR;k++)lk.push(levelAt(t,k));level=-9;\n for(let i=0;i<N;i++){let L=0;for(let k=0;k<KR;k++)L+=RW[k*N+i]*lk[k];Lf[i]=L;if(L>level)level=L;water[i]=h[i]<L?1:0}\n if(t%10===0||t===0)dyn();\n kind.fill(0);for(const q of sites)if(q.on)for(const c of q.disk)kind[c]=q.ice?2:1;\n for(let i=0;i<N;i++)wall[i]=water[i]|(kind[i]?1:0);\n for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=idx(x,y);let s=0;if(!wall[i]){for(let k=0;k<8&&!s;k++){const nx=x+DX[k],ny=y+DY[k];if(inb(nx,ny)&&wall[idx(nx,ny)])s=1}}shore[i]=s}\n if(pathNS.length===sources.length&&t%10===0){nblk++;for(let k=0;k<sources.length;k++)if(pathNS[k].some(c=>wall[c]))blk[k]++}}\n// обвали (змиваються водою) і лід (інколи тане) на перевалах маршрутів\nfunction mkSites(){sites=[];rd=rng(P.seed*977+13);const far=c=>cheb(c,nest)>=5&&sources.every(s=>cheb(c,s)>=5);\n const disk=(c,r)=>{const o=[],cx=c%G,cy=(c/G)|0;for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++)if(inb(x,y)&&(x-cx)**2+(y-cy)**2<=r*r+1)o.push(idx(x,y));return o};\n // обвал/лід ставимо лише там, де навіть за всіх закритих проходів і найвищої води до кожного джерела лишається сухий шлях\n const blocked=new Uint8Array(N),seen=new Set();\n const tryAdd=(cands,ice)=>{for(const c of cands.slice(0,30)){if(seen.has((ice?'i':'s')+c))return true;const d=disk(c,2);d.forEach(x=>blocked[x]++);if(snaps.every(sn=>reachAt(sn,blocked))){seen.add((ice?'i':'s')+c);sites.push(ice?{c,ice:true,on:false,disk:d}:{c,ice:false,on:false,disk:d,wash:disk(c,3)});return true}d.forEach(x=>blocked[x]--)}return false};\n for(const p of pathNS){const hs=p.filter(far).sort((a,b)=>h[b]-h[a]);tryAdd(hs,true);tryAdd(hs.filter(c=>disk(c,3).some(d=>h[d]<P.lmaxHi-.3)),false)}}\nfunction dyn(){for(const q of sites){\n  if(q.ice){if(!P.iceLen){q.on=false;continue}if(!q.on){if(rd()<10/1200)q.on=true}else if(rd()<10/P.iceLen)q.on=false}\n  else{if(!P.slide){q.on=false;continue}if(!q.on){if(rd()<P.slide*1e-3)q.on=true}else if(q.wash.some(c=>water[c]))q.on=false}}}\n// ---------- Дейкстра по сухій карті ----------\nconst DJd=new Float64Array(N),DJp=new Int32Array(N),DJs=new Int32Array(N),DJx=new Int32Array(N),HP=new Float64Array(N*9+16);let DJv=0;\n// A* з евклідовою евристикою (вартість кроку ≥ його довжини, тож шлях оптимальний); буфери перевикористовуються між викликами\nfunction dijkstra(from,to,skip){const ver=++DJv;let hn=0;const tx=to%G,ty=(to/G)|0,hh=v=>Math.sqrt((v%G-tx)**2+(((v/G)|0)-ty)**2);\n const push=key=>{let i=hn++;HP[i]=key;while(i>0){const p=(i-1)>>1;if(HP[p]<=HP[i])break;const t=HP[p];HP[p]=HP[i];HP[i]=t;i=p}};\n const pop=()=>{const top=HP[0];hn--;if(hn>0){HP[0]=HP[hn];let i=0;for(;;){const a=2*i+1,b=a+1;let m=i;if(a<hn&&HP[a]<HP[m])m=a;if(b<hn&&HP[b]<HP[m])m=b;if(m===i)break;const t=HP[m];HP[m]=HP[i];HP[i]=t;i=m}}return top};\n DJs[from]=ver;DJd[from]=0;DJp[from]=-1;push(from);\n while(hn){const u=pop()%8192;if(DJx[u]===ver)continue;DJx[u]=ver;if(u===to)break;const ux=u%G,uy=(u/G)|0;\n  for(let k=0;k<8;k++){const nx=ux+DX[k],ny=uy+DY[k];if(!inb(nx,ny))continue;const v=idx(nx,ny);if(!pass(u,v,DD[k])||(skip&&skip(v)))continue;const nd=DJd[u]+stepCost(u,v,DD[k]);if(DJs[v]!==ver||nd<DJd[v]){DJs[v]=ver;DJd[v]=nd;DJp[v]=u;push(Math.floor((nd+hh(v))*256)*8192+v)}}}\n const path=[];for(let c=to;c!==-1;c=(DJs[c]===ver?DJp[c]:-1))path.push(c);path.reverse();return path}\nfunction pathTime(p){let s=0;for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],dx=Math.abs(a%G-b%G),dy=Math.abs(((a/G)|0)-((b/G)|0));s+=stepTime(a,b,dx&&dy?1.4142:1)}return s}\n// ---------- спільне ----------\nconst cheb=(a,b)=>Math.max(Math.abs(a%G-b%G),Math.abs(((a/G)|0)-((b/G)|0)));\nfunction los(a,b){let x0=a%G,y0=(a/G)|0;const x1=b%G,y1=(b/G)|0;const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx-dy,prev=idx(x0,y0);\n for(let g=0;g<200;g++){const c=idx(x0,y0);if(wall[c])return false;if(c!==prev){const ddx=Math.abs(c%G-prev%G),ddy=Math.abs(((c/G)|0)-((prev/G)|0));if(!pass(prev,c,ddx&&ddy?1.4142:1))return false;prev=c}if(x0===x1&&y0===y1)return true;const e2=2*e;if(e2>-dy){e-=dy;x0+=sx}if(e2<dx){e+=dx;y0+=sy}}return false}\nfunction lineNext(a,b){let x0=a%G,y0=(a/G)|0;const x1=b%G,y1=(b/G)|0;const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx-dy;const e2=2*e;if(e2>-dy){x0+=sx}if(e2<dx){y0+=sy}return idx(x0,y0)}\nconst dist2=(a,b)=>(a%G-b%G)**2+(((a/G)|0)-((b/G)|0))**2;\nfunction mkMetrics(){return{deliv:0,drown:0,lost:0,legs:[],series:[],lastDeliv:0,legPtr:0,src:[0,0,0]}}\n// ---------- Світ A: пам'ять мапи, без феромонів ----------\nfunction mkA(){const rA=rng(P.seed*101+1),M=mkMetrics(),ants=[];let rr=0;\n const newTrip=a=>{a.s=a.own;a.carry=0;a.path=pathNS[a.s];a.k=0;a.cur=nest;a.state='path';a.leg=t;a.legDet=0;a.wait=0;a.det=0;a.bad=new Set();a.m2=false};\n const nearPass=(c,ex)=>{let b=-1,bd=1e18;for(const q of passCells){if(ex&&ex.has(q))continue;const d=dist2(q,c);if(d<bd){bd=d;b=q}}return b};\n for(let i=0;i<P.nAnts;i++){const a={own:OWN[i],sp:mkSp()};newTrip(a);a.wait=Math.floor(rA()*40);ants.push(a)}\n const legDone=(a,ideal)=>{M.legs.push([t,t-a.leg,ideal,a.legDet]);a.leg=t;a.legDet=0};\n function step(){for(const a of ants){\n   if(a.wait>0){a.wait--;if(a.state==='detour'){a.legDet++}continue}\n   if(water[a.cur]){M.drown++;newTrip(a);continue}\n   if(a.state==='detour'){a.legDet++;a.det++;\n    if(a.det>a.bud){M.lost++;a.det=0;if(a.m2){newTrip(a);continue}a.state='path';a.wait=30;continue}\n    const nx=a.path[a.k+1];\n    if(!wall[nx]){a.state='path';a.m2=false;a.bad=new Set();continue}\n    // локальна навігація з пам'яттю (LRTA*): мураха бачить лише сусідні клітинки, піднімає оцінку відстані в клітинках, де застрягла, і так сама виходить із глухого кута\n    let nxt=-1;{const hm=a.hm,Hn=c=>{const v=hm.get(c);return v===undefined?Math.sqrt(dist2(c,a.W)):v};let bf=1e18;const x=a.cur%G,y=(a.cur/G)|0;\n     for(let k=0;k<8;k++){const xx=x+DX[k],yy=y+DY[k];if(!inb(xx,yy))continue;const n=idx(xx,yy);if(wall[n]||!pass(a.cur,n,DD[k]))continue;const f=stepCost(a.cur,n,DD[k])+Hn(n);if(f<bf){bf=f;nxt=n}}\n     if(nxt>=0)hm.set(a.cur,Math.max(Hn(a.cur),bf))}\n    if(nxt<0)continue;\n    const dd=(nxt%G!==a.cur%G&&((nxt/G)|0)!==((a.cur/G)|0))?1.4142:1;a.wait=dl(a,stepTime(a.cur,nxt,dd));a.cur=nxt;\n    if(a.cur===a.W){if(a.m2){const gl=a.carry?nest:sources[a.s];let p=dijkstra(a.cur,gl,v=>a.obs!=null&&cheb(v,a.obs)<=3);if(p[0]!==a.cur||p.length<2)p=dijkstra(a.cur,gl);if(p[0]===a.cur&&p.length>1){a.path=p;a.k=0}a.m2=false;a.bad=new Set()}else a.k=a.jW;a.state='path'}\n    continue}\n   // state path\n   if(a.k>=a.path.length-1){\n    const idl=pathTime(a.path);legDone(a,idl);\n    if(!a.carry){a.carry=1;a.path=pathSN[a.s];a.k=0}else{M.deliv++;M.src[a.s]++;a.carry=0;a.path=pathNS[a.s];a.k=0}\n    continue}\n   const n=a.path[a.k+1];\n   if(!wall[n]){const dd=(n%G!==a.cur%G&&((n/G)|0)!==((a.cur/G)|0))?1.4142:1;a.wait=dl(a,stepTime(a.cur,n,dd));a.cur=n;a.k++;}\n   else if(P.aMode===2&&passCells.length&&cheb(n,nearPass(n,null))<=6){const pb=nearPass(n,null);a.bad.add(pb);const tp=nearPass(a.cur,a.bad);if(tp<0){newTrip(a);continue}a.state='detour';a.W=tp;a.m2=true;a.hm=new Map();a.det=0;a.obs=n;a.bud=P.localBud+3*Math.sqrt(dist2(a.cur,tp))}\n   else if(P.aMode===2){const gl=a.carry?nest:sources[a.s];let p=dijkstra(a.cur,gl,v=>wall[v]&&cheb(v,n)<=3);if(p[0]===a.cur&&p.length>1){a.path=p;a.k=0;a.nf=0}else{a.wait=10;if((a.nf=(a.nf||0)+1)>6){a.nf=0;M.lost++;newTrip(a)}}}\n   else{let j=a.k+2;while(j<a.path.length&&wall[a.path[j]])j++;\n    if(j>=a.path.length)continue;a.state='detour';a.m2=false;a.W=a.path[j];a.jW=j;a.hm=new Map();a.det=0;a.obs=n;a.bud=P.aMode===2?Math.min(P.maxDetour,100+6*Math.sqrt(dist2(a.cur,a.W))):P.maxDetour}}}\n return{kind:'A',ants,M,step}}\n// ---------- Світ B: феромони, без мапи ----------\nfunction mkB(){const rB=rng(P.seed*131+3),M=mkMetrics(),ants=[];\n const tauH=new Float32Array(N),tauF=new Float32Array(N),W8=new Float64Array(8);\n const nx0=nest%G,ny0=(nest/G)|0;\n const newAnt=a=>{a.cur=nest;a.carry=0;a.dir=Math.floor(rB()*8);a.s=0;a.leg=t;a.wait=0;a.prev=[nest,nest,nest];a.src=-1};\n for(let i=0;i<P.nAnts;i++){const a={sp:mkSp()};newAnt(a);a.wait=Math.floor(rB()*40);ants.push(a)}\n function step(){\n  if(t%4===0){const f=Math.pow(1-P.rho,4);for(let i=0;i<N;i++){if(water[i]){tauH[i]=0;tauF[i]=0}else{tauH[i]*=f;tauF[i]*=f}}}\n  for(const a of ants){\n   if(a.wait>0){a.wait--;continue}\n   if(water[a.cur]){M.drown++;newAnt(a);continue}\n   const x=a.cur%G,y=(a.cur/G)|0,tau=a.carry?tauH:tauF;let tot=0;\n   for(let k=0;k<8;k++){const xx=x+DX[k],yy=y+DY[k];W8[k]=0;if(!inb(xx,yy))continue;const n=idx(xx,yy);if(wall[n]||!pass(a.cur,n,DD[k]))continue;\n    const c=stepCost(a.cur,n,DD[k]);let w=Math.pow(tau[n]+.05,P.alpha)*Math.pow(1/c,P.beta);\n    let dth=Math.abs(k-a.dir);dth=Math.min(dth,8-dth);w*=Math.exp(P.kappa*Math.cos(dth*Math.PI/4));\n    if(a.carry&&P.gamma>0){const ax=nx0-x,ay=ny0-y,ang=Math.atan2(ay,ax),dk=Math.atan2(DY[k],DX[k]);w*=Math.exp(P.gamma*Math.cos(ang-dk))}\n    if(a.prev.includes(n))w*=.05;W8[k]=w;tot+=w}\n   if(tot<=0)continue;\n   let r=rB()*tot,pick=0;for(let k=0;k<8;k++){r-=W8[k];if(r<=0){pick=k;break}}\n   const n=idx(x+DX[pick],y+DY[pick]);a.wait=dl(a,stepTime(a.cur,n,DD[pick]));a.prev.pop();a.prev.unshift(a.cur);a.cur=n;a.dir=pick;a.s++;\n   const dep=P.Q*Math.exp(-a.s/P.tauD);const T=a.carry?tauF:tauH;T[n]=Math.min(P.tmax,T[n]+dep);\n   if(!a.carry){for(let q=0;q<sources.length;q++)if(cheb(n,sources[q])<=2){M.legs.push([t,t-a.leg,pathTime(pathNS[q]),0]);a.carry=1;a.src=q;a.s=0;a.leg=t;a.dir=(a.dir+4)%8;a.prev=[n,n,n];break}}\n   else if(cheb(n,nest)<=2){M.legs.push([t,t-a.leg,pathTime(pathSN[a.src]),0]);M.deliv++;M.src[a.src]++;a.carry=0;a.s=0;a.leg=t;a.dir=(a.dir+4)%8;a.prev=[n,n,n]}}}\n return{kind:'B',ants,M,step,tauH,tauF}}\n// ---------- Світ B (режим 1): логери + мапа, як у «Феромони на вулицях» ----------\n// Той самий планувальник і та сама статична мапа, що в A, але кожна клітинка має логер: мурахи, проходячи, записують у логери стан 8 сусідів\n// (закрито/відкрито), а запис забувається за memT тактів. Планування (Дейкстра) враховує закриті клітинки лише в горизонті hor клітинок.\nfunction mkL(shared){const rL=rng(P.seed*131+(shared?3:5)),M=mkMetrics(),ants=[],gm=new Int32Array(N).fill(-1e9),op=new Int32Array(N).fill(-1e9),tauH=new Float32Array(N),tauF=new Float32Array(N),ban=[];\n // розвідники (лише в B): йдуть в обхід основного коридору, перевіряють альтернативні проходи й лишають позитивний слід\n const banOf=s=>ban[s]||(ban[s]=new Set(pathNS[s].filter(c=>cheb(c,nest)>6&&cheb(c,sources[s])>6)));\n const act=(m,c)=>t-m[c]<P.memT;\n const gctr={v:0},plan=a=>{const ct=shared?gctr:a.ctr;if(a.fail===ct.v&&t-a.failT<P.memT*.8){a.path=null;a.wait=8;return false}const from=a.cur,H=P.hor,m=a.m;let p=null;if(a.sc){const bn=banOf(a.s);p=dijkstra(from,a.goal,v=>bn.has(v)||(act(m,v)&&cheb(v,from)<=H));if(p[0]!==from||p[p.length-1]!==a.goal||p.length<2)p=null}if(!p)p=dijkstra(from,a.goal,v=>act(m,v)&&cheb(v,from)<=H);if(p[0]!==from||p[p.length-1]!==a.goal||p.length<2){a.fail=ct.v;a.failT=t;a.path=null;a.wait=8;return false}a.path=p;a.k=0;a.fail=-1;return true};\n const newTrip=a=>{a.s=a.own;a.carry=0;a.goal=sources[a.s];a.cur=nest;a.leg=t;a.wait=0;a.path=null;a.fail=-1};\n for(let i=0;i<P.nAnts;i++){const a={own:OWN[i],sp:mkSp(),m:shared?gm:new Int32Array(N).fill(-1e9),ctr:{v:0},sc:shared&&P.scout>0&&(i%Math.max(1,Math.round(100/P.scout))===1)};newTrip(a);if(a.sc)a.path=null;else{a.path=pathNS[a.s];a.k=0}a.wait=Math.floor(rL()*40);ants.push(a)}\n function step(){if(shared&&t%10===0)for(let i=0;i<N;i++){const d=t-gm[i],e=t-op[i];tauF[i]=d<P.memT?P.tmax*(1-d/P.memT):0;tauH[i]=e<P.memT?P.tmax*(1-e/P.memT):0}\n  for(const a of ants){const m=a.m;\n   if(a.wait>0){a.wait--;continue}\n   if(water[a.cur]){M.drown++;newTrip(a);continue}\n   const x=a.cur%G,y=(a.cur/G)|0;for(let k=0;k<8;k++){const xx=x+DX[k],yy=y+DY[k];if(inb(xx,yy)){const n=idx(xx,yy);if((m[n]>-1e8)!==!!wall[n])(shared?gctr:a.ctr).v++;m[n]=wall[n]?t:-1e9}}\n   if(a.cur===a.goal){if(!a.carry){M.legs.push([t,t-a.leg,pathTime(pathNS[a.s]),0]);a.carry=1;a.goal=nest}else{M.legs.push([t,t-a.leg,pathTime(pathSN[a.s]),0]);M.deliv++;M.src[a.s]++;a.carry=0;a.goal=sources[a.s]}a.leg=t;a.path=null;{const sp=a.carry?pathSN[a.s]:pathNS[a.s];let okp=true;for(let j=0;j<sp.length&&j<=P.hor;j++)if(act(m,sp[j])){okp=false;break}if(okp&&!a.sc){a.path=sp;a.k=0}}continue}\n   if(!a.path&&!plan(a))continue;\n   let bad=wall[a.path[a.k+1]];for(let j=1;j<=P.hor&&!bad&&a.k+j<a.path.length;j++)if(act(m,a.path[a.k+j]))bad=true;\n   if(bad){if(!plan(a))continue}\n   const n=a.path[a.k+1];if(wall[n])continue;\n   const dd=(n%G!==a.cur%G&&((n/G)|0)!==((a.cur/G)|0))?1.4142:1;a.wait=dl(a,stepTime(a.cur,n,dd));a.cur=n;a.k++;if(a.sc)op[n]=t}}\n return{kind:shared?'B':'A',ants,M,step,tauH,tauF,waiting:()=>ants.filter(a=>a.fail>=0).length}}\n// ---------- керування ----------\nlet A=null,B=null;\nlet snaps=[],baseBad=0;\nfunction reachAt(w,blk){const seen=new Uint8Array(N),stk=[nest];seen[nest]=1;while(stk.length){const u=stk.pop(),ux=u%G,uy=(u/G)|0;for(let k=0;k<8;k++){const nx=ux+DX[k],ny=uy+DY[k];if(!inb(nx,ny))continue;const v=idx(nx,ny);if(seen[v]||w[v]||(blk&&blk[v])||!pass(u,v,DD[k]))continue;seen[v]=1;stk.push(v)}}return sources.every(c=>seen[c])}\nfunction init(){rJ=rng(P.seed*7+99);let ok=false;for(retry=0;retry<150&&!ok;retry++){gen();t=0;updWater();pathNS=[];pathSN=[];ideal=[];ok=true;\n  for(const s of sources){const p=dijkstra(nest,s);if(p[0]!==nest||p[p.length-1]!==s){ok=false;break}pathNS.push(p);const q=dijkstra(s,nest);pathSN.push(q);ideal.push(pathTime(p)+pathTime(q))}\n  // відбраковка: маршрут не має бути під водою більше половини часу (інакше гра вироджується в очікування)\n  // гарантія: до кожного джерела є шлях лише по клітинках, які вода не сягає ніколи (повна ізоляція водою неможлива)\n  // гарантія: за три цикли води до кожного джерела завжди є якийсь шлях (повна ізоляція водою не допускається)\n  if(ok){snaps=[];for(let tt=0;tt<3*P.period;tt+=40){t=tt;updWater();snaps.push(Uint8Array.from(water))}t=0;updWater();baseBad=snaps.filter(sn=>!reachAt(sn,null)).length;if(baseBad>0)ok=false}\n  if(ok){let n=0;const bk=[0,0,0];for(let tt=0;tt<2*P.period;tt+=50){t=tt;updWater();n++;pathNS.forEach((p,k)=>{if(p.some(c=>water[c]))bk[k]++})}t=0;updWater();if(bk.some(b=>b/n>.5))ok=false}}\n retry--;P.retry=retry;{const w=[P.w1,P.w2,P.w3],sm=w.reduce((x,y)=>x+y)||1,c=w.map(x=>Math.floor(P.nAnts*x/sm)),fr=w.map((x,i)=>P.nAnts*x/sm-c[i]);let rest=P.nAnts-c.reduce((x,y)=>x+y);while(rest-->0){let j=0;for(let i=1;i<3;i++)if(fr[i]>fr[j])j=i;c[j]++;fr[j]=-1}OWN=[];c.forEach((n,k)=>{for(let i=0;i<n;i++)OWN.push(k)});own=c}\n bestS=ideal.indexOf(Math.min(...ideal));mkSites();updWater();blk=[0,0,0];nblk=0;\n A=P.aMode===1?mkL(false):mkA();B=P.bMode?mkL(true):mkB();sample(true)}\nfunction sample(first){const S=100;\n for(const W of[A,B]){const M=W.M;let ia=0,ac=0,dt=0;const lo=t-300;\n  for(let i=M.legs.length-1;i>=0&&M.legs[i][0]>=lo;i--){const l=M.legs[i];ia+=l[2];ac+=l[1];dt+=l[3]}\n  M.hd=M.hd||[];M.hd.push(M.deliv);const rate=(M.deliv-(M.hd.length>3?M.hd[M.hd.length-4]:0))/(M.hd.length>3?3:M.hd.length);\n  M.series.push({t,deliv:M.deliv,rate,eff:ac?ia/ac:NaN,det:ac?dt/ac:0,drown:M.drown,lost:M.lost,level})}}\nfunction tick(){if(t%P.period===0||t===0)updWater();else if(t%10===0)updWater();\n A.step();B.step();t++;if(t%100===0)sample()}\nreturn{P,G,h,water,kind,shore,Lf,get own(){return own},get blk(){return blk.map(b=>nblk?b/nblk:0)},init,tick,get t(){return t},get level(){return level},get A(){return A},get B(){return B},get peaks(){return peaks},get nest(){return nest},get sources(){return sources},get pathNS(){return pathNS},get pathSN(){return pathSN},get ideal(){return ideal},DX,DY,pathTime}}\n// ===== END ANT SIM =====\n\n// ===== ANT UI =====\n(function(){\nconst q=id=>document.getElementById(id);\nconst S=createAntSim(),P=S.P,G=S.G,h=S.h,HS=.55;\nlet running=false,spd=1,spAcc=0,fr=0,az=.7,el=.95,dist=95;\n// --- параметри ---\nconst CF=[['nAnts','Мурах у кожному світі ↻',10,200,10,60],['seed','Зерно рельєфу ↻',1,99,1,72],['period','Період затоплень, тактів ↻',600,4000,100,1500],['lmaxHi','Макс. рівень води ↻',3,6.2,.1,5.8],\n['base','Висота рівнини ↻',4.4,6.4,.1,6],['bas','Глибина низин ↻',.6,3,.1,2.4],['bsz','Розмір низин ↻',.8,2.4,.1,1.8],['maxSlope','Прохідність: макс. крутизна схилу ↻',.6,3,.1,1],\n['aMode','Світ A: 0 — обхід по контуру, 1 — перепланування по мапі в обхід закритого, 2 — локальний перехід до найближчого проходу (за замовчуванням) ↻',0,2,1,2],['localBud','Світ A: бюджет локального обходу, кроків',20,300,10,60],['bMode','Світ B: 0 — феромонні блукачі без мапи, 1 — мапа + логери (як «Феромони на вулицях») ↻',0,1,1,1],['memT','Логери: час пам\\'яті, тактів',50,2000,50,400],['scout','Б: частка розвідників, % (0 — немає) ↻',0,40,5,15],['hor','Логери: горизонт читання, клітинок',3,40,1,15],['uneven','Нерівномірність затоплення (0 — усюди однаково) ↻',0,1,.1,1],['maze','Хребти-перешкоди з проходами, кількість (0 — немає) ↻',0,4,1,3],['dead','Глухі кути: довжина перемичок між проходами, клітинок (0 — немає) ↻',0,14,1,10],['w1','Потік до Д1 (частка мурах) ↻',0,10,1,4],['w2','Потік до Д2 ↻',0,10,1,3],['w3','Потік до Д3 ↻',0,10,1,3],['slide','Обвали на перевалах, ×10⁻³/такт (0 — немає)',0,20,1,4],['iceLen','Лід на перевалах: середня тривалість, тактів (0 — немає)',0,3000,100,800],\n['spd','Розкид швидкостей мурах, % (0 — всі однакові; без розкиду мурахи злипаються в зграйки) ↻',0,30,1,10],['maxDetour','Світ A: ліміт обходу, тактів',100,2000,100,800],['alpha','Світ B: вага феромону α',.5,4,.1,1.5],['kappa','Світ B: інерція напрямку',0,5,.1,2.5],['gamma','Світ B: компас додому',0,4,.1,2],['rho','Світ B: випаровування, ×10⁻³/такт',1,30,1,4]];\nconst PRE={calm:{lmaxHi:3.8,base:4.6,bas:1,bsz:1,maxSlope:3},strong:{lmaxHi:5.8,base:6,bas:2.4,bsz:1.8,maxSlope:1}};\nq('cfg').innerHTML='<div class=\"btns\"><button id=\"pCalm\">Пресет: дрібні озера, м\\'які схили<\/button><button id=\"pStrong\">Пресет: великі озера, круті схили (за замовчуванням)<\/button><\/div>'+CF.map(([k,l,a,b,s,v])=>`<div class=\"row\"><label for=\"c_${k}\">${l}<\/label><input type=\"range\" id=\"c_${k}\" min=\"${a}\" max=\"${b}\" step=\"${s}\" value=\"${v}\"><output id=\"o_${k}\">${v}<\/output><\/div>`).join('');\nfunction readCfg(){for(const[k]of CF){const v=+q('c_'+k).value;if(k==='rho')P.rho=v/1000;else if(k==='lmaxHi'){P.lmaxHi=v;P.lmaxLo=v-1.2}else P[k]=v}}\nfor(const[k]of CF)q('c_'+k).oninput=e=>{q('o_'+k).textContent=e.target.value;if(!/^(nAnts|seed|period|lmaxHi|base|bas|bsz|maxSlope|uneven|spd|maze|dead|w1|w2|w3|bMode|aMode|scout)$/.test(k))readCfg()};\nfunction setPre(p){for(const k in p){q('c_'+k).value=p[k];q('o_'+k).textContent=p[k]}restart()}\nq('pCalm').onclick=()=>setPre(PRE.calm);q('pStrong').onclick=()=>setPre(PRE.strong);\n// --- розмальовка рельєфу (спільна) ---\nfunction ramp(v){const t=Math.max(0,Math.min(1,(v-1)/12));// низини зелені, хребти сірі/білі\n const a=[96,150,84],b=[170,150,100],c=[150,150,146],d=[245,245,245];let u,x,y;\n if(t<.35){u=t/.35;x=a;y=b}else if(t<.7){u=(t-.35)/.35;x=b;y=c}else{u=(t-.7)/.3;x=c;y=d}return[0,1,2].map(i=>x[i]+(y[i]-x[i])*u)}\nlet baseRGB=null;\nfunction mkBase(){mkBase3();baseRGB=new Float32Array(G*G*3);for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=y*G+x,hl=x>0?h[i-1]:h[i],hu=y>0?h[i-G]:h[i],sh=Math.max(.7,Math.min(1.25,1+.12*((hl-h[i])+(hu-h[i]))));\n  baseRGB[i*3]=Math.min(255,base3[i*3]*255*sh);baseRGB[i*3+1]=Math.min(255,base3[i*3+1]*255*sh);baseRGB[i*3+2]=Math.min(255,base3[i*3+2]*255*sh)}}\n// --- 2D-плани ---\nconst SC=6,CS=G*SC;\nfunction mk2D(id){const cv=q(id);cv.width=CS;cv.height=CS;const x=cv.getContext('2d');const ov=document.createElement('canvas');ov.width=ov.height=G;const bg=document.createElement('canvas');bg.width=bg.height=G;return{cv,x,ov,ox:ov.getContext('2d'),bg,bx:bg.getContext('2d')}}\nconst V2={A:mk2D('v2A'),B:mk2D('v2B')};\nconst SCOL=['#16a34a','#7c3aed','#2563eb'];\nfunction draw2D(v,W,isB){const x=v.x;\n // фон\n const id=v.bx.createImageData(G,G);for(let i=0;i<G*G;i++){id.data[i*4]=baseRGB[i*3];id.data[i*4+1]=baseRGB[i*3+1];id.data[i*4+2]=baseRGB[i*3+2];id.data[i*4+3]=255}v.bx.putImageData(id,0,0);\n x.imageSmoothingEnabled=false;x.drawImage(v.bg,0,0,CS,CS);\n // вода + феромони\n const o=v.ox.createImageData(G,G),d=o.data,wt=S.water,showP=isB&&q('cPher').checked;\n for(let i=0;i<G*G;i++){let r=0,g=0,b=0,a=0;\n  if(wt[i]){r=40;g=120;b=220;a=170}\n  else if(S.kind[i]){if(S.kind[i]===2){r=225;g=245;b=255;a=235}else{r=120;g=80;b=50;a=235}}\n  else if(showP){const th=W.tauH[i]/P.tmax,tf=W.tauF[i]/P.tmax;const m=Math.min(1,(th+tf)*3);if(m>.02){r=Math.min(255,60+tf*3*400);g=40;b=Math.min(255,60+th*3*400);a=Math.min(220,m*220)}}\n  d[i*4]=r;d[i*4+1]=g;d[i*4+2]=b;d[i*4+3]=a}\n v.ox.putImageData(o,0,0);x.drawImage(v.ov,0,0,CS,CS);\n // маршрути (A)\n if(!isB&&q('cPath').checked){x.lineWidth=2;x.setLineDash([6,4]);S.pathNS.forEach((p,k)=>{x.strokeStyle=SCOL[k];x.globalAlpha=.8;x.beginPath();p.forEach((c,j)=>{const X=(c%G+.5)*SC,Y=(((c/G)|0)+.5)*SC;j?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke()});x.setLineDash([]);x.globalAlpha=1}\n // мурахи\n let ai=0;for(const a of W.ants){ai++;const X=(a.cur%G+.5)*SC+((ai*7)%5-2)*.22*SC,Y=(((a.cur/G)|0)+.5)*SC+((ai*11)%5-2)*.22*SC;x.fillStyle=(!isB&&a.state==='detour')?'#d81b60':a.carry?'#f59e0b':'#111';x.beginPath();x.arc(X,Y,2.6,0,6.2832);x.fill();x.strokeStyle='rgba(255,255,255,.9)';x.lineWidth=.8;x.stroke()}\n // гніздо, джерела\n const mark=(c,col,t)=>{const X=(c%G+.5)*SC,Y=(((c/G)|0)+.5)*SC;x.fillStyle=col;x.beginPath();x.arc(X,Y,9,0,6.2832);x.fill();x.strokeStyle='#fff';x.lineWidth=2;x.stroke();x.fillStyle='#fff';x.font='bold 11px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillText(t,X,Y+.5)};\n mark(S.nest,'#7c2d12','Г');S.sources.forEach((c,k)=>mark(c,SCOL[k],'Д'+(k+1)))}\nconst hsh=(a,b)=>{const x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x)};\nlet K=null;\nfunction initK(){if(K)return;K={M:new THREE.Matrix4(),L:new THREE.Matrix4(),W:new THREE.Matrix4(),q:new THREE.Quaternion(),qa:new THREE.Quaternion(),e:new THREE.Euler(),p:new THREE.Vector3(),s:new THREE.Vector3(),AY:new THREE.Vector3(0,1,0),c:new THREE.Color(),\n white:new THREE.Color(1,1,1),body:new THREE.Color(0x6a2f10),det:new THREE.Color(0xd81b60),dark:new THREE.Color(0x3a1a08),rp:new THREE.Vector3(),n:new THREE.Vector3(0,1,0),cp:new THREE.Vector3(),vw:new THREE.Vector3(),lk:new THREE.Vector3(),tg:new THREE.Vector3(),rot:new THREE.Matrix4(),tm:new THREE.Matrix4(),cargo:new THREE.Color(0xf59e0b)}}\n// частина тіла мурахи в локальних координатах (мураха дивиться вздовж +X)\nfunction part(mesh,ox,oy,oz,sx,sy,sz,rx,ry,rz){const i=mesh.userData.n++;K.e.set(rx,ry,rz);K.qa.setFromEuler(K.e);K.p.set(ox,oy,oz);K.s.set(sx,sy,sz);K.L.compose(K.p,K.qa,K.s);K.W.multiplyMatrices(K.M,K.L);mesh.setMatrixAt(i,K.W)}\nconst hAt=(x,z)=>{const fx=Math.max(0,Math.min(G-1.001,x+(G-1)/2)),fz=Math.max(0,Math.min(G-1.001,z+(G-1)/2)),ix=fx|0,iz=fz|0,tx=fx-ix,tz=fz-iz,a=h[iz*G+ix],b=h[iz*G+ix+1],c=h[(iz+1)*G+ix],d=h[(iz+1)*G+ix+1];return((a*(1-tx)+b*tx)*(1-tz)+(c*(1-tx)+d*tx)*tz)*HS};\n// кольори 3D-рельєфу: зелені низини → сірі скелі (за висотою й крутизною) → біло-блакитні льодовики на верхівках хребтів\nlet base3=null;\nfunction mkBase3(){base3=new Float32Array(G*G*3);const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),sm=x=>x*x*(3-2*x),mx=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];\n for(let y=0;y<G;y++)for(let x=0;x<G;x++){const i=y*G+x,hv=h[i];\n  const gx=((x<G-1?h[i+1]:hv)-(x>0?h[i-1]:hv))/2,gy=((y<G-1?h[i+G]:hv)-(y>0?h[i-G]:hv))/2,sl=Math.hypot(gx,gy),n1=hsh(i,1),n2=hsh(i,2),n3=hsh(x*.35|0,(y*.35|0)+7);\n  let c=[.45+.05*n1,.56+.05*n1,.38+.04*n1];\n  c=mx(c,[.5,.45,.34],cl((5.9-hv)/2.5)*.8);\n  const rk=.40+.1*n2+.05*n3;\n  c=mx(c,[rk,rk+.003,rk+.012],Math.max(sm(cl((hv-7.2)/2.4)),cl((sl-.5)/.7)*.9));\n  /* льодовики — лише динамічний лід на перевалах (kind=2) */\n  base3.set(c,i*3)}}\n// --- 3D ---\nconst views=[];let THREEok=typeof THREE!=='undefined';\nfunction mk3D(id,W,isB){const cv=q(id);if(!THREEok)return null;let rd;try{rd=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){return null}\n initK();rd.shadowMap.enabled=true;rd.shadowMap.type=THREE.PCFSoftShadowMap;\n const sc=new THREE.Scene();\n {const g=document.createElement('canvas');g.width=2;g.height=256;const x=g.getContext('2d'),gr=x.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#7fb0e6');gr.addColorStop(.6,'#cfe2f3');gr.addColorStop(1,'#eef4fa');x.fillStyle=gr;x.fillRect(0,0,2,256);sc.background=new THREE.CanvasTexture(g)}\n sc.fog=new THREE.Fog(0xdce8f4,150,330);\n const cam=new THREE.PerspectiveCamera(45,4/3,.1,600);\n sc.add(new THREE.HemisphereLight(0xdcebff,0x5d6b52,.75));\n const sun=new THREE.DirectionalLight(0xfff1d6,.95);sun.position.set(50,90,35);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);\n {const s=sun.shadow.camera;s.left=-55;s.right=55;s.top=55;s.bottom=-55;s.near=20;s.far=260}sun.shadow.bias=-.0005;sun.shadow.normalBias=.25;sc.add(sun);\n // рельєф\n const geo=new THREE.PlaneGeometry(G-1,G-1,G-1,G-1);geo.rotateX(-Math.PI/2);const p=geo.attributes.position,cell=new Int32Array(p.count),col=new Float32Array(p.count*3);\n for(let i=0;i<p.count;i++){const ix=Math.round(p.getX(i)+(G-1)/2),iz=Math.round(p.getZ(i)+(G-1)/2),c=iz*G+ix;cell[i]=c;p.setY(i,h[c]*HS)}\n geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeVertexNormals();\n const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.92,metalness:0}));terrain.castShadow=true;terrain.receiveShadow=true;terrain.frustumCulled=false;sc.add(terrain);\n // вода з відтінком за глибиною\n const wgeo=new THREE.PlaneGeometry(G-1,G-1,G-1,G-1).rotateX(-Math.PI/2);wgeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(wgeo.attributes.position.count*3),3));\n const rt=new THREE.WebGLRenderTarget(768,576,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});\n const uni={tR:{value:rt.texture},tm:{value:new THREE.Matrix4()},t:{value:0}};\n const water=new THREE.Mesh(wgeo,new THREE.ShaderMaterial({uniforms:uni,transparent:true,depthWrite:false,\n  vertexShader:'attribute vec3 color;uniform mat4 tm;varying vec3 vC;varying vec4 vP;varying vec3 vW;void main(){vC=color;vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vP=tm*w;gl_Position=projectionMatrix*viewMatrix*w;}',\n  fragmentShader:'uniform sampler2D tR;uniform float t;varying vec3 vC;varying vec4 vP;varying vec3 vW;void main(){vec4 p=vP;p.xy+=vec2(sin(vW.x*2.3+t*2.)+sin(vW.z*3.1-t*1.7),cos(vW.z*2.7+t*1.5)+cos(vW.x*3.3-t*2.2))*.004*p.w;vec3 r=texture2DProj(tR,p).rgb;float c=clamp(dot(normalize(cameraPosition-vW),vec3(0.,1.,0.)),0.,1.);float f=.3+.5*pow(1.-c,2.);gl_FragColor=vec4(mix(vC,r,f),.86);}'}));water.frustumCulled=false;sc.add(water);\n const vc=new THREE.PerspectiveCamera(),clip=new THREE.Plane(new THREE.Vector3(0,1,0),0);\n // підставка: «стінки» навколо мапи й підлога\n const per=[];for(let i=0;i<G;i++)per.push([i,0]);for(let i=1;i<G;i++)per.push([G-1,i]);for(let i=G-2;i>=0;i--)per.push([i,G-1]);for(let i=G-2;i>=1;i--)per.push([0,i]);per.push([0,0]);\n const sk=new THREE.BufferGeometry(),skp=new Float32Array((per.length-1)*18);sk.setAttribute('position',new THREE.BufferAttribute(skp,3));\n const skirt=new THREE.Mesh(sk,new THREE.MeshLambertMaterial({color:0x7b6a55,side:THREE.DoubleSide}));skirt.frustumCulled=false;sc.add(skirt);\n const ground=new THREE.Mesh(new THREE.PlaneGeometry(700,700).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0xb9c8b2}));sc.add(ground);\n // мурахи: сфери (тіло, вантаж) + бруски (лапки, вусики), усе інстансами\nconst mk=(g,mat,max)=>{const m=new THREE.InstancedMesh(g,mat,max);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;m.castShadow=true;m.count=0;m.userData.n=0;sc.add(m);return m};\n const sg=new THREE.SphereGeometry(1,10,8),bg=new THREE.BoxGeometry(1,1,1),dg=new THREE.DodecahedronGeometry(1,0),std=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.6},o||{}));\n const pool={body:mk(sg,std(0x6a2f10,{emissive:0x2a1005}),700),det:mk(sg,std(0xd81b60,{emissive:0x400a20}),700),cargo:mk(sg,std(0xf5a50b,{emissive:0x402a00}),300),tip:mk(new THREE.ConeGeometry(.5,1,8),std(0x6a2f10,{emissive:0x2a1005}),700),tipD:mk(new THREE.ConeGeometry(.5,1,8),std(0xd81b60,{emissive:0x400a20}),700),leg:mk(bg,std(0x3a1a08),1700),\n  r0:mk(dg,std(0x6e6a64,{flatShading:true,roughness:.95}),900),r1:mk(dg,std(0x8a857c,{flatShading:true,roughness:.95}),900),r2:mk(dg,std(0x55514c,{flatShading:true,roughness:.95}),900),\n  ice:mk(new THREE.ConeGeometry(.5,1,5),std(0xcfe9ff,{roughness:.12,metalness:.15,flatShading:true,transparent:true,opacity:.92,emissive:0x2a5a8a,emissiveIntensity:.3}),900)};\n  const pos=c=>[c%G-(G-1)/2,h[c]*HS,((c/G)|0)-(G-1)/2];\n const nestG=new THREE.Group();{const d=new THREE.Mesh(new THREE.SphereGeometry(2.4,18,10,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x7a4a26,roughness:1,flatShading:true}));d.scale.y=.7;d.castShadow=true;nestG.add(d);\n  const hole=new THREE.Mesh(new THREE.CircleGeometry(.65,16),new THREE.MeshBasicMaterial({color:0x140c07}));hole.position.set(0,1,1.9);hole.rotation.x=-.6;nestG.add(hole);\n  const pm=new THREE.MeshStandardMaterial({color:0x5a3a20,roughness:1,flatShading:true});for(let i=0;i<7;i++){const a=i*.9,r=new THREE.Mesh(new THREE.DodecahedronGeometry(.22+.08*(i%3),0),pm);r.position.set(Math.cos(a)*2.7,.15,Math.sin(a)*2.7);nestG.add(r)}}sc.add(nestG);\n // джерела: купка кольорових «гостинців» із прапорцем\n const srcG=S.sources.map((c,k)=>{const cc=[0x16a34a,0x7c3aed,0x2563eb][k],g=new THREE.Group(),m=new THREE.MeshStandardMaterial({color:cc,roughness:.5,flatShading:true});\n  for(let i=0;i<6;i++){const a=i*1.05,r=i<5?.9:0,b=new THREE.Mesh(new THREE.IcosahedronGeometry(.5+.12*(i%3),0),m);b.position.set(Math.cos(a)*r,.35+(i===5?.55:0),Math.sin(a)*r);b.castShadow=true;g.add(b)}\n  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,3.4,6),new THREE.MeshStandardMaterial({color:0xe8e4da}));pole.position.set(0,1.7,0);g.add(pole);\n  const fl=new THREE.Mesh(new THREE.BoxGeometry(1.2,.7,.05),new THREE.MeshStandardMaterial({color:cc}));fl.position.set(.6,3,0);g.add(fl);sc.add(g);return g});\n const v={rt,uni,vc,clip,rd,sc,cam,geo,cell,col,water,pool,pos,cv,W,isB,fr:0,st:new Map()};\n v.place=()=>{const np=pos(S.nest);nestG.position.set(np[0],np[1]-.05,np[2]);S.sources.forEach((c,k)=>{const pp=pos(c);srcG[k].position.set(pp[0],pp[1],pp[2])});\n  let mn=1e9;for(let i=0;i<G*G;i++)mn=Math.min(mn,h[i]);const y0=mn*HS-1.2;ground.position.y=y0-.01;\n  for(let k=0;k<per.length-1;k++){const a=per[k],b=per[k+1],ax=a[0]-(G-1)/2,az=a[1]-(G-1)/2,bx=b[0]-(G-1)/2,bz=b[1]-(G-1)/2,ya=h[a[1]*G+a[0]]*HS,yb=h[b[1]*G+b[0]]*HS;skp.set([ax,ya,az,ax,y0,az,bx,yb,bz,bx,yb,bz,ax,y0,az,bx,y0,bz],k*18)}\n  sk.attributes.position.needsUpdate=true;sk.computeVertexNormals();v.st=new Map()};\n v.place();return v}\nfunction recolor3(v){const col=v.col,n=v.cell.length,showP=v.isB&&q('cPher').checked,W=v.W;\n for(let i=0;i<n;i++){const c=v.cell[i];let r=base3[c*3],g=base3[c*3+1],b=base3[c*3+2];\n  if(showP){const th=Math.min(1,W.tauH[c]/P.tmax*3),tf=Math.min(1,W.tauF[c]/P.tmax*3);const m=Math.max(th,tf);if(m>.02){const w=Math.min(.85,m);r=r*(1-w)+(.25+tf*.7)*w;g=g*(1-w)+.1*w;b=b*(1-w)+(.25+th*.7)*w}}\n  const kd=S.kind[c];if(kd){const w=.85,t=kd===2?[.8,.92,1]:[.5,.46,.42];r=r*(1-w)+t[0]*w;g=g*(1-w)+t[1]*w;b=b*(1-w)+t[2]*w}\n  col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}\n v.geo.attributes.color.needsUpdate=true}\nfunction render3(v){v.fr++;const cam=v.cam;\n cam.position.set(dist*Math.cos(el)*Math.sin(az),dist*Math.sin(el)+2,dist*Math.cos(el)*Math.cos(az));cam.lookAt(0,3,0);\n if(v.fr%3===1){const wp=v.water.geometry.attributes.position,wc=v.water.geometry.attributes.color;\n  for(let i=0;i<wp.count;i++){const c=v.cell[i],L=S.Lf[c],d=Math.min(1,Math.max(0,(L-h[c])/5));wp.setY(i,Math.max(L,-3)*HS+.02);wc.setXYZ(i,.5-.38*d,.78-.5*d,.88-.28*d)}\n  wp.needsUpdate=true;wc.needsUpdate=true;recolor3(v)}\n // мурахи\n const st=v.st,AS=2.1,P2=v.pool;for(const k in P2)P2[k].userData.n=0;let ai=0;\n for(const a of v.W.ants){ai++;const c=a.cur,cx=c%G-(G-1)/2+((ai*7)%5-2)*.22,cz=((c/G)|0)-(G-1)/2+((ai*11)%5-2)*.22;let s=st.get(a);\n  if(!s){s={x:cx,z:cz,ang:hsh(ai,5)*6.28,ta:0,c,ph:hsh(ai,3)*6.28};s.ta=s.ang;st.set(a,s)}\n  if(c!==s.c){const dx=c%G-s.c%G,dz=((c/G)|0)-((s.c/G)|0);if(Math.abs(dx)<3&&Math.abs(dz)<3){if(dx||dz)s.ta=Math.atan2(dz,dx)}else{s.x=cx;s.z=cz}s.c=c}\n  const ex=cx-s.x,ez=cz-s.z;s.x+=ex*.35;s.z+=ez*.35;let da=s.ta-s.ang;da=Math.atan2(Math.sin(da),Math.cos(da));s.ang+=da*.3;\n  const mv=Math.hypot(ex,ez)>.05;if(mv)s.ph+=.6;\n  K.M.compose(K.p.set(s.x,hAt(s.x,s.z),s.z),K.q.setFromAxisAngle(K.AY,-s.ang),K.s.set(AS,AS,AS));\n  const bm=(!v.isB&&a.state==='detour')?P2.det:P2.body;\n  part(bm,-.34,.3,0,.26,.17,.17,0,0,0);part(bm===P2.det?P2.tipD:P2.tip,-.64,.3,0,.24,.3,.24,0,0,1.5708);part(bm,-.045,.31,0,.05,.04,.04,0,0,0);part(bm,.10,.31,0,.11,.09,.09,0,0,0);part(bm,.30,.30,0,.12,.1,.1,0,0,0);\n  if(a.carry)part(P2.cargo,.1,.52,0,.14,.14,.14,0,0,0);\n  for(let j=0;j<3;j++)for(const sd of[-1,1]){const sw=mv?Math.sin(s.ph+j*2.1+(sd>0?0:Math.PI))*.07:0;part(P2.leg,.10+(j-1)*.07+sw,.15,sd*.1,.03,.3,.03,-.6*sd,0,0)}\n  for(const sd of[-1,1])part(P2.leg,.42,.4,sd*.07,.2,.022,.022,0,sd*.5,.55)}\n // обвали (камінці) і лід (кристали) на клітинках із позначкою\n const kd=S.kind,RK=[P2.r0,P2.r1,P2.r2];\n for(let c=0;c<G*G;c++){const k=kd[c];if(!k)continue;const bx=c%G-(G-1)/2,bz=((c/G)|0)-(G-1)/2,by=h[c]*HS;\n  if(k===1){for(let j=0;j<3;j++){const r1=hsh(c,j*3+1),r2=hsh(c,j*3+2),r3=hsh(c,j*3+3),sz=.16+.32*r3*r3,m=RK[Math.min(2,(r1*3)|0)];if(m.userData.n>=890)continue;const i=m.userData.n++;\n    K.p.set(bx+(r1-.5)*.95,by+sz*.45,bz+(r2-.5)*.95);K.e.set(r1*6,r2*6,r3*6);K.q.setFromEuler(K.e);K.s.set(sz*(1+.4*r1),sz*(.7+.5*r2),sz*(1+.3*r3));K.L.compose(K.p,K.q,K.s);m.setMatrixAt(i,K.L)}}\n  else{for(let j=0;j<2;j++){const r1=hsh(c,j*3+11),r2=hsh(c,j*3+12),r3=hsh(c,j*3+13),w=.3+.3*r1,hg=.8+1.7*r2*(.5+.5*hsh(c,9)),m=P2.ice;if(m.userData.n>=890)continue;const i=m.userData.n++;\n    K.p.set(bx+(r1-.5)*.9,by+hg*.5-.15,bz+(r3-.5)*.9);K.e.set((r1-.5)*.5,r3*6,(r2-.5)*.5);K.q.setFromEuler(K.e);K.s.set(w,hg,w);K.L.compose(K.p,K.q,K.s);m.setMatrixAt(i,K.L)}}}\n for(const k in P2){const m=P2[k];m.count=m.userData.n;m.instanceMatrix.needsUpdate=true}\n // відбиття: віртуальна камера, віддзеркалена відносно рівня води (як THREE.Reflector)\n {const Y=Math.max(S.level,-3)*HS+.02,rp=K.rp,n=K.n;cam.updateMatrixWorld();K.cp.setFromMatrixPosition(cam.matrixWorld);\n  K.vw.subVectors(rp.set(0,Y,0),K.cp).reflect(n).negate().add(rp);K.rot.extractRotation(cam.matrixWorld);\n  K.lk.set(0,0,-1).applyMatrix4(K.rot).add(K.cp);K.tg.subVectors(rp,K.lk).reflect(n).negate().add(rp);\n  const vc=v.vc;vc.position.copy(K.vw);vc.up.set(0,1,0).applyMatrix4(K.rot).reflect(n);vc.lookAt(K.tg);vc.far=cam.far;vc.updateMatrixWorld();vc.projectionMatrix.copy(cam.projectionMatrix);\n  K.tm.set(.5,0,0,.5,0,.5,0,.5,0,0,.5,.5,0,0,0,1).multiply(vc.projectionMatrix).multiply(vc.matrixWorldInverse);v.uni.tm.value.copy(K.tm);v.uni.t.value=v.fr*.03;\n  v.clip.constant=-Y;const rd=v.rd;rd.clippingPlanes=[v.clip];v.water.visible=false;rd.shadowMap.autoUpdate=false;rd.setRenderTarget(v.rt);rd.clear();rd.render(v.sc,vc);rd.setRenderTarget(null);rd.shadowMap.autoUpdate=true;rd.clippingPlanes=[];v.water.visible=true}\n v.rd.render(v.sc,cam)}\nfunction resize(){for(const v of views){const w=v.cv.clientWidth||500,hh=v.cv.clientHeight||375;v.rd.setPixelRatio(Math.min(2,devicePixelRatio));v.rd.setSize(w,hh,false);v.cam.aspect=w/hh;v.cam.updateProjectionMatrix()}}\nfunction bindDrag(cv){let drag=null;cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});\n cv.addEventListener('pointermove',e=>{if(!drag)return;az-=(e.clientX-drag[0])*.006;el=Math.max(.15,Math.min(1.5,el+(e.clientY-drag[1])*.005));drag=[e.clientX,e.clientY]});\n cv.addEventListener('pointerup',()=>{drag=null;cv.style.cursor='grab'});\n cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(35,Math.min(170,dist*(1+Math.sign(e.deltaY)*.08)))},{passive:false})}\n// --- графіки ---\nconst hi=(cv,w,hh)=>{cv.width=w*2;cv.height=hh*2;cv.style.aspectRatio=w+'/'+hh;const x=cv.getContext('2d');x.scale(2,2);return x};\nconst xD=hi(q('chD'),620,200),xR=hi(q('chR'),620,200),xE=hi(q('chE'),620,200);\nconst CA='#2a78d6',CB='#eb6834';\nfunction chart(x,title,fa,fb,o){const w=620,hh=200,X0=40,X1=w-8,Y0=22,Y1=hh-20;x.clearRect(0,0,w,hh);const sr=S.A.M.series,srB=S.B.M.series;\n const tmax=Math.max(3*P.period,S.t),px=t=>X0+(X1-X0)*t/tmax;let ym=o.ymax||1;\n if(!o.ymax){for(const s of sr)ym=Math.max(ym,fa(s)||0);for(const s of srB)ym=Math.max(ym,fb(s)||0);ym*=1.08}\n const py=v=>Y1-(Y1-Y0)*Math.min(1,Math.max(0,v/ym));\n // води\n x.fillStyle='rgba(43,125,224,.13)';let st=-1;sr.forEach((s,i)=>{const wet=s.level>-2.9;if(wet&&st<0)st=s.t;if((!wet||i===sr.length-1)&&st>=0){x.fillRect(px(st),Y0,px(s.t)-px(st),Y1-Y0);st=-1}});\n x.strokeStyle='#d5dde6';x.lineWidth=1;x.strokeRect(X0,Y0,X1-X0,Y1-Y0);x.fillStyle='#1d2733';x.font='bold 12px system-ui';x.textAlign='left';x.fillText(title,X0,14);\n x.fillStyle='#5b6b7c';x.font='11px system-ui';x.textAlign='right';x.fillText(o.fmt?o.fmt(ym):Math.round(ym),X0-4,Y0+8);x.fillText('0',X0-4,Y1);x.textAlign='center';\n const step=Math.max(1000,Math.round(tmax/6/1000)*1000);for(let t=0;t<=tmax;t+=step)x.fillText(t,px(t),hh-6);\n const ln=(arr,f,col,dash)=>{x.strokeStyle=col;x.lineWidth=2;x.setLineDash(dash||[]);x.beginPath();let pen=false;arr.forEach(s=>{const v=f(s);if(v==null||isNaN(v)){pen=false;return}pen?x.lineTo(px(s.t),py(v)):x.moveTo(px(s.t),py(v));pen=true});x.stroke();x.setLineDash([])};\n ln(sr,fa,CA);ln(srB,fb,CB);if(o.extra)ln(sr,o.extra,CA,[4,3])}\nfunction charts(){chart(xD,'Доставлено вантажу (накопичено)',s=>s.deliv,s=>s.deliv,{});\n chart(xR,'Швидкість доставки (вантаж за 100 тактів)',s=>s.rate,s=>s.rate,{});\n chart(xE,'Ефективність маршруту (ідеальний час / фактичний)',s=>s.eff,s=>s.eff,{ymax:1.1,fmt:v=>v.toFixed(1),extra:s=>s.det})}\nfunction table(){const rows=[];const A=S.A.M,B=S.B.M;const eff=M=>{const a=M.series.slice(-30).map(s=>s.eff).filter(v=>!isNaN(v));return a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(2):'–'};\n const det=M=>{const a=M.series.slice(-30);return a.length?(a.reduce((x,s)=>x+s.det,0)/a.length*100).toFixed(0)+'%':'–'};\n const rate=M=>S.t?(M.deliv/S.t*1000).toFixed(1):'–';\n const bn=S.P.bMode?'логери + мапа':'феромони';q('legA').dataset.o=q('legA').dataset.o||q('legA').innerHTML;q('legA').innerHTML=S.P.aMode===2?'Мураха знає висоти й проходи в хребтах. Коли прохід закритий (обвал чи лід), вона йде до найближчого відомого проходу локальною навігацією: бачить лише сусідні клітинки й пам\\'ятає відвідані. Якщо сусідній прохід відрізаний перемичкою (глухий кут) і бюджет кроків вичерпано, вона повертається в гніздо й пробує знову, бо довгого обхідного шляху локально не знайти. Інші завали (озера, обвали поза проходами) обходить, прокладаючи шлях по мапі навколо побаченого завалу. Обміну з іншими немає.':S.P.aMode===1?'Мураха знає висоти й планує шлях Дейкстрою, але лише має власну пам\\'ять: проходячи, записує стан 8 сусідніх клітинок і не ділиться ним з іншими. Побачивши закриту клітинку (вода, обвал, лід), перепланує шлях по мапі в обхід закритого й іде через найближчий відомий прохід; якщо обходу немає, чекає й дивиться, чи не відкрилось. Запис забувається за час пам\\'яті.':q('legA').dataset.o;q('hA').textContent=S.P.aMode===2?'Світ A: мапа + перехід до найближчого проходу':S.P.aMode===1?'Світ A: мапа + власна пам\\'ять (без обміну)':'Світ A: пам\\'ять мапи, без феромонів';q('legB').dataset.o=q('legB').dataset.o||q('legB').innerHTML;q('legB').innerHTML=S.P.bMode?'Мураха знає висоти й планує шлях Дейкстрою, як у світі A, але додатково користується логерами: проходячи, мурахи записують стан 8 сусідніх клітинок. Червоне — негативні сліди (клітинки, позначені закритими, тупіки): обходяться в межах горизонту читання. Синє — позитивні сліди розвідників, частка яких свідомо йде в обхід основного коридору й перевіряє альтернативні проходи. Обидва види слідів забуваються за час пам\\'яті, тож закриті проходи знову стають доступними. Мурахи в одній клітинці зсунуті для наочності.':q('legB').dataset.o;q('hB').textContent=S.P.bMode?'Світ B: мапа + логери (червоне — клітинки, які логери позначили закритими)':'Світ B: феромони, без мапи';\n q('tbl').innerHTML=`<tr><th><\/th><th class=\"n\" style=\"color:${CA}\">Світ A (мапа)<\/th><th class=\"n\" style=\"color:${CB}\">Світ B (${bn})<\/th><\/tr>\n <tr><td>Доставлено вантажу<\/td><td class=\"n\">${A.deliv}<\/td><td class=\"n\">${B.deliv}<\/td><\/tr>\n <tr><td>Вантажу за 1000 тактів (середнє)<\/td><td class=\"n\">${rate(A)}<\/td><td class=\"n\">${rate(B)}<\/td><\/tr>\n <tr><td>Ефективність маршруту (останні ~3000 тактів)<\/td><td class=\"n\">${eff(A)}<\/td><td class=\"n\">${eff(B)}<\/td><\/tr>\n <tr><td>Частка часу на обхід озер (A)<\/td><td class=\"n\">${S.P.aMode===1?'–':det(A)}<\/td><td class=\"n\">–<\/td><\/tr>\n <tr><td>Мурах, що чекають перед закритим проходом (A / B)<\/td><td class=\"n\">${S.A.waiting?S.A.waiting():'–'}<\/td><td class=\"n\">${S.B.waiting?S.B.waiting():'–'}<\/td><\/tr>\n <tr><td>Мурах на потоках Д1 / Д2 / Д3 (постійно)<\/td><td class=\"n\" colspan=\"2\">${S.own.join(' / ')}<\/td><\/tr>\n <tr><td>Доставлено з Д1 / Д2 / Д3<\/td><td class=\"n\">${A.src.join(' / ')}<\/td><td class=\"n\">${B.src.join(' / ')}<\/td><\/tr>\n <tr><td>Частка часу, коли маршрут до Д1 / Д2 / Д3 перерізано (вода, обвал, лід)<\/td><td class=\"n\" colspan=\"2\">${S.blk.map(b=>(b*100).toFixed(0)+'%').join(' / ')}<\/td><\/tr>\n <tr><td>Потонули (вантаж втрачено)<\/td><td class=\"n\">${A.drown}<\/td><td class=\"n\">${B.drown}<\/td><\/tr>\n <tr><td>Невдалі обходи (A чекає на місці й пробує знову)<\/td><td class=\"n\">${S.P.aMode===1?'–':A.lost}<\/td><td class=\"n\">–<\/td><\/tr>`}\nfunction status(){q('stat').textContent=`такт ${S.t} · цикл ${Math.floor(S.t/P.period)+1} · макс. рівень води ${S.level>-2.9?S.level.toFixed(1):'немає озер'}`}\n// --- керування ---\nfunction setRun(v){running=v;q('bRun').textContent=v?'Пауза':'Пуск'}\nq('bRun').onclick=()=>setRun(!running);\ndocument.querySelectorAll('button[data-sp]').forEach(b=>b.onclick=()=>{spd=+b.dataset.sp;document.querySelectorAll('button[data-sp]').forEach(x=>x.classList.toggle('on',x===b))});\nfunction restart(){setRun(false);readCfg();S.init();mkBase();mkBase3();for(const v of views){v.W=v.isB?S.B:S.A}if(views.length){// терен змінився: оновити геометрію\n  for(const v of views){const p=v.geo.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,h[v.cell[i]]*HS);p.needsUpdate=true;v.geo.computeVertexNormals();v.place()}\n  location.hash='';}\n refresh()}\nq('bReset').onclick=()=>{restart()};\nfunction refresh(){draw2D(V2.A,S.A,false);draw2D(V2.B,S.B,true);charts();table();status();if(views.length)for(const v of views)render3(v)}\n\n// --- серія по рельєфах ---\nlet bxBusy=false,bxCancel=false;\nq('bxN').oninput=e=>q('bxNo').textContent=e.target.value;q('bxT').oninput=e=>q('bxTo').textContent=e.target.value;\nq('bxStop').onclick=()=>{bxCancel=true};\nq('bxRun').onclick=()=>{if(bxBusy)return;readCfg();bxBusy=true;bxCancel=false;q('bxRun').disabled=true;q('bxStop').disabled=false;\n const N=+q('bxN').value,T=+q('bxT').value,snap={...P},rows=[];let i=0,cur=null,tk=0;\n const mk=()=>{cur=createAntSim();Object.assign(cur.P,snap,{seed:i+1});cur.init();tk=0};\n const draw=fin=>{const wins=[0,0,0];let rs=[];for(const r of rows){const x=r.B/Math.max(1,r.A);rs.push(x);wins[x>1.05?1:x<.95?0:2]++}rs.sort((a,b)=>a-b);const med=rs.length?rs[rs.length>>1]:NaN;\n  q('bxSum').innerHTML=rows.length?`<b>Рельєфів: ${rows.length}.<\/b> Мапа (A) вигравала: ${wins[0]}, феромони (B) вигравали: ${wins[1]}, приблизно нарівні (±5%): ${wins[2]}. Медіана відношення B/A: ${med.toFixed(2)}${fin?'':' (триває…)'}.`:'';\n  q('bxTbl').innerHTML=rows.length?'<tr><th>зерно<\/th><th class=\"n\">A: доставлено<\/th><th class=\"n\">B: доставлено<\/th><th class=\"n\">B / A<\/th><th class=\"n\">A: потонули<\/th><th class=\"n\">B: потонули<\/th><\/tr>'+rows.map(r=>{const x=r.B/Math.max(1,r.A);return `<tr><td>${r.seed}<\/td><td class=\"n\">${r.A}<\/td><td class=\"n\">${r.B}<\/td><td class=\"n\" style=\"font-weight:600;color:${x>1.05?CB:x<.95?CA:'#5b6b7c'}\">${x.toFixed(2)}<\/td><td class=\"n\">${r.dA}<\/td><td class=\"n\">${r.dB}<\/td><\/tr>`}).join(''):''};\n mk();\n const step=()=>{if(bxCancel||i>=N){bxBusy=false;q('bxRun').disabled=false;q('bxStop').disabled=true;q('bxProg').textContent=bxCancel?'Скасовано':'Готово';draw(true);return}\n  const t0=performance.now();while(performance.now()-t0<30&&tk<T){cur.tick();tk++}\n  if(tk>=T){rows.push({seed:i+1,A:cur.A.M.deliv,B:cur.B.M.deliv,dA:cur.A.M.drown,dB:cur.B.M.drown});i++;draw(false);if(i<N)mk()}\n  q('bxProg').textContent=`рельєф ${Math.min(i+1,N)} з ${N}, такт ${tk}/${T}`;setTimeout(step,0)};\n step()};\n// --- старт ---\nfunction boot(){readCfg();S.init();mkBase();mkBase3();\n if(THREEok){const a=mk3D('v3A',S.A,false),b=mk3D('v3B',S.B,true);if(a)views.push(a);if(b)views.push(b);for(const v of views)bindDrag(v.cv);resize();addEventListener('resize',resize)}\n else q('msg3').textContent='Three.js не завантажився (потрібен інтернет): 3D недоступне, але мапи-плани й графіки працюють.';\n q('how').innerHTML=HOW;refresh();requestAnimationFrame(frame)}\nfunction frame(){requestAnimationFrame(frame);fr++;\n if(running){const t0=performance.now();spAcc+=spd;let n=Math.floor(spAcc);spAcc-=n;while(n-->0){S.tick();if(performance.now()-t0>14){spAcc=0;break}}}\n if(q('cRot').checked)az+=.004;\n if(fr%2===0||!running){draw2D(V2.A,S.A,false);draw2D(V2.B,S.B,true)}\n for(const v of views)render3(v);\n if(fr%10===0){charts();table();status()}}\nconst HOW=`<p><b>Спільне.<\/b> Мапа 72×72 клітинок: ширина хребтів і форма низин (еліптичних улоговин) різні. Вода — рівень, що піднімається й спадає з періодом T; під ним опиняються всі клітинки нижче рівня, тож озера різної форми з'являються в низинах і зливаються, коли рівень зростає. Піки рівня в кожному циклі різні. Нахил коштує часу: підйом дорожчий, спуск трохи дорожчий за рівнину, діагональ довша. Гніздо й три джерела на сухій рівнині вище за найвищий можливий рівень води.<\/p>\n<p><b>Світ B, режим «мапа + логери».<\/b> Той самий планувальник і та сама статична мапа, що в A, але кожна клітинка має логер: мурахи, проходячи, записують стан 8 сусідніх клітинок (закрито/відкрито), запис забувається за вказаний час. Дейкстра враховує закриті клітинки лише в горизонті читання (в A — тільки власні записи, в B — спільні логери), решту маршруту планує за статичною мапою. Єдина відмінність від A — спільна пам'ять із забуванням (як у прототипі «Феромони на вулицях»). Режим 0 — первісні феромонні блукачі без мапи: вони знають менше за A, тому в порівнянні з ним програють закономірно.<\/p>\n<p><b>Нерівномірність і динаміка.<\/b> Мапа поділена на 5 областей зі своїми фазами й піками води; рівень між ними плавно змінюється, тож озера в різних частинах мапи з'являються не одночасно. «Нерівномірність» 0 повертає однаковий рівень скрізь. Додатково на найвищій клітинці кожного маршруту є <i>лід<\/i> (блакитно-білий): замерзає випадково, тане в середньому за вказану тривалість; на найвищій клітинці маршруту, до якої сягає вода, — <i>обвал<\/i> (коричневий): виникає випадково й зникає, коли озеро торкається його. Обидва блокують прохід так само, як вода, але мурахи в них не тонуть. Мурахи світу A після невдалого обходу (ліміт) беруть наступне джерело. Мурахи розділені на три постійні потоки до різних джерел (частки задають параметри «Потік до Д1/Д2/Д3»), однакові в обох світах, як постійні маршрути складів у «Феромонах на вулицях». Хребти-перешкоди з проходами змушують шлях вилазити в обхід навіть за повної відсутності води, обвали й лід сидять на цих проходах.<\/p>\n<p><b>Світ A, режим 2 (за замовчуванням): глухі кути.<\/b> Біля кожного проходу від хребта відходить перемичка (параметр «Глухі кути»), тому вздовж хребта до сусіднього проходу не пройти, а довгий шлях навколо існує. Закритий прохід мураха A долає лише локально: йде до найближчого проходу за бюджет кроків («Світ A: бюджет локального обходу»), а коли не вийшло, повертається в гніздо й пробує знову. Мурахи B завдяки спільним негативним слідам (закриті клітинки), слідам розвідників і планувальнику по всій мапі знаходять довгий обхід. Саме така динаміка найкраще показує перевагу мурашиного алгоритму.<\/p>\n<p><b>Світ A, режим 1.<\/b> Те саме, що в B, але без обміну: кожна мураха має власну пам'ять про закриті клітинки й перепланує шлях через найближчий відомий прохід (в кожному хребті їх два). Єдина відмінність між світами — чи ділиться пам'ять між мурахами. Режим 0 — первісний обхід по контуру.<\/p>\n<p><b>Світ A.<\/b> Мурахи пам'ятають висоти. На початку рейсу вони прокладають оптимальний маршрут (Дейкстра), якого не знає ніхто з феромонів. Вони бачать лише одну клітинку вперед: коли вона раптом вода, починається <i>жадібний обхід по контуру<\/i>: з прибережних клітинок сусідніх вибирається найближча до першої сухої клітинки маршруту за озером, відвідані клітинки уникаються; щойно ця клітинка видна по прямій без води, мураха йде до неї напряму. Якщо рівень зростає під мурахою, вона тоне й починає з гнізда без вантажу.<\/p>\n<p><b>Світ B.<\/b> Мурахи не знають мапи й не бачать ціль. Крок вибирається випадково з вагою ≈ (феромон)<sup>α<\/sup> · (1/вартість кроку) · exp(інерція·cos Δкурсу). Мураха без вантажу лишає «домашній» слід, а з вантажем — «харчовий» слід (внесок спадає з довжиною пройденого, тому короткі маршрути виграють). Слід випаровується й миттєво зникає під водою. Повертаючись, мураха знає лише напрямок на гніздо (компас).<\/p>\n<p><b>Зграйки.<\/b> Усі мурахи одного потоку йдуть однаковим маршрутом з однаковою швидкістю, тож їхній взаємний зсув у часі ніколи не змінюється сам. Закритий прохід (вода, обвал, лід) збирає чергу, а коли відкривається, вся черга рушає в один такт, і зсув між мурахами стає нульовим. Нічого, що б розсувало їх назад, немає: без розкиду швидкостей зграйка живе вічно. Параметр «Розкид швидкостей» дає кожній мурасі власний коефіцієнт сповільнення від 1 до 1+розкид%, тож зграйка поступово розтягується. Він діє однаково в обох світах; середня швидкість трохи падає, бо швидше за один такт на крок мурахи рухатися не можуть.<\/p>\n<p><b>Метрики.<\/b> Вантаж у мурашнику; ефективність маршруту = ідеальний час рейсу по сухій мапі / фактичний; частка часу на обхід у світі A. Ці числа описують лише наш модельний світ і задані параметри: у світі B результат залежить від α, інерції, компаса та випаровування, у світі A — від ліміту обходу та форми озер.<\/p>`;\nwindow.antApi=S;boot();\n})();\n// ===== END ANT UI =====\n\n<\/script><script>(function(){function post(){try{parent.postMessage({antH:Math.ceil(document.documentElement.scrollHeight)},'*')}catch(e){}}\nif(window.ResizeObserver)new ResizeObserver(post).observe(document.body);window.addEventListener('load',post);setInterval(post,1000)})();<\/script><\/body><\/html>\n";
+</script>
 <script>
 (function () {
 'use strict';
@@ -319,7 +592,7 @@ function setCity(city, usePon) {
 
 /* параметри */
 var P = { lamIn: 4, cap: 4, omega: 0.5, noise: 0.1, pClose: 0.5, pHub: 0.9, evRate: 25, rho: 0.2, speed: 6, tMax: 360,
-  hor: 3, nWh: 4, nSt: 6, lam: 1.5, nu: 4, loop: true, neg: true, brRate: 1, depDelay: 8 };
+  mode: 'map', grid: false, snap: true, beta: 2.5, alpha: 2, evDur: 50, pos: false, gam: 0.3, kap: 0.3, hor: 3, nWh: 4, nSt: 6, lam: 1.5, nu: 4, loop: true, neg: true, brRate: 1, depDelay: 8 };
 
 /* утиліти */
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -329,6 +602,8 @@ function Heap() { this.a = []; }
 Heap.prototype.push = function (t, v) { var a = this.a; a.push([t, v]); var i = a.length - 1; while (i > 0) { var p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; var x = a[p]; a[p] = a[i]; a[i] = x; i = p; } };
 Heap.prototype.peek = function () { return this.a.length ? this.a[0][0] : Infinity; };
 Heap.prototype.pop = function () { var a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; var i = 0; for (;;) { var l = 2 * i + 1, r = l + 1, m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; var x = a[m]; a[m] = a[i]; a[i] = x; i = m; } } return top; };
+/* Генератор міста: вулиці під прямим кутом, Т-перехрестя, діагоналі, площі лише на перетинах магістралей.
+   Опційно: річка уздовж одного з напрямків сітки; мости = вулиці, що перетинають річку під прямим кутом. */
 /* Генератор міста: вулиці під прямим кутом, Т-перехрестя, діагоналі, площі лише на перетинах магістралей.
    Опційно: річка уздовж одного з напрямків сітки; мости = вулиці, що перетинають річку під прямим кутом. */
 /* Генератор міста: вулиці під прямим кутом, Т-перехрестя, діагоналі, площі лише на перетинах магістралей.
@@ -354,7 +629,7 @@ function isConnected(n, edges) {
   for (var k in used) if (!seen[k]) return false;
   return true;
 }
-function genCityTry(seed, withRiver, nWh, nSt) {
+function genCityTry(seed, withRiver, nWh, nSt, grid) {
   var rng = mulberry32(seed);
   function U(a, b) { return a + (b - a) * rng(); }
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
@@ -383,8 +658,11 @@ function genCityTry(seed, withRiver, nWh, nSt) {
     segs.push({ p: [x, hs[avail[s0]].y], q: [x, hs[avail[e0]].y], m: false });
   }
   var x0 = xs[0], x1 = xs[xs.length - 1];
-  segs.push({ p: [x0, U(1.0, 3.5)], q: [x1, U(5.5, 8.5)], m: true });
-  segs.push({ p: [x0, U(6.5, 9.0)], q: [x1, U(1.5, 4.0)], m: true });
+  var d1 = [U(1.0, 3.5), U(5.5, 8.5), U(6.5, 9.0), U(1.5, 4.0)];
+  if (!grid) {
+    segs.push({ p: [x0, d1[0]], q: [x1, d1[1]], m: true });
+    segs.push({ p: [x0, d1[2]], q: [x1, d1[3]], m: true });
+  }
   /* перетини */
   var pts = [], segPts = segs.map(function () { return []; });
   function addPt(P) { pts.push(P); return pts.length - 1; }
@@ -429,8 +707,8 @@ function genCityTry(seed, withRiver, nWh, nSt) {
     }
   });
   /* легка деформація без повороту: мережа лишається вирівняною з рамкою */
-  var ph1 = U(0, 6.28), ph2 = U(0, 6.28), X = nodes.map(function (p) {
-    return [p[0] + 0.22 * Math.sin(0.55 * p[1] + ph1) + 0.10 * Math.sin(1.3 * p[1] + ph2), p[1] + 0.22 * Math.sin(0.50 * p[0] + ph2) + 0.10 * Math.sin(1.2 * p[0] + ph1)];
+  var ph1 = U(0, 6.28), ph2 = U(0, 6.28), wa = grid ? 0 : 1, X = nodes.map(function (p) {
+    return [p[0] + wa * (0.22 * Math.sin(0.55 * p[1] + ph1) + 0.10 * Math.sin(1.3 * p[1] + ph2)), p[1] + wa * (0.22 * Math.sin(0.50 * p[0] + ph2) + 0.10 * Math.sin(1.2 * p[0] + ph1))];
   });
   var mn = [Infinity, Infinity], mx = [-Infinity, -Infinity];
   X.forEach(function (p) { for (var d = 0; d < 2; d++) { mn[d] = Math.min(mn[d], p[d]); mx[d] = Math.max(mx[d], p[d]); } });
@@ -587,13 +865,14 @@ function genCityTry(seed, withRiver, nWh, nSt) {
   var bridges = [], pons = []; edges.forEach(function (e, k) { if (e.br) bridges.push(k); if (e.pon) pons.push(k); });
   return { nodes: P, edges: outEdges, wh: wh, st: st, sq: sq, bridges: bridges, pons: pons, river: river };
 }
-function genCity(seed, withRiver, nWh, nSt) {
+function genCity(seed, withRiver, nWh, nSt, grid) {
   nWh = nWh || 4; nSt = nSt || 6;
-  for (var a = 0; a < 80; a++) { var c = genCityTry(seed + a * 7919, withRiver, nWh, nSt); if (c) { c.seed = seed + a * 7919; return c; } }
+  for (var a = 0; a < 80; a++) { var c = genCityTry(seed + a * 7919, withRiver, nWh, nSt, grid); if (c) { c.seed = seed + a * 7919; return c; } }
   return null;
 }
 
-function makeCity(seed, river) { for (var a = 0; a < 40; a++) { var c = genCity(seed + a * 101, river, P.nWh, P.nSt); if (c) return c; } return null; }
+function makeCity(seed, river) { for (var a = 0; a < 40; a++) { var c = genCity(seed + a * 101, river, P.nWh, P.nSt, P.grid); if (c) return c; } return null; }
+function hm(m) { m = Math.floor(m); var h = Math.floor(m / 60), mm = m % 60; return h + ':' + (mm < 10 ? '0' : '') + mm; }
 function fmt(x, d) { return x.toLocaleString('uk-UA', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
 
 /* світ: спільні події й потік поїздок */
@@ -617,24 +896,54 @@ function Sim(kind, world, seed) {
   this.kind = kind; this.W = world; this.rng = mulberry32(seed);
   this.veh = []; this.live = new Set(); this.heap = new Heap();
   this.occ = new Float64Array(M); this.Lv = new Float64Array(M).fill(1); this.Lt = new Float64Array(M);
-  this.Nv = new Float64Array(M); this.Nt = new Float64Array(M);                 /* негативний слід */
+  this.Nv = new Float64Array(M); this.Nt = new Float64Array(M); this.Pv = new Float64Array(M); this.Pt = new Float64Array(M);                 /* негативний слід */
   this.done = []; this.w = new Float64Array(M); this.dist = new Float64Array(N); this.used = new Uint8Array(N);
   this.loops = 0; this.negMarks = 0; this.q = []; this.inNet = 0;
 }
 Sim.prototype.eff = function (e, t) { return 1 + (this.Lv[e] - 1) * Math.exp(-P.rho * (t - this.Lt[e])); };
 Sim.prototype.negEff = function (e, t) { return this.Nv[e] * Math.exp(-P.rho * (t - this.Nt[e])); };
+Sim.prototype.posEff = function (e, t) { return this.Pv[e] * Math.exp(-P.rho * (t - this.Pt[e])); };
 Sim.prototype.mark = function (e, t) { if (this.negEff(e, t) < 0.5) this.negMarks++; this.Nv[e] = 1; this.Nt[e] = t; };
 Sim.prototype.add = function (o, d, t) {
-  this.veh.push({ o: o, d: d, t0: t, node: o, blocked: null, edge: -1, from: -1, to: -1, ent: 0, arr: 0, stack: [o], lastE: -1 });
+  this.veh.push({ o: o, d: d, t0: t, node: o, blocked: null, edge: -1, from: -1, to: -1, ent: 0, arr: 0, stack: [o], path: [], lastE: -1 });
   var id = this.veh.length - 1; this.live.add(id);
-  if (this.inNet >= CAPN) { this.veh[id].q = true; this.q.push(id); } else { this.inNet++; this.heap.push(t, id); }
+  if (this.inNet >= CAPN) { this.veh[id].q = true; this.q.push(id); } else this.launch(id, t);
+};
+Sim.prototype.launch = function (id, t) {
+  var v = this.veh[id]; v.t1 = t;
+  if (this.kind === 'A' && P.mode === 'wander' && P.snap) {                 /* знімок мапи заторів, виданий на складі: далі старіє */
+    var s = new Uint8Array(M), m = this.W.mult;
+    for (var e = 0; e < M; e++) s[e] = m[e] === 0 ? 0 : (m[e] < 1 ? 1 : 2);
+    v.snap = s;
+  }
+  this.inNet++; this.heap.push(t, id);
+};
+Sim.prototype.planWander = function (v, t) {
+  /* блукач без пам'яті: бачить лише сусідні ребра й напрямок до мети; p_ij ∝ η_ij (класичне правило ACO) */
+  var node = v.node, B = this.kind === 'B', ie = inc[node], k, e, j, cand = [], sum = 0, open = 0, snap = v.snap;
+  var dx = nx[v.d], dy = ny[v.d], di = Math.hypot(nx[node] - dx, ny[node] - dy), anyOpen = 0;
+  for (k = 0; k < ie.length; k++) {
+    e = ie[k]; j = eu[e] === node ? ev[e] : eu[e];
+    if (this.W.mult[e] === 0) { if (B && P.neg) this.mark(e, t); continue; }
+    anyOpen++; if (e !== v.lastE && !(B && P.neg && this.negEff(e, t) > 0.6)) open++;   /* ребро з сильним негативним слідом уже не вихід */
+    var eta = Math.exp(P.beta * (di - Math.hypot(nx[j] - dx, ny[j] - dy)));
+    if (snap) { if (snap[e] === 0) eta *= 0.02; else if (snap[e] === 1) eta *= 0.25; }
+    if (B) { eta /= Math.pow(this.eff(e, t), P.alpha); if (P.neg) eta /= 1 + P.nu * this.negEff(e, t); if (P.pos) eta *= 1 + P.kap * this.posEff(e, t); }
+    cand.push([j, eta]); sum += eta;
+  }
+  if (B && P.neg && v.lastE >= 0 && open === 0 && anyOpen > 0) this.mark(v.lastE, t);
+  if (!cand.length) return -1;
+  var r = this.rng() * sum;
+  for (k = 0; k < cand.length; k++) { r -= cand[k][1]; if (r <= 0) return cand[k][0]; }
+  return cand[cand.length - 1][0];
 };
 Sim.prototype.plan = function (v, t) {
+  if (P.mode === 'wander') return this.planWander(v, t);
   var node = v.node, w = this.w, rng = this.rng, B = this.kind === 'B', e, k, k2, base = node * N;
   var useNeg = B && P.neg, useLoop = B && P.loop;
   for (e = 0; e < M; e++) {
     var x = tf[e] * Math.exp(P.noise * randn(rng));
-    if (B && Math.min(hop[base + eu[e]], hop[base + ev[e]]) < P.hor) { x *= this.eff(e, t); if (useNeg) x *= 1 + P.nu * this.negEff(e, t); }
+    if (B && Math.min(hop[base + eu[e]], hop[base + ev[e]]) < P.hor) { x *= this.eff(e, t); if (useNeg) x *= 1 + P.nu * this.negEff(e, t); if (P.pos) x /= 1 + P.kap * this.posEff(e, t); }
     w[e] = x;
   }
   var ie = inc[node], open = 0;
@@ -670,11 +979,17 @@ Sim.prototype.onArrive = function (id, t) {
     if (this.kind === 'B') { this.Lv[e] = (1 - P.omega) * this.eff(e, t) + P.omega * (t - v.ent) / tf[e]; this.Lt[e] = t; }
     v.node = v.to; v.edge = -1; v.lastE = e;
     var si = v.stack.indexOf(v.node);
-    if (si >= 0) { this.loops++; v.stack.length = si + 1; } else v.stack.push(v.node);
+    if (si >= 0) { this.loops++; v.stack.length = si + 1; v.path.length = si; } else { v.stack.push(v.node); v.path.push(e); }
+    if (this.kind === 'B' && P.neg && (t - v.ent) / tf[e] < 1.5) this.Nv[e] = 0;       /* успішний проїзд скасовує негативний слід */
   }
   if (v.node === v.d) {
     this.live.delete(id); this.done.push([t, t - v.t0]); this.inNet--;
-    while (this.q.length && this.inNet < CAPN) { var nid = this.q.shift(); this.veh[nid].q = false; this.inNet++; this.heap.push(t, nid); }
+    if (this.kind === 'B' && P.pos && v.path.length) {                     /* позитивний слід: тим сильніший, чим ближче поїздка до вільної */
+      var ideal = 0, pi; for (pi = 0; pi < v.path.length; pi++) ideal += tf[v.path[pi]];
+      var q = Math.min(1, ideal / Math.max(1e-6, t - v.t1));
+      for (pi = 0; pi < v.path.length; pi++) { var pe = v.path[pi]; this.Pv[pe] = Math.min(1, this.posEff(pe, t) + P.gam * q); this.Pt[pe] = t; }
+    }
+    while (this.q.length && this.inNet < CAPN) { var nid = this.q.shift(); this.veh[nid].q = false; this.launch(nid, t); }
     return;
   }
   var nxt = this.plan(v, t);
@@ -741,7 +1056,7 @@ function stepTo(target) {
       var tr = makeTrip(); if (tr) { A.add(tr[0], tr[1], bt); B.add(tr[0], tr[1], bt); }
       W.nextSpawn = bt + expo(W.rng, 1 / P.lamIn);
     } else if (bi === 1) {
-      var e = EVE[Math.floor(W.rng() * EVE.length)], isClose = W.rng() < P.pClose, dur = 10 + expo(W.rng, 40);
+      var e = EVE[Math.floor(W.rng() * EVE.length)], isClose = W.rng() < P.pClose, dur = 0.2 * P.evDur + expo(W.rng, 0.8 * P.evDur);
       if (isClose) W.closed[e]++; else W.cong[e]++;
       W.setMult(e); W.evEnd.push(bt + dur, [e, isClose, false]);
       W.nextEv = P.evRate > 0 ? bt + expo(W.rng, 60 / P.evRate) : Infinity;
@@ -774,7 +1089,7 @@ function stepTo(target) {
 var TK = {};
 function readTokens() {
   var cs = getComputedStyle(document.documentElement);
-  ['--surface','--ink','--ink2','--muted','--grid','--axis','--road','--a','--b','--crit','--warn','--pher','--water'].forEach(function (n) { TK[n] = cs.getPropertyValue(n).trim(); });
+  ['--surface','--ink','--ink2','--muted','--grid','--axis','--road','--a','--b','--crit','--warn','--pher','--water','--good'].forEach(function (n) { TK[n] = cs.getPropertyValue(n).trim(); });
 }
 
 /* карти */
@@ -818,6 +1133,14 @@ function drawMap(cv, sim) {
       ctx.beginPath(); ctx.moveTo(X(eu[e]), Y(eu[e])); ctx.lineTo(X(ev[e]), Y(ev[e])); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    if (P.pos) {
+      ctx.strokeStyle = TK['--good'];
+      for (e = 0; e < M; e++) {
+        var pp = sim.posEff(e, t); if (pp < 0.08) continue;
+        ctx.globalAlpha = 0.25 + 0.6 * pp; ctx.lineWidth = 1.6 + 2.6 * pp; ctx.beginPath(); ctx.moveTo(X(eu[e]), Y(eu[e])); ctx.lineTo(X(ev[e]), Y(ev[e])); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
     if (P.neg) {
       ctx.strokeStyle = TK['--crit']; ctx.lineWidth = 3.8; ctx.setLineDash([3, 4]);
       for (e = 0; e < M; e++) {
@@ -898,7 +1221,7 @@ function drawChart(c) {
   for (var g = 0; g <= ymax + 1e-9; g += step) { var gy = Math.round(Y(g)) + 0.5; ctx.beginPath(); ctx.moveTo(L, gy); ctx.lineTo(w - R, gy); ctx.stroke(); ctx.fillText(fmt(g, 0), L - 6, gy); }
   ctx.strokeStyle = TK['--axis']; ctx.beginPath(); ctx.moveTo(L, Math.round(Y(0)) + 0.5); ctx.lineTo(w - R, Math.round(Y(0)) + 0.5); ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = TK['--muted'];
-  for (var xt = Math.ceil(x0 / 30) * 30; xt <= x1; xt += 30) ctx.fillText(xt + ' хв', Math.min(Math.max(X(xt), L + 8), w - R - 8), h - Bm + 6);
+  for (var xt = Math.ceil(x0 / 30) * 30; xt <= x1; xt += 30) ctx.fillText(hm(xt), Math.min(Math.max(X(xt), L + 8), w - R - 8), h - Bm + 6);
   var ends = [];
   [[A_, TK['--a']], [B_, TK['--b']]].forEach(function (sr) {
     var arr = sr[0], col = sr[1], pen = false, last = -1;
@@ -939,7 +1262,7 @@ function drawChart(c) {
 }
 function showTip(c, hi, px, w) {
   var tip = c.tip; tip.hidden = false; tip.textContent = '';
-  var head = document.createElement('div'); head.className = 't'; head.textContent = 'Хвилина ' + hist.t[hi]; tip.appendChild(head);
+  var head = document.createElement('div'); head.className = 't'; head.textContent = 'Час ' + hm(hist.t[hi]) + ' (год:хв)'; tip.appendChild(head);
   [['A · без логерів', hist[c.a][hi], '--a'], ['B · з логерами', hist[c.b][hi], '--b']].forEach(function (r) {
     var row = document.createElement('div'); row.className = 'r';
     var key = document.createElement('span'); key.className = 'key'; key.style.background = TK[r[2]];
@@ -969,8 +1292,8 @@ function renderTable() {
   for (k = last; k >= 0 && rows.length < 12; k -= 10) rows.push(k);
   rows.forEach(function (k2) {
     var tr = document.createElement('tr');
-    [hist.t[k2], hist.ageA[k2], hist.ageB[k2], hist.nA[k2], hist.nB[k2], hist.lateA[k2], hist.lateB[k2]].forEach(function (v, j) {
-      var td = document.createElement('td'); td.textContent = v == null ? '–' : (j === 1 || j === 2 ? fmt(v, 1) : fmt(v, 0)); tr.appendChild(td);
+    [hm(hist.t[k2]), hist.ageA[k2], hist.ageB[k2], hist.nA[k2], hist.nB[k2], hist.lateA[k2], hist.lateB[k2]].forEach(function (v, j) {
+      var td = document.createElement('td'); td.textContent = v == null ? '–' : (j === 0 ? v : (j === 1 || j === 2 ? fmt(v, 1) : fmt(v, 0))); tr.appendChild(td);
     });
     tb.appendChild(tr);
   });
@@ -983,8 +1306,9 @@ function readControls() {
   el('evO').textContent = P.evRate + ' / год';
   el('evH').textContent = P.evRate === 0 ? 'аварій і заторів немає' : '≈ ' + Math.round(P.evRate * 50 / 60) + ' несправних вулиць одночасно';
   el('rhoO').textContent = fmt(P.rho, 2) + ' хв⁻¹';
-  el('rhoH').textContent = 'слід тане наполовину за ' + fmt(Math.LN2 / P.rho, 1) + ' хв';
+  el('rhoH').textContent = 'час життя τ = 1/ρ = ' + fmt(1 / P.rho, 1) + ' хв (T½ = ' + fmt(Math.LN2 / P.rho, 1) + ' хв) · ρ/λ = ' + (P.evRate > 0 ? fmt(P.rho / (P.evRate / 60), 2) : '–') + ' (найкраще ≈ 0,3)';
   el('spdO').textContent = '×' + P.speed;
+  P.evDur = +el('edur').value; el('edurO').textContent = P.evDur + ' хв';
   el('nstO').textContent = el('nst').value; el('nwhO').textContent = el('nwh').value;
   P.lamIn = +el('lam').value / 10; el('lamO').textContent = fmt(P.lamIn, 1) + ' / хв';
   P.brRate = +el('br').value / 10; el('brO').textContent = fmt(P.brRate, 1) + ' / год';
@@ -993,7 +1317,6 @@ el('ev').addEventListener('input', function () { readControls(); W.nextEv = P.ev
 el('rho').addEventListener('input', readControls);
 el('spd').addEventListener('input', readControls);
 el('play').addEventListener('click', function () {
-  if (!running && W.t >= P.tMax) P.tMax = W.t + 360;       /* продовжити: ще 6 годин замість одного кроку */
   running = !running; syncPlay();
 });
 el('reset').addEventListener('click', function () { P.tMax = 360; resetAll(); running = true; syncPlay(); frame(true); });
@@ -1009,17 +1332,545 @@ el('river').addEventListener('change', function () { applyCity(cityOpts.seed); }
 el('pon').addEventListener('change', function () { applyCity(cityOpts.seed); });
 el('loop').addEventListener('change', function () { P.loop = this.checked; });
 el('neg').addEventListener('change', function () { P.neg = this.checked; });
+el('pos').addEventListener('change', function () { P.pos = this.checked; });
 el('nst').addEventListener('change', function () { P.nSt = +this.value; applyCity(cityOpts.seed); });
 el('nwh').addEventListener('change', function () { P.nWh = +this.value; applyCity(cityOpts.seed); });
 el('nst').addEventListener('input', readControls); el('nwh').addEventListener('input', readControls);
 el('lam').addEventListener('input', readControls);
+el('edur').addEventListener('input', readControls);
+el('snap').addEventListener('change', function () { P.snap = this.checked; });
+el('grid').addEventListener('change', function () { P.grid = this.checked; applyCity(cityOpts.seed); });
+function modeText() {
+  var w = P.mode === 'wander';
+  el('subA').textContent = w ? (P.snap ? 'блукачі, знімок заторів зі складу' : 'блукачі наосліп') : 'статична мапа, затори невідомі';
+  el('subB').textContent = w ? 'блукачі з підказкою феромонів' : 'слід затримки й закриттів, що випаровується';
+  el('snapL').hidden = !w;
+  el('loop').parentNode.hidden = w;                 /* блукач без пам'яті табу не має */
+}
+el('snap').addEventListener('change', modeText);
+el('mode').addEventListener('change', function () {
+  P.mode = this.value; var w = P.mode === 'wander';
+  el('grid').checked = w; P.grid = w;
+  el('ev').value = w ? 80 : 25; el('edur').value = w ? 12 : 50; el('lam').value = w ? 15 : 30; el('rho').value = w ? 80 : 55; readControls(); modeText();
+  applyCity(cityOpts.seed);
+});
 el('br').addEventListener('input', function () { readControls(); W.nextBr = P.brRate > 0 && BRIDGES.length ? W.t + expo(W.rng, 60 / P.brRate) : Infinity; });
 function syncPlay() { el('play').textContent = running ? 'Пауза' : 'Продовжити'; }
 el('tbl').addEventListener('toggle', function () { if (this.open) renderTable(); });
 
+/* ================= РЕЖИМ 3: місто-лабіринт без мапи (військовий сценарій) =================
+   Крок симуляції = 10 с. Усі три флоти (A, B, оракул) живуть в одному середовищі: ті самі завали й підриви мостів. */
+var FG = { on: false, seed: 17, G: null, env: null, A: null, B: null, O: null, hist: null, running: true, carry: 0, hover: null, geo: null, key: -1 };
+var FP = { agents: 20, evRate: 0.01, evDur: 60, brRate: 0.01, brDur: 300, comm: 0, expire: 10, rho: 0.002, tau0: 0.1, tmin: 0.02, Q: 20, alpha: 3, beta: 1, eps: 0.02, neg: true, pons: false, depDelay: 20, kind: 'mem', speed: 60 };
+var FHOUR = 360;   /* кроків у годині */
+
+/* місто з двома річками (одна — притока), островом і тупиками */
+function waterCity(seed, o) {
+  o = o || {};
+  var c = genCity(seed, false, 3, 6, false); if (!c) return null;
+  var rng = mulberry32(seed * 19 + 7), ph = rng() * 6.28, ph2 = rng() * 6.28;
+  var W1 = 0.30, W2 = 0.26, WI = 0.24;
+  var y1 = function (x) { return 4.9 + 0.6 * Math.sin(0.7 * x + ph); }, x2 = function (y) { return 6.6 + 0.4 * Math.sin(0.6 * y + ph2); };
+  var ic = [2.4, 2.2], ir = 1.35;
+  var zone = function (p) {
+    var x = p[0], y = p[1], d1 = Math.abs(y - y1(x)); if (d1 < W1) return -1;
+    if (y > y1(x)) { var d2 = Math.abs(x - x2(y)); if (d2 < W2) return -1; }
+    var r = Math.hypot(x - ic[0], y - ic[1]); if (Math.abs(r - ir) < WI) return -1;
+    var id = y > y1(x) ? 1 : 0; if (id === 1) id += x > x2(y) ? 2 : 0; if (id === 0 && r < ir) id = 4; return id;
+  };
+  var nz = c.nodes.map(zone), N0 = c.nodes.length, keepEdges = [], sites = [], i;
+  c.edges.forEach(function (e) { var a = nz[e[0]], b = nz[e[1]]; if (a < 0 || b < 0) return; if (a === b) keepEdges.push(e); else sites.push(e); });
+  var par = []; for (i = 0; i < N0; i++) par.push(i);
+  var find = function (x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  keepEdges.forEach(function (e) { par[find(e[0])] = find(e[1]); });
+  var cnt = {}; for (i = 0; i < N0; i++) if (nz[i] >= 0) cnt[find(i)] = (cnt[find(i)] || 0) + 1;
+  var alive = function (i2) { return nz[i2] >= 0 && cnt[find(i2)] >= 5; };
+  var par2 = []; for (i = 0; i < N0; i++) par2.push(i);
+  var f2 = function (x) { while (par2[x] !== x) { par2[x] = par2[par2[x]]; x = par2[x]; } return x; };
+  var ke = keepEdges.filter(function (e) { return alive(e[0]) && alive(e[1]); }).sort(function () { return rng() - 0.5; }), tree = [], rest = [];
+  ke.forEach(function (e) { var a = f2(e[0]), b = f2(e[1]); if (a !== b) { par2[a] = b; tree.push(e); } else rest.push(e); });
+  var loops = rest.filter(function () { return rng() < (o.braid == null ? 0.08 : o.braid); });
+  var idx = new Map(), n = 0, nodes = [];
+  for (i = 0; i < N0; i++) if (alive(i)) { idx.set(i, n++); nodes.push(c.nodes[i]); }
+  var nzn = nodes.map(function () { return 0; }); idx.forEach(function (nw, old) { nzn[nw] = nz[old]; });
+  var E = [], ls = o.lenScale || 2;
+  var mk = function (u, v, cls) { return { u: u, v: v, len: Math.max(1, Math.round(Math.hypot(nodes[u][0] - nodes[v][0], nodes[u][1] - nodes[v][1]) / (cls ? 40 : 30) * 60 * ls)), cls: cls }; };
+  tree.concat(loops).forEach(function (e) { E.push(mk(idx.get(e[0]), idx.get(e[1]), 0)); });
+  var permEdges = E.slice();
+  var crossesPerm = function (a, b, list) { return list.some(function (e) { return e.u !== a && e.u !== b && e.v !== a && e.v !== b && segInt(nodes[a], nodes[b], nodes[e.u], nodes[e.v], -1e-6); }); };
+  var cands = {}, a, b;
+  for (a = 0; a < n; a++) for (b = a + 1; b < n; b++) {
+    if (nzn[a] === nzn[b]) continue;
+    var d = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]); if (d < 0.7 || d > 2.4) continue;
+    if (crossesPerm(a, b, permEdges)) continue;
+    var k = Math.min(nzn[a], nzn[b]) + '_' + Math.max(nzn[a], nzn[b]); (cands[k] = cands[k] || []).push([a, b, d]);
+  }
+  var keys = Object.keys(cands).filter(function (k2) { return cands[k2].length >= 2; }); if (keys.length < 3) return null;
+  keys.sort(function () { return rng() - 0.5; });
+  var nFixed = o.nFixed == null ? 3 : o.nFixed, chosen = [], bridgesE = [], ponE = [];
+  keys.forEach(function (k2, ki) {
+    var list = cands[k2].sort(function () { return rng() - 0.5; }), cn = 0;
+    list.forEach(function (c2) {
+      if (cn >= (o.sitesPerPair || 4) + 1) return;
+      var mid = [(nodes[c2[0]][0] + nodes[c2[1]][0]) / 2, (nodes[c2[0]][1] + nodes[c2[1]][1]) / 2];
+      if (chosen.some(function (x) { return Math.hypot(x.m[0] - mid[0], x.m[1] - mid[1]) < 1.0; })) return;
+      if (chosen.some(function (x) { return x.a !== c2[0] && x.a !== c2[1] && x.b !== c2[0] && x.b !== c2[1] && segInt(nodes[x.a], nodes[x.b], nodes[c2[0]], nodes[c2[1]], -1e-6); })) return;
+      chosen.push({ a: c2[0], b: c2[1], m: mid }); (cn === 0 && ki < nFixed && o.nFixed !== 0 ? bridgesE : ponE).push([c2[0], c2[1]]); cn++;
+    });
+  });
+  bridgesE.forEach(function (e) { E.push(mk(e[0], e[1], 2)); }); ponE.forEach(function (e) { E.push(mk(e[0], e[1], 3)); });
+  var adj = nodes.map(function () { return []; }); E.forEach(function (e, k3) { adj[e.u].push([e.v, k3]); adj[e.v].push([e.u, k3]); });
+  var seen = new Uint8Array(n), q = [0]; seen[0] = 1; for (var h = 0; h < q.length; h++) adj[q[h]].forEach(function (x) { if (!seen[x[0]]) { seen[x[0]] = 1; q.push(x[0]); } });
+  if (q.length < n) return null;
+  var pickN = function (m, md) {
+    var sel = [], idxs = []; for (var z = 0; z < n; z++) idxs.push(z); idxs.sort(function () { return rng() - 0.5; });
+    idxs.forEach(function (i2) { if (sel.length < m && sel.every(function (j) { return Math.hypot(nodes[i2][0] - nodes[j][0], nodes[i2][1] - nodes[j][1]) >= md; })) sel.push(i2); });
+    return sel.length === m ? sel : null;
+  };
+  var wh = pickN(3, 2.2), st = pickN(6, 1.6); if (!wh || !st) return null;
+  var eid = new Int16Array(n * n).fill(-1); E.forEach(function (e, k3) { eid[e.u * n + e.v] = k3; eid[e.v * n + e.u] = k3; });
+  var leaves = adj.filter(function (x) { return x.length === 1; }).length;
+  return { N: n, edges: E, adj: adj, eid: eid, wh: wh, st: st, bridges: E.map(function (e, k3) { return e.cls === 2 ? k3 : -1; }).filter(function (k3) { return k3 >= 0; }), pons: E.map(function (e, k3) { return e.cls === 3 ? k3 : -1; }).filter(function (k3) { return k3 >= 0; }), leaves: leaves, nodes: nodes, riv: { y1: y1, x2: x2, ic: ic, ir: ir, W1: W1, W2: W2, WI: WI } };
+}
+function findFogCity(s0, pon) {
+  for (var s = s0, k = 0; k < 400; s++, k++) {
+    var g = waterCity(s * 17, { nFixed: 3, sitesPerPair: pon ? 3 : 0 });
+    if (g && g.bridges.length === 3 && (!pon || g.pons.length >= 3)) { g.seed = s; return g; }
+  }
+  return null;
+}
+
+/* середовище: завали, підриви мостів, понтони */
+function FEnv(G, seed) {
+  this.G = G; this.t = 0; this.closed = new Float64Array(G.edges.length); this.pending = []; this.busy = {}; this.rng = mulberry32(seed * 13 + 3);
+  var self = this; G.pons.forEach(function (p) { self.closed[p] = Infinity; });
+}
+FEnv.prototype.open = function (e) { return this.closed[e] <= this.t; };
+FEnv.prototype.tick = function (o) {
+  var G = this.G, t = this.t, c = this.closed, rngE = this.rng, i;
+  if (rngE() < o.evRate) { var e0 = Math.floor(rngE() * c.length); if (G.pons.indexOf(e0) < 0) c[e0] = Math.max(c[e0], t + o.evDur * (0.3 + 1.4 * rngE())); }
+  if (G.bridges.length && rngE() < o.brRate) {
+    var b = G.bridges[Math.floor(rngE() * G.bridges.length)], dur = o.brDur * (0.5 + rngE());
+    c[b] = Math.max(c[b], t + dur);
+    var site = -1, self = this; G.pons.forEach(function (p) { if (!self.busy[p] && site < 0) site = p; });
+    if (o.pons && site >= 0 && dur > o.depDelay + 5) { this.busy[site] = 1; this.pending.push([t + o.depDelay, 'dep', site, t + dur]); }
+  }
+  for (i = this.pending.length - 1; i >= 0; i--) {
+    var pe = this.pending[i];
+    if (pe[0] <= t) {
+      if (pe[1] === 'dep') { c[pe[2]] = 0; this.pending.push([pe[3], 'undep', pe[2]]); } else { c[pe[2]] = Infinity; this.busy[pe[2]] = 0; }
+      this.pending.splice(i, 1);
+    }
+  }
+};
+
+function fdijk(G, open, src, dst) {          /* наступний вузол найкоротшого шляху за істинною мапою */
+  var N = G.N, dist = new Float64Array(N).fill(Infinity), used = new Uint8Array(N), nxt = new Int32Array(N).fill(-1); dist[dst] = 0;
+  for (var it = 0; it < N; it++) {
+    var u = -1, b = Infinity; for (var k = 0; k < N; k++) if (!used[k] && dist[k] < b) { b = dist[k]; u = k; }
+    if (u < 0) break; used[u] = 1; if (u === src) break;
+    var au = G.adj[u];
+    for (var j = 0; j < au.length; j++) { var x = au[j]; if (!open(x[1])) continue; var nd = b + G.edges[x[1]].len; if (nd < dist[x[0]]) { dist[x[0]] = nd; nxt[x[0]] = u; } }
+  }
+  return nxt[src];
+}
+
+/* флот: kind = oracle | coop | dfs | ant */
+function FFleet(kind, env, G, o, seed, forget) {
+  this.kind = kind; this.env = env; this.G = G; this.o = o; this.forget = !!forget;
+  var E = G.edges.length, nS = G.st.length, i, self = this;
+  this.rng = mulberry32(seed * 3 + 1); this.rngA = mulberry32(seed * 7 + 2);
+  this.stIdx = {}; G.st.forEach(function (s, k) { self.stIdx[s] = k; });
+  this.tau = []; for (i = 0; i < nS; i++) this.tau.push(new Float64Array(E).fill(o.tau0));
+  this.pool = this.newKnow(); this.neg = 0; this.done = 0; this.tripSum = 0; this.comp = []; this.ag = [];
+  for (i = 0; i < o.agents; i++) { var a0 = { know: this.newKnow() }; this.newTrip(a0); this.ag.push(a0); }
+}
+FFleet.prototype.newKnow = function () { var G = this.G; return { e: new Int8Array(G.edges.length), eT: new Float64Array(G.edges.length), n: new Int16Array(G.N).fill(-1) }; };
+FFleet.prototype.newTrip = function (a) {
+  var G = this.G, nS = G.st.length;
+  a.node = G.wh[Math.floor(this.rng() * G.wh.length)]; var s = G.st[Math.floor(this.rng() * nS)];
+  a.goal = s; a.gi = this.stIdx[s]; a.t0 = this.env.t; a.busy = 0; a.path = [a.node]; a.vis = new Uint8Array(G.N); a.vis[a.node] = 1; a.stack = []; a.next = -1; a.edge = -1;
+  if (this.forget && a.know) a.know = this.newKnow();
+};
+FFleet.prototype.finish = function (a) { var dur = this.env.t - a.t0; this.done++; this.tripSum += dur; this.comp.push([this.env.t, dur]); this.newTrip(a); };
+FFleet.prototype.start = function (a, nxt, e) { a.next = nxt; a.edge = e; a.busy = this.G.edges[e].len; };
+FFleet.prototype.edgeOf = function (u, v) { return this.G.eid[u * this.G.N + v]; };
+FFleet.prototype.adjGoal = function (a) { var r = null, env = this.env; this.G.adj[a.node].forEach(function (x) { if (x[0] === a.goal && env.open(x[1])) r = x; }); return r; };
+FFleet.prototype.roll = function (t, win) {
+  var c = this.comp, i = 0, s = 0; while (i < c.length && c[i][0] < t - win) i++; if (i) c.splice(0, i);
+  for (i = 0; i < c.length; i++) s += c[i][1];
+  return { n: c.length, mean: c.length ? s / c.length / 6 : null };   /* середня поїздка в хвилинах */
+};
+FFleet.prototype.step = function () {
+  var G = this.G, env = this.env, o = this.o, kind = this.kind, ai, a, e, l, T, v, self = this;
+  var isOpen = function (x) { return env.closed[x] <= env.t; };
+  if (kind === 'ant') for (l = 0; l < this.tau.length; l++) { T = this.tau[l]; for (e = 0; e < T.length; e++) { v = T[e] * (1 - o.rho); T[e] = v < o.tmin ? o.tmin : v; } }
+  for (ai = 0; ai < this.ag.length; ai++) {
+    a = this.ag[ai];
+    if (a.busy > 0) { a.busy--; if (a.busy > 0) continue; a.node = a.next; a.next = -1; }
+    else if (a.next >= 0) { a.node = a.next; a.next = -1; }
+    if (a.node === a.goal) { if (kind === 'ant') this.deposit(a); this.finish(a); continue; }
+    if (kind === 'oracle') { var r = fdijk(G, isOpen, a.node, a.goal); if (r >= 0) this.start(a, r, this.edgeOf(a.node, r)); continue; }
+    if (kind === 'coop') { this.coopStep(a); continue; }
+    if (kind === 'dfs') { this.dfsStep(a); continue; }
+    this.antStep(a);
+  }
+};
+FFleet.prototype.dfsStep = function (a) {
+  var G = this.G, env = this.env, N = G.N, g = this.adjGoal(a); a.vis[a.node] = 1;
+  if (g) { a.stack.push(a.node); this.start(a, g[0], g[1]); return; }
+  var cand = []; G.adj[a.node].forEach(function (x) { if (env.open(x[1]) && !a.vis[x[0]]) cand.push(x); });
+  if (cand.length) { var c = cand[Math.floor(this.rngA() * cand.length)]; a.stack.push(a.node); this.start(a, c[0], c[1]); return; }
+  if (a.stack.length) { var pv = a.stack[a.stack.length - 1], ed = this.edgeOf(a.node, pv); if (ed >= 0 && env.open(ed)) { a.stack.pop(); this.start(a, pv, ed); } else { a.stack = []; a.vis = new Uint8Array(N); } }
+  else a.vis = new Uint8Array(N);
+};
+FFleet.prototype.antStep = function (a) {
+  var G = this.G, env = this.env, o = this.o, N = G.N, g = this.adjGoal(a); a.vis[a.node] = 1;
+  if (g) { a.path.push(g[0]); this.start(a, g[0], g[1]); return; }
+  var cand = []; G.adj[a.node].forEach(function (x) { if (env.open(x[1]) && !a.vis[x[0]]) cand.push(x); });
+  if (cand.length) {
+    var T = this.tau[a.gi], w = cand.map(function (x) { return Math.pow(T[x[1]], o.alpha) * Math.pow(1 / G.edges[x[1]].len, o.beta); }), sum = 0, z;
+    for (z = 0; z < w.length; z++) sum += w[z];
+    var r = this.rngA() * sum, pk = cand.length - 1;
+    if (this.rngA() < o.eps) pk = Math.floor(this.rngA() * cand.length); else for (z = 0; z < cand.length; z++) { r -= w[z]; if (r <= 0) { pk = z; break; } }
+    a.path.push(cand[pk][0]); this.start(a, cand[pk][0], cand[pk][1]); return;
+  }
+  if (a.path.length > 1) {
+    var pv = a.path[a.path.length - 2], ed = this.edgeOf(a.node, pv);
+    if (ed >= 0 && env.open(ed)) { if (o.neg) { this.tau[a.gi][ed] = o.tmin; this.neg++; } a.path.pop(); this.start(a, pv, ed); return; }
+  }
+  a.vis = new Uint8Array(N); a.path = [a.node];
+};
+FFleet.prototype.deposit = function (a) {
+  var L = 0, p, ed, G = this.G;
+  for (p = 0; p + 1 < a.path.length; p++) L += G.edges[this.edgeOf(a.path[p], a.path[p + 1])].len;
+  if (L <= 0) return;
+  for (p = 0; p + 1 < a.path.length; p++) { ed = this.edgeOf(a.path[p], a.path[p + 1]); if (ed >= 0) this.tau[a.gi][ed] += this.o.Q / L; }
+};
+FFleet.prototype.observe = function (K, a) {
+  var G = this.G, env = this.env, t = env.t, si;
+  G.adj[a.node].forEach(function (x) { K.e[x[1]] = env.open(x[1]) ? 1 : -1; K.eT[x[1]] = t; });
+  G.adj[a.node].forEach(function (x) { si = this.stIdx[x[0]]; if (si !== undefined) K.n[x[0]] = si; }, this);
+  si = this.stIdx[a.node]; if (si !== undefined) K.n[a.node] = si;
+};
+FFleet.prototype.merge = function (A, B) {
+  var E = this.G.edges.length, N = this.G.N, e, n;
+  for (e = 0; e < E; e++) if (B.eT[e] > A.eT[e]) { A.e[e] = B.e[e]; A.eT[e] = B.eT[e]; }
+  for (n = 0; n < N; n++) if (B.n[n] >= 0 && A.n[n] < 0) A.n[n] = B.n[n];
+};
+FFleet.prototype.coopStep = function (a) {
+  var G = this.G, env = this.env, o = this.o, N = G.N, t = env.t, K, n, gnode = -1, best = -1, it, k, u, b, cur, ed;
+  this.observe(a.know, a);
+  var comm = this.forget ? 0 : o.comm;
+  if (this.rngA() < comm) { this.merge(this.pool, a.know); this.merge(a.know, this.pool); }
+  K = a.know;
+  for (n = 0; n < N; n++) if (K.n[n] === a.gi) { gnode = n; break; }
+  var dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), used = new Uint8Array(N); dist[a.node] = 0;
+  var frontier = function (x) { var ax = G.adj[x]; for (var j = 0; j < ax.length; j++) if (K.e[ax[j][1]] === 0) return true; return false; };
+  for (it = 0; it < N; it++) {
+    u = -1; b = Infinity; for (k = 0; k < N; k++) if (!used[k] && dist[k] < b) { b = dist[k]; u = k; }
+    if (u < 0) break; used[u] = 1;
+    if (gnode >= 0 ? u === gnode : (u !== a.node && frontier(u))) { best = u; break; }
+    var au = G.adj[u];
+    for (var j2 = 0; j2 < au.length; j2++) {
+      var x = au[j2];
+      if (K.e[x[1]] === 1 || (K.e[x[1]] === -1 && t - K.eT[x[1]] > o.expire)) { var nd = b + G.edges[x[1]].len; if (nd < dist[x[0]]) { dist[x[0]] = nd; prev[x[0]] = u; } }
+    }
+  }
+  if (best < 0) { var op = G.adj[a.node].filter(function (x) { return env.open(x[1]); }); if (op.length) { var c = op[Math.floor(this.rngA() * op.length)]; this.start(a, c[0], c[1]); } return; }
+  cur = best; while (prev[cur] !== a.node && prev[cur] >= 0) cur = prev[cur];
+  ed = this.edgeOf(a.node, cur);
+  if (ed >= 0 && env.open(ed)) this.start(a, cur, ed); else if (ed >= 0) { K.e[ed] = -1; K.eT[ed] = t; }
+};
+
+/* керування */
+var FCH = [
+  { id: 'fc1', keys: ['cumA', 'cumB', 'cumO'], d: 0, unit: '', min: 1 },
+  { id: 'fc2', keys: ['mA', 'mB', 'mO'], d: 0, unit: ' хв', min: 1 },
+  { id: 'fc3', keys: ['pA', 'pB', 'pO'], d: 0, unit: '%', min: 100 }
+];
+FCH.forEach(function (c) { c.cv = document.getElementById(c.id); c.tip = c.cv.parentNode.querySelector('.tip'); });
+function fogNameA() { return FP.kind === 'dfs' ? 'A · Пошук у глибину (DFS)' : FP.kind === 'solo' ? 'A · Одноразові агенти' : 'A · Агенти з пам\'яттю'; }
+function fogSubA() {
+  return FP.kind === 'dfs' ? 'нічого не пам\'ятає: йде вглиб, у тупику повертається'
+    : FP.kind === 'solo' ? 'забуває все між поїздками, мапу не ділить'
+    : 'власна мапа закритого + повторна перевірка; зв\'язок між агентами p';
+}
+function fogNames() {
+  el('fnameA').textContent = fogNameA(); el('fsubA').textContent = fogSubA();
+  el('flgA').textContent = fogNameA();
+}
+function fogBuild(s0) {
+  var g = findFogCity(s0, FP.pons) || findFogCity(17, FP.pons);
+  FG.G = g; FG.seed = g.seed;
+  var gx = Infinity, Gx = -Infinity, gy = Infinity, Gy = -Infinity;
+  g.nodes.forEach(function (p) { gx = Math.min(gx, p[0]); Gx = Math.max(Gx, p[0]); gy = Math.min(gy, p[1]); Gy = Math.max(Gy, p[1]); });
+  FG.geo = { minX: gx, maxX: Gx, minY: gy, maxY: Gy };
+  fogReset();
+}
+function fogReset() {
+  var G = FG.G, s = FG.seed;
+  FG.env = new FEnv(G, s);
+  FG.A = new FFleet(FP.kind === 'dfs' ? 'dfs' : 'coop', FG.env, G, FP, s, FP.kind === 'solo');
+  FG.B = new FFleet('ant', FG.env, G, FP, s, false);
+  FG.O = new FFleet('oracle', FG.env, G, FP, s, false);
+  FG.hist = { t: [], cumA: [], cumB: [], cumO: [], nA: [], nB: [], nO: [], mA: [], mB: [], mO: [], pA: [], pB: [], pO: [] };
+  FG.carry = 0; FG.hover = null; FG.key = -1;
+  if (FG.on) fogFrame(true);
+}
+function fogStep() {
+  var env = FG.env; env.tick(FP); FG.A.step(); FG.B.step(); FG.O.step(); env.t++;
+  if (env.t % 30 === 0) fogSample();
+}
+function fogSample() {
+  var H = FG.hist, t = FG.env.t, warm = t >= FHOUR, rA = FG.A.roll(t, FHOUR), rB = FG.B.roll(t, FHOUR), rO = FG.O.roll(t, FHOUR);
+  H.t.push(t / FHOUR); H.cumA.push(FG.A.done); H.cumB.push(FG.B.done); H.cumO.push(FG.O.done);
+  H.nA.push(rA.n); H.nB.push(rB.n); H.nO.push(rO.n);
+  H.mA.push(warm ? rA.mean : null); H.mB.push(warm ? rB.mean : null); H.mO.push(warm ? rO.mean : null);
+  H.pA.push(warm && rO.n ? 100 * rA.n / rO.n : null); H.pB.push(warm && rO.n ? 100 * rB.n / rO.n : null); H.pO.push(warm && rO.n ? 100 : null);
+  if (H.t.length > 4000) Object.keys(H).forEach(function (k) { H[k].splice(0, 1000); });
+}
+function fogLoop(dt) {
+  FG.carry = Math.min(FG.carry + dt * FP.speed, 900);
+  var n = Math.floor(FG.carry), t0 = performance.now(), done = 0;
+  while (done < n) { fogStep(); done++; if ((done & 7) === 0 && performance.now() - t0 > 14) break; }
+  FG.carry -= done;
+}
+
+/* малювання */
+function drawFogMap(cv, fl, col, ants) {
+  var s = sizeCanvas(cv); if (!s) return;
+  var G = FG.G, g = FG.geo, env = FG.env, ctx = s.ctx, w = s.w, h = s.h, pad = 22, t = env.t, e, u;
+  var sc = Math.min((w - 2 * pad) / (g.maxX - g.minX), (h - 2 * pad) / (g.maxY - g.minY));
+  var ox = (w - sc * (g.maxX - g.minX)) / 2, oy = (h - sc * (g.maxY - g.minY)) / 2;
+  function X(n) { return ox + (G.nodes[n][0] - g.minX) * sc; }
+  function Y(n) { return oy + (G.nodes[n][1] - g.minY) * sc; }
+  function PX(x) { return ox + (x - g.minX) * sc; }
+  function PY(y) { return oy + (y - g.minY) * sc; }
+  ctx.clearRect(0, 0, w, h); ctx.fillStyle = TK['--surface']; ctx.fillRect(0, 0, w, h);
+  /* вода: головна річка, притока, острів */
+  var R = G.riv, x, y, first;
+  ctx.strokeStyle = TK['--water']; ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 2 * R.W1 * sc; ctx.beginPath(); first = true;
+  for (x = g.minX - 1; x <= g.maxX + 1; x += 0.2) { if (first) { ctx.moveTo(PX(x), PY(R.y1(x))); first = false; } else ctx.lineTo(PX(x), PY(R.y1(x))); }
+  ctx.stroke();
+  ctx.lineWidth = 2 * R.W2 * sc; ctx.beginPath(); first = true;
+  for (y = g.minY - 1; y <= g.maxY + 1; y += 0.2) { if (y <= R.y1(R.x2(y))) continue; if (first) { ctx.moveTo(PX(R.x2(y)), PY(y - 0.1)); first = false; } ctx.lineTo(PX(R.x2(y)), PY(y)); }
+  ctx.stroke();
+  ctx.lineWidth = 2 * R.WI * sc; ctx.beginPath(); ctx.arc(PX(R.ic[0]), PY(R.ic[1]), R.ir * sc, 0, 6.2832); ctx.stroke();
+  ctx.lineCap = 'round';
+  /* дороги, мости, понтони */
+  for (e = 0; e < G.edges.length; e++) {
+    var ed = G.edges[e];
+    if (ed.cls === 3) {
+      if (env.closed[e] > t) { ctx.save(); ctx.strokeStyle = TK['--muted']; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.6; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(X(ed.u), Y(ed.u)); ctx.lineTo(X(ed.v), Y(ed.v)); ctx.stroke(); ctx.restore(); continue; }
+      ctx.strokeStyle = TK['--ink2']; ctx.lineWidth = 3.4;
+    } else { ctx.strokeStyle = ed.cls === 2 ? TK['--ink2'] : TK['--road']; ctx.lineWidth = ed.cls === 2 ? 3.4 : 1.9; }
+    ctx.beginPath(); ctx.moveTo(X(ed.u), Y(ed.u)); ctx.lineTo(X(ed.v), Y(ed.v)); ctx.stroke();
+  }
+  /* феромон мурах: найсильніший слід серед усіх адрес */
+  if (ants) {
+    ctx.strokeStyle = TK['--pher'];
+    for (e = 0; e < G.edges.length; e++) {
+      var m = 0; for (var l = 0; l < fl.tau.length; l++) if (fl.tau[l][e] > m) m = fl.tau[l][e];
+      var vv = m - 0.12; if (vv < 0.03) continue;
+      var I = 1 - Math.exp(-vv / 0.3), ed2 = G.edges[e];
+      ctx.globalAlpha = 0.35 + 0.65 * I; ctx.lineWidth = 2.6 + 6.5 * I; ctx.beginPath(); ctx.moveTo(X(ed2.u), Y(ed2.u)); ctx.lineTo(X(ed2.v), Y(ed2.v)); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* закрито: завал або підірваний міст */
+  for (e = 0; e < G.edges.length; e++) {
+    var ec = G.edges[e]; if (ec.cls === 3 || env.closed[e] <= t) continue;
+    ctx.strokeStyle = TK['--crit']; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(X(ec.u), Y(ec.u)); ctx.lineTo(X(ec.v), Y(ec.v)); ctx.stroke();
+  }
+  for (u = 0; u < G.N; u++) {
+    if (G.wh.indexOf(u) >= 0 || G.st.indexOf(u) >= 0) continue;
+    ctx.beginPath(); ctx.arc(X(u), Y(u), G.adj[u].length >= 3 ? 2.2 : 1.3, 0, 6.2832); ctx.fillStyle = TK['--muted']; ctx.fill();
+  }
+  for (e = 0; e < G.edges.length; e++) {
+    var ex = G.edges[e]; if (ex.cls === 3 || env.closed[e] <= t) continue;
+    var mx = (X(ex.u) + X(ex.v)) / 2, my = (Y(ex.u) + Y(ex.v)) / 2;
+    ctx.beginPath(); ctx.arc(mx, my, 7, 0, 6.2832); ctx.fillStyle = TK['--crit']; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = TK['--surface']; ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(mx - 2.8, my - 2.8); ctx.lineTo(mx + 2.8, my + 2.8); ctx.moveTo(mx + 2.8, my - 2.8); ctx.lineTo(mx - 2.8, my + 2.8); ctx.stroke();
+  }
+  G.wh.forEach(function (n) { ctx.fillStyle = TK['--ink']; ctx.fillRect(X(n) - 5.5, Y(n) - 5.5, 11, 11); });
+  G.st.forEach(function (n) { ctx.beginPath(); ctx.arc(X(n), Y(n), 5, 0, 6.2832); ctx.fillStyle = TK['--surface']; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = TK['--ink']; ctx.stroke(); });
+  /* агенти */
+  ctx.fillStyle = col; ctx.strokeStyle = TK['--surface']; ctx.lineWidth = 1.5;
+  fl.ag.forEach(function (a) {
+    var px, py;
+    if (a.busy > 0 && a.next >= 0) { var f = 1 - a.busy / G.edges[a.edge].len; px = X(a.node) + (X(a.next) - X(a.node)) * f; py = Y(a.node) + (Y(a.next) - Y(a.node)) * f; }
+    else { px = X(a.node); py = Y(a.node); }
+    ctx.beginPath(); ctx.arc(px, py, 3.6, 0, 6.2832); ctx.fill(); ctx.stroke();
+  });
+}
+function fogSeries() { return [{ name: fogNameA(), col: TK['--a'] }, { name: 'B · Мурахи', col: TK['--b'] }, { name: 'Оракул (повна мапа)', col: TK['--ink2'], dash: true }]; }
+function drawFogChart(c) {
+  var s = sizeCanvas(c.cv); if (!s || !FG.hist) return;
+  var H = FG.hist, ctx = s.ctx, w = s.w, h = s.h, L = 38, R = 46, T = 10, Bm = 22, WINH = 12, SER = fogSeries(), k;
+  var ts = H.t, now = ts.length ? ts[ts.length - 1] : 0, x1 = Math.max(WINH, Math.ceil(now)), x0 = x1 - WINH, i0 = 0;
+  while (i0 < ts.length && ts[i0] < x0) i0++;
+  var mx = c.min;
+  c.keys.forEach(function (key) { for (k = i0; k < ts.length; k++) { var v = H[key][k]; if (v != null && v > mx) mx = v; } });
+  var step = niceStep(mx * 1.08), ymax = Math.ceil(mx * 1.08 / step) * step;
+  function X(t) { return L + (t - x0) / WINH * (w - L - R); }
+  function Y(v) { return T + (1 - v / ymax) * (h - T - Bm); }
+  ctx.clearRect(0, 0, w, h); ctx.font = '11px Inter, system-ui, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 1; ctx.strokeStyle = TK['--grid']; ctx.fillStyle = TK['--muted']; ctx.textAlign = 'right';
+  for (var g = 0; g <= ymax + 1e-9; g += step) { var gy = Math.round(Y(g)) + 0.5; ctx.beginPath(); ctx.moveTo(L, gy); ctx.lineTo(w - R, gy); ctx.stroke(); ctx.fillText(fmt(g, 0), L - 6, gy); }
+  ctx.strokeStyle = TK['--axis']; ctx.beginPath(); ctx.moveTo(L, Math.round(Y(0)) + 0.5); ctx.lineTo(w - R, Math.round(Y(0)) + 0.5); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = TK['--muted'];
+  for (var xt = Math.ceil(x0 / 2) * 2; xt <= x1; xt += 2) ctx.fillText(String(xt), Math.min(Math.max(X(xt), L + 6), w - R - 6), h - Bm + 6);
+  var ends = [];
+  c.keys.forEach(function (key, si) {
+    var arr = H[key], pen = false, last = -1;
+    ctx.strokeStyle = SER[si].col; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash(SER[si].dash ? [5, 4] : []); ctx.beginPath();
+    for (k = i0; k < ts.length; k++) { if (arr[k] == null) { pen = false; continue; } if (!pen) { ctx.moveTo(X(ts[k]), Y(arr[k])); pen = true; } else ctx.lineTo(X(ts[k]), Y(arr[k])); last = k; }
+    ctx.stroke(); ctx.setLineDash([]); ends.push(last);
+  });
+  var lab = [];
+  c.keys.forEach(function (key, si) {
+    var k2 = ends[si]; if (k2 < 0) return;
+    var px = X(ts[k2]), py = Y(H[key][k2]);
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, 6.2832); ctx.fillStyle = SER[si].col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = TK['--surface']; ctx.stroke();
+    lab.push({ x: px, y: py, v: H[key][k2] });
+  });
+  lab.sort(function (p, q) { return p.y - q.y; });
+  for (var li = 1; li < lab.length; li++) if (lab[li].y - lab[li - 1].y < 12) lab[li].y = lab[li - 1].y + 12;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = TK['--ink2'];
+  lab.forEach(function (l) { ctx.fillText(fmt(l.v, c.d), Math.min(l.x + 8, w - R + 6), l.y); });
+  if (FG.hover != null) {
+    var hi = -1, bd = 1e9;
+    for (k = i0; k < ts.length; k++) { var dd = Math.abs(ts[k] - FG.hover); if (dd < bd) { bd = dd; hi = k; } }
+    if (hi >= 0) {
+      var hx = Math.round(X(ts[hi])) + 0.5;
+      ctx.strokeStyle = TK['--axis']; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, T); ctx.lineTo(hx, h - Bm); ctx.stroke();
+      c.keys.forEach(function (key, si) { if (H[key][hi] == null) return; ctx.beginPath(); ctx.arc(X(ts[hi]), Y(H[key][hi]), 4, 0, 6.2832); ctx.fillStyle = SER[si].col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = TK['--surface']; ctx.stroke(); });
+      showFogTip(c, hi, X(ts[hi]), w, SER);
+    }
+  } else c.tip.hidden = true;
+}
+function fogHM(hours) { var m = Math.floor(hours * 60 + 1e-6); return Math.floor(m / 60) + ' год ' + (m % 60) + ' хв'; }
+function showFogTip(c, hi, px, w, SER) {
+  var tip = c.tip, H = FG.hist; tip.hidden = false; tip.textContent = '';
+  var head = document.createElement('div'); head.className = 't'; head.textContent = 'Час ' + fogHM(H.t[hi]); tip.appendChild(head);
+  c.keys.forEach(function (key, si) {
+    var row = document.createElement('div'); row.className = 'r';
+    var kk = document.createElement('span'); kk.className = 'key'; kk.style.background = SER[si].col;
+    var val = document.createElement('b'); val.textContent = H[key][hi] == null ? '–' : fmt(H[key][hi], c.d) + c.unit;
+    var nm = document.createElement('i'); nm.textContent = SER[si].name;
+    row.appendChild(kk); row.appendChild(val); row.appendChild(nm); tip.appendChild(row);
+  });
+  var left = px + 12; if (left + 200 > w) left = px - 200 - 12;
+  tip.style.left = Math.max(4, left) + 'px'; tip.style.top = '52px';
+}
+FCH.forEach(function (c) {
+  function mv(ev_) { var r = c.cv.getBoundingClientRect(), x = ev_.clientX - r.left, ww = r.width, L = 38, R = 46, now = FG.hist && FG.hist.t.length ? FG.hist.t[FG.hist.t.length - 1] : 0, x1 = Math.max(12, Math.ceil(now)), x0 = x1 - 12; FG.hover = x0 + (x - L) / (ww - L - R) * 12; FCH.forEach(drawFogChart); }
+  c.cv.addEventListener('pointermove', mv); c.cv.addEventListener('pointerdown', mv);
+  c.cv.addEventListener('pointerleave', function () { FG.hover = null; FCH.forEach(drawFogChart); });
+});
+function renderFogTable() {
+  var tb = el('ftbody'), H = FG.hist; tb.textContent = '';
+  var rows = [], k; for (k = H.t.length - 1; k >= 0 && rows.length < 12; k -= 12) rows.push(k);
+  rows.forEach(function (k2) {
+    var tr = document.createElement('tr');
+    [fogHM(H.t[k2]), H.cumA[k2], H.cumB[k2], H.cumO[k2], H.mA[k2], H.mB[k2], H.mO[k2]].forEach(function (v, j) {
+      var td = document.createElement('td'); td.textContent = v == null ? '–' : (j === 0 ? v : fmt(v, 0)); tr.appendChild(td);
+    }); tb.appendChild(tr);
+  });
+}
+function fogFrame(force) {
+  readTokens();
+  var env = FG.env, t = env.t, G = FG.G;
+  drawFogMap(el('fmapA'), FG.A, TK['--a'], false); drawFogMap(el('fmapB'), FG.B, TK['--b'], true);
+  var rA = FG.A.roll(t, FHOUR), rB = FG.B.roll(t, FHOUR), rO = FG.O.roll(t, FHOUR), warm = t >= FHOUR;
+  function put(id, v) { el(id).textContent = v; }
+  put('fdA', fmt(FG.A.done)); put('fdB', fmt(FG.B.done));
+  el('fmA').innerHTML = rA.mean == null ? '–' : fmt(rA.mean, 0) + ' <small>хв</small>'; el('fmB').innerHTML = rB.mean == null ? '–' : fmt(rB.mean, 0) + ' <small>хв</small>';
+  put('fpA', warm && rO.n ? fmt(100 * rA.n / rO.n, 0) + '%' : '–'); put('fpB', warm && rO.n ? fmt(100 * rB.n / rO.n, 0) + '%' : '–');
+  var nc = 0, nb = 0; for (var e = 0; e < G.edges.length; e++) if (G.edges[e].cls !== 3 && env.closed[e] > t) { nc++; if (G.edges[e].cls === 2) nb++; }
+  put('fnoteA', 'закрито зараз: ' + nc + ' ребер, з них мостів ' + nb + ' з ' + G.bridges.length + ' · тупиків у місті: ' + G.leaves);
+  put('fnoteB', 'негативних слідів у тупиках: ' + FG.B.neg + ' · τ = ' + fmt(1 / FP.rho / 6, 0) + ' хв');
+  put('fclock', 'Час симуляції: ' + fogHM(t / FHOUR));
+  var key = FG.hist.t.length;
+  if (force === true || key !== FG.key) { FG.key = key; FCH.forEach(drawFogChart); if (el('ftbl').open) renderFogTable(); }
+}
+function readFogControls() {
+  FP.brRate = +el('fbr').value / 10 / FHOUR; FP.brDur = +el('fbrd').value * 6;
+  FP.evRate = +el('fev').value / 10 / FHOUR; FP.evDur = +el('fevd').value * 6;
+  FP.comm = +el('fcomm').value / 100; FP.expire = +el('fexp').value;
+  FP.rho = 0.0003 * Math.pow(10, 2 * +el('frho').value / 100); FP.speed = +el('fspd').value * 6;
+  var nbr = FP.brRate * FHOUR * (FP.brDur / 6 / 60);
+  el('fbrO').textContent = fmt(FP.brRate * FHOUR, 1) + ' / год';
+  el('fbrH').textContent = '≈ ' + fmt(Math.min(3, nbr), 1) + ' мостів із 3 зламано одночасно (ремонт ' + fmt(FP.brDur / 6, 0) + ' хв)';
+  el('fbrdO').textContent = fmt(FP.brDur / 6, 0) + ' хв';
+  el('fevO').textContent = fmt(FP.evRate * FHOUR, 1) + ' / год'; el('fevdO').textContent = fmt(FP.evDur / 6, 0) + ' хв';
+  el('fagO').textContent = el('fag').value;
+  el('fcommO').textContent = FP.comm === 0 ? '0 (повне глушіння)' : FP.comm === 1 ? '1 (спільна мапа)' : fmt(FP.comm, 2);
+  el('fcommH').textContent = FP.kind === 'mem' ? 'ймовірність щокроку злити свою мапу зі спільною (лише світ A)' : 'діє лише для «Агенти з пам\'яттю»';
+  el('fexpO').textContent = FP.expire + ' кроків (≈ ' + fmt(FP.expire / 6, 1) + ' хв)';
+  el('fexpH').textContent = 'найкраще ≈ 40–120 кроків (7–20 хв); тут ремонт ≈ ' + fmt(FP.brDur / 6, 0) + ' хв';
+  el('frhoO').textContent = fmt(FP.rho, 4) + ' / крок';
+  el('frhoH').textContent = 'час життя τ = 1/ρ = ' + fmt(1 / FP.rho, 0) + ' кроків (≈ ' + fmt(1 / FP.rho / 6, 0) + ' хв)';
+  el('fspdO').textContent = '×' + fmt(+el('fspd').value, 0);
+}
+function syncFogPlay() { el('fplay').textContent = FG.running ? 'Пауза' : 'Продовжити'; }
+function enterFog() {
+  FG.on = true;
+  if (!FG.G) fogBuild(11);
+  FG.running = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  readFogControls(); fogNames(); syncFogPlay(); fogFrame(true);
+}
+function leaveFog() { FG.on = false; }
+['fbr', 'fbrd', 'fev', 'fevd', 'fcomm', 'fexp', 'frho', 'fspd'].forEach(function (id) { el(id).addEventListener('input', readFogControls); });
+el('fag').addEventListener('input', readFogControls);
+el('fag').addEventListener('change', function () { FP.agents = +this.value; fogReset(); });
+el('fplay').addEventListener('click', function () { FG.running = !FG.running; syncFogPlay(); });
+el('freset').addEventListener('click', function () { fogReset(); FG.running = true; syncFogPlay(); });
+el('fnew').addEventListener('click', function () { fogBuild(1 + Math.floor(Math.random() * 1e5)); FG.running = true; syncFogPlay(); });
+el('fkind').addEventListener('change', function () { FP.kind = this.value; fogNames(); readFogControls(); fogReset(); });
+el('fpons').addEventListener('change', function () { FP.pons = this.checked; fogBuild(FG.seed); });
+el('ftbl').addEventListener('toggle', function () { if (this.open) renderFogTable(); });
+
+
+/* ================= вкладки ================= */
+var TAB = 'traf';
+function texOnce(id) {
+  var d = document.getElementById(id); if (!d || d.dataset.tex) return;
+  if (window.MathJax && MathJax.typesetPromise) { d.dataset.tex = '1'; d.classList.remove('tex2jax_ignore'); MathJax.typesetPromise([d]).catch(function () {}); }
+}
+['ftheory', 'atheory', 'notation'].forEach(function (id) { document.getElementById(id).addEventListener('toggle', function () { if (this.open) texOnce(id); }); });
+function loadAnt() { var f = document.getElementById('antFrame'); if (!f.dataset.on) { f.dataset.on = '1'; f.srcdoc = window.ANT_SRC; } }
+window.addEventListener('message', function (ev) {
+  var f = document.getElementById('antFrame');
+  if (ev.data && ev.data.antH && f && ev.source === f.contentWindow) f.style.height = Math.max(600, ev.data.antH + 4) + 'px';
+});
+var TABS = ['traf', 'fog', 'ant'];
+function showTab(name) {
+  TAB = name;
+  TABS.forEach(function (n) {
+    var on = n === name, b = document.getElementById('tab_' + n);
+    document.getElementById(n + 'App').hidden = !on; b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1;
+  });
+  if (name === 'fog') enterFog(); else if (FG.on) leaveFog();
+  if (name === 'ant') loadAnt();
+  if (name === 'traf') frame(true);
+}
+TABS.forEach(function (n, i) {
+  var b = document.getElementById('tab_' + n);
+  b.addEventListener('click', function () { showTab(n); });
+  b.addEventListener('keydown', function (e) {
+    var j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : -1; if (j < 0) return;
+    j = (j + TABS.length) % TABS.length; showTab(TABS[j]); document.getElementById('tab_' + TABS[j]).focus(); e.preventDefault();
+  });
+});
+
 /* цикл */
 var lastTs = 0, lastCharts = 0;
 function frame(force) {
+  if (FG.on) { fogFrame(force === true); return; }
+  if (TAB !== 'traf') return;
   readTokens();
   drawMap(maps.A, A); drawMap(maps.B, B);
   var a = A.age(W.t, 120), b = B.age(W.t, 120);
@@ -1029,15 +1880,15 @@ function frame(force) {
   el('tB').innerHTML = b == null ? '–' : fmt(b, 1) + ' <small>хв</small>';
   el('cntA').textContent = 'у черзі на складах: ' + A.q.length + ' · петель: ' + A.loops;
   el('cntB').textContent = 'у черзі на складах: ' + B.q.length + ' · петель: ' + B.loops + (P.neg ? ' · негативних слідів: ' + B.negMarks : '');
-  el('clock').textContent = 'Час симуляції: ' + Math.floor(W.t) + ' хв';
+  el('clock').textContent = 'Час симуляції: ' + hm(W.t) + ' (год:хв)';
   var key = hist.t.length;
   if (force === true || key !== lastChartKey) { lastChartKey = key; drawAllCharts(); if (el('tbl').open) renderTable(); }
 }
 function loop(ts) {
   var dt = Math.min(0.1, (ts - lastTs) / 1000 || 0); lastTs = ts;
-  if (running) {
+  if (FG.on) { if (FG.running) fogLoop(dt); }
+  else if (TAB === 'traf' && running) {
     stepTo(W.t + dt * P.speed);
-    if (W.t >= P.tMax) { running = false; syncPlay(); }
   }
   frame(false);
   requestAnimationFrame(loop);
@@ -1048,8 +1899,10 @@ new MutationObserver(function () { frame(true); }).observe(document.documentElem
 
 readControls();
 buildCity(cityOpts.seed, true, true);
+modeText();
 resetAll();
-if (location.hash === '#dbg') window.__ACO = { P: P, get W() { return W; }, get A() { return A; }, get B() { return B; }, get hist() { return hist; }, get N() { return N; }, get M() { return M; }, buildCity: buildCity, resetAll: resetAll, stepTo: stepTo, makeCity: makeCity, get CAPN() { return CAPN; }, get PONS() { return PONS; }, get BRIDGES() { return BRIDGES; } };
+if (location.hash === '#dbg') window.__FOG = { FG: FG, FP: FP, findFogCity: findFogCity, fogBuild: fogBuild, fogReset: fogReset, fogStep: fogStep, showTab: showTab, FFleet: FFleet, FEnv: FEnv };
+if (location.hash === '#dbg') window.__ACO = { P: P, get W() { return W; }, get A() { return A; }, get B() { return B; }, get hist() { return hist; }, get N() { return N; }, get M() { return M; }, buildCity: buildCity, setCity: setCity, Sim: Sim, World: World, expo: expo, mulberry32: mulberry32, get hop() { return hop; }, get env() { return { N: N, M: M, nx: nx, ny: ny, eu: eu, ev: ev, tf: tf, cls: cls, adj: adj, inc: inc, eidMap: eidMap, WH: WH, ST: ST, capE: capE, BRIDGES: BRIDGES, CAPN: CAPN }; }, resetAll: resetAll, stepTo: stepTo, makeCity: makeCity, get CAPN() { return CAPN; }, get PONS() { return PONS; }, get BRIDGES() { return BRIDGES; } };
 if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { running = false; }
 syncPlay();
 frame(true);
