@@ -1,0 +1,716 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Градієнтний підйом</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: two square viewports side by side (3D mountain | contour map), then a control strip and a four-row calculation log that lights up phase by phase. */
+:root {
+  --bg: #eceff1;
+  --surface: #f8fafb;
+  --ink: #16202a;
+  --muted: #566673;
+  --line: #cbd4da;
+  --soft: #e1e7eb;
+  --east: #d62f3a;
+  --north: #1a6fd1;
+  --focus: #1a6fd1;
+  --on-ink: #f8fafb;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1418; --surface: #151d23; --ink: #e7edf1; --muted: #90a1ad; --line: #26333c;
+    --soft: #1d2830; --east: #ff6b73; --north: #5ab0ff; --focus: #5ab0ff; --on-ink: #0e1418;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1418; --surface: #151d23; --ink: #e7edf1; --muted: #90a1ad; --line: #26333c;
+  --soft: #1d2830; --east: #ff6b73; --north: #5ab0ff; --focus: #5ab0ff; --on-ink: #0e1418;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-block: 22px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 30px; line-height: 1.1; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.panel { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--font-display); font-weight: 500; font-size: 15px; }
+.hint { font-family: var(--font-body); font-size: 12.5px; color: var(--muted); font-weight: 400; }
+.square { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; background: var(--soft); touch-action: none; }
+#stage canvas, #map { display: block; width: 100%; height: 100%; cursor: crosshair; }
+#stage canvas { cursor: grab; }
+#stage canvas:active { cursor: grabbing; }
+.legend { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.legend i { flex: 1; height: 8px; border-radius: 4px; }
+.legend .lines { white-space: nowrap; }
+.fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; color: var(--muted); }
+
+.lower { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
+.controls, .calc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.status { font-family: var(--font-display); font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; margin: 0; }
+.next { margin: 2px 0 14px; color: var(--muted); font-size: 13.5px; }
+.sliders { display: grid; gap: 12px; margin-bottom: 16px; }
+.sl label { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; margin-bottom: 4px; }
+.sl output { font-variant-numeric: tabular-nums; color: var(--muted); }
+input[type=range] { width: 100%; accent-color: var(--ink); margin: 0; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btns button { padding: 8px 10px; font-size: 13px; }
+button, .chip {
+  font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; cursor: pointer;
+}
+button:hover:not(:disabled), .chip:hover { border-color: var(--ink); }
+button.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:focus-visible, .chip:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.starts { margin-top: 4px; }
+.starts h3 { font-size: 13px; font-weight: 500; color: var(--muted); margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 7px 10px; font-size: 13px; }
+
+.calc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.calc h2 { font-family: var(--font-display); font-size: 17px; font-weight: 500; margin: 0 0 12px; }
+.calc li { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; opacity: 0.55; transition: opacity .2s, border-color .2s, background .2s; }
+.calc li.done { opacity: 1; }
+.calc li.active { opacity: 1; border-color: var(--ink); background: var(--soft); }
+.calc .t { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.calc .fm { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.calc .v { font-size: 14px; margin-top: 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.calc .v b { font-weight: 600; }
+.note { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.note strong { color: var(--ink); font-weight: 600; }
+
+.mode { margin-bottom: 14px; }
+.mlabel { display: block; font-size: 13.5px; margin-bottom: 6px; }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; text-align: center; padding: 9px 8px; font-size: 14px; font-weight: 500; }
+.seg label + label span { border-left: 1px solid var(--line); }
+.seg input:checked + span { background: var(--ink); color: var(--on-ink); }
+.seg input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: -3px; }
+
+.chk { display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 14px; font-size: 13.5px; cursor: pointer; }
+.chk input { margin-top: 3px; accent-color: var(--ink); }
+.theory { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.theory h2 { font-family: var(--font-display); font-size: 17px; font-weight: 500; margin: 0 0 8px; }
+.theory details { border-top: 1px solid var(--line); }
+.theory summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 15px; }
+.theory summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.theory .body { max-width: 78ch; display: grid; gap: 10px; padding-bottom: 14px; }
+.theory p, .theory ul { margin: 0; }
+.theory ul { padding-left: 20px; display: grid; gap: 4px; }
+.eqn { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; line-height: 1.7; background: var(--soft); border-radius: 6px; padding: 8px 12px; overflow-x: auto; white-space: nowrap; }
+.tbl { overflow-x: auto; }
+.tbl table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+.tbl th, .tbl td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { font-weight: 600; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 860px) {
+  .views, .lower { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 26px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Градієнтний підйом</h1>
+    <p class="lede">Людинка бачить лише ґрунт під ногами. Вона робить пробний крок на схід, потім на північ, порівнює висоти, складає вектор градієнта й стрибає вгору. Так робить алгоритм: він не бачить усієї гори.</p>
+  </header>
+
+  <section class="views">
+    <figure class="panel">
+      <div class="cap"><span>Гора-підкова, 3D</span>
+        <div class="btns">
+          <button id="bPhase" class="primary" type="button">Наступна фаза</button>
+          <button id="bIter" type="button">Повна ітерація</button>
+          <button id="bAuto" type="button">Автоматично</button>
+          <button id="bReset" type="button">Скинути</button>
+        </div>
+      </div>
+      <div class="square" id="stage"></div>
+    </figure>
+    <figure class="panel">
+      <div class="cap"><span>Мапа з лініями рівня</span><span class="hint">північ угорі · клік вибирає старт</span></div>
+      <div class="square"><canvas id="map" width="720" height="720" aria-label="Мапа гори з лініями рівня"></canvas></div>
+      <div class="legend"><span>низько</span><i id="ramp"></i><span id="fmax"></span><span class="lines">лінія кожні 0,1</span></div>
+    </figure>
+  </section>
+
+  <section class="lower">
+    <div class="controls">
+      <p class="status" id="status"></p>
+      <p class="next" id="next"></p>
+      <div class="mode" role="radiogroup" aria-label="Режим підйому">
+        <span class="mlabel">Режим підйому</span>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="simple" checked><span>Простий</span></label>
+          <label><input type="radio" name="mode" value="momentum"><span>Імпульс</span></label>
+          <label><input type="radio" name="mode" value="adam"><span>Adam</span></label>
+        </div>
+      </div>
+      <label class="chk" id="adaptRow"><input type="checkbox" id="adapt" checked><span>Адаптація кроку: скорочувати стрибок, якщо він не піднімає</span></label>
+      <div class="sliders">
+        <div class="sl"><label for="h">Пробний крок h <output id="hv"></output></label><input id="h" type="range" min="0.02" max="0.8" step="0.01" value="0.2"></div>
+        <div class="sl"><label for="s">Довжина стрибка <output id="sv"></output></label><input id="s" type="range" min="0.1" max="2" step="0.05" value="0.6"></div>
+        <div class="sl" id="betaRow" hidden><label for="beta">β, пам'ять імпульсу <output id="bv"></output></label><input id="beta" type="range" min="0" max="0.95" step="0.05" value="0.7"></div>
+        <div class="sl"><label for="sp">Швидкість анімації <output id="spv"></output></label><input id="sp" type="range" min="0.5" max="6" step="0.25" value="1"></div>
+      </div>
+      <div class="starts">
+        <h3>Швидкий вибір старту</h3>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+
+    <div class="calc">
+      <h2>Що обчислює людинка</h2>
+      <ol id="rows">
+        <li data-p="0"><div class="t"><span class="sw" style="background:var(--east)"></span>Пробний крок на схід</div><div class="fm">∂f/∂x ≈ ( f(x+h, y) − f(x, y) ) / h</div><div class="v" id="v0">очікує</div></li>
+        <li data-p="1"><div class="t"><span class="sw" style="background:var(--north)"></span>Пробний крок на північ</div><div class="fm">∂f/∂y ≈ ( f(x, y+h) − f(x, y) ) / h</div><div class="v" id="v1">очікує</div></li>
+        <li data-p="2"><div class="t"><span class="sw" style="background:var(--ink)"></span><span id="t2">Вектор градієнта</span></div><div class="fm" id="fm2">∇f ≈ ( ∂f/∂x ; ∂f/∂y ),  напрям найкрутішого підйому</div><div class="v" id="v2">очікує</div></li>
+        <li data-p="3"><div class="t"><span class="sw" style="background:#d6246e"></span>Стрибок</div><div class="fm" id="fm3">P′ = P + s · ∇f / |∇f|</div><div class="v" id="v3">очікує</div></li>
+      </ol>
+      <p class="note" id="note"></p>
+    </div>
+  </section>
+
+  <section class="theory">
+    <h2>Теорія</h2>
+    <details>
+      <summary>Простий підйом і проста адаптація кроку</summary>
+      <div class="body">
+        <p>Градієнт ∇f вказує, куди висота зростає найшвидше. Людинка не знає формули гори, тому оцінює градієнт двома пробними кроками довжиною h:</p>
+        <div class="eqn">∂f/∂x ≈ ( f(x+h, y) − f(x, y) ) / h<br>∂f/∂y ≈ ( f(x, y+h) − f(x, y) ) / h</div>
+        <p>Похибка такої оцінки росте разом з h і з кривизною гори. На вузькому гребені завеликий h дає хибний напрям.</p>
+        <div class="eqn">P′ = P + s · ∇f / |∇f|</div>
+        <p>Напрям нормується, тому s є справжньою довжиною стрибка. Адаптація кроку, яку можна вимкнути перемикачем, складається з двох простих правил:</p>
+        <ul>
+          <li>Якщо після стрибка не стало вище, s ділиться навпіл і стрибок повторюється, до 8 разів. Це лінійний пошук із поверненням (backtracking).</li>
+          <li>Якщо не допомагає й це, значить, напрям був неточним. Тоді h ділиться навпіл і ітерація починається знову.</li>
+        </ul>
+        <p>Без адаптації простий підйом не монотонний. Градієнт вказує напрям лише локально, а стрибок фіксованої довжини s іде далеко за межі цієї ділянки. На вузькому гребені великий s перелітає гребінь, людинка опиняється на протилежному схилі й рухається зигзагом, а біля вершини може кружляти. Це класичний ефект завеликого кроку.</p>
+        <p>Адаптація прибирає перельоти: прийнятий стрибок завжди піднімає вище. Зигзаг через гребінь при цьому можливий, але висота зростає. Зупинка: |∇f| &lt; 0,003 або навіть найменший h не дає підйому. Алгоритм нічого не пам'ятає, тому застрягає на локальних максимумах і сідловинах.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Імпульс</summary>
+      <div class="body">
+        <p>Імпульс додає інерцію. Замість поточного градієнта людинка йде за накопиченою сумою минулих градієнтів:</p>
+        <div class="eqn">m ← β · m + ∇f<br>P′ = P + s · m</div>
+        <p>Параметр β від 0 до 1 задає пам'ять. Приблизно 1/(1−β) останніх градієнтів складаються в m, причому свіжі важать більше. При β = 0 це простий підйом без нормування й без адаптації.</p>
+        <ul>
+          <li>Узгоджені градієнти підсилюють один одного, і крок росте: людинка розганяється вздовж схилу.</li>
+          <li>Суперечливі градієнти, як зигзаг упоперек гребеня, гасять один одного. Тому вздовж вузького гребеня вона йде рівніше.</li>
+          <li>Інерція може пронести через сідловину, де простий підйом зупиняється.</li>
+        </ul>
+        <p>Ціна: висота не обов'язково росте на кожному кроці. Людинка може перелетіти вершину й повернутися. Крок пропорційний |m|, тому біля вершини він стискується сам, і зупинка настає, коли стрибки стають меншими за 0,015 двічі поспіль.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Adam</summary>
+      <div class="body">
+        <p>Adam (adaptive moment estimation) тримає дві пам'яті, окремо для осей x та y:</p>
+        <div class="eqn">m ← β₁ · m + (1 − β₁) · g<br>v ← β₂ · v + (1 − β₂) · g²</div>
+        <p>Тут g це градієнт, а g² береться покоординатно. m є згладженим градієнтом, як в імпульсі. v є згладженим квадратом градієнта і показує, наскільки сильні градієнти по кожній осі.</p>
+        <p>Обидві пам'яті стартують з нуля, тому на початку вони занижені. Це виправляє корекція зсуву, де t є номером ітерації:</p>
+        <div class="eqn">m̂ = m / (1 − β₁ᵗ),  v̂ = v / (1 − β₂ᵗ)<br>P′ = P + s · m̂ / ( √v̂ + ε )</div>
+        <p>У цьому симуляторі β₂ = 0,999, ε = 10⁻⁸, а β₁ задає повзунок, типово 0,9. Параметр s відіграє роль швидкості навчання.</p>
+        <ul>
+          <li>Ділення на √v̂ дає кожній осі свій масштаб. Вісь із великими градієнтами гальмується, вісь із малими прискорюється.</li>
+          <li>Коли градієнт стабільний, крок по осі близько s. Коли знак градієнта міняється, m̂ прямує до нуля, а v̂ пам'ятає великі значення, тож крок стискується.</li>
+        </ul>
+        <p>Adam створили для мінімізації з шумним градієнтом у тисячах вимірів. Тут знак обернено, бо ми піднімаємося. У двох вимірах без шуму його перевага невелика, але добре видно механізм: темна стрілка показує напрям градієнта, а малинова є справжнім стрибком після пам'яті. Монотонності підйому він не гарантує.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Порівняння режимів</summary>
+      <div class="body">
+        <div class="tbl"><table>
+          <thead><tr><th>Режим</th><th>Що пам'ятає</th><th>Висота росте на кожному кроці</th><th>Параметри</th></tr></thead>
+          <tbody>
+            <tr><td>Простий</td><td>нічого</td><td>тільки з адаптацією кроку; без неї ні: великий s перелітає гребінь і дає зигзаг</td><td>s, h</td></tr>
+            <tr><td>Імпульс</td><td>m, суму минулих градієнтів</td><td>ні, можливий перельот</td><td>s, h, β</td></tr>
+            <tr><td>Adam</td><td>m і v, середні градієнтів та їх квадратів</td><td>ні, можливий перельот</td><td>s, h, β₁ (β₂ = 0,999)</td></tr>
+          </tbody>
+        </table></div>
+        <p>Спробуйте старт «З котловини» у всіх трьох режимах і порівняйте шлях на мапі. У простому режимі вимкніть адаптацію кроку й поставте s близько 1,5: зигзаг через гребінь буде добре видно. Окремо перевірте старт із точки поблизу сідловини на північному сході гребеня: простий режим на ній може зупинитися.</p>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var L = 5.5, HS = 2.6, MAPN = 720, GTOL = 0.003;
+  var CANCEL = { cancel: true };
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function $(id) { return document.getElementById(id); }
+  function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+  function fmt(v, d) { return (d === undefined ? 2 : d) === 0 ? String(Math.round(v)) : v.toFixed(d === undefined ? 2 : d).replace('-', '−'); }
+  function sgn(v, d) { return (v >= 0 ? '+' : '') + fmt(v, d).replace(/^\+/, ''); }
+  function angd(a, b) { var d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
+
+  /* ---------- Height function: a horseshoe ridge opening to the south, two summits ---------- */
+  function f(x, y) {
+    var r = Math.hypot(x, y), th = Math.atan2(y, x);
+    var ridge = Math.exp(-((r - 3) * (r - 3)) / (2 * 0.95 * 0.95));
+    var d = angd(th, -Math.PI / 2);
+    var mask = 1 - Math.exp(-(d * d) / (2 * 0.55 * 0.55));
+    var a1 = angd(th, 2.2), a2 = angd(th, -0.35);
+    var A = 0.72 + 0.58 * Math.exp(-a1 * a1 / (2 * 0.25)) + 0.28 * Math.exp(-a2 * a2 / (2 * 0.16));
+    return ridge * mask * A + 0.25 * Math.exp(-((r - 3) * (r - 3)) / (2 * 2.2 * 2.2));
+  }
+  var FMAX = 0;
+  for (var gx0 = -L; gx0 <= L; gx0 += 0.05) for (var gy0 = -L; gy0 <= L; gy0 += 0.05) FMAX = Math.max(FMAX, f(gx0, gy0));
+
+  /* ---------- Colour ramp (shared by map and 3D texture) ---------- */
+  var STOPS = [[0, [31, 78, 95]], [0.15, [63, 127, 107]], [0.35, [143, 174, 106]], [0.55, [217, 199, 122]], [0.75, [192, 130, 79]], [0.9, [138, 74, 58]], [1, [242, 236, 228]]];
+  function ramp(t) {
+    t = clamp(t, 0, 1);
+    for (var i = 1; i < STOPS.length; i++) {
+      if (t <= STOPS[i][0]) {
+        var a = STOPS[i - 1], b = STOPS[i], k = (t - a[0]) / (b[0] - a[0]);
+        return [a[1][0] + (b[1][0] - a[1][0]) * k, a[1][1] + (b[1][1] - a[1][1]) * k, a[1][2] + (b[1][2] - a[1][2]) * k];
+      }
+    }
+    return STOPS[STOPS.length - 1][1];
+  }
+  $('ramp').style.background = 'linear-gradient(90deg,' + STOPS.map(function (s) { return 'rgb(' + s[1].map(Math.round).join(',') + ') ' + (s[0] * 100) + '%'; }).join(',') + ')';
+  $('fmax').textContent = 'високо ' + fmt(FMAX, 2);
+
+  /* ---------- Base map: hypsometric tint + contour lines ---------- */
+  var base = document.createElement('canvas');
+  base.width = base.height = MAPN;
+  (function () {
+    var g = base.getContext('2d'), img = g.createImageData(MAPN, MAPN), px = 2 * L / MAPN, o = 0;
+    for (var j = 0; j < MAPN; j++) {
+      var y = L - (j + 0.5) * px;
+      for (var i = 0; i < MAPN; i++) {
+        var x = -L + (i + 0.5) * px, v = f(x, y), c = ramp(v / FMAX);
+        var dx = f(x + px, y) - v, dy = f(x, y + px) - v, d = Math.hypot(dx, dy), a = 0;
+        if (d > 1e-7) {
+          var t1 = v / 0.1, d1 = Math.abs(t1 - Math.round(t1)) * 0.1;
+          var t2 = v / 0.5, d2 = Math.abs(t2 - Math.round(t2)) * 0.5;
+          a = Math.max(Math.max(0, 1 - d1 / (d * 0.8)) * 0.5, Math.max(0, 1 - d2 / (d * 1.5)) * 0.8);
+        }
+        img.data[o] = c[0] * (1 - a) + 22 * a; img.data[o + 1] = c[1] * (1 - a) + 30 * a; img.data[o + 2] = c[2] * (1 - a) + 38 * a; img.data[o + 3] = 255; o += 4;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  })();
+
+  /* ---------- State ---------- */
+  var S = { mode: 'simple', m: { x: 0, y: 0 }, v: { x: 0, y: 0 }, t: 0, tiny: 0, arrow2: null, epoch: 0, busy: false, auto: false, done: false, phase: 0, iter: 0, start: { x: -4.2, y: 1.2 }, pos: { x: -4.2, y: 1.2 }, path: [], it: null, arrow: null };
+  var view = { x: 0, y: 0, lift: 0, yaw: Math.PI / 2, walk: 0 };
+  var PHASES = ['пробний крок на схід', 'пробний крок на північ', 'обчислення вектора', 'стрибок'];
+  function newIt() { return { h: 0, f0: 0, E: null, N: null, gx: 0, gy: 0, n: 0, ux: 0, uy: 0, s: 0 }; }
+
+  /* ---------- Map overlay ---------- */
+  var mapEl = $('map'), mctx = mapEl.getContext('2d'), K = MAPN / (2 * L);
+  function mx(x) { return (x + L) * K; }
+  function my(y) { return (L - y) * K; }
+  function arrowHead(ctx, x0, y0, x1, y1, size) {
+    var a = Math.atan2(y1 - y0, x1 - x0);
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - size * Math.cos(a - 0.45), y1 - size * Math.sin(a - 0.45));
+    ctx.lineTo(x1 - size * Math.cos(a + 0.45), y1 - size * Math.sin(a + 0.45));
+    ctx.closePath();
+  }
+  function drawMap() {
+    var c = mctx; c.drawImage(base, 0, 0);
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    if (S.path.length > 1) {
+      c.beginPath(); S.path.forEach(function (p, i) { i ? c.lineTo(mx(p.x), my(p.y)) : c.moveTo(mx(p.x), my(p.y)); });
+      c.strokeStyle = '#fff'; c.lineWidth = 6; c.stroke();
+      c.strokeStyle = '#16202a'; c.lineWidth = 2.5; c.stroke();
+    }
+    S.path.forEach(function (p, i) {
+      c.beginPath(); c.arc(mx(p.x), my(p.y), i === 0 ? 7 : 4.5, 0, 7);
+      c.fillStyle = i === 0 ? '#16202a' : '#fff'; c.fill(); c.lineWidth = 2; c.strokeStyle = i === 0 ? '#fff' : '#16202a'; c.stroke();
+    });
+    var it = S.it, P = S.pos;
+    if (it) {
+      [['E', '#d62f3a', 'E'], ['N', '#1a6fd1', 'N']].forEach(function (d) {
+        var t = it[d[0]]; if (!t) return;
+        c.beginPath(); c.moveTo(mx(P.x), my(P.y)); c.lineTo(mx(t.x), my(t.y));
+        c.strokeStyle = '#fff'; c.lineWidth = 6; c.stroke(); c.strokeStyle = d[1]; c.lineWidth = 3; c.stroke();
+        c.beginPath(); c.arc(mx(t.x), my(t.y), 5.5, 0, 7); c.fillStyle = d[1]; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+        c.font = '600 15px Inter, sans-serif'; c.lineWidth = 4; c.strokeStyle = '#fff'; c.strokeText(d[2], mx(t.x) + 9, my(t.y) - 8);
+        c.fillStyle = d[1]; c.fillText(d[2], mx(t.x) + 9, my(t.y) - 8);
+      });
+    }
+    [[S.arrow, '#16202a'], [S.arrow2, '#d6246e']].forEach(function (pr) {
+    var A = pr[0], col = pr[1];
+    if (A && A.k > 0) {
+      var x0 = mx(A.x0), y0 = my(A.y0), x1 = mx(A.x0 + A.ux * A.len * A.k), y1 = my(A.y0 + A.uy * A.len * A.k);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.strokeStyle = '#fff'; c.lineWidth = 9; c.stroke();
+      arrowHead(c, x0, y0, x1, y1, 17); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 5; c.strokeStyle = '#fff'; c.stroke();
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.strokeStyle = col; c.lineWidth = 4; c.stroke();
+      arrowHead(c, x0, y0, x1, y1, 14); c.fillStyle = col; c.fill();
+    }
+    });
+    var px = mx(view.x), py = my(view.y), r = 9 + view.lift * 5;
+    c.beginPath(); c.arc(px, py, r, 0, 7); c.fillStyle = '#d6246e'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#fff'; c.stroke();
+    c.beginPath(); c.arc(px, py, 2.6, 0, 7); c.fillStyle = '#fff'; c.fill();
+  }
+
+  /* ---------- 3D scene ---------- */
+  var stage = $('stage'), renderer = null, scene, camera, terrain, person, legL, legR, armL, armR, marks, arrowG, trail, raycaster;
+  var cam = { az: 0.75, pol: 1.0, R: 17 }, TARGET = new THREE.Vector3(0, 0.8, 0);
+  function wp(x, y, lift) { return new THREE.Vector3(x, f(x, y) * HS + (lift || 0), -y); }
+
+  function initGL() {
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) { renderer = null; }
+    if (!renderer) { stage.innerHTML = '<div class="fallback">3D недоступне в цьому браузері. Мапа праворуч працює повністю.</div>'; return; }
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    stage.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    var sun = new THREE.DirectionalLight(0xffffff, 0.65); sun.position.set(-6, 10, 5); scene.add(sun);
+
+    var SEG = 180, geo = new THREE.PlaneGeometry(2 * L, 2 * L, SEG, SEG), pa = geo.attributes.position;
+    for (var i = 0; i < pa.count; i++) pa.setZ(i, f(pa.getX(i), pa.getY(i)) * HS);
+    geo.rotateX(-Math.PI / 2); geo.computeVertexNormals();
+    var tex = new THREE.CanvasTexture(base); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0 }));
+    scene.add(terrain);
+    var slab = new THREE.Mesh(new THREE.BoxGeometry(2 * L, 0.35, 2 * L), new THREE.MeshStandardMaterial({ color: 0x2b3640, roughness: 1 }));
+    slab.position.y = -0.175; scene.add(slab);
+
+    marks = new THREE.Group(); arrowG = new THREE.Group(); trail = new THREE.Group(); scene.add(marks, arrowG, trail);
+    person = buildPerson(); scene.add(person);
+    raycaster = new THREE.Raycaster();
+    bindOrbit();
+    new ResizeObserver(resize).observe(stage); resize();
+  }
+  function resize() {
+    if (!renderer) return;
+    var w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  function buildPerson() {
+    var g = new THREE.Group(), mb = new THREE.MeshStandardMaterial({ color: 0xd6246e, roughness: 0.7 }), ml = new THREE.MeshStandardMaterial({ color: 0x20242a, roughness: 0.8 }), ms = new THREE.MeshStandardMaterial({ color: 0xf1c9a5, roughness: 0.7 });
+    function limb(w, h, mat, x, y) { var pv = new THREE.Group(); pv.position.set(x, y, 0); var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat); m.position.y = -h / 2; pv.add(m); g.add(pv); return pv; }
+    legL = limb(0.09, 0.32, ml, -0.06, 0.32); legR = limb(0.09, 0.32, ml, 0.06, 0.32);
+    var torso = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.13), mb); torso.position.y = 0.46; g.add(torso);
+    armL = limb(0.07, 0.26, mb, -0.16, 0.58); armR = limb(0.07, 0.26, mb, 0.16, 0.58);
+    var head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), ms); head.position.y = 0.69; g.add(head);
+    g.scale.setScalar(1.3); return g;
+  }
+  function disposeGroup(grp) { while (grp.children.length) { var m = grp.children.pop(); if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); } }
+  function tube(curvePts, color, radius) {
+    var curve = new THREE.CatmullRomCurve3(curvePts);
+    return new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, curvePts.length * 2), radius, 6, false), new THREE.MeshBasicMaterial({ color: color }));
+  }
+  function surfPts(x0, y0, x1, y1, lift, n) { var p = []; for (var k = 0; k <= n; k++) { var t = k / n; p.push(wp(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, lift)); } return p; }
+  function sphere(v, r, color) { var m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), new THREE.MeshBasicMaterial({ color: color })); m.position.copy(v); return m; }
+
+  function addTrialMark(dir) {
+    if (!renderer) return;
+    var it = S.it, t = it[dir], P = S.pos, col = dir === 'E' ? 0xd62f3a : 0x1a6fd1, lift = 0.05;
+    marks.add(tube(surfPts(P.x, P.y, t.x, t.y, lift, 16), col, 0.035));
+    marks.add(sphere(wp(t.x, t.y, lift), 0.07, col));
+    var y0 = it.f0 * HS + lift, y1 = t.f * HS + lift;
+    /* horizontal reference at the start height, then the vertical rise or drop */
+    marks.add(tube([new THREE.Vector3(P.x, y0, -P.y), new THREE.Vector3(t.x, y0, -t.y)], 0x16202a, 0.012));
+    if (Math.abs(y1 - y0) > 0.004) marks.add(tube([new THREE.Vector3(t.x, y0, -t.y), new THREE.Vector3(t.x, y1, -t.y)], col, 0.022));
+  }
+  function setArrow3D() {
+    if (!renderer) return;
+    disposeGroup(arrowG);
+    [[S.arrow, 0x16202a], [S.arrow2, 0xd6246e]].forEach(function (pair) { addArrow3D(pair[0], pair[1]); });
+  }
+  function addArrow3D(A, col) {
+    if (!A || A.k <= 0.02) return;
+    var len = A.len * A.k, x1 = A.x0 + A.ux * len, y1 = A.y0 + A.uy * len, lift = col === 0xd6246e ? 0.17 : 0.1;
+    var pts = surfPts(A.x0, A.y0, x1, y1, lift, 20);
+    arrowG.add(tube(pts, col, 0.05));
+    var tip = pts[pts.length - 1], prev = pts[pts.length - 3], dir = tip.clone().sub(prev).normalize();
+    var cone = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.36, 14), new THREE.MeshBasicMaterial({ color: col }));
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    cone.position.copy(tip).add(dir.multiplyScalar(0.12)); arrowG.add(cone);
+  }
+  function rebuildTrail() {
+    if (!renderer) return;
+    disposeGroup(trail);
+    for (var i = 0; i < S.path.length; i++) {
+      var p = S.path[i];
+      trail.add(sphere(wp(p.x, p.y, 0.06), i === 0 ? 0.11 : 0.075, i === 0 ? 0x16202a : 0xffffff));
+      if (i > 0) { var q = S.path[i - 1]; trail.add(tube(surfPts(q.x, q.y, p.x, p.y, 0.04, 24), 0xffffff, 0.028)); }
+    }
+  }
+
+  /* orbit + pick */
+  function bindOrbit() {
+    var el = renderer.domElement, down = null;
+    el.addEventListener('pointerdown', function (e) { down = { x: e.clientX, y: e.clientY, az: cam.az, pol: cam.pol, moved: 0 }; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - down.x, dy = e.clientY - down.y; down.moved = Math.max(down.moved, Math.hypot(dx, dy));
+      cam.az = down.az - dx * 0.008; cam.pol = clamp(down.pol - dy * 0.006, 0.15, 1.45);
+    });
+    el.addEventListener('pointerup', function (e) {
+      if (down && down.moved < 5) {
+        var r = el.getBoundingClientRect();
+        raycaster.setFromCamera({ x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 }, camera);
+        var hit = raycaster.intersectObject(terrain)[0];
+        if (hit) setStart(hit.point.x, -hit.point.z);
+      }
+      down = null;
+    });
+    el.addEventListener('pointercancel', function () { down = null; });
+    el.addEventListener('wheel', function (e) { e.preventDefault(); cam.R = clamp(cam.R * (1 + e.deltaY * 0.0012), 7, 26); }, { passive: false });
+  }
+  mapEl.addEventListener('click', function (e) {
+    var r = mapEl.getBoundingClientRect();
+    setStart(((e.clientX - r.left) / r.width) * 2 * L - L, L - ((e.clientY - r.top) / r.height) * 2 * L);
+  });
+
+  /* ---------- Animation helpers ---------- */
+  function ease(k) { return k * k * (3 - 2 * k); }
+  function tween(ms, fn, easing) {
+    var ep = S.epoch;
+    return new Promise(function (res, rej) {
+      var t0 = performance.now(), D = Math.max(16, ms / (+$('sp').value) * (reduce ? 0.2 : 1));
+      (function tick(now) {
+        if (ep !== S.epoch) { rej(CANCEL); return; }
+        var k = Math.min(1, (now - t0) / D); fn((easing || ease)(k));
+        if (k < 1) requestAnimationFrame(tick); else res();
+      })(t0);
+    });
+  }
+  function wait(ms) { return tween(ms, function () {}, function (k) { return k; }); }
+  function turn(dx, dy) {
+    var target = Math.atan2(dx, -dy), from = view.yaw, d = angd(target, from);
+    return tween(300, function (k) { view.yaw = from + d * k; });
+  }
+  function walk(x0, y0, x1, y1, ms) {
+    return tween(ms, function (k) { view.x = x0 + (x1 - x0) * k; view.y = y0 + (y1 - y0) * k; view.walk = k * ms / 330; }).then(function () { view.walk = 0; });
+  }
+
+  /* ---------- UI text ---------- */
+  function rowState() {
+    var lis = document.querySelectorAll('#rows li');
+    for (var i = 0; i < lis.length; i++) {
+      var finished = i < S.phase || (S.phase === 0 && S.iter > 0 && i > 0);
+      lis[i].className = (i === S.phase && !S.done) ? 'active' : (finished || S.done ? 'done' : '');
+    }
+  }
+  function resetRows() { for (var i = 0; i < 4; i++) $('v' + i).textContent = 'очікує'; }
+  function updateStatus() {
+    var f0 = f(S.pos.x, S.pos.y);
+    $('status').textContent = 'Ітерація ' + S.iter + ' · точка (' + fmt(S.pos.x) + '; ' + fmt(S.pos.y) + ') · висота ' + fmt(f0, 3);
+    $('next').textContent = S.done ? 'Підйом завершено.' : 'Далі: ' + PHASES[S.phase] + '.';
+    rowState(); buttons();
+  }
+  function buttons() {
+    var locked = S.busy;
+    $('bPhase').disabled = locked || S.done;
+    $('bIter').disabled = locked || S.done;
+    $('bAuto').disabled = S.done || (locked && !S.auto);
+    $('bAuto').textContent = S.auto ? 'Пауза' : 'Автоматично';
+  }
+  function setNote(html) { $('note').innerHTML = html || ''; }
+
+  /* ---------- The four phases ---------- */
+  async function phaseTrial(dir) {
+    var P = S.pos;
+    if (dir === 'E') {
+      S.it = newIt(); S.it.h = +$('h').value; S.it.f0 = f(P.x, P.y); S.arrow = null; S.arrow2 = null; disposeGroup(marks); disposeGroup(arrowG); resetRows(); setNote(S.carry || ''); S.carry = '';
+    }
+    var it = S.it, h = it.h, tx = dir === 'E' ? P.x + h : P.x, ty = dir === 'N' ? P.y + h : P.y;
+    await turn(dir === 'E' ? 1 : 0, dir === 'N' ? 1 : 0);
+    await walk(P.x, P.y, tx, ty, 750);
+    var fv = f(tx, ty); it[dir] = { x: tx, y: ty, f: fv };
+    addTrialMark(dir);
+    var g = (fv - it.f0) / h, ax = dir === 'E' ? 'x' : 'y';
+    $('v' + (dir === 'E' ? 0 : 1)).innerHTML = 'f(x, y) = ' + fmt(it.f0, 3) + ' → f(' + (dir === 'E' ? 'x+h, y' : 'x, y+h') + ') = <b>' + fmt(fv, 3) + '</b> · Δf = ' + sgn(fv - it.f0, 3) + ' на h = ' + fmt(h) + '<br>∂f/∂' + ax + ' ≈ <b>' + sgn(g, 3) + '</b>';
+    await wait(700);
+    await walk(tx, ty, P.x, P.y, 600);
+  }
+  async function phaseVector() {
+    var it = S.it, P = S.pos;
+    it.gx = (it.E.f - it.f0) / it.h; it.gy = (it.N.f - it.f0) / it.h; it.n = Math.hypot(it.gx, it.gy);
+    var ang = Math.atan2(it.gy, it.gx) * 180 / Math.PI;
+    $('v2').innerHTML = '∇f ≈ (<b>' + sgn(it.gx, 3) + '</b> ; <b>' + sgn(it.gy, 3) + '</b>) · |∇f| = ' + fmt(it.n, 3) + (it.n >= GTOL ? ' · напрям ' + fmt(ang, 0) + '° від сходу проти годинникової' : '');
+    if (it.n < GTOL) { finish('Градієнт майже нульовий: поруч нічого вищого.'); return; }
+    it.ux = it.gx / it.n; it.uy = it.gy / it.n; it.s = +$('s').value;
+    var extra = '';
+    if (S.mode === 'simple') { it.sx = it.ux * it.s; it.sy = it.uy * it.s; }
+    else {
+      var b1 = +$('beta').value; S.t++;
+      if (S.mode === 'momentum') {
+        S.m = { x: b1 * S.m.x + it.gx, y: b1 * S.m.y + it.gy };
+        it.sx = it.s * S.m.x; it.sy = it.s * S.m.y;
+        extra = '<br>m = β·m + ∇f = (<b>' + sgn(S.m.x, 3) + '</b> ; <b>' + sgn(S.m.y, 3) + '</b>) · β = ' + fmt(b1);
+      } else {
+        var b2 = 0.999, c1 = 1 - Math.pow(b1, S.t), c2 = 1 - Math.pow(b2, S.t);
+        S.m = { x: b1 * S.m.x + (1 - b1) * it.gx, y: b1 * S.m.y + (1 - b1) * it.gy };
+        S.v = { x: b2 * S.v.x + (1 - b2) * it.gx * it.gx, y: b2 * S.v.y + (1 - b2) * it.gy * it.gy };
+        var mhx = S.m.x / c1, mhy = S.m.y / c1, vhx = S.v.x / c2, vhy = S.v.y / c2;
+        it.sx = it.s * mhx / (Math.sqrt(vhx) + 1e-8); it.sy = it.s * mhy / (Math.sqrt(vhy) + 1e-8);
+        extra = '<br>m̂ = (<b>' + sgn(mhx, 3) + '</b> ; <b>' + sgn(mhy, 3) + '</b>) · √v̂ = (' + fmt(Math.sqrt(vhx), 3) + ' ; ' + fmt(Math.sqrt(vhy), 3) + ') · t = ' + S.t;
+      }
+      setNote('Темна стрілка: напрям градієнта. Малинова: справжній стрибок з урахуванням пам\'яті.');
+    }
+    it.sl = Math.hypot(it.sx, it.sy);
+    if (extra) $('v2').innerHTML += extra;
+    await turn(it.sl > 1e-9 ? it.sx : it.ux, it.sl > 1e-9 ? it.sy : it.uy);
+    S.arrow = { x0: P.x, y0: P.y, ux: it.ux, uy: it.uy, len: it.s, k: 0 };
+    await tween(900, function (k) { S.arrow.k = k; setArrow3D(); });
+    if (S.mode !== 'simple' && it.sl > 1e-9) {
+      await wait(250);
+      S.arrow2 = { x0: P.x, y0: P.y, ux: it.sx / it.sl, uy: it.sy / it.sl, len: it.sl, k: 0 };
+      await tween(900, function (k) { S.arrow2.k = k; setArrow3D(); });
+    }
+    await wait(350);
+  }
+  async function phaseJump() {
+    var it = S.it, P = S.pos, len = it.s, tries = 0, nx, ny, lim = L - 0.2, simple = S.mode === 'simple', adapt = simple && $('adapt').checked;
+    if (adapt) {
+      for (;;) {
+        nx = clamp(P.x + it.ux * len, -lim, lim); ny = clamp(P.y + it.uy * len, -lim, lim);
+        if (f(nx, ny) > it.f0 + 1e-7 || tries >= 8) break;
+        len /= 2; tries++;
+      }
+    } else { nx = clamp(P.x + it.sx, -lim, lim); ny = clamp(P.y + it.sy, -lim, lim); }
+    if (adapt && f(nx, ny) <= it.f0 + 1e-7) {
+      if (it.h > 0.03) {
+        var h2 = Math.max(0.02, it.h / 2); $('h').value = h2; $('h').dispatchEvent(new Event('input'));
+        var msg = 'Стрибок не піднімає вище: градієнт із кроком h = ' + fmt(it.h) + ' занадто грубий для цього місця. Зменшую h до ' + fmt(+$('h').value) + ' і починаю ітерацію заново.';
+        $('v3').textContent = msg; S.carry = msg; setNote(msg); S.arrow = null; disposeGroup(arrowG); return;
+      }
+      $('v3').textContent = 'Жоден стрибок у цьому напрямі не піднімає вище.';
+      finish('Навіть із дуже малим h стрибок не піднімає вище.'); return;
+    }
+    var sx = P.x, sy = P.y;
+    await tween(1050, function (k) { view.x = sx + (nx - sx) * k; view.y = sy + (ny - sy) * k; view.lift = 4 * 0.9 * k * (1 - k); });
+    view.lift = 0;
+    S.pos = { x: nx, y: ny }; S.path.push({ x: nx, y: ny }); S.iter++; rebuildTrail();
+    var fn = f(nx, ny);
+    $('v3').innerHTML = '(' + fmt(sx) + '; ' + fmt(sy) + ') → (<b>' + fmt(nx) + '; ' + fmt(ny) + '</b>) · висота ' + fmt(it.f0, 3) + ' → <b>' + fmt(fn, 3) + '</b>' + (tries ? '<br>Стрибок скорочено до ' + fmt(len) + ': повна довжина перелетіла б гребінь.' : '') + (!adapt && fn < it.f0 ? '<br>Перельот: тут нижче, ніж було. ' + (simple ? 'Без адаптації стрибок фіксованої довжини не гарантує зростання.' : 'Пам\'ять не гарантує зростання на кожному кроці.') : '');
+    S.arrow = null; S.arrow2 = null; disposeGroup(arrowG);
+    if (!simple) { S.tiny = it.sl < 0.015 ? S.tiny + 1 : 0; if (S.tiny >= 2) { finish('Крок стиснувся: людинка майже не рухається.'); return; } }
+    if (simple && !adapt) {
+      if (fn > S.best + 1e-4) { S.best = fn; S.since = 0; } else S.since++;
+      if (S.since >= 12) { finish('Людинка кружляє біля вершини: стрибок завеликий для такої гори.'); return; }
+    }
+    if (S.iter >= 120) finish('Досягнуто ліміт у 120 ітерацій.');
+  }
+  var PH = [function () { return phaseTrial('E'); }, function () { return phaseTrial('N'); }, phaseVector, phaseJump];
+
+  function summitFrom(x, y) {
+    var st = 0.08, e = 1e-3;
+    for (var i = 0; i < 1500; i++) {
+      var gx = (f(x + e, y) - f(x - e, y)) / (2 * e), gy = (f(x, y + e) - f(x, y - e)) / (2 * e), n = Math.hypot(gx, gy);
+      if (n < 1e-5) break;
+      var nx = x + gx / n * st, ny = y + gy / n * st;
+      if (f(nx, ny) > f(x, y)) { x = nx; y = ny; } else { st /= 2; if (st < 1e-4) break; }
+    }
+    return { x: x, y: y, f: f(x, y) };
+  }
+  function finish(msg) {
+    S.done = true; S.auto = false;
+    var fh = f(S.pos.x, S.pos.y), sm = summitFrom(S.pos.x, S.pos.y), near = Math.hypot(sm.x - S.pos.x, sm.y - S.pos.y) < 0.9, tail;
+    if (near && sm.f >= FMAX * 0.97) tail = 'Це найвища вершина підкови.';
+    else if (near) tail = 'Це локальний максимум: вища вершина є, але градієнт про неї не знає. Оберіть інший старт.';
+    else tail = 'Це не вершина, а сідловина на гребені: градієнт тут майже нульовий, хоча поруч є вище. Оберіть інший старт.';
+    setNote('<strong>' + msg + '</strong> Висота ' + fmt(fh, 3) + ' з можливих ' + fmt(FMAX, 3) + '. ' + tail);
+  }
+  async function step() {
+    var p = S.phase; await PH[p]();
+    if (S.done) { updateStatus(); return; }
+    S.phase = (p + 1) % 4; updateStatus();
+  }
+  async function run(fn) {
+    if (S.busy || S.done) return;
+    var ep = S.epoch; S.busy = true; buttons();
+    try { await fn(); } catch (e) { if (e !== CANCEL) console.error(e); }
+    finally { if (ep === S.epoch) { S.busy = false; updateStatus(); } }
+  }
+
+  /* ---------- Controls ---------- */
+  $('bPhase').addEventListener('click', function () { run(step); });
+  $('bIter').addEventListener('click', function () { run(async function () { do { await step(); } while (S.phase !== 0 && !S.done); }); });
+  $('bAuto').addEventListener('click', function () {
+    if (S.auto) { S.auto = false; buttons(); return; }
+    S.auto = true; run(async function () { while (S.auto && !S.done) { await step(); } S.auto = false; });
+  });
+  $('bReset').addEventListener('click', function () { setStart(S.start.x, S.start.y); });
+  ['h', 's', 'sp', 'beta'].forEach(function (id) {
+    var o = { h: 'hv', s: 'sv', sp: 'spv', beta: 'bv' }[id];
+    function upd() { $(o).textContent = id === 'sp' ? '×' + fmt(+$(id).value, 2) : fmt(+$(id).value, 2); }
+    $(id).addEventListener('input', upd); upd();
+  });
+  [['З заходу', -4.2, 1.2], ['Зі сходу', 4.2, -2], ['З котловини', 0.3, 0.8], ['З півдня', 0.5, -4.5]].forEach(function (c) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = c[0];
+    b.addEventListener('click', function () { setStart(c[1], c[2]); }); $('chips').appendChild(b);
+  });
+
+  var MODES = {
+    simple: { t2: 'Вектор градієнта', fm2: '∇f ≈ ( ∂f/∂x ; ∂f/∂y ),  напрям найкрутішого підйому', fm3: 'P′ = P + s · ∇f / |∇f|', beta: null },
+    momentum: { t2: 'Градієнт та імпульс', fm2: '∇f ≈ ( ∂f/∂x ; ∂f/∂y ),  m = β·m + ∇f', fm3: 'P′ = P + s · m', beta: 0.7 },
+    adam: { t2: 'Градієнт, m і v', fm2: 'm = β₁m + (1−β₁)g,  v = β₂v + (1−β₂)g²,  m̂ = m/(1−β₁ᵗ),  v̂ = v/(1−β₂ᵗ)', fm3: 'P′ = P + s · m̂ / (√v̂ + ε), окремо для x та y', beta: 0.9 }
+  };
+  function applyMode(m) {
+    var d = MODES[m]; S.mode = m;
+    $('t2').textContent = d.t2; $('fm2').textContent = d.fm2; $('fm3').textContent = d.fm3;
+    $('betaRow').hidden = d.beta === null; $('adaptRow').hidden = m !== 'simple';
+    if (d.beta !== null) { $('beta').value = d.beta; $('beta').dispatchEvent(new Event('input')); }
+    setStart(S.start.x, S.start.y);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'), function (r) {
+    r.addEventListener('change', function () { applyMode(r.value); });
+  });
+
+  function setStart(x, y) {
+    x = clamp(x, -L + 0.3, L - 0.3); y = clamp(y, -L + 0.3, L - 0.3);
+    S.epoch++; S.busy = false; S.auto = false; S.done = false; S.phase = 0; S.iter = 0;
+    S.start = { x: x, y: y }; S.pos = { x: x, y: y }; S.path = [{ x: x, y: y }]; S.it = null; S.arrow = null; S.arrow2 = null; S.carry = ''; S.m = { x: 0, y: 0 }; S.v = { x: 0, y: 0 }; S.t = 0; S.tiny = 0; S.best = -1; S.since = 0;
+    view.x = x; view.y = y; view.lift = 0; view.walk = 0;
+    if (renderer) { disposeGroup(marks); disposeGroup(arrowG); rebuildTrail(); }
+    resetRows(); setNote('Клікніть на мапі чи на горі, щоб змінити старт. Зі сходу підйом застряє на нижчій вершині.'); updateStatus();
+  }
+
+  /* ---------- Render loop ---------- */
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (renderer) {
+      var sp = Math.sin(cam.pol);
+      camera.position.set(TARGET.x + cam.R * sp * Math.sin(cam.az), TARGET.y + cam.R * Math.cos(cam.pol), TARGET.z + cam.R * sp * Math.cos(cam.az));
+      camera.lookAt(TARGET);
+      person.position.set(view.x, f(view.x, view.y) * HS + view.lift, -view.y);
+      person.rotation.y = view.yaw;
+      var sw = Math.sin(view.walk * Math.PI * 2) * 0.7, air = view.lift > 0.03;
+      legL.rotation.x = air ? -0.7 : sw; legR.rotation.x = air ? 0.4 : -sw;
+      var cheer = S.done ? 2.7 + Math.sin(t / 160) * 0.2 : 0;
+      armL.rotation.x = cheer ? 0 : -sw; armR.rotation.x = cheer ? 0 : sw;
+      armL.rotation.z = cheer ? -cheer : (air ? -1.1 : 0); armR.rotation.z = cheer ? cheer : (air ? 1.1 : 0);
+      renderer.render(scene, camera);
+    }
+    drawMap();
+  }
+
+  initGL();
+  setStart(S.start.x, S.start.y);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
