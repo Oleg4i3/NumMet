@@ -169,7 +169,7 @@
                 <option value="log">Логарифм (y = a·ln(x) + b)</option>
                 <option value="damped" selected>Згасаючий синус (Складна)</option>
             </select>
-            <div class="math-box" id="t1-math">$$ y = A e^{-\lambda x} \sin(\omega x) $$</div>
+            <div class="math-box" id="t1-math">$$ y = A e^{-\lambda x} \sin(\omega x + \varphi) $$</div>
             <button onclick="Mod1.addRandom()" class="secondary">🎲 Генерувати нові точки</button>
         </div>
 
@@ -178,6 +178,7 @@
             <div class="slider-wrapper"><label><span id="lbl-p1">A</span> <span id="val-p1">0</span></label><input type="range" id="sl-p1" oninput="Mod1.onSliderInput()"></div>
             <div class="slider-wrapper"><label><span id="lbl-p2">w</span> <span id="val-p2">0</span></label><input type="range" id="sl-p2" oninput="Mod1.onSliderInput()"></div>
             <div class="slider-wrapper" id="wrap-p3"><label><span id="lbl-p3">lam</span> <span id="val-p3">0</span></label><input type="range" id="sl-p3" oninput="Mod1.onSliderInput()"></div>
+            <div class="slider-wrapper" id="wrap-p4"><label><span id="lbl-p4">φ</span> <span id="val-p4">0</span></label><input type="range" id="sl-p4" oninput="Mod1.onSliderInput()"></div>
             
             <button onclick="Mod1.solve()" class="primary" id="btn-t1-solve">⚡ Знайти розв'язок</button>
         </div>
@@ -408,7 +409,7 @@ S(f_x,f_y,f_z,\varphi)
 // =========================================================================
 const Mod1 = {
     points: [],
-    params: { p1: 0, p2: 0, p3: 0 },
+    params: { p1: 0, p2: 0, p3: 0, p4: 0 },
     trueParams: {},
     isSolverRunning: false,
     showTrueCurve: false, // Прапорець для відображення істини
@@ -422,8 +423,8 @@ const Mod1 = {
         if (modelName === 'linear') return (x, p) => p.p1 * x + p.p2;
         if (modelName === 'parabola') return (x, p) => p.p1 * x*x + p.p2 * x + p.p3;
         if (modelName === 'log') return (x, p) => p.p1 * Math.log(x) + p.p2;
-        // p1=Amp, p2=Freq, p3=Decay
-        if (modelName === 'damped') return (x, p) => p.p1 * Math.exp(-p.p3 * x) * Math.sin(p.p2 * x);
+        // p1=Amp, p2=Freq, p3=Decay, p4=Phase
+        if (modelName === 'damped') return (x, p) => p.p1 * Math.exp(-p.p3 * x) * Math.sin(p.p2 * x + (p.p4 || 0));
         return (x) => 0;
     },
 
@@ -439,6 +440,8 @@ const Mod1 = {
 
         // Reset UI
         p3Wrap.style.display = 'block';
+        const p4Wrap = document.getElementById('wrap-p4'); p4Wrap.style.display = 'none';
+        const s4 = document.getElementById('sl-p4');
         document.getElementById('gd-plot').style.display = 'none';
         Mod1.hideMessage();
         Mod1.isSolverRunning = false;
@@ -466,7 +469,9 @@ const Mod1 = {
             Mod1.configSlider(s1, 'p1', 'A (Ампл.)', 0, 8, 0.1, 3);
             Mod1.configSlider(s2, 'p2', 'ω (Частота)', 0.5, 5, 0.1, 1);
             Mod1.configSlider(s3, 'p3', 'λ (Згасан.)', 0, 2, 0.01, 0.2);
-            mathBox.innerHTML = "$$ y = A e^{-\\lambda x} \\sin(\\omega x) $$";
+            Mod1.configSlider(s4, 'p4', 'φ (Поч. фаза)', -3.14, 3.14, 0.01, 0);
+            p4Wrap.style.display = 'block';
+            mathBox.innerHTML = "$$ y = A e^{-\\lambda x} \\sin(\\omega x + \\varphi) $$";
             btnSolve.innerText = "⚡ Градієнтний Спуск (Чисельно)";
         }
 
@@ -483,6 +488,7 @@ const Mod1 = {
         Mod1.params.p1 = parseFloat(document.getElementById('sl-p1').value);
         Mod1.params.p2 = parseFloat(document.getElementById('sl-p2').value);
         Mod1.params.p3 = parseFloat(document.getElementById('sl-p3').value);
+        Mod1.params.p4 = parseFloat(document.getElementById('sl-p4').value) || 0;
         Mod1.renderPlot();
     },
 
@@ -508,15 +514,17 @@ const Mod1 = {
         }
 
 	   else if (model === 'log') Mod1.trueParams = { p1: 1 + Math.random()*2, p2: (Math.random()*4)-2, p3:0 };
-        else if (model === 'damped') Mod1.trueParams = { p1: 3+Math.random()*2, p2: 1+Math.random()*3, p3: 0.1+Math.random()*0.3 };
+        else if (model === 'damped') Mod1.trueParams = { p1: 3+Math.random()*2, p2: 1+Math.random()*3, p3: 0.1+Math.random()*0.3, p4: (Math.random()-0.5)*5 };
 
         const func = Mod1.getModelFunc(model);
         // Generate points x in [0.5, 9.5]
-        for(let i=0; i<12; i++) {
-            let x = 0.5 + Math.random() * 9.0;
+        // Розшарована вибірка з джитером: 12 інтервалів, точка зі зсувом ±35% ширини інтервалу
+        const N = 12, span = 9.0 / N;
+        for(let i=0; i<N; i++) {
+            let x = 0.5 + (i + 0.5 + (Math.random() - 0.5) * 0.7) * span;
             let yTrue = func(x, Mod1.trueParams);
             // Add noise
-            let noise = (Math.random() - 0.5) * (model==='damped' ? 1.0 : 1.5);
+            let noise = (Math.random() - 0.5) * (model==='damped' ? 0.7 : 1.1);
             Mod1.points.push({ x: x, y: yTrue + noise });
         }
         Mod1.points.sort((a,b) => a.x - b.x);
@@ -526,7 +534,7 @@ const Mod1 = {
     // --- VISUALIZATION ---
     renderPlot: () => {
         const model = document.getElementById('t1-model').value;
-        ['p1','p2','p3'].forEach(k => document.getElementById('val-'+k).innerText = Mod1.params[k].toFixed(3));
+        ['p1','p2','p3','p4'].forEach(k => document.getElementById('val-'+k).innerText = Mod1.params[k].toFixed(3));
 
         const func = Mod1.getModelFunc(model);
         const mse = Mod1.calculateMSE(func, Mod1.params);
@@ -609,8 +617,9 @@ const Mod1 = {
         else if (model === 'damped') Mod1.optimizeNumerical();
     },
 
-    applyParams: (p1, p2, p3) => {
-        Mod1.params = { p1, p2, p3 };
+    applyParams: (p1, p2, p3, p4 = 0) => {
+        Mod1.params = { p1, p2, p3, p4 };
+        document.getElementById('sl-p4').value = p4;
         document.getElementById('sl-p1').value = p1;
         document.getElementById('sl-p2').value = p2;
         document.getElementById('sl-p3').value = p3;
@@ -713,7 +722,7 @@ const Mod1 = {
             Plotly.extendTraces('gd-plot', {y: [[currentErr]]}, [0]);
 
             let improved = false;
-            ['p1', 'p2', 'p3'].forEach(k => {
+            ['p1', 'p2', 'p3', 'p4'].forEach(k => {
                 let bestVal = p[k];
                 // Try +step
                 p[k] += step;
@@ -731,7 +740,7 @@ const Mod1 = {
 
             if (!improved) step *= 0.8; 
             
-            Mod1.applyParams(p.p1, p.p2, p.p3); // Update main plot live
+            Mod1.applyParams(p.p1, p.p2, p.p3, p.p4); // Update main plot live
 
             iter++;
             if (step < 0.02 || iter > maxIter) {
@@ -788,22 +797,34 @@ const Mod1 = {
             Mod2.controls = new THREE.OrbitControls(Mod2.camera, Mod2.renderer.domElement); 
             Mod2.controls.enableDamping = true;
             
-            const ambient = new THREE.AmbientLight(0x333333); Mod2.scene.add(ambient);
-            const sunLight = new THREE.PointLight(0xffffbb, 2, 100); sunLight.position.set(0, 0, 0); sunLight.castShadow = true; Mod2.scene.add(sunLight);
-            const grid = new THREE.GridHelper(60, 60, 0x333333, 0x111111); Mod2.scene.add(grid);
+            const ambient = new THREE.AmbientLight(0x141a33, 1.0); Mod2.scene.add(ambient);
+            const sunLight = new THREE.PointLight(0xff9a3c, 2.2, 0); sunLight.position.set(0, 0, 0); sunLight.castShadow = true; Mod2.scene.add(sunLight);
             const sun = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffdd00 })); Mod2.scene.add(sun);
             const glow = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 16), new THREE.MeshBasicMaterial({color: 0xff9900, transparent:true, opacity:0.6})); Mod2.scene.add(glow);
 
             Mod2.initVizObjects(); Mod2.generateObservations(); Mod2.manualUpdate(); Mod2.animate();
         },
         initVizObjects: () => {
-            Mod2.vizObjects.line = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x3498db, linewidth: 2 })); Mod2.scene.add(Mod2.vizObjects.line);
+            Mod2.vizObjects.line = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x00e5ff })); Mod2.scene.add(Mod2.vizObjects.line);
             const pts = [new THREE.Vector3(-1.5,0,0), new THREE.Vector3(1.5,0,0), new THREE.Vector3(0,-1.5,0), new THREE.Vector3(0,1.5,0), new THREE.Vector3(0,0,-1.5), new THREE.Vector3(0,0,1.5)];
             Mod2.vizObjects.f2 = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff0000 })); Mod2.scene.add(Mod2.vizObjects.f2);
             Mod2.vizObjects.residuals = new THREE.Group(); Mod2.scene.add(Mod2.vizObjects.residuals);
         },
         createAsteroidMesh: (pos) => {
-            const group = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.9, flatShading: true });
+            const group = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.35, metalness: 0.25, flatShading: true });
+            // синя «холодна» підсвітка нічного боку (відносно Сонця в (0,0,0)), додається в шейдері
+            mat.onBeforeCompile = (sh) => {
+                sh.vertexShader = sh.vertexShader
+                    .replace('#include <common>', '#include <common>\nvarying vec3 vWPos; varying vec3 vWNor;')
+                    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz; vWNor = normalize(mat3(modelMatrix) * objectNormal);');
+                sh.fragmentShader = sh.fragmentShader
+                    .replace('#include <common>', '#include <common>\nvarying vec3 vWPos; varying vec3 vWNor;')
+                    .replace('#include <tonemapping_fragment>', `
+                        float sd = dot(normalize(vWNor), normalize(-vWPos));
+                        float night = smoothstep(0.25, -0.7, sd);
+                        gl_FragColor.rgb += vec3(0.08, 0.22, 0.75) * night * (0.6 + 0.4 * (1.0 - abs(sd)));
+                        #include <tonemapping_fragment>`);
+            };
             const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 0), mat); core.scale.set(1+Math.random()*0.5, 1+Math.random()*0.5, 1+Math.random()*0.5); group.add(core);
             for(let i=0; i<2; i++){ const bump = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 0), mat); bump.position.set((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)); group.add(bump); }
             group.position.copy(pos); group.rotation.set(Math.random()*3, Math.random()*3, 0); return group;
@@ -855,7 +876,10 @@ const Mod1 = {
             let sumDist = 0; Mod2.debris.forEach(d => sumDist += d.userData.pos.distanceTo(f1) + d.userData.pos.distanceTo(f2));
             const len = Mod2.debris.length ? sumDist / Mod2.debris.length : 40;
             const curvePoints = Mod2.getEllipseCurvePoints(f1, f2, len, rot, 128);
-            if(curvePoints.length > 0) { Mod2.vizObjects.line.geometry.setFromPoints(curvePoints); Mod2.vizObjects.line.visible = true; } else { Mod2.vizObjects.line.visible = false; }
+            if(curvePoints.length > 0) { Mod2.vizObjects.line.geometry.dispose();
+                const curve = new THREE.CatmullRomCurve3(curvePoints.slice(0, -1), true);
+                Mod2.vizObjects.line.geometry = new THREE.TubeGeometry(curve, 160, 0.12, 6, true);
+                Mod2.vizObjects.line.visible = true; } else { Mod2.vizObjects.line.visible = false; }
             Mod2.vizObjects.f2.position.copy(f2); Mod2.updateResiduals(f1, f2, len, rot);
         },
         updateResiduals: (f1, f2, len, rot) => {
@@ -866,7 +890,7 @@ const Mod1 = {
                 const p = d.userData.pos; let minD = Infinity; let closest = null;
                 for(let cp of curveSamples) { let dist = p.distanceToSquared(cp); if(dist < minD) { minD = dist; closest = cp; } }
                 sse += minD; const lineGeo = new THREE.BufferGeometry().setFromPoints([p, closest]);
-                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.4 })); Mod2.vizObjects.residuals.add(line);
+                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.8 })); Mod2.vizObjects.residuals.add(line);
             });
             document.getElementById('t2-error').innerText = `MSE: ${(sse/Mod2.debris.length).toFixed(2)}`;
         },
