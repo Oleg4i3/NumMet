@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Модульна контрольна №2</title>
+<style>
+:root{--bg:#eef2f6;--ink:#1b2733;--ac:#0f766e;--ok:#d6f2e4;--bad:#fbd9d9;--ln:#c5d0db}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:900px;margin:0 auto;padding:12px}
+section,#start,#rp{background:#fff;border:1px solid var(--ln);border-radius:8px;padding:16px;margin:14px 0}
+h2{font:600 1.3rem Georgia,serif;margin:0 0 8px}h2 i{float:right;font:500 .9rem system-ui;color:var(--ac)}
+#bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+#tm{font:600 1.2rem ui-monospace,monospace}
+button,input,select{font:inherit}button{cursor:pointer}
+.b{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:7px 14px}
+input[type=text],select{border:1px solid var(--ln);border-radius:6px;padding:5px 8px}
+table{border-collapse:collapse}td,th{border:1px solid var(--ln);padding:3px 8px;text-align:center}th{background:#f3f6f9}
+.ok{background:var(--ok)!important}.bad{background:var(--bad)!important}
+.fb{margin-top:8px}.wrap{overflow-x:auto}.ans{color:#a11}
+.sb{margin:3px;padding:4px 9px;border:1px solid var(--ln);border-radius:6px;background:#f7f9fb}.sb.sel{background:#fff3b0;border-color:#d4a017}
+.big{font:700 3.4rem Georgia,serif;line-height:1.1}.big2{font:600 1.5rem Georgia,serif;margin:6px 0 12px}
+.done section button,.done section select,.done section input{pointer-events:none}
+.done .ex{display:none}
+.mc{font:12px/1.4 ui-monospace,Consolas,monospace;color:#567;margin:12px 0 0;word-break:break-all}
+@media print{#bar,section,#start,.np{display:none!important}body{background:#fff}#rp{border:0}}
+.hn{margin:10px 0;border:1px dashed #d4a017;border-radius:6px;padding:4px 10px;background:#fffbea}.hs{cursor:pointer;color:#8a6500;font-weight:600}.hb{margin-top:6px}
+.scr{margin-top:8px;padding:4px 8px;border-left:3px solid #4a90e2;background:#f3f7fc}
+canvas,.cv{border:1px solid var(--ln);max-width:100%;height:auto;background:#fff;margin-top:6px;display:block}
+.hint{color:#567;font-size:.9rem}
+.hb .katex-display,.fb .katex-display{margin:.55em 0;overflow-x:auto;overflow-y:hidden}
+.fb .katex-display{text-align:left}
+
+#cap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:center;justify-content:center}
+.rc{background:#fff;border:1px solid #d3d3d3;border-radius:3px;box-shadow:0 0 6px rgba(0,0,0,.35);width:min(400px,96vw);font-family:Roboto,Arial,sans-serif;color:#222}
+.rc .box{display:flex;align-items:center;gap:14px;padding:18px;background:#f9f9f9}
+.chk{width:28px;height:28px;border:2px solid #c1c1c1;border-radius:2px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.rc .ft{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid #ddd}
+.sp{width:22px;height:22px;border:3px solid #ccc;border-top-color:#4a90e2;border-radius:50%;animation:rot 1s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+.rc.wide{width:min(560px,96vw);max-height:92vh;overflow:auto;padding:14px 20px 0}.rc.wide .ft{position:sticky;bottom:0;background:#fff}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:440px;margin:10px 0}
+.tile{position:relative;aspect-ratio:1;background:#f1f3f4;border:3px solid transparent;cursor:pointer;user-select:none}
+.tile canvas{width:100%;height:100%;margin:0;border:0;background:transparent}.tile.sel{border-color:#4a90e2}
+.tile .tick{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:2px;background:#4a90e2;color:#fff;display:none;align-items:center;justify-content:center;font-weight:700}.tile.sel .tick{display:flex}
+.tk{min-width:54px;height:54px;margin:4px;padding:2px 10px;border:2px solid var(--ln);border-radius:8px;background:#f7f9fb;font-size:1.1rem}.tk.sel{background:#fff3b0;border-color:#d4a017}
+#asm{min-height:64px;border:2px dashed var(--ln);border-radius:8px;padding:4px}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head><body>
+<div id="bar" hidden><b>Модульна №2: інтерполяція, апроксимація, оптимізація, кластеризація, МГК</b><span id="tm">00:00</span><button class="b" id="fin">Завершити</button></div>
+<main>
+<div id="start"><h2>Модульна контрольна №2</h2>
+<p>Теми: інтерполяція, апроксимація й МНК, оптимізація, кластеризація, метод головних компонент.  Варіант визначається прізвищем та ім’ям, тому оновлення сторінки його не змінює; відповіді зберігаються автоматично.</p>
+<input type="text" id="nm" placeholder="Прізвище та ім’я" size="30"> <button class="b" id="go">Почати</button></div>
+<div id="rp" hidden></div>
+<div id="app" hidden><section id="t1"></section><section id="t2"></section><section id="t3"></section><section id="t4"></section><section id="t5"></section></div>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],KEY='nm-test2-v1';
+let R,seed,NAME,t0,tick,done=false,T={},ids,MQ;const Z=[],K={};
+const seedFrom=s=>{let h=2166136261;for(const c of s.trim().toLowerCase()){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}
+ h^=h>>>16;h=Math.imul(h,0x85ebca6b);h^=h>>>13;h=Math.imul(h,0xc2b2ae35);h^=h>>>16;return h>>>0};
+const mul=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1)),pick=a=>a[ri(0,a.length-1)];
+const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const rd=x=>Math.round(x*10)/10,esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const SALT='dm-2c991a600e',sig=t=>{let h=2166136261;for(const c of t+SALT){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')};
+const TX=String.raw,esx=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),
+ LX=t=>'\\('+esx(t)+'\\)',LXD=t=>'\\['+esx(t)+'\\]',MX=t=>t.replace(/\$([^$]+)\$/g,(_,m)=>LX(m));
+const COL=['#e11d48','#2563eb','#16a34a','#9333ea','#f59e0b','#0891b2'],PAL=['#fecdd3','#bfdbfe','#bbf7d0','#e9d5ff','#fde68a','#a5f3fc'];
+const num=s=>{s=(s||'').replace(',','.').trim();const m=s.match(/^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);return m?m[1]/m[2]:s===''?NaN:+s};
+const near=(a,b,t=1e-6)=>isFinite(a)&&Math.abs(a-b)<=t*Math.max(1,Math.abs(b));
+const FB=(i,s)=>{$('#t'+i+' .fb').innerHTML=s};
+const mk=(e,g)=>{e.classList.remove('ok','bad');e.classList.add(g?'ok':'bad')};
+const ni=(i,ph,sz=8)=>`<input class="ni" type="text" size="${sz}" placeholder="${ph}">`;
+const NI=i=>$$('#t'+i+' input.ni[type=text]'),p3=x=>+(+x).toPrecision(3),m_=v=>String(v);
+const ck=(e,ok,a)=>{mk(e,ok);if(!ok&&a!=null)e.insertAdjacentHTML('afterend',` <b class="ans">(${a})</b>`);return +ok};
+const tri=()=>(R()+R()+R()-1.5)*2;
+const ns=(sp,n)=>{const r=sp/n,p=10**Math.floor(Math.log10(r)),f=r/p;return p*(f<1.5?1:f<3.5?2:f<7.5?5:10)};
+const CV=(w,h)=>`<canvas width="${w}" height="${h}"></canvas>`;
+/* осі й допоміжні малювалки */
+const axes=(g,W,H,xl,xh,yl,yh)=>{const PX=x=>36+(x-xl)/(xh-xl)*(W-46),PY=y=>H-24-(y-yl)/(yh-yl)*(H-34);
+ g.clearRect(0,0,W,H);g.font='11px sans-serif';g.fillStyle='#567';g.strokeStyle='#e3e8ee';g.lineWidth=1;
+ const sx=ns(xh-xl,8),sy=ns(yh-yl,6);g.textAlign='center';
+ for(let x=Math.ceil(xl/sx)*sx;x<=xh+1e-9;x+=sx){g.beginPath();g.moveTo(PX(x),10);g.lineTo(PX(x),H-24);g.stroke();g.fillText(+x.toFixed(3),PX(x),H-10)}
+ g.textAlign='right';for(let y=Math.ceil(yl/sy)*sy;y<=yh+1e-9;y+=sy){g.beginPath();g.moveTo(36,PY(y));g.lineTo(W-10,PY(y));g.stroke();g.fillText(+y.toFixed(3),32,PY(y)+4)}
+ return[PX,PY]};
+const dots=(g,PX,PY,P,col,r=4,lab)=>P.forEach((p,k)=>{g.fillStyle=typeof col=='function'?col(k):col;g.beginPath();g.arc(PX(p[0]),PY(p[1]),r,0,7);g.fill();
+ if(lab){g.fillStyle='#1b2733';g.font='bold 10px sans-serif';g.textAlign='left';g.fillText(lab+(k+1),PX(p[0])+6,PY(p[1])-5)}});
+const curve=(g,PX,PY,f,xa,xb,col,W,H,dash)=>{g.save();g.beginPath();g.rect(36,10,W-46,H-34);g.clip();g.strokeStyle=col;g.lineWidth=2;if(dash)g.setLineDash([6,4]);g.beginPath();let st=0;
+ for(let n=0;n<=400;n++){const x=xa+(xb-xa)*n/400,y=f(x);if(!isFinite(y)){st=0;continue}st?g.lineTo(PX(x),PY(y)):g.moveTo(PX(x),PY(y));st=1}g.stroke();g.restore()};
+const hsl=h=>{const s=.75,l=.55,a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))))};return[f(0),f(8),f(4)]};
+const heat=(cv,f,x0,x1,y0,y1,lo,hi)=>{const g=cv.getContext('2d'),W=cv.width,H=cv.height,im=g.createImageData(W,H);
+ for(let py=0;py<H;py++)for(let px=0;px<W;px++){const v=f(x0+(x1-x0)*(px+.5)/W,y1-(y1-y0)*(py+.5)/H),u=Math.max(0,Math.min(1,(v-lo)/(hi-lo))),c=hsl(240-240*u),o=4*(py*W+px);im.data[o]=c[0];im.data[o+1]=c[1];im.data[o+2]=c[2];im.data[o+3]=255}
+ g.putImageData(im,0,0)};
+const perms=a=>a.length<2?[a]:a.flatMap((x,k)=>perms([...a.slice(0,k),...a.slice(k+1)]).map(p=>[x,...p]));
+/* Нелдер–Мід */
+const nm=(f,x0,it=3000)=>{const n=x0.length;let S=[x0.slice()];for(let k=0;k<n;k++){const p=x0.slice();p[k]+=p[k]?p[k]*.1:.1;S.push(p)}let V=S.map(f);
+ for(let t=0;t<it;t++){const o=V.map((_,k)=>k).sort((a,b)=>V[a]-V[b]);S=o.map(k=>S[k]);V=o.map(k=>V[k]);
+  const c=S[0].map((_,j)=>S.slice(0,n).reduce((s,p)=>s+p[j],0)/n),w=S[n],at=a=>c.map((v,j)=>v+a*(w[j]-v)),r=at(-1),fr=f(r);
+  if(fr<V[0]){const e=at(-2),fe=f(e);if(fe<fr){S[n]=e;V[n]=fe}else{S[n]=r;V[n]=fr}}
+  else if(fr<V[n-1]){S[n]=r;V[n]=fr}
+  else{const cc=at(fr<V[n]?-.5:.5),fc=f(cc);if(fc<Math.min(fr,V[n])){S[n]=cc;V[n]=fc}else for(let k=1;k<=n;k++){S[k]=S[k].map((v,j)=>S[0][j]+.5*(v-S[0][j]));V[k]=f(S[k])}}}
+ const b=V.indexOf(Math.min(...V));return[S[b],V[b]]};
+const H=(i,t)=>`<h2>Завдання ${i} · ${t} <i>3.5 б.</i></h2>`;
+const HN=(i,t)=>`<details class="hn"${Z[i].h?' open':''}><summary class="hs">💡 Підказка (−0.5 б.)</summary><div class="hb">${t}</div></details>`;
+document.addEventListener('click',e=>{const sm=e.target.closest('summary.hs');if(!sm)return;const d=sm.parentNode;if(done){e.preventDefault();return}if(d.open)return;e.preventDefault();
+ if(confirm('Увага: перегляд підказки коштує 0.5 бала за це завдання. Показати підказку?')){d.open=true;Z[+d.closest('section').id.slice(1)].h=1;save()}},true);
+const EXP={};
+const EXB=(i,h,rows)=>{EXP[i]={h,rows};return `<p class="np" style="margin:6px 0"><button type="button" class="b ex" data-i="${i}" data-f="csv">⬇ CSV (десяткова крапка)</button> <button type="button" class="b ex" data-i="${i}" data-f="xlsx">⬇ XLSX (десяткова кома)</button></p>`};
+document.addEventListener('click',e=>{const b=e.target.closest('.ex');if(!b)return;const d=EXP[b.dataset.i],nm='data_task'+b.dataset.i;
+ if(b.dataset.f=='csv'){const t=[d.h,...d.rows].map(r=>r.join(',')).join('\n'),u=URL.createObjectURL(new Blob(['﻿'+t],{type:'text/csv'})),a=document.createElement('a');a.href=u;a.download=nm+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+ else{if(!window.XLSX)return alert('Бібліотеку XLSX не завантажено (потрібен інтернет).');const ws=XLSX.utils.aoa_to_sheet([d.h,...d.rows.map(r=>r.map(v=>String(v).replace('.',',')))]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');XLSX.writeFile(wb,nm+'.xlsx')}});
+/* KaTeX */
+const typeset=el=>{if(window.renderMathInElement){try{window.renderMathInElement(el,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})}catch(e){}}};
+(()=>{let p=0;const app=$('#app'),mo=new MutationObserver(()=>{if(!p){p=1;setTimeout(go,30)}}),watch=()=>mo.observe(app,{childList:true,subtree:true}),
+ go=()=>{p=0;if(!window.renderMathInElement)return;mo.disconnect();typeset(app);watch()};watch();window.addEventListener('load',go)})();
+
+/* ===== 1. нелінійний МНК ===== */
+K.nls=i=>{const MD=[
+ {t:TX`y=a\,e^{bx}`,pn:['a','b'],f:(p,x)=>p[0]*Math.exp(p[1]*x),gen:()=>[ri(10,50)/10,pick([-1,1])*ri(3,8)/10],xs:()=>Array.from({length:9},(_,k)=>k*.5),h:'Початкове наближення можна взяти з лінеаризації: ln y = ln a + b·x.'},
+ {t:TX`y=a\ln(x+b)`,pn:['a','b'],f:(p,x)=>p[0]*Math.log(x+p[1]),gen:()=>[ri(15,40)/10,ri(5,30)/10],xs:()=>Array.from({length:10},(_,k)=>.5+k*.8),h:'Потрібно x + b > 0. Початкове b — порядку 1.'},
+ {t:TX`y=\dfrac{a}{b+x^{2}}`,pn:['a','b'],f:(p,x)=>p[0]/(p[1]+x*x),gen:()=>[ri(50,200)/10,ri(10,40)/10],xs:()=>Array.from({length:11},(_,k)=>-3+k*.6),h:'При x = 0 маємо y = a/b: звідси початкове наближення.'},
+ {t:TX`y=\dfrac{a\,x}{1+b\,x^{2}}`,pn:['a','b'],f:(p,x)=>p[0]*x/(1+p[1]*x*x),gen:()=>[ri(20,50)/10,ri(3,10)/10],xs:()=>Array.from({length:12},(_,k)=>.4+k*.5),h:'Поблизу нуля y ≈ a·x; максимум досягається при x = 1/√b.'},
+ {t:TX`y=a\,e^{-bx}\cos(\omega x)`,pn:['a','b','ω'],f:(p,x)=>p[0]*Math.exp(-p[1]*x)*Math.cos(p[2]*x),gen:()=>[ri(20,50)/10,ri(2,5)/10,ri(15,30)/10],xs:()=>Array.from({length:18},(_,k)=>k*.35),h:'a — амплітуда при x = 0; період коливань T = 2π/ω оцініть за графіком, b — із швидкості згасання піків.'}];
+ const M=pick(MD),p0=M.gen(),X=M.xs(),amp=Math.max(...X.map(x=>Math.abs(M.f(p0,x)))),Y=X.map(x=>+(M.f(p0,x)+.03*amp*tri()).toFixed(3)),
+ sse=p=>X.reduce((s,x,k)=>{const e=M.f(p,x)-Y[k];return s+(isFinite(e)?e*e:1e9)},0);
+ let best=[p0,sse(p0)];for(let q=0;q<3;q++)best=nm(sse,best[0]);Z[i]={};
+ return{ti:'нелінійний МНК',sh:0,
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Задано ${X.length} точок, виміряних із шумом. Знайдіть нелінійним методом найменших квадратів (мінімізуйте ${LX(TX`S=\sum_k\bigl(y_k-f(x_k)\bigr)^{2}`)}) параметри моделі ${LX(M.t)}. Точність — не гірше 3 значущих цифр.</p><div class="wrap"><table><tr><th>x${X.map(v=>`<td>${+v.toFixed(3)}`).join('')}<tr><th>y${Y.map(v=>`<td>${v}`).join('')}</table></div>${EXB(i,['x','y'],X.map((x,k)=>[+x.toFixed(3),Y[k]]))}${CV(560,280)}<p>${M.pn.map(n=>`<i>${n}</i> = ${ni(i,'',9)}`).join(' &nbsp; ')}</p>${HN(i,'Використайте scipy.optimize.curve_fit (або Левенберга–Марквардта) з початковим наближенням за графіком. '+M.h)}<div class="fb"></div>`;
+  $$('#t'+i+' input.ni').forEach(e=>e.oninput=()=>this.u());this.u()},
+ u(){const cv=$('#t'+i+' canvas'),g=cv.getContext('2d'),xl=Math.min(...X),xh=Math.max(...X),a=Math.min(...Y),b=Math.max(...Y),pd=.12*(b-a||1),[PX,PY]=axes(g,560,280,xl-.05*(xh-xl),xh+.05*(xh-xl),a-pd,b+pd);
+  const p=NI(i).map(e=>num(e.value));if(this.sh)curve(g,PX,PY,x=>M.f(best[0],x),xl,xh,'#16a34a',560,280,1);if(p.every(isFinite))curve(g,PX,PY,x=>M.f(p,x),xl,xh,'#2563eb',560,280);dots(g,PX,PY,X.map((x,k)=>[x,Y[k]]),'#e11d48')},
+ g(){const e=NI(i),v=e.map(x=>num(x.value)),so=best[0],se=v.every(isFinite)?sse(v):Infinity,pass=se<=1.1*best[1]+1e-12;let fr=0;
+  e.forEach((q,k)=>{const ok=isFinite(v[k])&&Math.abs(v[k]-so[k])<=.05*Math.abs(so[k])+1e-3;fr+=ok;ck(q,ok||pass,p3(so[k]))});
+  this.sh=1;this.u();
+  FB(i,`<div class="${pass?'ok':'bad'}" style="padding:4px 8px">Оптимум: ${M.pn.map((n,k)=>`${n} ≈ ${p3(so[k])}`).join(', ')}; ${LX(TX`S_{\min}=${p3(best[1])}`)}. Ваша ${LX('S')} = ${isFinite(se)?p3(se):'—'}. Зарахування за ${LX('S')}: не більше ніж на 10% гірше за мінімум. Зелений пунктир — оптимальна крива, синя — ваша.</div>`);
+  return Math.max(pass?1:0,.5*fr/M.pn.length)}}};
+
+/* ===== 2. сплайн / Лагранж ===== */
+K.interp=i=>{const Lg=R()<.5;let xs;do xs=shuf([-3,-2,-1,0,1,2,3,4,5]).slice(0,4).sort((a,b)=>a-b);while(xs[3]-xs[0]<4);
+ const ys=xs.map(()=>ri(-5,6)),lag=x=>xs.reduce((s,xi,a)=>s+ys[a]*xs.reduce((p,xj,b)=>b==a?p:p*(x-xj)/(xi-xj),1),0),
+ a3=xs.reduce((s,xi,a)=>s+ys[a]/xs.reduce((p,xj,b)=>b==a?p:p*(xi-xj),1),0),d0=pick([0,1,-1,2]),h=[0,1,2].map(j=>xs[j+1]-xs[j]),m=[d0];
+ for(let j=0;j<3;j++)m.push(2*(ys[j+1]-ys[j])/h[j]-m[j]);const c=[0,1,2].map(j=>(ys[j+1]-ys[j]-m[j]*h[j])/(h[j]*h[j])),
+ S=x=>{let j=x<xs[1]?0:x<xs[2]?1:2;const t=x-xs[j];return ys[j]+m[j]*t+c[j]*t*t},
+ cand=[];for(let q=xs[0]-1;q<=xs[3]+1;q+=.5)if(!xs.includes(q))cand.push(q);const qs=shuf(cand).slice(0,2),qS=xs[1]+h[1]/2;
+ const ans=Lg?[a3,lag(qs[0]),lag(qs[1])]:[c[0],m[2],S(qS)];Z[i]={};
+ return{ti:Lg?'поліном Лагранжа':'квадратичний сплайн',
+ r(){const pts=xs.map((x,k)=>`(${x}; ${ys[k]})`).join(', ');
+  $('#t'+i).innerHTML=H(i,this.ti)+(Lg?`<p>Через точки ${pts} проведено інтерполяційний поліном Лагранжа ${LX('P(x)')} (степінь ≤ 3). Знайдіть:</p><p>коефіцієнт при ${LX('x^3')}: ${ni(i,'число',9)} &nbsp; ${LX(`P(${qs[0]})`)} = ${ni(i,'число',9)} &nbsp; ${LX(`P(${qs[1]})`)} = ${ni(i,'число',9)}</p>`:
+  `<p>Через точки ${pts} проведено квадратичний сплайн ${LX('S(x)')} класу ${LX('C^1')} (на кожному з трьох відрізків — квадратний тричлен), з крайовою умовою ${LX(`S'(${xs[0]})=${d0}`)}. На відрізку ${LX(`[x_k,x_{k+1}]`)} запишіть ${LX(TX`S(x)=y_k+m_k(x-x_k)+c_k(x-x_k)^2`)}. Знайдіть:</p><p>${LX('c_0')} (коефіцієнт при ${LX('(x-'+xs[0]+')^2')} на першому відрізку): ${ni(i,'число',9)} &nbsp; ${LX(`S'(${xs[2]})`)} = ${ni(i,'число',9)} &nbsp; ${LX(`S(${qS})`)} = ${ni(i,'число',9)}</p>`)+
+  CV(560,300)+HN(i,Lg?`${LXD(TX`P(x)=\sum_{k}y_k\prod_{j\ne k}\frac{x-x_j}{x_k-x_j}`)}Коефіцієнт при ${LX('x^3')} — сума ${LX(TX`y_k/\prod_{j\ne k}(x_k-x_j)`)}.`:`Умови: ${LX(TX`m_{k+1}=2\frac{y_{k+1}-y_k}{h_k}-m_k`)} (неперервність похідної та значень), ${LX(TX`c_k=\frac{y_{k+1}-y_k-m_kh_k}{h_k^{2}}`)}, ${LX('m_0='+d0)}.`)+`<div class="fb"></div>`;this.u()},
+ u(sh){const cv=$('#t'+i+' canvas'),g=cv.getContext('2d'),f=Lg?lag:S,xa=xs[0]-1,xb=xs[3]+1;let lo=Math.min(...ys),hi=Math.max(...ys);if(sh)for(let q=0;q<=200;q++){const y=f(xa+(xb-xa)*q/200);lo=Math.min(lo,y);hi=Math.max(hi,y)}
+  const pd=.15*(hi-lo||1),[PX,PY]=axes(g,560,300,xa,xb,lo-pd,hi+pd);if(sh)curve(g,PX,PY,f,xa,xb,'#2563eb',560,300);dots(g,PX,PY,xs.map((x,k)=>[x,ys[k]]),'#e11d48',5)},
+ g(){const e=NI(i);let s=0;ans.forEach((a,k)=>s+=ck(e[k],near(num(e[k].value),a,1e-3),p3(a)));this.u(1);
+  FB(i,Lg?`${LX(TX`P(x)=\sum y_k\ell_k(x)`)}: старший коефіцієнт ${LX(TX`=${p3(a3)}`)}, ${LX(`P(${qs[0]})=${p3(ans[1])}`)}, ${LX(`P(${qs[1]})=${p3(ans[2])}`)}.`:
+  `Нахили у вузлах: ${LX(`m=(${m.map(p3).join(';\\ ')})`)}, ${LX(`c=(${c.map(p3).join(';\\ ')})`)}. ${LX(`S(${qS})`)} обчислюється на відрізку ${LX(`[${xs[1]},${xs[2]}]`)}: ${LX(`${ys[1]}+${p3(m[1])}\\cdot${h[1]/2}+${p3(c[1])}\\cdot${h[1]*h[1]/4}=${p3(ans[2])}`)}. Через C¹-умови сплайн залежить від однієї крайової умови: без неї система недовизначена.`);return s/3}}};
+
+/* ===== 3. k-means + Вороной ===== */
+K.kmeans=i=>{const k=pick([2,3,4]),W=12,Hh=9;let C,ok=false;
+ for(let t=0;t<3000&&!ok;t++){C=Array.from({length:k},()=>[ri(15,105)/10,ri(15,75)/10]);ok=!C.some((a,x)=>C.some((b,y)=>x<y&&Math.hypot(a[0]-b[0],a[1]-b[1])<4.8))}
+ if(!ok)C=[[2,2],[9.5,2],[2,7],[9.5,7]].slice(0,k);
+ const P=[];C.forEach(c=>{for(let j=ri(5,7);j--;)P.push([Math.min(W-.1,Math.max(.1,+(c[0]+.9*tri()).toFixed(1))),Math.min(Hh-.1,Math.max(.1,+(c[1]+.9*tri()).toFixed(1)))])});for(let j=ri(2,3);j--;)P.push([ri(5,115)/10,ri(5,85)/10]);
+ const D=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]),near_=(cs,p)=>cs.reduce((b,c,j)=>D(c,p)<D(cs[b],p)?j:b,0);
+ const lloyd=c0=>{let cn=c0.map(c=>[...c]);for(let it=0;it<100;it++){const as=P.map(p=>near_(cn,p));cn=cn.map((c,j)=>{const q=P.filter((_,t)=>as[t]==j);return q.length?[q.reduce((s,p)=>s+p[0],0)/q.length,q.reduce((s,p)=>s+p[1],0)/q.length]:c})}return cn},
+ inert=cs=>P.reduce((s,p)=>s+D(cs[near_(cs,p)],p)**2,0);let cen=lloyd(C),bi=inert(cen);
+ for(let t=0;t<40;t++){const c=lloyd(shuf(P).slice(0,k)),e=inert(c);if(e<bi-1e-9){bi=e;cen=c}}
+ const as=P.map(p=>near_(cen,p)),sz=cen.map((_,j)=>as.filter(a=>a==j).length);let Q;
+ for(let t=0;t<500;t++){Q=[ri(5,115)/10,ri(5,85)/10];const d=cen.map(c=>D(c,Q)).sort((a,b)=>a-b);if(d[1]-d[0]>.6)break}
+ const qs=sz[near_(cen,Q)];Z[i]={};
+ const vor=(cv,cs,withQ)=>{const g=cv.getContext('2d'),w=cv.width,h=cv.height,s=w/W;
+  if(cs.length){const im=g.createImageData(w,h);for(let py=0;py<h;py++)for(let px=0;px<w;px++){const j=near_(cs,[(px+.5)/s,Hh-(py+.5)/s]),c=PAL[j%6],o=4*(py*w+px);im.data[o]=parseInt(c.slice(1,3),16);im.data[o+1]=parseInt(c.slice(3,5),16);im.data[o+2]=parseInt(c.slice(5,7),16);im.data[o+3]=255}g.putImageData(im,0,0)}else{g.clearRect(0,0,w,h)}
+  g.font='bold 11px sans-serif';P.forEach((p,t)=>{g.fillStyle='#1b2733';g.beginPath();g.arc(p[0]*s,(Hh-p[1])*s,3.5,0,7);g.fill()});
+  cs.forEach(c=>{g.strokeStyle='#000';g.lineWidth=2.5;const x=c[0]*s,y=(Hh-c[1])*s;g.beginPath();g.moveTo(x-6,y-6);g.lineTo(x+6,y+6);g.moveTo(x+6,y-6);g.lineTo(x-6,y+6);g.stroke()});
+  g.fillStyle='#b91c1c';g.textAlign='left';g.fillText('★ Q',Q[0]*s-6,(Hh-Q[1])*s+4)};
+ return{ti:`k-means (k = ${k}) і діаграма Вороного`,
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Задано ${P.length} точок на площині. Кластеризуйте їх методом k-means на <b>${k}</b> ${k==2?'кластери':'кластери'} (потрібен оптимальний розв’язок із мінімальною сумою квадратів відстаней; серед точок є кілька шумових — запустіть k-means з кількома ініціалізаціями). Діаграма Вороного, побудована за знайденими центроїдами, показана нижче — вона оновлюється, коли ви вводите центроїди. Чорні хрестики — ваші центроїди.</p><div class="wrap"><table><tr><th>№${P.map((_,t)=>`<td>${t+1}`).join('')}<tr><th>x${P.map(p=>`<td>${p[0]}`).join('')}<tr><th>y${P.map(p=>`<td>${p[1]}`).join('')}</table></div>${EXB(i,['n','x','y'],P.map((p,t)=>[t+1,p[0],p[1]]))}<canvas class="vc" width="420" height="315"></canvas>
+  <p>${C.map((_,j)=>`центроїд ${j+1}: (${ni(i,'x',6)}; ${ni(i,'y',6)})`).join('<br>')}</p><p>Кількості точок у кластерах (у будь-якому порядку): ${C.map(()=>ni(i,'n',4)).join(' ')}</p><p>Скільки точок даних лежить у тій клітині Вороного, де розташована точка ${LX('Q')} = (${Q[0]}; ${Q[1]}) (★ на малюнку)? ${ni(i,'число',5)}</p>${HN(i,'Метод Ллойда: призначити точки до найближчого центроїда, перерахувати центроїди як середні, повторювати до стабілізації. Кордони клітин Вороного — серединні перпендикуляри між центроїдами.')}<div class="fb"></div>`;
+  $$('#t'+i+' input.ni').forEach(e=>e.oninput=()=>this.u());this.u()},
+ u(){const v=NI(i).slice(0,2*k).map(e=>num(e.value)),cs=[];for(let j=0;j<k;j++)if(isFinite(v[2*j])&&isFinite(v[2*j+1]))cs.push([v[2*j],v[2*j+1]]);vor($('#t'+i+' canvas'),cs)},
+ g(){const e=NI(i),v=e.map(x=>num(x.value));let best=-1,bp=null;
+  perms([...Array(k).keys()]).forEach(pm=>{let c=0;pm.forEach((t,j)=>{const x=v[2*j],y=v[2*j+1];if(isFinite(x)&&isFinite(y)&&Math.abs(x-cen[t][0])<=.1&&Math.abs(y-cen[t][1])<=.1)c++});if(c>best){best=c;bp=pm}});
+  bp.forEach((t,j)=>{const g=isFinite(v[2*j])&&isFinite(v[2*j+1])&&Math.abs(v[2*j]-cen[t][0])<=.1&&Math.abs(v[2*j+1]-cen[t][1])<=.1;mk(e[2*j],g);mk(e[2*j+1],g);if(!g)e[2*j+1].insertAdjacentHTML('afterend',` <b class="ans">(${p3(cen[t][0])}; ${p3(cen[t][1])})</b>`)});
+  const rest=[...sz];let sc=0;for(let j=0;j<k;j++){const q=e[2*k+j],pos=rest.indexOf(v[2*k+j]);const g=pos>=0;if(g){rest.splice(pos,1);sc++}mk(q,g)}
+  const qok=ck(e[3*k],v[3*k]==qs,qs);
+  FB(i,`Центроїди: ${cen.map(c=>`(${(+c[0].toFixed(2))}; ${(+c[1].toFixed(2))})`).join(', ')}; розміри: ${sz.join(', ')}; у клітині з ${LX('Q')} — ${qs} точок. Крива діаграма Вороного для правильних центроїдів:${CV(420,315)}`);
+  vor($('#t'+i+' .fb canvas'),cen);return .5*best/k+.25*sc/k+.25*qok}}};
+
+/* ===== 4. МГК ===== */
+K.pca=i=>{let P,mx,my,cxx,cxy,cyy,l1,th,idx,n=16;
+ for(let t=0;t<500;t++){const a0=pick([25,35,45,55,125,135,145])*Math.PI/180,c=Math.cos(a0),s=Math.sin(a0),ox=ri(30,70)/10,oy=ri(30,70)/10;P=[];
+  for(let j=0;j<n;j++){const al=j<4?ri(-40,40)/10:tri()*2.5,pe=j<4?pick([-1,1])*ri(30,45)/10:tri()*.45;P.push([+(ox+al*c-pe*s).toFixed(2),+(oy+al*s+pe*c).toFixed(2)])}
+  P=shuf(P);mx=P.reduce((q,p)=>q+p[0],0)/n;my=P.reduce((q,p)=>q+p[1],0)/n;cxx=P.reduce((q,p)=>q+(p[0]-mx)**2,0)/(n-1);cyy=P.reduce((q,p)=>q+(p[1]-my)**2,0)/(n-1);cxy=P.reduce((q,p)=>q+(p[0]-mx)*(p[1]-my),0)/(n-1);
+  l1=(cxx+cyy)/2+Math.sqrt(((cxx-cyy)/2)**2+cxy**2);th=.5*Math.atan2(2*cxy,cxx-cyy);const u=[Math.cos(th),Math.sin(th)],d=P.map((p,k)=>[Math.abs((p[0]-mx)*u[1]-(p[1]-my)*u[0]),k]).sort((a,b)=>b[0]-a[0]);idx=d.slice(0,4).map(q=>q[1]);
+  if(d[3][0]>1.35*d[4][0]&&d[4][0]<1.6)break}
+ let deg=th*180/Math.PI;deg=(deg%180+180)%180;const lo=Math.min(...P.flat())-1,hi=Math.max(...P.flat())+1;Z[i]={s:[]};
+ return{ti:'коваріаційна матриця, головні компоненти, викиди',sh:0,
+ r(){const z=Z[i];$('#t'+i).innerHTML=H(i,this.ti)+`<p>Задано ${n} точок. Знайдіть вибіркову коваріаційну матрицю (нормування ${LX(TX`\frac{1}{n-1}`)}), напрямок першої головної компоненти (кут з віссю ${LX('Ox')} у градусах, у межах ${LX(TX`[0^\circ;180^\circ)`)}) і найбільше власне число ${LX(TX`\lambda_1`)}. Потім позначте <b>4 точки-викиди</b> з найбільшим відхиленням (відстанню) від прямої першої головної компоненти, що проходить через центр даних.</p>
+  <div class="wrap"><table><tr><th>№${P.map((_,t)=>`<td>${t+1}`).join('')}<tr><th>x${P.map(p=>`<td>${p[0]}`).join('')}<tr><th>y${P.map(p=>`<td>${p[1]}`).join('')}</table></div>${EXB(i,['n','x','y'],P.map((p,t)=>[t+1,p[0],p[1]]))}${CV(380,380)}
+  <p>${LX(TX`c_{xx}=`)} ${ni(i,'',7)} ${LX(TX`c_{xy}=`)} ${ni(i,'',7)} ${LX(TX`c_{yy}=`)} ${ni(i,'',7)}</p><p>кут PC1, ° ${ni(i,'',7)} &nbsp; ${LX(TX`\lambda_1=`)} ${ni(i,'',7)}</p>
+  <p>Викиди (натискайте): ${P.map((_,k)=>`<button type="button" class="sb${z.s.includes(k)?' sel':''}" data-k="${k}">${k+1}</button>`).join('')}</p>${HN(i,`${LXD(TX`c_{xx}=\frac{\sum(x_k-\bar x)^2}{n-1},\quad c_{xy}=\frac{\sum(x_k-\bar x)(y_k-\bar y)}{n-1}`)}Власні числа ${LX(TX`2\times2`)}: ${LX(TX`\lambda=\frac{c_{xx}+c_{yy}}{2}\pm\sqrt{\left(\frac{c_{xx}-c_{yy}}{2}\right)^2+c_{xy}^2}`)}; кут PC1: ${LX(TX`\tfrac12\operatorname{atan2}(2c_{xy},c_{xx}-c_{yy})`)}. Відстань до прямої ${LX(TX`|(p-\bar p)\times u|`)}, де ${LX('u')} — одиничний вектор PC1.`)}<div class="fb"></div>`;
+  $$('#t'+i+' .sb').forEach(b=>b.onclick=()=>{if(done)return;const k=+b.dataset.k,p=z.s.indexOf(k);p<0?z.s.push(k):z.s.splice(p,1);b.classList.toggle('sel',p<0);this.u();save()});
+  $$('#t'+i+' input.ni').forEach(e=>e.oninput=()=>this.u());this.u()},
+ u(){const z=Z[i],cv=$('#t'+i+' canvas'),g=cv.getContext('2d'),[PX,PY]=axes(g,380,380,lo,hi,lo,hi),u=[Math.cos(th),Math.sin(th)];
+  if(this.sh){g.save();g.strokeStyle='#16a34a';g.lineWidth=2;g.setLineDash([6,4]);g.beginPath();g.moveTo(PX(mx-20*u[0]),PY(my-20*u[1]));g.lineTo(PX(mx+20*u[0]),PY(my+20*u[1]));g.stroke();g.restore()}
+  dots(g,PX,PY,P,k=>z.s.includes(k)?'#f59e0b':'#2563eb',4,'');
+  z.s.forEach(k=>{g.strokeStyle='#b45309';g.lineWidth=2;g.beginPath();g.arc(PX(P[k][0]),PY(P[k][1]),8,0,7);g.stroke()});
+  g.fillStyle='#000';g.beginPath();g.arc(PX(mx),PY(my),3,0,7);g.fill();g.fillText('центр',PX(mx)+6,PY(my)+14)},
+ g(){const z=Z[i],e=NI(i),v=e.map(x=>num(x.value)),cc=[cxx,cxy,cyy];let s=0;cc.forEach((c,k)=>s+=ck(e[k],near(v[k],c,.01),p3(c)));
+  const df=((v[3]-deg)%180+180)%180,a=ck(e[3],isFinite(df)&&Math.min(df,180-df)<=2,p3(deg));s+=a;s+=ck(e[4],near(v[4],l1,.01),p3(l1));
+  const cor=z.s.filter(k=>idx.includes(k)).length,wr=z.s.length-cor,os=Math.max(0,(cor-wr)/4);
+  $$('#t'+i+' .sb').forEach(b=>{const k=+b.dataset.k;if(idx.includes(k))b.classList.add('ok');else if(z.s.includes(k))b.classList.add('bad')});this.sh=1;this.u();
+  FB(i,`Середнє: (${p3(mx)}; ${p3(my)}). ${LXD(TX`C=\begin{pmatrix}${p3(cxx)}&${p3(cxy)}\\${p3(cxy)}&${p3(cyy)}\end{pmatrix},\quad \lambda_1=${p3(l1)},\quad \varphi_{PC1}=${p3(deg)}^\circ`)}Викиди: точки ${idx.map(k=>k+1).sort((a,b)=>a-b).join(', ')} (зелений пунктир — PC1).`);
+  return .6*s/5+.4*os}}};
+
+/* ===== 5. глобальний максимум (рій частинок / еволюційний метод) ===== */
+K.pso=i=>{let c,p,q,best;const f=(x,y)=>Math.exp(-((x-p)**2+(y-q)**2)/c)*(Math.cos(x)+Math.cos(y)),sg=v=>v<0?'+'+(-v):'-'+v;
+ for(let t=0;t<200;t++){c=pick([30,40,50]);p=pick([-1,1])*ri(25,50)/10;q=pick([-1,1])*ri(25,50)/10;const L=[];for(let m=-1;m<=1;m++)for(let n=-1;n<=1;n++)L.push(f(2*Math.PI*m,2*Math.PI*n));L.sort((a,b)=>b-a);if(L[0]-L[1]>.04)break}
+ const find=g=>{let b=[0,0,-1e9];for(let x=-10;x<=10;x+=.05)for(let y=-10;y<=10;y+=.05){const v=g(x,y);if(v>b[2])b=[x,y,v]}
+  for(let st=.01,r=0;r<3;r++,st/=4){const cx=b[0],cy=b[1];for(let a=-10;a<=10;a++)for(let d=-10;d<=10;d++){const x=cx+a*st,y=cy+d*st,v=g(x,y);if(v>b[2])b=[x,y,v]}}return b};
+ best=find(f);Z[i]={};
+ return{ti:'глобальний максимум: рій частинок / еволюційний метод',sh:0,
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Функція двох змінних на квадраті ${LX(TX`[-10;10]^2`)} має багато локальних максимумів: ${LXD(TX`f(x,y)=\exp\!\left(-\frac{(x${sg(p)})^2+(y${sg(q)})^2}{${c}}\right)\bigl(\cos x+\cos y\bigr)`)}Знайдіть її глобальний максимум одним із методів: рою частинок або еволюційним (генетичним / диференціальною еволюцією) — за вибором. На карті нижче червоне — великі значення. Введені координати позначаються маркером ✚.</p>${CV(340,340)}<p>${LX('x^*')} = ${ni(i,'',8)} ${LX('y^*')} = ${ni(i,'',8)} ${LX('f(x^*,y^*)')} = ${ni(i,'',8)}</p>${HN(i,'Рій частинок: v ← w·v + c₁r₁(p_best − x) + c₂r₂(g_best − x), x ← x + v; наприклад, w = 0.7, c₁ = c₂ = 1.5, 30–50 частинок, 200 ітерацій. Запустіть кілька разів із різним зерном і візьміть найкращий результат. Фінальну точку можна уточнити локальним методом.')}<div class="fb"></div>`;
+  heat($('#t'+i+' canvas'),f,-10,10,-10,10,-2.1,2.1);$$('#t'+i+' input.ni').forEach(e=>e.oninput=()=>this.u());this.base=$('#t'+i+' canvas').getContext('2d').getImageData(0,0,340,340);this.u()},
+ u(){const cv=$('#t'+i+' canvas'),g=cv.getContext('2d'),X=x=>(x+10)/20*340,Y=y=>(10-y)/20*340;g.putImageData(this.base,0,0);g.fillStyle='#000';g.font='11px sans-serif';
+  for(let t=-8;t<=8;t+=4){g.fillText(t,X(t)-4,336);g.fillText(t,2,Y(t)+4)}
+  const mark=(x,y,c)=>{g.strokeStyle=c;g.lineWidth=3;g.beginPath();g.moveTo(X(x)-8,Y(y));g.lineTo(X(x)+8,Y(y));g.moveTo(X(x),Y(y)-8);g.lineTo(X(x),Y(y)+8);g.stroke()};
+  const v=NI(i).map(e=>num(e.value));if(isFinite(v[0])&&isFinite(v[1]))mark(v[0],v[1],'#fff');if(this.sh)mark(best[0],best[1],'#000')},
+ g(){const e=NI(i),v=e.map(x=>num(x.value));let s=0;s+=ck(e[0],isFinite(v[0])&&Math.abs(v[0]-best[0])<=.1,p3(best[0]));s+=ck(e[1],isFinite(v[1])&&Math.abs(v[1]-best[1])<=.1,p3(best[1]));s+=ck(e[2],isFinite(v[2])&&Math.abs(v[2]-best[2])<=.01,p3(best[2]));this.sh=1;this.u();
+  FB(i,`Глобальний максимум: ${LX(TX`(x^*,y^*)\approx(${p3(best[0])};\ ${p3(best[1])})`)}, ${LX(TX`f=${p3(best[2])}`)}. Допуск: 0.1 за координатами, 0.01 за значенням. Біля кожного вузла ґратки ${LX(TX`(2\pi m,2\pi n)`)} є локальний максимум, а гауссова обвідна з центром ${LX(TX`(${p},${q})`)} зсуває найвищий із них. Це типова пастка для методів, що знаходять лише локальний екстремум.`);return s/3}}};
+
+/* ===== 6. градієнти й збіжність градієнтного методу ===== */
+K.grad=i=>{const s=pick([1,-1]),t=pick([-1,1])*pick([.4,.6,.8,1]),k=pick([.5,1,2,3]),AL=[.01,.02,.04,.07,.1,.15,.2,.3,.45,.7],
+ gf=(x,y)=>[4*x**3-4*x+t,2*k*y],F=(x,y)=>s*(x**4-2*x*x+t*x+k*y*y);
+ let xg=0,xl=0,mg=1e9;for(let x=-2;x<=2;x+=.0005){const v=x**4-2*x*x+t*x;if(v<mg){mg=v;xg=x}}let ml=1e9;for(let x=-2;x<=2;x+=.0005){if(x*xg>0)continue;const v=x**4-2*x*x+t*x;if(v<ml){ml=v;xl=x}}
+ const run=(x0,y0,a)=>{let x=x0,y=y0;const path=[[x,y]];for(let n=0;n<6000;n++){const g=gf(x,y);if(Math.abs(g[0])<1e-7&&Math.abs(g[1])<1e-7)break;x-=a*g[0];y-=a*g[1];if(!isFinite(x)||Math.abs(x)>1e4||Math.abs(y)>1e4)return{o:2,path,x,y};path.push([x,y])}
+  const g=gf(x,y);if(Math.abs(g[0])>1e-5||Math.abs(g[1])>1e-5)return{o:-1,path,x,y};return{o:Math.abs(x-xg)<.05?0:Math.abs(x-xl)<.05?1:-1,path,x,y}};
+ const tg=pick([0,1,2]);let S0,fnd=0;for(let q=0;q<4000;q++){const c={x0:pick([-1.8,-1.4,-1,-.6,.6,1,1.4,1.8]),y0:pick([-1.5,-1,1,1.5]),a:pick(AL)};const r=run(c.x0,c.y0,c.a);S0=c;if(r.o==tg&&run(c.x0,c.y0,c.a*.9).o==tg&&run(c.x0,c.y0,c.a*1.1).o==tg){fnd=1;break}}
+ const res=run(S0.x0,S0.y0,S0.a),pts=[];while(pts.length<3){const p=[ri(-2,2),ri(-2,2)];if(!pts.some(q=>q[0]==p[0]&&q[1]==p[1]))pts.push(p)}
+ const ans=pts.flatMap(p=>gf(p[0],p[1]).map(v=>s*v)),tex=s>0?TX`x^{4}-2x^{2}${t<0?'-':'+'}${Math.abs(t)}x+${k}y^{2}`:TX`-x^{4}+2x^{2}${t<0?'+':'-'}${Math.abs(t)}x-${k}y^{2}`;
+ const OPT=['збігається до глобального '+(s>0?'мінімуму':'максимуму'),'збігається до локального '+(s>0?'мінімуму':'максимуму')+', який не є глобальним','розбігається (значення |x| чи |y| необмежено зростають)'];
+ const lo=Math.min(...[-2,-1,0,1,2].flatMap(x=>[-2,0,2].map(y=>F(x,y)))),hi=Math.max(...[-2,-1,0,1,2].flatMap(x=>[-2,0,2].map(y=>F(x,y)))),Z0=s>0?-3:-6;Z[i]={};
+ const wire=(cv,az)=>{const g=cv.getContext('2d'),W=cv.width,Hh=cv.height,N=24,el=.55,rng=hi-lo||1,pj=(x,y)=>{const z=F(x,y),zz=Math.max(lo-.2*rng,Math.min(hi+.2*rng,z)),X=x*Math.cos(az)-y*Math.sin(az),Y=x*Math.sin(az)+y*Math.cos(az);return[W/2+X*75,Hh*.6+Y*75*Math.sin(el)-(zz-(lo+hi)/2)/rng*210*Math.cos(el)]};
+  g.clearRect(0,0,W,Hh);g.strokeStyle='#2563eb';g.lineWidth=1;for(let a=0;a<=N;a++){const u=-2+4*a/N;g.beginPath();for(let b=0;b<=N;b++){const v=-2+4*b/N,p=pj(u,v);b?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.stroke();g.beginPath();for(let b=0;b<=N;b++){const v=-2+4*b/N,p=pj(v,u);b?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.stroke()}
+  g.fillStyle='#e11d48';pts.forEach((p,k)=>{const q=pj(p[0],p[1]);g.beginPath();g.arc(q[0],q[1],4,0,7);g.fill();g.fillText('ABC'[k],q[0]+6,q[1]-6)})};
+ const mapc=(cv,path)=>{heat(cv,F,-2.2,2.2,-2.2,2.2,lo-.1*(hi-lo),hi+.1*(hi-lo));const g=cv.getContext('2d'),X=x=>(x+2.2)/4.4*cv.width,Y=y=>(2.2-y)/4.4*cv.height;g.fillStyle='#fff';g.font='bold 12px sans-serif';pts.forEach((p,j)=>{g.beginPath();g.arc(X(p[0]),Y(p[1]),4,0,7);g.fill();g.fillText('ABC'[j],X(p[0])+6,Y(p[1])-6)});g.fillStyle='#000';g.beginPath();g.arc(X(S0.x0),Y(S0.y0),5,0,7);g.fill();g.fillText('старт',X(S0.x0)+7,Y(S0.y0)+14);
+  if(path){g.strokeStyle='#000';g.lineWidth=1.5;g.beginPath();path.slice(0,400).forEach((p,n)=>n?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.stroke()}};
+ return{ti:'градієнти, поверхня, збіжність градієнтного методу',
+ r(){$('#t'+i).innerHTML=H(i,this.ti)+`<p>Дано функцію ${LX(TX`f(x,y)=${tex}`)}. Нижче — поверхня (повзунком обертайте) та карта значень (синє — мала, червоне — велика); ${LX('A,B,C')} — три точки.</p><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"><div>${CV(380,300)}<input type="range" class="ni sl" min="0" max="6.28" step="0.05" value="0.7" style="width:380px"></div>${CV(300,300)}</div>
+  <p>а) Градієнт ${LX(TX`\nabla f`)} у точках: ${pts.map((p,j)=>`${'ABC'[j]}(${p[0]}; ${p[1]}): ${LX(TX`f'_x=`)} ${ni(i,'',6)} ${LX(TX`f'_y=`)} ${ni(i,'',6)}`).join('<br>')}</p>
+  <p>б) Простий градієнтний ${s>0?'<b>спуск</b>':'<b>підйом</b>'} ${s>0?LX(TX`p_{n+1}=p_n-\alpha\nabla f(p_n)`):LX(TX`p_{n+1}=p_n+\alpha\nabla f(p_n)`)} зі стартом ${LX(TX`p_0=(${S0.x0};\ ${S0.y0})`)} (чорна точка) і кроком ${LX(TX`\alpha=${S0.a}`)}, 6000 ітерацій. Що відбувається?<br><select class="ni"><option value="">—</option>${OPT.map((o,j)=>`<option value="${j}">${o}</option>`).join('')}</select></p>${HN(i,`${LX(TX`\nabla f=\left(\dfrac{\partial f}{\partial x},\dfrac{\partial f}{\partial y}\right)`)}. Для квадратичної за y частини крок стійкий лише якщо ${LX(TX`\alpha<1/k`)} (множник збіжності ${LX(TX`|1-2k\alpha|<1`)}). Функція має два мінімуми по x — змоделюйте ітерації (кілька рядків коду) і подивіться, куди прийде метод.`)}<div class="fb"></div>`;
+  const sl=$('#t'+i+' .sl'),cs=$$('#t'+i+' canvas');sl.oninput=()=>wire(cs[0],+sl.value);wire(cs[0],.7);mapc(cs[1])},
+ g(){const e=NI(i),v=e.map(x=>num(x.value));let c=0;ans.forEach((a,k)=>c+=ck(e[k],near(v[k],a,1e-6),a));const sel=$('#t'+i+' select'),ok=+sel.value===res.o&&sel.value!=='';mk(sel,ok);
+  FB(i,`а) ${pts.map((p,j)=>`${'ABC'[j]}: ${LX(TX`\nabla f=(${ans[2*j]};\ ${ans[2*j+1]})`)}`).join('; ')} (${LX(TX`f'_x=${s>0?'':'-'}(4x^3-4x${t<0?'-':'+'}${Math.abs(t)})`)}, ${LX(TX`f'_y=${s>0?'':'-'}${2*k}y`)}). б) ${OPT[res.o]??'ітерації не стабілізувалися'}: кінець траєкторії ≈ (${isFinite(res.x)&&Math.abs(res.x)<1e3?p3(res.x)+'; '+p3(res.y):'∞'}). Глобальний ${s>0?'мінімум':'максимум'} лежить при ${LX(TX`x\approx${p3(xg)},\ y=0`)}, локальний — при ${LX(TX`x\approx${p3(xl)},\ y=0`)}. Чи збігається метод до глобального екстремуму, залежить від старту й кроку.<canvas width="300" height="300"></canvas>`);
+  mapc($('#t'+i+' .fb canvas'),res.path);return .6*c/6+.4*ok}}};
+
+/* ---------- теорія ---------- */
+const MC=[
+[MX(TX`Інтерполяційний поліном Лагранжа через $n+1$ різних вузлів має степінь…`),MX(TX`не вище $n$`),MX(TX`рівно $n+1$`),MX(TX`не вище $2n$`),MX(TX`рівно $n-1$`)],
+['Ефект Рунге виникає при…','інтерполяції поліномом високого степеня на рівновіддалених вузлах (осциляції біля країв)','використанні кубічних сплайнів','МНК з великим шумом','екстраполяції лінійною функцією'],
+['Квадратичний сплайн класу C¹ на n відрізках має 3n невідомих коефіцієнтів. Умови інтерполяції й неперервності похідної дають 3n−1 рівнянь, тому…','потрібна ще одна додаткова (крайова) умова','сплайн не існує','розв’язок завжди єдиний без додаткових умов','достатньо вимагати C² у вузлах'],
+['Природний кубічний сплайн задовольняє…','S″ = 0 на кінцях відрізка','S′ = 0 на кінцях відрізка','S = 0 на кінцях','S‴ = 0 у всіх вузлах'],
+['Інтерполяція на відміну від апроксимації за МНК вимагає, щоб крива…','точно проходила через усі задані точки','мала мінімальну суму квадратів відхилень','була прямою','мала нульову похибку між вузлами'],
+['Нелінійну задачу найменших квадратів зазвичай розв’язують…','ітераційно (метод Ньютона), потрібне початкове наближення, або методами глобальної оптимізації (еволюційні, ройові)','методом простого градієнтного спуску','методом Гауса без ітерацій','інтерполяцією за Лагранжем'],
+[MX(TX`Якщо апроксимувати $y=ae^{bx}$ лінеаризацією $\ln y=\ln a+bx$ за звичайним МНК, то…`),'мінімізується інший функціонал (зважені похибки), тому параметри відрізняються від істинного нелінійного МНК','параметри завжди збігаються з нелінійним МНК','метод не працює для додатних y','похибка завжди нульова'],
+['Нелінійний МНК може збігатися до локального мінімуму суми квадратів, тому…','початкове наближення параметрів важливе (його беруть з графіка/лінеаризації)','початкове наближення не потрібне','мінімум завжди єдиний','потрібно збільшити кількість точок до нескінченності'],
+['Метод k-means мінімізує…','суму квадратів відстаней точок до центроїдів їхніх кластерів','максимальну відстань між кластерами','кількість кластерів','суму відстаней між центроїдами'],
+['Результат k-means залежить від початкової ініціалізації, тому що…','алгоритм збігається лише до локального мінімуму функціоналу','він завжди знаходить глобальний мінімум','він не збігається','кількість кластерів обирається випадково'],
+['Клітина Вороного для центроїда — це…','множина точок, ближчих до цього центроїда, ніж до інших; опуклий многокутник із межами на серединних перпендикулярах','множина всіх точок даних кластера','коло навколо центроїда','найменший прямокутник, що містить кластер'],
+['Перед k-means ознаки з різними масштабами слід…','стандартизувати, бо відстані домінуються ознаками з великим розкидом','залишати без змін','видаляти ознаки з великими значеннями','перемножити'],
+['Напрямки головних компонент — це…','власні вектори коваріаційної матриці (впорядковані за власними числами)','рядки матриці даних','вектори з найменшою нормою','середні значення ознак'],
+['Частка дисперсії, що пояснюється першою головною компонентою, дорівнює…',MX(TX`$\lambda_1/\sum_k\lambda_k$`),MX(TX`$\lambda_1\sum_k\lambda_k$`),MX(TX`$\lambda_1-\lambda_2$`),MX(TX`$1/\lambda_1$`)],
+['Перед обчисленням коваріаційної матриці для МГК дані…','центрують (віднімають середнє)','діляться на максимум','залишають без змін','сортують'],
+['Точки-викиди відносно першої головної компоненти виявляють як точки з…','найбільшою відстанню до прямої PC1 (великою проєкцією на ортогональні компоненти)','найменшою проєкцією на PC1','найближчі до центру даних','однаковими координатами'],
+['Градієнт функції в точці вказує…','напрямок найшвидшого зростання функції','напрямок найшвидшого спадання','напрямок, де функція стала','на точку екстремуму'],
+[MX(TX`Для $f(x)=ax^2$ ($a>0$) градієнтний спуск із кроком $\alpha$ збігається, коли…`),MX(TX`$0<\alpha<1/a$`),MX(TX`$\alpha>1/a$`),MX(TX`$\alpha=0$ лише`),MX(TX`при будь-якому $\alpha>0$`)],
+['На мультимодальній функції простий градієнтний метод…','може збігтися до локального екстремуму залежно від старту','завжди знаходить глобальний екстремум','завжди розбігається','не залежить від початкової точки'],
+['Для опуклої функції будь-який локальний мінімум…','є глобальним','не є глобальним','не існує','тільки один із них глобальний'],
+['У методі рою частинок швидкість частинки оновлюється з урахуванням…','власного найкращого положення частинки і найкращого положення в рої','градієнта функції','випадкового кроку і попередньої швидкості','середнього положення всіх частинок в рої'],
+['Еволюційні алгоритми у пошуку екстремуму…','використовують селекцію, схрещування й мутацію та не потребують градієнта','потребують другої похідної','гарантують знаходження глобального екстремуму за скінченне число кроків','працюють лише для одновимірних функцій']];
+const rMC=()=>{$('#t5').innerHTML=`<h2>Завдання 5 · теорія <i>6 б.</i></h2>`+MQ.map((q,k)=>`<p><b>${k+1}. ${q.q}</b><br>${q.o.map(o=>`<label style="display:block"><input type="radio" class="ni" name="m${k}"> ${o[0]}</label>`).join('')}</p>`).join('');typeset($('#t5'))},
+ gMC=()=>{let c=0;MQ.forEach((q,k)=>{$$(`#t5 [name=m${k}]`).forEach((r,j)=>{if(q.o[j][1]){r.parentNode.classList.add('ok');if(r.checked)c++}else if(r.checked)r.parentNode.classList.add('bad')})});return c};
+
+/* ---------- сесія, таймер, звіт ---------- */
+const PL=['nls','interp','kmeans','pca','pso','grad'];
+function save(){if(!t0||done)return;try{localStorage.setItem(KEY,JSON.stringify({n:NAME,t0,z:Z,ni:$$('#app .ni').map(e=>e.type=='radio'?+e.checked:e.value)}))}catch(e){}}
+document.addEventListener('input',save);document.addEventListener('click',()=>setTimeout(save,0));
+window.onbeforeunload=e=>{if(t0&&!done){e.preventDefault();return e.returnValue=''}};
+function begin(n,s){NAME=n;seed=seedFrom(n+(new URLSearchParams(location.search).get('v')||''));R=mul(seed);for(let j=0;j<8;j++)R();
+ ids=shuf(PL).slice(0,4);ids.forEach((id,j)=>T[j+1]=K[id](j+1));MQ=shuf(MC).slice(0,6).map(q=>({q:q[0],o:shuf(q.slice(1).map((t,k)=>[t,!k]))}));
+ if(s)s.z.forEach((v,j)=>{if(v)Object.assign(Z[j],v)});t0=s?s.t0:Date.now();
+ for(let j=1;j<=4;j++)T[j].r();rMC();
+ if(s){$$('#app .ni').forEach((e,k)=>{const v=s.ni[k];if(v==null)return;e.type=='radio'?e.checked=!!v:e.value=v});for(let j=1;j<=4;j++){T[j].u&&T[j].u()}$$('#app .sl').forEach(x=>x.oninput&&x.oninput())}
+ $('#start').hidden=true;$('#app').hidden=false;$('#bar').hidden=false;tick=setInterval(()=>$('#tm').textContent=fmt(Date.now()-t0),500);save();typeset($('#app'))}
+const mxs=[3.5,3.5,3.5,3.5,6];
+/* ---------- капчі ---------- */
+let capOn=true;const cj=(a,b)=>Math.round(a+Math.random()*(b-a));
+function capWire(cv,f,lo,hi,az){const g=cv.getContext('2d'),W=cv.width,Hh=cv.height,N=14,el=.6,rg=hi-lo||1,pj=(x,y)=>{const X=x*Math.cos(az)-y*Math.sin(az),Y=x*Math.sin(az)+y*Math.cos(az);return[W/2+X*W*.16,Hh*.55+Y*W*.16*Math.sin(el)-(f(x,y)-(lo+hi)/2)/rg*W*.5*Math.cos(el)]};
+ g.clearRect(0,0,W,Hh);g.strokeStyle='#2563eb';g.lineWidth=1;
+ for(let a=0;a<=N;a++){const u=-2+4*a/N;g.beginPath();for(let b=0;b<=N;b++){const v=-2+4*b/N,p=pj(u,v);b?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.stroke();g.beginPath();for(let b=0;b<=N;b++){const v=-2+4*b/N,p=pj(v,u);b?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])}g.stroke()}}
+function capA(host){
+ const U=[s=>(x,y)=>s*(x*x+y*y),s=>(x,y)=>s*(x*x+3*y*y)/2,s=>(x,y)=>s*(Math.cosh(x)+Math.cosh(y)),s=>(x,y)=>s*(x*x+y*y+x*y)],
+ M=[s=>(x,y)=>s*(x**4-2*x*x+.5*x+y*y),s=>(x,y)=>s*(Math.sin(2*x)+Math.sin(2*y)),s=>(x,y)=>s*((x*x+y*y)/2+1.5*Math.cos(3*x)*Math.cos(3*y)),s=>(x,y)=>s*(x*x-y*y),s=>(x,y)=>s*(x**3-3*x*y*y)/2],
+ tiles=shuf([...shuf(U).slice(0,4).map(g=>({u:1,f:g(pick([1,-1]))})),...M.map(g=>({u:0,f:g(pick([1,-1]))}))]),sel=new Set();
+ tiles.forEach(t=>{let lo=1e9,hi=-1e9;for(let a=0;a<=16;a++)for(let b=0;b<=16;b++){const v=t.f(-2+a/4,-2+b/4);lo=Math.min(lo,v);hi=Math.max(hi,v)}t.lo=lo;t.hi=hi});
+ host.innerHTML=`<p><b>Капча 1/2 · Поверхні</b></p><p>Поверхні обертаються. Оберіть усі плитки, на яких простий градієнтний метод (SGD: спуск до мінімуму або підйом до максимуму) <b>гарантовано</b> досягає екстремуму з будь-якої початкової точки.</p><div class="tiles">${tiles.map((t,k)=>`<div class="tile" data-k="${k}"><canvas width="130" height="130"></canvas><span class="tick">✓</span></div>`).join('')}</div>`;
+ host.querySelectorAll('.tile').forEach(el=>el.onclick=()=>{const k=+el.dataset.k;sel.has(k)?sel.delete(k):sel.add(k);el.classList.toggle('sel',sel.has(k))});
+ const cvs=[...host.querySelectorAll('canvas')];let az=.3;const loop=()=>{if(!capOn||!cvs[0].isConnected)return;az+=.025;cvs.forEach((c,k)=>capWire(c,tiles[k].f,tiles[k].lo,tiles[k].hi,az+k*.7));requestAnimationFrame(loop)};loop();
+ return{grade(){let tp=0,fp=0;tiles.forEach((t,k)=>{if(sel.has(k))t.u?tp++:fp++});const fr=Math.max(0,(tp-fp)/4);return{pt:fr,trust:fr==1?cj(82,94):fr>0?cj(45,65):sel.size?cj(8,25):5}}}}
+function capB(host){
+ const TEX={xk1:TX`x_{k+1}`,eq:'=',xk:TX`x_k`,minus:'-',d1:TX`f'(x_k)`,sl:'/',d2:TX`f''(x_k)`,plus:'+',f0:TX`f(x_k)`,xm:TX`x_{k-1}`,cd:TX`\cdot`,d1b:TX`f'(x_{k+1})`},ans=['xk1','eq','xk','minus','d1','sl','d2'],order=shuf(Object.keys(TEX));let seq=[];
+ host.innerHTML=`<p><b>Капча 2/2 · Пазл</b></p><p>Складіть із плиток формулу ітерацій методу Ньютона для пошуку екстремуму функції ${LX('f(x)')} (натисніть плитку, щоб додати; натисніть складену плитку, щоб прибрати). Зайві плитки не потрібні.</p><div id="asm"></div><div id="prev" style="min-height:44px"></div><div id="pool"></div>`;
+ const rn=()=>{host.querySelector('#pool').innerHTML=order.filter(k=>!seq.includes(k)).map(k=>`<button type="button" class="tk" data-k="${k}">${LX(TEX[k])}</button>`).join('');
+  host.querySelector('#asm').innerHTML=seq.length?seq.map(k=>`<button type="button" class="tk sel" data-k="${k}">${LX(TEX[k])}</button>`).join(''):'<span class="hint">&nbsp;порожньо…</span>';
+  host.querySelector('#prev').innerHTML=seq.length?LXD(seq.map(k=>TEX[k]).join(' ')):'';typeset(host)};
+ host.onclick=e=>{const b=e.target.closest('.tk');if(!b)return;const k=b.dataset.k;if(b.parentNode.id=='asm')seq=seq.filter(x=>x!=k);else seq.push(k);rn()};rn();
+ return{grade(){const ok=seq.length==7&&seq.every((k,j)=>k==ans[j]),pm=!ok&&seq.length==7&&ans.every(k=>seq.includes(k));return{pt:ok?1:pm?.5:0,trust:ok?cj(84,94):pm?cj(45,62):seq.length?cj(10,30):5}}}}
+async function runCaptcha(){const ov=document.createElement('div');ov.id='cap';ov.innerHTML='<div class="rc"><div class="box"><div class="chk" id="ck"></div><div>Я сумлінний студент (-ка)<br><small>і ШІ мені не допомагав (ну майже 😉)</small></div></div></div>';document.body.appendChild(ov);const rc=ov.firstChild;
+ await new Promise(r=>{$('#ck').onclick=function(){this.innerHTML='<div class="sp"></div>';setTimeout(r,900)}});
+ rc.classList.add('wide');rc.innerHTML='<div id="capHost"></div><div class="ft"><small id="capPg"></small><button class="b" id="capNext"></button></div>';const res=[];
+ for(let cs=0;cs<2;cs++){const c=[capA,capB][cs]($('#capHost'));typeset($('#capHost'));$('#capPg').textContent='Перевірка доброчесності · '+(cs+1)+' / 2';$('#capNext').textContent=cs==1?'Завершити':'Далі →';rc.scrollTop=0;await new Promise(r=>{$('#capNext').onclick=r});res.push(c.grade())}
+ capOn=false;ov.remove();return{pct:Math.round(res.reduce((a,r)=>a+r.trust,0)/res.length),v:res.filter(r=>r.pt==1).length+'/2'}}
+async function fin(){if(done||!confirm('Завершити контрольну? Змінити відповіді буде неможливо.'))return;
+ done=true;clearInterval(tick);const ms=Date.now()-t0;document.body.classList.add('done');
+ const hs=[1,2,3,4].map(j=>Z[j].h?1:0),sc=[1,2,3,4].map(j=>Math.max(0,3.5*T[j].g()-.5*hs[j-1])),th=gMC(),p=[...sc,th].map(rd);
+ $$('#app .ni').forEach(e=>e.disabled=true);
+ sc.forEach((v,k)=>$('#t'+(k+1)+' .fb').insertAdjacentHTML('beforeend',`<div class="scr"><b>Бали: ${rd(v*100)/100} / 3.5</b>${hs[k]?' (враховано підказку: −0.5)':''}</div>`));
+ $('#t5').insertAdjacentHTML('beforeend',`<div class="scr"><b>Теорія: ${th} / 6</b></div>`);
+ setTimeout(()=>{$$('#app canvas').forEach(c=>{const im=new Image();im.src=c.toDataURL();im.className='cv';im.width=c.width;im.style.cssText='max-width:100%;height:auto';c.replaceWith(im)});
+  const pend={n:NAME,ms,p,hs,ids,sd:seed.toString(16),rev:$('#app').innerHTML};try{localStorage.setItem(KEY,JSON.stringify({pend}))}catch(e){}finish(pend)},60)}
+async function finish(pend){done=true;document.body.classList.add('done');if(!t0&&pend.rev){$('#app').innerHTML=pend.rev;$('#app').hidden=false;typeset($('#app'))}
+ $('#start').hidden=true;$('#bar').hidden=true;
+ const cap=await runCaptcha();const{n,ms,p,hs,ids,sd}=pend,tot=rd(p.reduce((x,y)=>x+y,0)),mx=20,pl=p.join(','),mc=`NM2|${tot}|${mx}|${pl}|${sd}|${sig([tot,mx,pl,sd].join('|'))}`,
+ rep=`<h2>Протокол модульної контрольної №2</h2><p><b>${esc(n)}</b><br>Дата й час здачі: ${new Date().toLocaleString('uk-UA')}<br>Витрачений час: ${fmt(ms)}<br>Довіра за капчею: ${cap.pct}% (пройдено капч: ${cap.v})<br>Код варіанта: ${sd} (${ids.join(', ')})<br>Підказок використано: ${hs.reduce((x,y)=>x+y,0)}</p><div class="big">${tot} / ${mx}</div><div class="big2">${p.join(' / ')} <small>(максимум ${mxs.join(' / ')})</small></div><p class="mc">Контрольний код: <span>${mc}</span></p><p><small>Нижче — розбір вашої роботи: правильні відповіді, пояснення й бали за кожне завдання.</small></p><button class="b np" onclick="print()">Зберегти як PDF</button>`;
+ $('#rp').innerHTML=rep;$('#rp').hidden=false;document.title=`${n}_${tot}`;scrollTo(0,0);
+ try{localStorage.setItem(KEY,JSON.stringify({done:1,rep,rev:$('#app').innerHTML}))}catch(e){}}
+$('#go').onclick=()=>{const n=$('#nm').value.trim();if(!n)return alert('Введіть прізвище та ім’я');begin(n)};
+$('#fin').onclick=fin;
+try{if(new URLSearchParams(location.search).has('reset'))localStorage.removeItem(KEY)}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');
+ if(s&&s.pend){NAME=s.pend.n;finish(s.pend)}else if(s&&s.done){$('#start').hidden=true;$('#rp').hidden=false;$('#rp').innerHTML=s.rep;if(s.rev){$('#app').innerHTML=s.rev;$('#app').hidden=false;document.body.classList.add('done')}}
+ else if(s){if(confirm(`Знайдено незавершену спробу: ${s.n}. Продовжити?`))begin(s.n,s);else localStorage.removeItem(KEY)}}catch(e){}
+</script></body></html>
